@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://12weekrecomp.com/sitemap.xml

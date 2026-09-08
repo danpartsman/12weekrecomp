@@ -1,0 +1,16 @@
+{
+  "package": "12WR Live Upload Package v1",
+  "created": "2026-09-08",
+  "source_visual_baseline": "12WR_Live_Prelaunch_STATIC_PREVIEW_v4_EngineMessaging",
+  "site_mode": "LIVE_LAUNCH",
+  "branch": "main",
+  "coaches": {
+    "CASSIE": "Main Trainer & Nutritionist",
+    "MARISOL": "Motivation, Technique, Mobility & Fat-Loss-Day Specialist",
+    "STEVE": "Workout Technique, Progressive Overload & Muscle-Building Specialist"
+  },
+  "interest_codes": [
+    "FREE_UPDATES",
+    "FOUNDERS_RATE"
+  ]
+}

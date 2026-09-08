@@ -1,0 +1,85 @@
+@page
+@model TwelveWeekRecomp.Live.Pages.JoinModel
+@{
+    ViewData["Title"] = "Join 12 Week Recomp | Prelaunch";
+    ViewData["Description"] = "Get launch updates for the 12 Week Recomp individualized recommendation engine, daily trainer messages, and weekly progress guidance.";
+    ViewData["CanonicalPath"] = "/join";
+}
+
+<section class="section hero" style="padding-top:58px">
+  <div class="shell center">
+    <span class="kicker">Join</span>
+    <h1>Get on the prelaunch list.</h1>
+    <p class="lead narrow">
+      Hear about the $20 / 12-week launch, daily trainer-style guidance,
+      weekly progress notifications, and the individualized recommendation engine
+      behind the program.
+    </p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="shell grid-2">
+    <div class="form-wrap">
+      <form method="post">
+        <div asp-validation-summary="ModelOnly" class="validation"></div>
+
+        <label asp-for="Name">Name</label>
+        <input asp-for="Name" type="text" maxlength="100" autocomplete="name">
+        <span asp-validation-for="Name" class="validation"></span>
+
+        <label asp-for="Email">Email</label>
+        <input asp-for="Email" type="email" maxlength="320" autocomplete="email">
+        <span asp-validation-for="Email" class="validation"></span>
+
+        <label style="margin-top:18px">What are you interested in?</label>
+
+        <label class="choice">
+          <input asp-for="InterestChoice" type="radio" value="FREE_UPDATES">
+          <span>
+            <strong>Notify me when the free trial opens</strong>
+            <small>Launch updates, free-trial availability, and public release information.</small>
+          </span>
+        </label>
+
+        <label class="choice">
+          <input asp-for="InterestChoice" type="radio" value="FOUNDERS_RATE">
+          <span>
+            <strong>Reserve my interest in the Founders Rate</strong>
+            <small>Get first notice about the $20 / 12-week offer.</small>
+          </span>
+        </label>
+
+        <span asp-validation-for="InterestChoice" class="validation"></span>
+
+        <div class="hp-field" aria-hidden="true">
+          <label asp-for="Company">Leave this empty</label>
+          <input asp-for="Company" tabindex="-1" autocomplete="off">
+        </div>
+
+        <div class="button-row">
+          <button class="button primary" type="submit" style="border:0">Join the list</button>
+        </div>
+
+        <p class="note">
+          By submitting, you agree that 12 Week Recomp may email you about launch availability.
+          You can opt out at any time. See our <a asp-page="/Privacy">privacy notice</a>.
+        </p>
+      </form>
+    </div>
+
+    <article class="photo-card">
+      <img src="/assets/group.jpg" alt="Fit men and women training together">
+      <div class="photo-copy">
+        <div class="eyebrow">What you’re signing up for</div>
+        <h3>A real training and nutrition system</h3>
+        <ul class="bullets">
+          <li>Individualized recommendation engine</li>
+          <li>Daily trainer messages tailored to your progress</li>
+          <li>Weekly progress notifications, hints, and tips</li>
+          <li>Coaching built around fat loss with muscle gain or muscle preservation in mind</li>
+        </ul>
+      </div>
+    </article>
+  </div>
+</section>

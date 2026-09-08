@@ -1,0 +1,72 @@
+@{
+    var title = ViewData["Title"] as string ?? "12 Week Recomp";
+    var description = ViewData["Description"] as string
+        ?? "12 Week Recomp combines individualized training and nutrition recommendations with daily coach messaging and weekly progress guidance.";
+    var canonicalPath = ViewData["CanonicalPath"] as string
+        ?? Context.Request.Path.Value
+        ?? "/";
+    var canonical = $"https://12weekrecomp.com{canonicalPath}";
+}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@title</title>
+<meta name="description" content="@description">
+<link rel="canonical" href="@canonical">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="12 Week Recomp">
+<meta property="og:title" content="@title">
+<meta property="og:description" content="@description">
+<meta property="og:url" content="@canonical">
+<meta property="og:image" content="https://12weekrecomp.com/assets/group.jpg">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="@title">
+<meta name="twitter:description" content="@description">
+<meta name="twitter:image" content="https://12weekrecomp.com/assets/group.jpg">
+
+<link rel="stylesheet" href="/assets/site.css" asp-append-version="true">
+@await RenderSectionAsync("Head", required: false)
+</head>
+<body>
+<header>
+  <div class="shell header-inner">
+    <a class="brand" asp-page="/Index">
+      <img class="brand-logo" src="/assets/logo.png" alt="12 Week Recomp logo">
+      <span class="brand-text">
+        <strong>12 WEEK RECOMP</strong>
+        <small>Science-driven fat loss + muscle gain</small>
+      </span>
+    </a>
+    <nav>
+      <a asp-page="/Index">Welcome</a>
+      <a asp-page="/Evidence">Evidence</a>
+      <a asp-page="/Join" class="cta">Get Updates</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  @RenderBody()
+</main>
+
+<footer>
+  <div class="shell footer-grid">
+    <div>
+      <strong>12 Week Recomp</strong>
+      <p class="small">Individualized training and nutrition guidance designed to help you learn the principles, build habits, and carry them forward.</p>
+    </div>
+    <div class="footer-links">
+      <a asp-page="/Evidence">Evidence</a>
+      <a asp-page="/Join">Join</a>
+      <a asp-page="/Privacy">Privacy</a>
+    </div>
+  </div>
+</footer>
+
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
