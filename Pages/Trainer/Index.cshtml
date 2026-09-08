@@ -1,0 +1,28 @@
+@page "/trainer"
+@model TwelveWeekRecomp.Live.Pages.Trainer.IndexModel
+@{
+    ViewData["Title"] = "Trainer Workspace";
+}
+<section class="section">
+  <div class="admin-header">
+    <div>
+      <p class="eyebrow">LIVE TRAINER WORKSPACE</p>
+      <h1>Trainer access confirmed</h1>
+      <p class="muted">Signed in as @Model.StaffIdentity?.Email</p>
+    </div>
+    <a class="btn btn-secondary" href="/.auth/logout?post_logout_redirect_uri=%2F">Sign out</a>
+  </div>
+
+  <div class="card">
+    <h2>Trainer workspace foundation</h2>
+    <p>This protected workspace confirms that the Entra <strong>Trainer</strong> application role is being received by 12 Week Recomp.</p>
+    <p>Client-to-trainer assignments will remain application data so a trainer can be limited to only the clients assigned to them.</p>
+  </div>
+
+  @if (Model.StaffIdentity?.IsAdministrator == true)
+  {
+    <div class="admin-actions">
+      <a class="btn btn-secondary" href="/admin">Open administration</a>
+    </div>
+  }
+</section>

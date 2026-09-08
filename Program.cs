@@ -17,7 +17,7 @@ builder.Services.AddAntiforgery(options =>
 });
 
 builder.Services.AddSingleton<LaunchInterestRepository>();
-builder.Services.AddSingleton<AdminAccessService>();
+builder.Services.AddSingleton<StaffAccessService>();
 builder.Services.AddSingleton<IEmailService, MicrosoftGraphEmailService>();
 
 builder.Services.AddRateLimiter(options =>

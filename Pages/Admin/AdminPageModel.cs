@@ -6,19 +6,20 @@ namespace TwelveWeekRecomp.Live.Pages.Admin;
 
 public abstract class AdminPageModel : PageModel
 {
-    private readonly AdminAccessService _adminAccess;
+    private readonly StaffAccessService _staffAccess;
 
-    protected AdminPageModel(AdminAccessService adminAccess)
+    protected AdminPageModel(StaffAccessService staffAccess)
     {
-        _adminAccess = adminAccess;
+        _staffAccess = staffAccess;
     }
 
-    public AdminAccessResult? AdminIdentity { get; private set; }
+    public StaffAccessResult? StaffIdentity { get; private set; }
 
     protected IActionResult? RequireAdmin(string returnPath = "/admin")
     {
-        var directBase = _adminAccess.DirectAdminBaseUrl;
+        var directBase = _staffAccess.DirectBaseUrl;
         var directHost = new Uri(directBase).Host;
+
         if (!string.Equals(Request.Host.Host, directHost, StringComparison.OrdinalIgnoreCase))
         {
             var target = directBase + returnPath;
@@ -27,15 +28,15 @@ public abstract class AdminPageModel : PageModel
             return Redirect(target);
         }
 
-        AdminIdentity = _adminAccess.Evaluate(HttpContext);
+        StaffIdentity = _staffAccess.Evaluate(HttpContext);
 
-        if (!AdminIdentity.IsAuthenticated)
+        if (!StaffIdentity.IsAuthenticated)
         {
             var redirect = Uri.EscapeDataString(returnPath);
             return Redirect($"/.auth/login/aad?post_login_redirect_uri={redirect}");
         }
 
-        if (!AdminIdentity.IsAuthorized)
+        if (!StaffIdentity.IsAdministrator)
             return StatusCode(StatusCodes.Status403Forbidden);
 
         return null;

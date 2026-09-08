@@ -1,0 +1,43 @@
+@page "/staff/access"
+@model TwelveWeekRecomp.Live.Pages.Staff.AccessModel
+@{
+    ViewData["Title"] = "Staff Access Diagnostic";
+}
+<section class="section">
+  <div class="admin-header">
+    <div>
+      <p class="eyebrow">STAFF ACCESS DIAGNOSTIC</p>
+      <h1>Entra role claims</h1>
+      <p class="muted">This page shows only the identity and application roles received for your current sign-in.</p>
+    </div>
+    <a class="btn btn-secondary" href="/.auth/logout?post_logout_redirect_uri=%2F">Sign out</a>
+  </div>
+
+  <div class="card">
+    <p><strong>Email:</strong> @Model.StaffIdentity?.Email</p>
+    <p><strong>Object ID:</strong> @Model.StaffIdentity?.ObjectId</p>
+    <p><strong>Administrator:</strong> @(Model.StaffIdentity?.IsAdministrator == true ? "Yes" : "No")</p>
+    <p><strong>Trainer:</strong> @(Model.StaffIdentity?.IsTrainer == true ? "Yes" : "No")</p>
+    <p><strong>Roles received:</strong>
+      @if (Model.StaffIdentity?.Roles.Count > 0)
+      {
+        @string.Join(", ", Model.StaffIdentity.Roles.OrderBy(x => x))
+      }
+      else
+      {
+        <span>None</span>
+      }
+    </p>
+  </div>
+
+  <div class="admin-actions">
+    @if (Model.StaffIdentity?.IsAdministrator == true)
+    {
+      <a class="btn btn-primary" href="/admin">Open administration</a>
+    }
+    @if (Model.StaffIdentity?.IsTrainer == true || Model.StaffIdentity?.IsAdministrator == true)
+    {
+      <a class="btn btn-secondary" href="/trainer">Open trainer workspace</a>
+    }
+  </div>
+</section>

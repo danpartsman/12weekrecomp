@@ -7,8 +7,8 @@ public sealed class IndexModel : AdminPageModel
 {
     private readonly LaunchInterestRepository _repository;
 
-    public IndexModel(AdminAccessService adminAccess, LaunchInterestRepository repository)
-        : base(adminAccess)
+    public IndexModel(StaffAccessService staffAccess, LaunchInterestRepository repository)
+        : base(staffAccess)
     {
         _repository = repository;
     }

@@ -7,8 +7,8 @@ public sealed class EmailHistoryModel : AdminPageModel
 {
     private readonly LaunchInterestRepository _repository;
 
-    public EmailHistoryModel(AdminAccessService adminAccess, LaunchInterestRepository repository)
-        : base(adminAccess)
+    public EmailHistoryModel(StaffAccessService staffAccess, LaunchInterestRepository repository)
+        : base(staffAccess)
     {
         _repository = repository;
     }

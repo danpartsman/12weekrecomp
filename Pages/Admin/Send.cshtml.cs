@@ -17,12 +17,12 @@ public sealed class SendModel : AdminPageModel
     private readonly ILogger<SendModel> _logger;
 
     public SendModel(
-        AdminAccessService adminAccess,
+        StaffAccessService staffAccess,
         LaunchInterestRepository repository,
         IEmailService emailService,
         IConfiguration configuration,
         ILogger<SendModel> logger)
-        : base(adminAccess)
+        : base(staffAccess)
     {
         _repository = repository;
         _emailService = emailService;
@@ -86,7 +86,7 @@ public sealed class SendModel : AdminPageModel
             MessageText,
             AudienceCode,
             recipients.Count,
-            AdminIdentity?.Email,
+            StaffIdentity?.Email,
             cancellationToken);
 
         var baseUrl = (_configuration["Site:PublicBaseUrl"] ?? "https://12weekrecomp.com").TrimEnd('/');

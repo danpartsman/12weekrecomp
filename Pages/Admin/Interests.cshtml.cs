@@ -8,8 +8,8 @@ public sealed class InterestsModel : AdminPageModel
 {
     private readonly LaunchInterestRepository _repository;
 
-    public InterestsModel(AdminAccessService adminAccess, LaunchInterestRepository repository)
-        : base(adminAccess)
+    public InterestsModel(StaffAccessService staffAccess, LaunchInterestRepository repository)
+        : base(staffAccess)
     {
         _repository = repository;
     }

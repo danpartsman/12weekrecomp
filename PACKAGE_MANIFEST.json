@@ -1,11 +1,14 @@
 {
-  "package": "12WR_Live_Upload_Package_v2_1_Admin_Email",
+  "package": "12WR_Live_Upload_Package_v2_2_Entra_Roles_Admin_Trainer_Email",
   "siteMode": "LIVE_LAUNCH",
   "target": "recomp-live / sqldb-recomp-live",
   "features": [
     "public prelaunch site",
+    "Entra application-role authorization",
+    "Administrator role protected admin area",
+    "Trainer role protected trainer workspace",
+    "authenticated staff role diagnostic",
     "launch interest list",
-    "Entra/Easy Auth protected admin area",
     "CSV export",
     "Microsoft Graph managed-identity email",
     "signup welcome email",
@@ -13,5 +16,6 @@
     "unsubscribe workflow",
     "email delivery logging"
   ],
-  "migrationFix": "002_admin_email.sql uses GO batch separators so newly-added SQL columns are visible before subsequent statements compile."
+  "authorization": "No hard-coded staff identities. Easy Auth claims are evaluated for Entra app roles Administrator and Trainer.",
+  "database": "Uses existing 002_admin_email.sql schema; no additional v2.2 database migration is required."
 }
