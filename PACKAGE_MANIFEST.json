@@ -1,16 +1,17 @@
 {
-  "package": "12WR Live Upload Package v1",
-  "created": "2026-09-08",
-  "source_visual_baseline": "12WR_Live_Prelaunch_STATIC_PREVIEW_v4_EngineMessaging",
-  "site_mode": "LIVE_LAUNCH",
-  "branch": "main",
-  "coaches": {
-    "CASSIE": "Main Trainer & Nutritionist",
-    "MARISOL": "Motivation, Technique, Mobility & Fat-Loss-Day Specialist",
-    "STEVE": "Workout Technique, Progressive Overload & Muscle-Building Specialist"
-  },
-  "interest_codes": [
-    "FREE_UPDATES",
-    "FOUNDERS_RATE"
-  ]
+  "package": "12WR_Live_Upload_Package_v2_1_Admin_Email",
+  "siteMode": "LIVE_LAUNCH",
+  "target": "recomp-live / sqldb-recomp-live",
+  "features": [
+    "public prelaunch site",
+    "launch interest list",
+    "Entra/Easy Auth protected admin area",
+    "CSV export",
+    "Microsoft Graph managed-identity email",
+    "signup welcome email",
+    "broadcast update email",
+    "unsubscribe workflow",
+    "email delivery logging"
+  ],
+  "migrationFix": "002_admin_email.sql uses GO batch separators so newly-added SQL columns are visible before subsequent statements compile."
 }

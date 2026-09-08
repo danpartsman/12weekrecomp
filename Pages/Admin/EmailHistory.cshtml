@@ -1,0 +1,29 @@
+@page "/admin/email-history"
+@model TwelveWeekRecomp.Live.Pages.Admin.EmailHistoryModel
+@{
+    ViewData["Title"] = "Email History";
+}
+<section class="section admin-wide">
+  <div class="admin-header">
+    <div>
+      <p class="eyebrow">LIVE ADMINISTRATION</p>
+      <h1>Email history</h1>
+    </div>
+    <a class="btn btn-secondary" href="/admin">Admin home</a>
+  </div>
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead><tr><th>ID</th><th>Subject</th><th>Audience</th><th>Status</th><th>Recipients</th><th>Sent</th><th>Failed</th><th>Created (UTC)</th><th>Completed (UTC)</th></tr></thead>
+      <tbody>
+      @foreach (var row in Model.Rows)
+      {
+        <tr>
+          <td>@row.EmailBroadcastId</td><td>@row.Subject</td><td>@row.AudienceCode</td><td>@row.StatusCode</td>
+          <td>@row.RecipientCount</td><td>@row.SentCount</td><td>@row.FailedCount</td>
+          <td>@row.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</td><td>@(row.CompletedAtUtc?.ToString("yyyy-MM-dd HH:mm") ?? "")</td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  </div>
+</section>

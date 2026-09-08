@@ -1,0 +1,30 @@
+@page "/unsubscribe"
+@model TwelveWeekRecomp.Live.Pages.UnsubscribeModel
+@{
+    ViewData["Title"] = "Unsubscribe";
+}
+<section class="section section-narrow">
+    <div class="panel">
+        <p class="eyebrow">EMAIL PREFERENCES</p>
+        @if (Model.Completed)
+        {
+            <h1>You're unsubscribed.</h1>
+            <p>You will no longer receive 12 Week Recomp launch and update emails at this address.</p>
+            <a class="btn btn-secondary" href="/">Return home</a>
+        }
+        else if (!Model.ValidToken)
+        {
+            <h1>This unsubscribe link is not valid.</h1>
+            <p>If you still need help, reply to a 12 Week Recomp email and we'll take care of it.</p>
+        }
+        else
+        {
+            <h1>Stop 12 Week Recomp update emails?</h1>
+            <p>Confirm below and we will mark this address as unsubscribed.</p>
+            <form method="post">
+                <input type="hidden" asp-for="Token" />
+                <button class="btn btn-primary" type="submit">Unsubscribe me</button>
+            </form>
+        }
+    </div>
+</section>

@@ -6,6 +6,7 @@ using TwelveWeekRecomp.Live.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorPages();
+builder.Services.AddHttpClient();
 
 builder.Services.AddAntiforgery(options =>
 {
@@ -16,6 +17,8 @@ builder.Services.AddAntiforgery(options =>
 });
 
 builder.Services.AddSingleton<LaunchInterestRepository>();
+builder.Services.AddSingleton<AdminAccessService>();
+builder.Services.AddSingleton<IEmailService, MicrosoftGraphEmailService>();
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -41,7 +44,15 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
         ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedHost |
         ForwardedHeaders.XForwardedProto;
+
+    options.ForwardedHostHeaderName = "X-Original-Host";
+    options.ForwardedProtoHeaderName = "X-Forwarded-Proto";
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+    options.AllowedHosts.Add("12weekrecomp.com");
+    options.AllowedHosts.Add("www.12weekrecomp.com");
 });
 
 var app = builder.Build();
@@ -66,6 +77,9 @@ app.MapGet("/health", (IConfiguration config) =>
     {
         status = "ok",
         siteMode = config["SiteMode"] ?? "UNKNOWN",
+        emailConfigured =
+            config.GetValue<bool>("Email:Enabled") &&
+            !string.IsNullOrWhiteSpace(config["Email:SenderMailbox"]),
         utc = DateTimeOffset.UtcNow
     });
 });

@@ -1,0 +1,58 @@
+@page "/admin/send"
+@model TwelveWeekRecomp.Live.Pages.Admin.SendModel
+@{
+    ViewData["Title"] = "Send Update";
+}
+<section class="section section-narrow">
+  <div class="admin-header">
+    <div>
+      <p class="eyebrow">LIVE ADMINISTRATION</p>
+      <h1>Send an update</h1>
+    </div>
+    <a class="btn btn-secondary" href="/admin">Admin home</a>
+  </div>
+
+  @if (!string.IsNullOrWhiteSpace(Model.ResultMessage))
+  {
+    <div class="notice">@Model.ResultMessage</div>
+  }
+
+  @if (!Model.EmailConfigured)
+  {
+    <div class="notice warning">Email is not configured on LIVE yet. Configure the sender mailbox and managed-identity mail authorization before sending.</div>
+  }
+
+  <form method="post" class="admin-form">
+    <div asp-validation-summary="ModelOnly" class="validation"></div>
+    <label>Audience</label>
+    <select asp-for="AudienceCode">
+      <option value="ALL_ACTIVE">Everyone active</option>
+      <option value="FREE_UPDATES">Free trial updates</option>
+      <option value="FOUNDERS_RATE">Founders Rate</option>
+    </select>
+
+    <label>Subject</label>
+    <input asp-for="Subject" maxlength="150" />
+    <span asp-validation-for="Subject" class="validation"></span>
+
+    <label>Message</label>
+    <textarea asp-for="MessageText" rows="12" maxlength="10000"></textarea>
+    <span asp-validation-for="MessageText" class="validation"></span>
+    <p class="muted">Each recipient gets an individual email and their own unsubscribe link.</p>
+
+    <div class="admin-actions">
+      <button class="btn btn-secondary" type="submit" asp-page-handler="Preview">Preview</button>
+      <button class="btn btn-primary" type="submit" asp-page-handler="Send" disabled="@(!Model.EmailConfigured)">Send update</button>
+    </div>
+  </form>
+
+  @if (Model.ShowPreview)
+  {
+    <div class="panel preview-panel">
+      <p class="eyebrow">PREVIEW</p>
+      <h2>@Model.Subject</h2>
+      <p class="muted">Audience: @Model.AudienceCode — @Model.PreviewRecipientCount active recipient(s)</p>
+      <div class="email-preview">@Html.Raw(Model.PreviewHtml)</div>
+    </div>
+  }
+</section>

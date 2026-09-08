@@ -1,0 +1,30 @@
+@page "/admin"
+@model TwelveWeekRecomp.Live.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Admin";
+}
+<section class="section">
+  <div class="admin-header">
+    <div>
+      <p class="eyebrow">LIVE ADMINISTRATION</p>
+      <h1>Launch administration</h1>
+      <p class="muted">Signed in as @Model.AdminIdentity?.Email</p>
+    </div>
+    <a class="btn btn-secondary" href="/.auth/logout?post_logout_redirect_uri=%2F">Sign out</a>
+  </div>
+
+  <div class="metric-grid">
+    <div class="metric-card"><strong>@Model.Summary.Total</strong><span>Total signups</span></div>
+    <div class="metric-card"><strong>@Model.Summary.Active</strong><span>Active email subscribers</span></div>
+    <div class="metric-card"><strong>@Model.Summary.FreeUpdates</strong><span>Free trial updates</span></div>
+    <div class="metric-card"><strong>@Model.Summary.FoundersRate</strong><span>Founders Rate</span></div>
+    <div class="metric-card"><strong>@Model.Summary.Unsubscribed</strong><span>Unsubscribed</span></div>
+  </div>
+
+  <div class="admin-actions">
+    <a class="btn btn-primary" href="/admin/interests">View signup list</a>
+    <a class="btn btn-primary" href="/admin/send">Send an update</a>
+    <a class="btn btn-secondary" href="/admin/email-history">Email history</a>
+    <a class="btn btn-secondary" href="/admin/interests?handler=Export">Export CSV</a>
+  </div>
+</section>
