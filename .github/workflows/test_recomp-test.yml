@@ -1,51 +1,60 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
-name: Build and deploy ASP.Net Core app to Azure Web App - recomp-test
+name: Build and deploy ASP.NET Core app to Azure Web App - recomp-test
 
 on:
-
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-test:
     runs-on: windows-latest
+
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up .NET Core
+      - name: Set up .NET 10
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x'
 
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
+      - name: Restore web project
+        run: dotnet restore src/WebRecomp.Web/WebRecomp.Web.csproj
 
-      - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+      - name: Restore tests
+        run: dotnet restore tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj
 
-      - name: Upload artifact for deployment job
+      - name: Build web project
+        run: dotnet build src/WebRecomp.Web/WebRecomp.Web.csproj --configuration Release --no-restore
+
+      - name: Run automated tests
+        run: dotnet test tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj --configuration Release --no-restore
+
+      - name: Publish web project
+        run: dotnet publish src/WebRecomp.Web/WebRecomp.Web.csproj --configuration Release --no-build --output ./publish
+
+      - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
-          name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          name: recomp-test-app
+          path: ./publish
 
   deploy:
     runs-on: windows-latest
-    needs: build
+    needs: build-and-test
+
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
-      - name: Download artifact from build job
+      - name: Download deployment artifact
         uses: actions/download-artifact@v4
         with:
-          name: .net-app
-      
+          name: recomp-test-app
+          path: ./publish
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -54,10 +63,8 @@ jobs:
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_28C36820998A4A0AB8C5EBB50A54AE0E }}
 
       - name: Deploy to Azure Web App
-        id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'recomp-test'
-          slot-name: 'Production'
-          package: .
-          
+          app-name: recomp-test
+          slot-name: Production
+          package: ./publish
