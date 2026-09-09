@@ -1,0 +1,714 @@
+using WebRecomp.Web.Services.Engine30;
+using Xunit.Abstractions;
+
+namespace WebRecomp.Web.Tests;
+
+public sealed class Engine30WorkoutEnergyAdapterTests
+{
+    private const decimal BaseLivingKcal = 1716.8m;
+    private const decimal WeightLb = 180m;
+    private const decimal FatFreeMassLb = 144m;
+
+    private readonly Engine30WorkoutTypeCatalog _catalog = new();
+    private readonly Engine30WorkoutSessionResolver _resolver = new();
+    private readonly Engine30WorkoutEnergyAdapter _adapter = new();
+    private readonly ITestOutputHelper _output;
+
+    public Engine30WorkoutEnergyAdapterTests(
+        ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
+    [Fact]
+    public void ResolvedSessionData_DrivesBucket3_WithoutMonitorOverride()
+    {
+        /*
+            IMPORTANT:
+            The calibration numbers in this test are DRAFT integration-test
+            anchors only. This test verifies plumbing and directional behavior;
+            it does NOT scientifically validate or freeze kcal/min coefficients.
+        */
+
+        var zone2Default =
+            CalculateWholeSession(
+                workoutTypeCode:
+                    "ZONE2_CARDIO",
+                plannedDurationMinutes:
+                    45m,
+                plannedModality:
+                    Engine30WorkoutModalityCodes.Cycling,
+                sessionCalibration:
+                    BodyWeightCalibration(
+                        code: "TEST_CYCLING",
+                        modality: Engine30WorkoutModalityCodes.Cycling,
+                        kcalPerMinute: 6.0m,
+                        referenceRpe: 3m));
+
+        var zone2Harder =
+            CalculateWholeSession(
+                workoutTypeCode:
+                    "ZONE2_CARDIO",
+                plannedDurationMinutes:
+                    45m,
+                plannedRpeOverride:
+                    5m,
+                plannedModality:
+                    Engine30WorkoutModalityCodes.Cycling,
+                sessionCalibration:
+                    BodyWeightCalibration(
+                        code: "TEST_CYCLING",
+                        modality: Engine30WorkoutModalityCodes.Cycling,
+                        kcalPerMinute: 6.0m,
+                        referenceRpe: 3m));
+
+        var zone2LongerActual =
+            CalculateWholeSession(
+                workoutTypeCode:
+                    "ZONE2_CARDIO",
+                plannedDurationMinutes:
+                    45m,
+                actualDurationMinutes:
+                    60m,
+                actualRpe:
+                    3m,
+                plannedModality:
+                    Engine30WorkoutModalityCodes.Cycling,
+                sessionCalibration:
+                    BodyWeightCalibration(
+                        code: "TEST_CYCLING",
+                        modality: Engine30WorkoutModalityCodes.Cycling,
+                        kcalPerMinute: 6.0m,
+                        referenceRpe: 3m));
+
+        var majorLegsNormalRest =
+            CalculateResistanceLegs(
+                actualRestSeconds:
+                    90m);
+
+        var majorLegsShortRest =
+            CalculateResistanceLegs(
+                actualRestSeconds:
+                    60m);
+
+        var otf =
+            CalculateOrangetheory();
+
+        _output.WriteLine("");
+        _output.WriteLine(
+            "ENGINE 3.0 - WORKOUT SESSION -> BUCKET #3 INTEGRATION");
+
+        _output.WriteLine(
+            "Calibration values are DRAFT test anchors; this test validates integration, not final physiology.");
+
+        _output.WriteLine("");
+        _output.WriteLine(
+            new string('-', 122));
+
+        _output.WriteLine(
+            $"{"Case",-24} " +
+            $"{"Modality",-14} " +
+            $"{"Min",5} " +
+            $"{"RPE",5} " +
+            $"{"Workload",8} " +
+            $"{"Gross",9} " +
+            $"{"Rest",9} " +
+            $"{"B3 Net",9} " +
+            $"{"Monitor",9} " +
+            $"{"Applied?",9}");
+
+        _output.WriteLine(
+            new string('-', 122));
+
+        Print(
+            "ZONE2 default",
+            zone2Default);
+
+        Print(
+            "ZONE2 user RPE 5",
+            zone2Harder);
+
+        Print(
+            "ZONE2 actual 60m",
+            zone2LongerActual);
+
+        Print(
+            "LEGS rest 90s",
+            majorLegsNormalRest);
+
+        Print(
+            "LEGS rest 60s",
+            majorLegsShortRest);
+
+        Print(
+            "OTF composite",
+            otf);
+
+        _output.WriteLine(
+            new string('-', 122));
+
+        // -------------------------------------------------------------
+        // Zone 2 default RPE = 3 reaches Bucket #3.
+        // -------------------------------------------------------------
+        Assert.Equal(
+            3m,
+            zone2Default.AnalysisRpe);
+
+        Assert.Equal(
+            Engine30TrainingPatternCodes.Zone2,
+            zone2Default.TrainingPatternCode);
+
+        Assert.Equal(
+            Engine30WorkoutModalityCodes.Cycling,
+            zone2Default.AnalysisModalityCode);
+
+        Assert.Single(
+            zone2Default.Segments);
+
+        Assert.Equal(
+            0.82m,
+            zone2Default.Segments[0].Energy.IntensityFactor);
+
+        // -------------------------------------------------------------
+        // Same modality/duration but higher user RPE -> higher Bucket #3.
+        // -------------------------------------------------------------
+        Assert.Equal(
+            5m,
+            zone2Harder.AnalysisRpe);
+
+        Assert.True(
+            zone2Harder.EngineNetWorkoutEnergyKcal
+            > zone2Default.EngineNetWorkoutEnergyKcal);
+
+        // -------------------------------------------------------------
+        // Actual duration replaces planned duration for completed analysis.
+        // -------------------------------------------------------------
+        Assert.Equal(
+            60m,
+            zone2LongerActual.SessionResolvedDurationMinutes);
+
+        Assert.Equal(
+            60m,
+            zone2LongerActual.ModeledDurationMinutes);
+
+        Assert.True(
+            zone2LongerActual.EngineNetWorkoutEnergyKcal
+            > zone2Default.EngineNetWorkoutEnergyKcal);
+
+        // -------------------------------------------------------------
+        // Resistance workload now prioritizes hard-set density.
+        //
+        // Both sessions contain 16 hard sets in 60 minutes, so their
+        // workload factor remains 1.00 even though reported rest differs.
+        // Rest remains available in workload diagnostics but does not
+        // independently create another calorie multiplier.
+        // -------------------------------------------------------------
+        Assert.NotNull(
+            majorLegsNormalRest.Segments[0].ResistanceWorkload);
+
+        Assert.NotNull(
+            majorLegsShortRest.Segments[0].ResistanceWorkload);
+
+        Assert.Equal(
+            Engine30ResistanceEnergyWorkloadSourceCodes.HardSetDensity,
+            majorLegsNormalRest.Segments[0].ResistanceWorkload!.SourceCode);
+
+        Assert.Equal(
+            Engine30ResistanceEnergyWorkloadSourceCodes.HardSetDensity,
+            majorLegsShortRest.Segments[0].ResistanceWorkload!.SourceCode);
+
+        Assert.Equal(
+            1.0000m,
+            majorLegsNormalRest.Segments[0].ResistanceWorkload!.WorkloadFactor);
+
+        Assert.Equal(
+            1.0000m,
+            majorLegsShortRest.Segments[0].ResistanceWorkload!.WorkloadFactor);
+
+        Assert.Equal(
+            1.0000m,
+            majorLegsNormalRest.Segments[0].Energy.DensityFactor);
+
+        Assert.Equal(
+            1.0000m,
+            majorLegsShortRest.Segments[0].Energy.DensityFactor);
+
+        Assert.Equal(
+            majorLegsNormalRest.EngineNetWorkoutEnergyKcal,
+            majorLegsShortRest.EngineNetWorkoutEnergyKcal);
+
+        // -------------------------------------------------------------
+        // OTF is modeled as treadmill + row + floor, not one 60-minute
+        // generic RPE-9 calorie block.
+        // -------------------------------------------------------------
+        Assert.Equal(
+            Engine30WorkoutSessionCodes.StructureComposite,
+            otf.SessionStructureCode);
+
+        Assert.Equal(
+            3,
+            otf.Segments.Count);
+
+        Assert.Equal(
+            60m,
+            otf.ModeledDurationMinutes);
+
+        Assert.Equal(
+            "MATCH",
+            otf.DurationCoverageCode);
+
+        Assert.Equal(
+            otf.GrossWorkoutEnergyKcal,
+            Round(
+                otf.Segments.Sum(
+                    x => x.Energy.GrossWorkoutEnergyKcal)));
+
+        Assert.Equal(
+            otf.RestingEnergyDuringWorkoutKcal,
+            Round(
+                otf.Segments.Sum(
+                    x => x.Energy.RestingEnergyDuringWorkoutKcal)));
+
+        Assert.Equal(
+            otf.EngineNetWorkoutEnergyKcal,
+            Round(
+                otf.Segments.Sum(
+                    x => x.Energy.NetWorkoutEnergyKcal)));
+
+        // -------------------------------------------------------------
+        // Monitor calories remain evidence only.
+        // -------------------------------------------------------------
+        Assert.Equal(
+            620m,
+            otf.MonitorReportedCalories);
+
+        Assert.Equal(
+            Engine30WorkoutSessionCodes.MonitorCaloriesGross,
+            otf.MonitorReportedCalorieTypeCode);
+
+        Assert.False(
+            otf.MonitorCaloriesAppliedToEngineEstimate);
+
+        Assert.NotEqual(
+            otf.MonitorReportedCalories,
+            otf.EngineNetWorkoutEnergyKcal);
+
+        // Glycogen is intentionally not part of this adapter test.
+    }
+
+    private Engine30WorkoutEnergyAdapterResult CalculateWholeSession(
+        string workoutTypeCode,
+        decimal plannedDurationMinutes,
+        string plannedModality,
+        Engine30WorkoutEnergyCalibration sessionCalibration,
+        decimal? plannedRpeOverride = null,
+        decimal? actualDurationMinutes = null,
+        decimal? actualRpe = null)
+    {
+        var profile =
+            _catalog.GetProfile(
+                workoutTypeCode);
+
+        var session =
+            _resolver.Resolve(
+                profile,
+                new Engine30WorkoutSessionInput(
+                    WorkoutTypeCode:
+                        workoutTypeCode,
+
+                    PlannedDurationMinutes:
+                        plannedDurationMinutes,
+
+                    PlannedRpeOverride:
+                        plannedRpeOverride,
+
+                    ActualDurationMinutes:
+                        actualDurationMinutes,
+
+                    ActualRpe:
+                        actualRpe,
+
+                    PlannedModalityOverrideCode:
+                        plannedModality));
+
+        return _adapter.Calculate(
+            new Engine30WorkoutEnergyAdapterInput(
+                Session:
+                    session,
+
+                BaseLivingEnergyKcal:
+                    BaseLivingKcal,
+
+                WeightLb:
+                    WeightLb,
+
+                FatFreeMassLb:
+                    FatFreeMassLb,
+
+                SessionCalibration:
+                    sessionCalibration));
+    }
+
+    private Engine30WorkoutEnergyAdapterResult CalculateResistanceLegs(
+        decimal actualRestSeconds)
+    {
+        var profile =
+            _catalog.GetProfile(
+                "MAJOR_LEGS");
+
+        var session =
+            _resolver.Resolve(
+                profile,
+                new Engine30WorkoutSessionInput(
+                    WorkoutTypeCode:
+                        "MAJOR_LEGS",
+
+                    PlannedDurationMinutes:
+                        60m,
+
+                    Segments:
+                        new[]
+                        {
+                            new Engine30WorkoutSegmentInput(
+                                SegmentCode:
+                                    "LEGS",
+
+                                ModalityCode:
+                                    Engine30WorkoutModalityCodes.Resistance,
+
+                                PlannedDurationMinutes:
+                                    60m,
+
+                                DefaultRpe:
+                                    8m,
+
+                                Resistance:
+                                    new Engine30ResistanceSegmentDetails(
+                                        TotalHardSets:
+                                            16m,
+
+                                        AverageRestSeconds:
+                                            actualRestSeconds))
+                        }));
+
+        return _adapter.Calculate(
+            new Engine30WorkoutEnergyAdapterInput(
+                Session:
+                    session,
+
+                BaseLivingEnergyKcal:
+                    BaseLivingKcal,
+
+                WeightLb:
+                    WeightLb,
+
+                FatFreeMassLb:
+                    FatFreeMassLb,
+
+                SegmentCalibrations:
+                    new[]
+                    {
+                        new Engine30WorkoutSegmentEnergyCalibration(
+                            SegmentCode:
+                                "LEGS",
+
+                            Calibration:
+                                new Engine30WorkoutEnergyCalibration(
+                                    CalibrationCode:
+                                        "TEST_RESISTANCE_MAJOR",
+
+                                    ModalityCode:
+                                        Engine30WorkoutModalityCodes.Resistance,
+
+                                    ReferenceWorkoutCaloriesPerMinute:
+                                        5.5m,
+
+                                    ReferenceWeightLb:
+                                        180m,
+
+                                    ScalingBasisCode:
+                                        "FAT_FREE_MASS",
+
+                                    ReferenceFatFreeMassLb:
+                                        130m,
+
+                                    DefaultRestSeconds:
+                                        90m,
+
+                                    ReferenceRpe:
+                                        8m,
+
+                                    ResistanceWorkloadConfig:
+                                        new Engine30ResistanceEnergyWorkloadConfig(
+                                            ReferenceDurationMinutes:
+                                                60m,
+
+                                            ReferenceHardSets:
+                                                16m,
+
+                                            ReferenceRestSeconds:
+                                                90m,
+
+                                            HardSetDensitySensitivity:
+                                                0.50m,
+
+                                            RestFallbackSensitivity:
+                                                0.25m,
+
+                                            MinimumWorkloadFactor:
+                                                0.85m,
+
+                                            MaximumWorkloadFactor:
+                                                1.15m)))
+                    }));
+    }
+
+    private Engine30WorkoutEnergyAdapterResult CalculateOrangetheory()
+    {
+        var profile =
+            _catalog.GetProfile(
+                "ORANGETHEORY");
+
+        var session =
+            _resolver.Resolve(
+                profile,
+                new Engine30WorkoutSessionInput(
+                    WorkoutTypeCode:
+                        "ORANGETHEORY",
+
+                    PlannedDurationMinutes:
+                        60m,
+
+                    MonitorData:
+                        new Engine30WorkoutMonitorData(
+                            DeviceSourceCode:
+                                "WATCH",
+
+                            ReportedCalories:
+                                620m,
+
+                            ReportedCalorieTypeCode:
+                                Engine30WorkoutSessionCodes.MonitorCaloriesGross,
+
+                            AverageHeartRateBpm:
+                                146m),
+
+                    Segments:
+                        new[]
+                        {
+                            new Engine30WorkoutSegmentInput(
+                                SegmentCode:
+                                    "TREAD",
+
+                                ModalityCode:
+                                    Engine30WorkoutModalityCodes.Treadmill,
+
+                                PlannedDurationMinutes:
+                                    20m,
+
+                                DefaultRpe:
+                                    7m),
+
+                            new Engine30WorkoutSegmentInput(
+                                SegmentCode:
+                                    "ROW",
+
+                                ModalityCode:
+                                    Engine30WorkoutModalityCodes.Rowing,
+
+                                PlannedDurationMinutes:
+                                    20m,
+
+                                DefaultRpe:
+                                    7m),
+
+                            new Engine30WorkoutSegmentInput(
+                                SegmentCode:
+                                    "FLOOR",
+
+                                ModalityCode:
+                                    Engine30WorkoutModalityCodes.Resistance,
+
+                                PlannedDurationMinutes:
+                                    20m,
+
+                                DefaultRpe:
+                                    7m,
+
+                                Resistance:
+                                    new Engine30ResistanceSegmentDetails(
+                                        TotalHardSets:
+                                            8m,
+
+                                        AverageRestSeconds:
+                                            45m))
+                        }));
+
+        return _adapter.Calculate(
+            new Engine30WorkoutEnergyAdapterInput(
+                Session:
+                    session,
+
+                BaseLivingEnergyKcal:
+                    BaseLivingKcal,
+
+                WeightLb:
+                    WeightLb,
+
+                FatFreeMassLb:
+                    FatFreeMassLb,
+
+                SegmentCalibrations:
+                    new[]
+                    {
+                        new Engine30WorkoutSegmentEnergyCalibration(
+                            SegmentCode:
+                                "TREAD",
+
+                            Calibration:
+                                BodyWeightCalibration(
+                                    code:
+                                        "TEST_OTF_TREAD",
+
+                                    modality:
+                                        Engine30WorkoutModalityCodes.Treadmill,
+
+                                    kcalPerMinute:
+                                        7.5m,
+
+                                    referenceRpe:
+                                        7m)),
+
+                        new Engine30WorkoutSegmentEnergyCalibration(
+                            SegmentCode:
+                                "ROW",
+
+                            Calibration:
+                                BodyWeightCalibration(
+                                    code:
+                                        "TEST_OTF_ROW",
+
+                                    modality:
+                                        Engine30WorkoutModalityCodes.Rowing,
+
+                                    kcalPerMinute:
+                                        7.0m,
+
+                                    referenceRpe:
+                                        7m)),
+
+                        new Engine30WorkoutSegmentEnergyCalibration(
+                            SegmentCode:
+                                "FLOOR",
+
+                            Calibration:
+                                new Engine30WorkoutEnergyCalibration(
+                                    CalibrationCode:
+                                        "TEST_OTF_FLOOR",
+
+                                    ModalityCode:
+                                        Engine30WorkoutModalityCodes.Resistance,
+
+                                    ReferenceWorkoutCaloriesPerMinute:
+                                        5.0m,
+
+                                    ReferenceWeightLb:
+                                        180m,
+
+                                    ScalingBasisCode:
+                                        "FAT_FREE_MASS",
+
+                                    ReferenceFatFreeMassLb:
+                                        130m,
+
+                                    DefaultRestSeconds:
+                                        45m,
+
+                                    ReferenceRpe:
+                                        7m,
+
+                                    ResistanceWorkloadConfig:
+                                        new Engine30ResistanceEnergyWorkloadConfig(
+                                            ReferenceDurationMinutes:
+                                                20m,
+
+                                            ReferenceHardSets:
+                                                8m,
+
+                                            ReferenceRestSeconds:
+                                                45m,
+
+                                            HardSetDensitySensitivity:
+                                                0.50m,
+
+                                            RestFallbackSensitivity:
+                                                0.25m,
+
+                                            MinimumWorkloadFactor:
+                                                0.85m,
+
+                                            MaximumWorkloadFactor:
+                                                1.15m)))
+                    }));
+    }
+
+    private static Engine30WorkoutEnergyCalibration BodyWeightCalibration(
+        string code,
+        string modality,
+        decimal kcalPerMinute,
+        decimal referenceRpe)
+        => new(
+            CalibrationCode:
+                code,
+
+            ModalityCode:
+                modality,
+
+            ReferenceWorkoutCaloriesPerMinute:
+                kcalPerMinute,
+
+            ReferenceWeightLb:
+                180m,
+
+            ScalingBasisCode:
+                "BODY_WEIGHT",
+
+            ReferenceRpe:
+                referenceRpe);
+
+    private void Print(
+        string label,
+        Engine30WorkoutEnergyAdapterResult result)
+    {
+        var density =
+            result.Segments.Count == 1
+                ? result.Segments[0].ResistanceWorkload?.WorkloadFactor
+                  ?? result.Segments[0].Energy.DensityFactor
+                : 0m;
+
+        var monitor =
+            result.MonitorReportedCalories.HasValue
+                ? result.MonitorReportedCalories.Value.ToString("0.0")
+                : "-";
+
+        _output.WriteLine(
+            $"{label,-24} " +
+            $"{result.AnalysisModalityCode,-14} " +
+            $"{result.ModeledDurationMinutes,5:0.0} " +
+            $"{result.AnalysisRpe,5:0.0} " +
+            $"{density,8:0.00} " +
+            $"{result.GrossWorkoutEnergyKcal,9:0.0} " +
+            $"{result.RestingEnergyDuringWorkoutKcal,9:0.0} " +
+            $"{result.EngineNetWorkoutEnergyKcal,9:0.0} " +
+            $"{monitor,9} " +
+            $"{result.MonitorCaloriesAppliedToEngineEstimate,9}");
+    }
+
+    private static decimal Round(
+        decimal value,
+        int decimals = 2)
+        => Math.Round(
+            value,
+            decimals,
+            MidpointRounding.AwayFromZero);
+}
