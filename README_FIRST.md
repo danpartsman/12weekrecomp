@@ -1,75 +1,23 @@
-# 12 Week Recomp — LIVE Upload Package
+# 12 Week Recomp LIVE v2.3
 
-This is the approved photo-heavy public prelaunch direction converted into a real ASP.NET Core LIVE application.
+This package is the visual refresh of the working v2.2 LIVE launch application.
 
-## Intended environment
+## What changed
+- Uses the supplied official 12 Week Recomp logo in the site header/footer.
+- Uses supplied real Cassie, Marisol, and Steve photography.
+- Keeps the existing six-person hero image on the Welcome page.
+- Refreshes the Welcome, Evidence, and Join pages with the supplied team photography.
+- Replaces the prior individual Cassie/Marisol/Steve visuals with crops from the supplied real team photo.
 
-- GitHub branch: `main`
-- Azure Web App: `recomp-live`
-- Azure SQL DB: `sqldb-recomp-live`
-- Public domain: `12weekrecomp.com`
-- TEST remains isolated at `test.12weekrecomp.com`
+## What did NOT change
+- Microsoft Graph email transport.
+- Signup welcome email logic.
+- Admin broadcast email logic.
+- Unsubscribe workflow.
+- Email delivery logging.
+- Entra Administrator/Trainer role authorization.
+- Database schema or SQL migrations.
+- LIVE health endpoint.
 
-## Public pages
-
-- Welcome
-- Evidence
-- Join
-- Thanks
-- Privacy
-- Error
-- `/health`
-
-There are no unfinished Dashboard, account, onboarding, admin, or product routes in this project.
-
-## Included public positioning
-
-- $20 for 12 weeks
-- individualized recommendation engine
-- daily trainer messages
-- weekly progress notifications, hints, and tips
-- three default coach roles:
-  - Cassie — Main Trainer & Nutritionist
-  - Marisol — Motivation, Technique, Mobility & Fat-Loss-Day Specialist
-  - Steve — Workout Technique, Progressive Overload & Muscle-Building Specialist
-
-## Signup behavior
-
-Fields:
-
-- Name
-- Email
-- Interest:
-  - `FREE_UPDATES`
-  - `FOUNDERS_RATE`
-
-Protection:
-
-- Razor Pages antiforgery
-- honeypot
-- 6 submissions / 10 minutes rate limit
-- duplicate email updates existing row
-
-## Manual GitHub upload
-
-1. Extract this ZIP.
-2. In GitHub, switch to branch `main`.
-3. Choose **Add file → Upload files**.
-4. Drag the CONTENTS of the extracted `12WR_Live_Upload_Package_v1` folder into GitHub.
-5. Commit directly to `main`.
-
-Do not upload the ZIP itself.
-
-## Before the signup form can work
-
-Create the isolated LIVE database, then run:
-
-`database/001_launch_interests.sql`
-
-Configure Azure App Service connection string:
-
-- Name: `LiveDb`
-- Type: SQLAzure
-- Value: LIVE database connection string
-
-Do not place the production connection string in GitHub.
+No database migration is required for v2.3.
+Existing Azure App Service settings such as `Email__SenderMailbox`, `Email__Enabled`, and the LIVE database connection remain Azure-side settings and are not replaced by this source package.

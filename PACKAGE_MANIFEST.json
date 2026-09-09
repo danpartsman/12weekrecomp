@@ -1,9 +1,13 @@
 {
-  "package": "12WR_Live_Upload_Package_v2_2_Entra_Roles_Admin_Trainer_Email",
+  "package": "12WR_Live_Upload_Package_v2_3_Visual_Refresh_Keep_Email",
   "siteMode": "LIVE_LAUNCH",
   "target": "recomp-live / sqldb-recomp-live",
   "features": [
-    "public prelaunch site",
+    "public prelaunch site visual refresh",
+    "official supplied 12 Week Recomp logo",
+    "real Cassie, Marisol, and Steve photography",
+    "updated Evidence page photography",
+    "updated Join page photography",
     "Entra application-role authorization",
     "Administrator role protected admin area",
     "Trainer role protected trainer workspace",
@@ -16,6 +20,7 @@
     "unsubscribe workflow",
     "email delivery logging"
   ],
-  "authorization": "No hard-coded staff identities. Easy Auth claims are evaluated for Entra app roles Administrator and Trainer.",
-  "database": "Uses existing 002_admin_email.sql schema; no additional v2.2 database migration is required."
+  "authorization": "Unchanged from v2.2. Easy Auth claims are evaluated for Entra app roles Administrator and Trainer.",
+  "email": "Unchanged from v2.2. Existing Azure Email__SenderMailbox and Email__Enabled app settings continue to control Microsoft Graph delivery.",
+  "database": "Uses existing 002_admin_email.sql schema; no additional database migration is required."
 }
