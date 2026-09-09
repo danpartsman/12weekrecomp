@@ -1,0 +1,618 @@
+namespace WebRecomp.Web.Services.Engine30;
+
+/// <summary>
+/// Engine 3.0 upstream RESISTANCE glycogen workload resolver.
+///
+/// PURPOSE
+///
+/// Converts the individual's actual resistance-training work into
+/// muscle-region depletion fractions that can be passed directly into
+/// Engine30GlycogenDemandCalculator.
+///
+/// This component does NOT calculate calories.
+/// This component does NOT use monitor-reported calories.
+/// This component does NOT treat RPE as %1RM.
+///
+/// INDIVIDUAL-FIRST INPUTS
+///
+/// - actual session duration
+/// - actual hard sets by muscle region
+/// - actual recruited fraction by muscle region
+/// - actual %1RM only when genuinely known
+/// - training status
+///
+/// SCIENTIFIC / ENGINEERING BOUNDARY
+///
+/// Current resistance-training evidence supports set volume, session duration,
+/// training status, and resistance intensity (%1RM) as relevant modifiers of
+/// acute muscle-glycogen depletion.
+///
+/// Engine 3.0 deliberately does NOT convert session RPE into %1RM.
+/// If %1RM is unavailable, the %1RM modifier is neutral.
+///
+/// All coefficients remain configuration-owned and are NOT frozen by this file.
+/// </summary>
+
+public static class Engine30ResistanceGlycogenTrainingStatusCodes
+{
+    public const string Trained = "TRAINED";
+    public const string Untrained = "UNTRAINED";
+}
+
+public static class Engine30ResistanceGlycogenWorkloadSourceCodes
+{
+    public const string HardSets = "HARD_SETS";
+    public const string DurationFallback = "DURATION_FALLBACK";
+    public const string ExplicitZeroWork = "EXPLICIT_ZERO_WORK";
+}
+
+public sealed record Engine30ResistanceGlycogenWorkloadConfig(
+    decimal ReferenceDurationMinutes,
+    decimal ReferenceHardSetsPerMuscleGroup,
+    decimal ReferenceDepletionFraction,
+
+    decimal HardSetSensitivity,
+    decimal DurationSensitivity,
+
+    decimal TrainedFactor,
+    decimal UntrainedFactor,
+
+    /// <summary>
+    /// Optional %1RM reference. Null disables the load modifier.
+    /// </summary>
+    decimal? ReferencePercentOneRepMax,
+
+    /// <summary>
+    /// Strength of the %1RM modifier when both actual and reference %1RM exist.
+    /// </summary>
+    decimal PercentOneRepMaxSensitivity,
+
+    decimal MinimumDepletionFraction,
+    decimal MaximumDepletionFraction);
+
+public sealed record Engine30ResistanceMuscleGlycogenWorkInput(
+    string MuscleGroupCode,
+
+    /// <summary>
+    /// Fraction of whole-body skeletal muscle represented by this modeled region.
+    /// </summary>
+    decimal WholeBodySkeletalMuscleFraction,
+
+    /// <summary>
+    /// Effective fraction of this modeled region substantially recruited.
+    /// </summary>
+    decimal RecruitmentFraction,
+
+    /// <summary>
+    /// Hard working sets materially loading this region.
+    /// </summary>
+    decimal? HardSets,
+
+    /// <summary>
+    /// Optional actual resistance intensity for this region.
+    /// Supply only when a defensible %1RM estimate exists.
+    /// RPE must NOT be substituted here.
+    /// </summary>
+    decimal? PercentOneRepMax = null);
+
+public sealed record Engine30ResistanceMuscleGlycogenWorkResult(
+    string MuscleGroupCode,
+
+    decimal WholeBodySkeletalMuscleFraction,
+    decimal RecruitmentFraction,
+    decimal? HardSets,
+    decimal? PercentOneRepMax,
+
+    string WorkloadSourceCode,
+
+    decimal HardSetRatio,
+    decimal DurationRatio,
+    decimal BaseWorkloadFactor,
+
+    decimal TrainingStatusFactor,
+    decimal PercentOneRepMaxFactor,
+
+    decimal ResolvedDepletionFraction);
+
+public sealed record Engine30ResistanceGlycogenWorkloadInput(
+    decimal DurationMinutes,
+    string TrainingStatusCode,
+    IReadOnlyCollection<Engine30ResistanceMuscleGlycogenWorkInput> MuscleGroups);
+
+public sealed record Engine30ResistanceGlycogenWorkloadResult(
+    decimal DurationMinutes,
+    string TrainingStatusCode,
+    decimal TrainingStatusFactor,
+
+    IReadOnlyList<Engine30ResistanceMuscleGlycogenWorkResult> MuscleResults,
+
+    /// <summary>
+    /// Ready to pass directly into Engine30GlycogenDemandCalculator.
+    /// </summary>
+    IReadOnlyList<Engine30MuscleGlycogenInput> ResolvedMuscleGroups);
+
+public sealed class Engine30ResistanceGlycogenWorkloadCalculator
+{
+    public Engine30ResistanceGlycogenWorkloadResult Calculate(
+        Engine30ResistanceGlycogenWorkloadInput input,
+        Engine30ResistanceGlycogenWorkloadConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(input.MuscleGroups);
+
+        Validate(
+            input,
+            config);
+
+        var trainingStatus =
+            NormalizeTrainingStatus(
+                input.TrainingStatusCode);
+
+        var trainingStatusFactor =
+            trainingStatus == Engine30ResistanceGlycogenTrainingStatusCodes.Trained
+                ? config.TrainedFactor
+                : config.UntrainedFactor;
+
+        var durationRatio =
+            input.DurationMinutes
+            / config.ReferenceDurationMinutes;
+
+        var muscleResults =
+            new List<Engine30ResistanceMuscleGlycogenWorkResult>();
+
+        var resolvedGroups =
+            new List<Engine30MuscleGlycogenInput>();
+
+        foreach (var muscle in input.MuscleGroups)
+        {
+            ValidateMuscle(
+                muscle);
+
+            var muscleCode =
+                NormalizeRequiredCode(
+                    muscle.MuscleGroupCode,
+                    nameof(muscle.MuscleGroupCode));
+
+            decimal hardSetRatio;
+            decimal baseWorkloadFactor;
+            decimal percentOneRepMaxFactor;
+            decimal depletionFraction;
+            string workloadSourceCode;
+
+            if (muscle.RecruitmentFraction == 0m ||
+                (muscle.HardSets.HasValue &&
+                 muscle.HardSets.Value == 0m))
+            {
+                hardSetRatio = 0m;
+                baseWorkloadFactor = 0m;
+                percentOneRepMaxFactor = 1m;
+                depletionFraction = 0m;
+                workloadSourceCode =
+                    Engine30ResistanceGlycogenWorkloadSourceCodes.ExplicitZeroWork;
+            }
+            else
+            {
+                /*
+                    Engine 3.0 anti-double-counting rule:
+
+                    When actual hard sets are known, set volume is the primary
+                    resistance-glycogen workload signal. Session duration
+                    remains diagnostic and does NOT independently multiply
+                    depletion.
+
+                    When hard sets are unavailable, duration may act as a
+                    lower-confidence fallback signal.
+
+                    This avoids treating longer rest / setup time as extra
+                    glycogen work when the actual number of hard sets is
+                    already known.
+                */
+
+                if (muscle.HardSets.HasValue)
+                {
+                    hardSetRatio =
+                        muscle.HardSets.Value
+                        / config.ReferenceHardSetsPerMuscleGroup;
+
+                    baseWorkloadFactor =
+                        1m
+                        + (hardSetRatio - 1m)
+                          * config.HardSetSensitivity;
+
+                    workloadSourceCode =
+                        Engine30ResistanceGlycogenWorkloadSourceCodes.HardSets;
+                }
+                else
+                {
+                    hardSetRatio = 0m;
+
+                    baseWorkloadFactor =
+                        1m
+                        + (durationRatio - 1m)
+                          * config.DurationSensitivity;
+
+                    workloadSourceCode =
+                        Engine30ResistanceGlycogenWorkloadSourceCodes.DurationFallback;
+                }
+
+                baseWorkloadFactor =
+                    Math.Max(
+                        0m,
+                        baseWorkloadFactor);
+
+                percentOneRepMaxFactor =
+                    ResolvePercentOneRepMaxFactor(
+                        muscle.PercentOneRepMax,
+                        config);
+
+                depletionFraction =
+                    config.ReferenceDepletionFraction
+                    * baseWorkloadFactor
+                    * trainingStatusFactor
+                    * percentOneRepMaxFactor;
+
+                depletionFraction =
+                    Clamp(
+                        depletionFraction,
+                        config.MinimumDepletionFraction,
+                        config.MaximumDepletionFraction);
+            }
+
+            var result =
+                new Engine30ResistanceMuscleGlycogenWorkResult(
+                    MuscleGroupCode:
+                        muscleCode,
+
+                    WholeBodySkeletalMuscleFraction:
+                        Round(
+                            muscle.WholeBodySkeletalMuscleFraction,
+                            4),
+
+                    RecruitmentFraction:
+                        Round(
+                            muscle.RecruitmentFraction,
+                            4),
+
+                    HardSets:
+                        muscle.HardSets.HasValue
+                            ? Round(
+                                muscle.HardSets.Value,
+                                2)
+                            : null,
+
+                    PercentOneRepMax:
+                        muscle.PercentOneRepMax.HasValue
+                            ? Round(
+                                muscle.PercentOneRepMax.Value,
+                                2)
+                            : null,
+
+                    WorkloadSourceCode:
+                        workloadSourceCode,
+
+                    HardSetRatio:
+                        Round(
+                            hardSetRatio,
+                            4),
+
+                    DurationRatio:
+                        Round(
+                            durationRatio,
+                            4),
+
+                    BaseWorkloadFactor:
+                        Round(
+                            baseWorkloadFactor,
+                            4),
+
+                    TrainingStatusFactor:
+                        Round(
+                            trainingStatusFactor,
+                            4),
+
+                    PercentOneRepMaxFactor:
+                        Round(
+                            percentOneRepMaxFactor,
+                            4),
+
+                    ResolvedDepletionFraction:
+                        Round(
+                            depletionFraction,
+                            4));
+
+            muscleResults.Add(
+                result);
+
+            resolvedGroups.Add(
+                new Engine30MuscleGlycogenInput(
+                    MuscleGroupCode:
+                        muscleCode,
+
+                    WholeBodySkeletalMuscleFraction:
+                        muscle.WholeBodySkeletalMuscleFraction,
+
+                    RecruitmentFraction:
+                        muscle.RecruitmentFraction,
+
+                    DepletionFraction:
+                        depletionFraction));
+        }
+
+        return new Engine30ResistanceGlycogenWorkloadResult(
+            DurationMinutes:
+                Round(
+                    input.DurationMinutes,
+                    2),
+
+            TrainingStatusCode:
+                trainingStatus,
+
+            TrainingStatusFactor:
+                Round(
+                    trainingStatusFactor,
+                    4),
+
+            MuscleResults:
+                muscleResults,
+
+            ResolvedMuscleGroups:
+                resolvedGroups);
+    }
+
+    private static decimal ResolvePercentOneRepMaxFactor(
+        decimal? actualPercentOneRepMax,
+        Engine30ResistanceGlycogenWorkloadConfig config)
+    {
+        /*
+            Engine 3.0 scientific guardrail:
+
+            %1RM is preserved as useful session evidence, but load intensity
+            alone is not currently used to increase or decrease glycogen
+            depletion.
+
+            The best available resistance-glycogen evidence does not support
+            a simple monotonic "higher %1RM = more glycogen depletion" rule.
+            Higher loads commonly reduce repetitions / total work, and when
+            mechanical work is equated, glycogen use may be similar across
+            substantially different %1RM conditions.
+
+            Until repetitions / load-volume information is modeled directly,
+            %1RM remains diagnostic rather than a standalone multiplier.
+        */
+
+        _ = actualPercentOneRepMax;
+        _ = config;
+
+        return 1m;
+    }
+
+    private static void Validate(
+        Engine30ResistanceGlycogenWorkloadInput input,
+        Engine30ResistanceGlycogenWorkloadConfig config)
+    {
+        if (input.DurationMinutes < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(input.DurationMinutes),
+                "Duration cannot be negative.");
+        }
+
+        NormalizeTrainingStatus(
+            input.TrainingStatusCode);
+
+        if (config.ReferenceDurationMinutes <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(config.ReferenceDurationMinutes),
+                "Reference duration must be greater than zero.");
+        }
+
+        if (config.ReferenceHardSetsPerMuscleGroup <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(config.ReferenceHardSetsPerMuscleGroup),
+                "Reference hard sets per muscle group must be greater than zero.");
+        }
+
+        ValidateFraction(
+            config.ReferenceDepletionFraction,
+            nameof(config.ReferenceDepletionFraction),
+            allowZero:
+                false);
+
+        ValidateSensitivity(
+            config.HardSetSensitivity,
+            nameof(config.HardSetSensitivity));
+
+        ValidateSensitivity(
+            config.DurationSensitivity,
+            nameof(config.DurationSensitivity));
+
+        if (config.TrainedFactor <= 0m ||
+            config.UntrainedFactor <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(config),
+                "Training-status factors must be greater than zero.");
+        }
+
+        if (config.ReferencePercentOneRepMax.HasValue)
+        {
+            ValidatePercentOneRepMax(
+                config.ReferencePercentOneRepMax.Value,
+                nameof(config.ReferencePercentOneRepMax));
+        }
+
+        ValidateSensitivity(
+            config.PercentOneRepMaxSensitivity,
+            nameof(config.PercentOneRepMaxSensitivity));
+
+        ValidateFraction(
+            config.MinimumDepletionFraction,
+            nameof(config.MinimumDepletionFraction),
+            allowZero:
+                true);
+
+        ValidateFraction(
+            config.MaximumDepletionFraction,
+            nameof(config.MaximumDepletionFraction),
+            allowZero:
+                false);
+
+        if (config.MinimumDepletionFraction >
+            config.MaximumDepletionFraction)
+        {
+            throw new ArgumentException(
+                "Minimum depletion fraction cannot exceed maximum depletion fraction.");
+        }
+
+        var totalMuscleFraction =
+            input.MuscleGroups.Sum(
+                x => x.WholeBodySkeletalMuscleFraction);
+
+        if (totalMuscleFraction > 1m)
+        {
+            throw new ArgumentException(
+                "Muscle-group whole-body fractions cannot sum above 1.00.",
+                nameof(input.MuscleGroups));
+        }
+    }
+
+    private static void ValidateMuscle(
+        Engine30ResistanceMuscleGlycogenWorkInput muscle)
+    {
+        NormalizeRequiredCode(
+            muscle.MuscleGroupCode,
+            nameof(muscle.MuscleGroupCode));
+
+        ValidateFraction(
+            muscle.WholeBodySkeletalMuscleFraction,
+            nameof(muscle.WholeBodySkeletalMuscleFraction),
+            allowZero:
+                false);
+
+        ValidateFraction(
+            muscle.RecruitmentFraction,
+            nameof(muscle.RecruitmentFraction),
+            allowZero:
+                true);
+
+        if (muscle.HardSets.HasValue &&
+            muscle.HardSets.Value < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(muscle.HardSets),
+                "Hard sets cannot be negative.");
+        }
+
+        if (muscle.PercentOneRepMax.HasValue)
+        {
+            ValidatePercentOneRepMax(
+                muscle.PercentOneRepMax.Value,
+                nameof(muscle.PercentOneRepMax));
+        }
+    }
+
+    private static string NormalizeTrainingStatus(
+        string code)
+    {
+        var normalized =
+            NormalizeRequiredCode(
+                code,
+                nameof(code));
+
+        return normalized switch
+        {
+            Engine30ResistanceGlycogenTrainingStatusCodes.Trained =>
+                Engine30ResistanceGlycogenTrainingStatusCodes.Trained,
+
+            Engine30ResistanceGlycogenTrainingStatusCodes.Untrained =>
+                Engine30ResistanceGlycogenTrainingStatusCodes.Untrained,
+
+            _ =>
+                throw new ArgumentException(
+                    $"Unsupported resistance training status '{code}'.",
+                    nameof(code))
+        };
+    }
+
+    private static void ValidateSensitivity(
+        decimal value,
+        string parameterName)
+    {
+        if (value < 0m ||
+            value > 1m)
+        {
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                "Sensitivity must be between 0 and 1.");
+        }
+    }
+
+    private static void ValidatePercentOneRepMax(
+        decimal value,
+        string parameterName)
+    {
+        if (value <= 0m ||
+            value > 100m)
+        {
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                "%1RM must be greater than 0 and no more than 100.");
+        }
+    }
+
+    private static void ValidateFraction(
+        decimal value,
+        string parameterName,
+        bool allowZero)
+    {
+        var minimum =
+            allowZero
+                ? 0m
+                : 0.0000001m;
+
+        if (value < minimum ||
+            value > 1m)
+        {
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                "Fraction must be between 0 and 1.");
+        }
+    }
+
+    private static string NormalizeRequiredCode(
+        string code,
+        string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new ArgumentException(
+                "Code is required.",
+                parameterName);
+        }
+
+        return code
+            .Trim()
+            .ToUpperInvariant();
+    }
+
+    private static decimal Clamp(
+        decimal value,
+        decimal minimum,
+        decimal maximum)
+        => Math.Min(
+            maximum,
+            Math.Max(
+                minimum,
+                value));
+
+    private static decimal Round(
+        decimal value,
+        int decimals = 2)
+        => Math.Round(
+            value,
+            decimals,
+            MidpointRounding.AwayFromZero);
+}

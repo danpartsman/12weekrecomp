@@ -1,0 +1,13 @@
+@{
+    var guidedDemoShell =
+        User.FindFirst("recomp_demo")?.Value == "true"
+        && User.FindFirst("recomp_demo_type")?.Value == "GUIDED";
+}
+
+@if (guidedDemoShell)
+{
+    <link rel="stylesheet" href="/css/guided-demo.css" />
+    <script>
+        document.body.classList.add("guided-demo-dark-theme");
+    </script>
+}

@@ -1,0 +1,12 @@
+12WR TEST v1008 - GitHub Upload Batch
+
+Batch: Batch_01
+Files: 90
+Size:  1 MB
+
+IMPORTANT:
+1. GitHub branch must be: test
+2. Automatic workflow deployment must remain manual-only.
+3. Upload the CONTENTS of this batch while preserving folders.
+4. Do NOT upload this _UPLOAD_INSTRUCTIONS.txt file.
+5. Do NOT manually run the Azure workflow yet.

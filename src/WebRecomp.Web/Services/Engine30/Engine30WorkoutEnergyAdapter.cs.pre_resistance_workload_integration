@@ -1,0 +1,810 @@
+namespace WebRecomp.Web.Services.Engine30;
+
+/// <summary>
+/// Configuration-owned energy calibration for one physical modality/pattern.
+///
+/// These values are calibration inputs to the existing
+/// Engine30WorkoutEnergyCalculator. They are NOT user-entered truth.
+///
+/// The adapter deliberately keeps calibration separate from the
+/// authoritative workout session so workout type never becomes a fixed
+/// calorie result.
+/// </summary>
+public sealed record Engine30WorkoutEnergyCalibration(
+    string CalibrationCode,
+    string ModalityCode,
+
+    /// <summary>
+    /// Gross kcal/min represented by the calibration AT ReferenceRpe.
+    /// </summary>
+    decimal ReferenceWorkoutCaloriesPerMinute,
+
+    decimal ReferenceWeightLb,
+    string ScalingBasisCode = "BODY_WEIGHT",
+    decimal? ReferenceFatFreeMassLb = null,
+    decimal? DefaultRestSeconds = null,
+
+    /// <summary>
+    /// RPE at which ReferenceWorkoutCaloriesPerMinute was defined.
+    ///
+    /// The adapter normalizes the existing calculator so:
+    ///
+    ///     actual RPE == reference RPE
+    ///     => effective intensity adjustment == 1.00
+    ///
+    /// Default 5 preserves backward compatibility for any old temporary
+    /// callers until their calibration is made explicit.
+    /// </summary>
+    decimal ReferenceRpe = 5m);
+
+/// <summary>
+/// Associates a segment with the calibration selected for that segment.
+/// Composite workouts can therefore use different energy calibrations for
+/// treadmill, rowing, and resistance-floor blocks.
+/// </summary>
+public sealed record Engine30WorkoutSegmentEnergyCalibration(
+    string SegmentCode,
+    Engine30WorkoutEnergyCalibration Calibration);
+
+/// <summary>
+/// Adapter input.
+///
+/// The authoritative resolved workout supplies duration, RPE, modality,
+/// structure, and segment details.
+///
+/// Calibration supplies only the reference constants needed by the existing
+/// Bucket #3 calculator.
+///
+/// Monitor-reported calories are intentionally NOT passed into the calculator
+/// here. They remain parallel evidence for a later reconciliation layer.
+/// </summary>
+public sealed record Engine30WorkoutEnergyAdapterInput(
+    Engine30ResolvedWorkoutSession Session,
+    decimal BaseLivingEnergyKcal,
+    decimal WeightLb,
+    decimal? FatFreeMassLb = null,
+
+    Engine30WorkoutEnergyCalibration? SessionCalibration = null,
+    IReadOnlyCollection<Engine30WorkoutSegmentEnergyCalibration>? SegmentCalibrations = null);
+
+public sealed record Engine30WorkoutEnergySegmentResult(
+    string SegmentCode,
+    string ModalityCode,
+    string CalibrationCode,
+
+    decimal DurationMinutes,
+    decimal SessionRpe,
+
+    decimal CalibrationReferenceWorkoutCaloriesPerMinute,
+    decimal CalibrationReferenceRpe,
+    decimal NormalizedCalculatorReferenceCaloriesPerMinute,
+
+    decimal? DefaultRestSeconds,
+    decimal? ResolvedRestSeconds,
+
+    Engine30WorkoutEnergyResult Energy);
+
+/// <summary>
+/// Result from bridging the authoritative workout model into Bucket #3.
+///
+/// EngineNetWorkoutEnergyKcal is still entirely produced by
+/// Engine30WorkoutEnergyCalculator.
+///
+/// Monitor calories are surfaced only as evidence metadata and are not
+/// automatically substituted for the engine estimate.
+/// </summary>
+public sealed record Engine30WorkoutEnergyAdapterResult(
+    string WorkoutTypeCode,
+    string WorkoutFamilyCode,
+    string TrainingPatternCode,
+    string SessionStructureCode,
+
+    string AnalysisModalityCode,
+    decimal AnalysisRpe,
+    decimal SessionResolvedDurationMinutes,
+
+    decimal ModeledDurationMinutes,
+    decimal DurationDifferenceMinutes,
+    string DurationCoverageCode,
+
+    decimal GrossWorkoutEnergyKcal,
+    decimal RestingEnergyDuringWorkoutKcal,
+    decimal EngineNetWorkoutEnergyKcal,
+
+    decimal? MonitorReportedCalories,
+    string? MonitorReportedCalorieTypeCode,
+    bool MonitorCaloriesAppliedToEngineEstimate,
+
+    IReadOnlyList<Engine30WorkoutEnergySegmentResult> Segments);
+
+/// <summary>
+/// Bridges the new Engine 3.0 authoritative workout-session model into the
+/// existing Bucket #3 calculator without changing the calculator's math.
+///
+/// Resolution rules:
+///
+/// SESSION
+/// - actual duration > planned duration
+/// - actual RPE > planned override > workout-type default
+/// - actual modality > planned modality > workout-type default
+///
+/// SEGMENT
+/// - actual duration > planned duration
+/// - actual RPE > planned override > segment default
+///
+/// RESISTANCE REST
+/// - if actual average rest is known, compare it with config default rest
+/// - if actual rest is not known, config default is used as both default and
+///   resolved rest, producing density factor 1.00
+///
+/// COMPOSITE / MULTI-BLOCK
+/// - each segment is calculated independently with its own calibration
+/// - gross, resting, and net energy are then summed
+///
+/// MONITOR CALORIES
+/// - preserved as evidence
+/// - never automatically override Bucket #3 in this adapter
+/// </summary>
+public sealed class Engine30WorkoutEnergyAdapter
+{
+    private const decimal DurationMatchToleranceMinutes = 0.50m;
+
+    private readonly Engine30WorkoutEnergyCalculator _calculator;
+
+    public Engine30WorkoutEnergyAdapter(
+        Engine30WorkoutEnergyCalculator? calculator = null)
+    {
+        _calculator =
+            calculator
+            ?? new Engine30WorkoutEnergyCalculator();
+    }
+
+    public Engine30WorkoutEnergyAdapterResult Calculate(
+        Engine30WorkoutEnergyAdapterInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(input.Session);
+
+        ValidatePersonInputs(input);
+
+        var session =
+            input.Session;
+
+        var segments =
+            session.Segments
+            ?? Array.Empty<Engine30WorkoutSegmentInput>();
+
+        IReadOnlyList<Engine30WorkoutEnergySegmentResult> energySegments;
+
+        if (segments.Count > 0)
+        {
+            energySegments =
+                CalculateSegments(
+                    input,
+                    segments);
+        }
+        else
+        {
+            energySegments =
+                new[]
+                {
+                    CalculateWholeSession(
+                        input)
+                };
+        }
+
+        var modeledDuration =
+            energySegments.Sum(
+                x => x.DurationMinutes);
+
+        var gross =
+            energySegments.Sum(
+                x => x.Energy.GrossWorkoutEnergyKcal);
+
+        var resting =
+            energySegments.Sum(
+                x => x.Energy.RestingEnergyDuringWorkoutKcal);
+
+        var net =
+            energySegments.Sum(
+                x => x.Energy.NetWorkoutEnergyKcal);
+
+        var durationDifference =
+            modeledDuration
+            - session.AnalysisDuration.Minutes;
+
+        var durationCoverageCode =
+            Math.Abs(durationDifference)
+                <= DurationMatchToleranceMinutes
+                ? "MATCH"
+                : "MISMATCH";
+
+        return new Engine30WorkoutEnergyAdapterResult(
+            WorkoutTypeCode:
+                session.WorkoutTypeCode,
+
+            WorkoutFamilyCode:
+                session.WorkoutFamilyCode,
+
+            TrainingPatternCode:
+                session.TrainingPatternCode,
+
+            SessionStructureCode:
+                session.SessionStructureCode,
+
+            AnalysisModalityCode:
+                session.AnalysisModality.Value,
+
+            AnalysisRpe:
+                session.AnalysisRpe.Value,
+
+            SessionResolvedDurationMinutes:
+                session.AnalysisDuration.Minutes,
+
+            ModeledDurationMinutes:
+                Round(
+                    modeledDuration),
+
+            DurationDifferenceMinutes:
+                Round(
+                    durationDifference),
+
+            DurationCoverageCode:
+                durationCoverageCode,
+
+            GrossWorkoutEnergyKcal:
+                Round(
+                    gross),
+
+            RestingEnergyDuringWorkoutKcal:
+                Round(
+                    resting),
+
+            EngineNetWorkoutEnergyKcal:
+                Round(
+                    net),
+
+            MonitorReportedCalories:
+                session.MonitorData?.ReportedCalories,
+
+            MonitorReportedCalorieTypeCode:
+                session.MonitorData?.ReportedCalorieTypeCode,
+
+            MonitorCaloriesAppliedToEngineEstimate:
+                false,
+
+            Segments:
+                energySegments);
+    }
+
+    private Engine30WorkoutEnergySegmentResult CalculateWholeSession(
+        Engine30WorkoutEnergyAdapterInput input)
+    {
+        var session =
+            input.Session;
+
+        var calibration =
+            input.SessionCalibration
+            ?? throw new ArgumentException(
+                "SessionCalibration is required when the workout has no segments.",
+                nameof(input.SessionCalibration));
+
+        ValidateCalibration(
+            calibration);
+
+        ValidateModalityMatch(
+            expectedModalityCode:
+                session.AnalysisModality.Value,
+
+            calibrationModalityCode:
+                calibration.ModalityCode,
+
+            context:
+                "whole workout");
+
+        var rest =
+            ResolveRest(
+                calibration.DefaultRestSeconds,
+                actualRestSeconds:
+                    null);
+
+        var energy =
+            _calculator.Calculate(
+                CreateCalculatorInput(
+                    workoutTypeCode:
+                        session.WorkoutTypeCode,
+
+                    baseLivingEnergyKcal:
+                        input.BaseLivingEnergyKcal,
+
+                    weightLb:
+                        input.WeightLb,
+
+                    fatFreeMassLb:
+                        input.FatFreeMassLb,
+
+                    durationMinutes:
+                        session.AnalysisDuration.Minutes,
+
+                    rpe:
+                        session.AnalysisRpe.Value,
+
+                    calibration:
+                        calibration,
+
+                    defaultRestSeconds:
+                        rest.DefaultRestSeconds,
+
+                    resolvedRestSeconds:
+                        rest.ResolvedRestSeconds));
+
+        return new Engine30WorkoutEnergySegmentResult(
+            SegmentCode:
+                "SESSION",
+
+            ModalityCode:
+                session.AnalysisModality.Value,
+
+            CalibrationCode:
+                calibration.CalibrationCode,
+
+            DurationMinutes:
+                session.AnalysisDuration.Minutes,
+
+            SessionRpe:
+                session.AnalysisRpe.Value,
+
+            CalibrationReferenceWorkoutCaloriesPerMinute:
+                calibration.ReferenceWorkoutCaloriesPerMinute,
+
+            CalibrationReferenceRpe:
+                calibration.ReferenceRpe,
+
+            NormalizedCalculatorReferenceCaloriesPerMinute:
+                GetNormalizedCalculatorReferenceCaloriesPerMinute(
+                    calibration),
+
+            DefaultRestSeconds:
+                rest.DefaultRestSeconds,
+
+            ResolvedRestSeconds:
+                rest.ResolvedRestSeconds,
+
+            Energy:
+                energy);
+    }
+
+    private IReadOnlyList<Engine30WorkoutEnergySegmentResult> CalculateSegments(
+        Engine30WorkoutEnergyAdapterInput input,
+        IReadOnlyCollection<Engine30WorkoutSegmentInput> segments)
+    {
+        var calibrations =
+            input.SegmentCalibrations
+            ?? throw new ArgumentException(
+                "SegmentCalibrations are required when workout segments are present.",
+                nameof(input.SegmentCalibrations));
+
+        var calibrationBySegment =
+            calibrations.ToDictionary(
+                x => NormalizeRequiredCode(
+                    x.SegmentCode,
+                    nameof(x.SegmentCode)),
+                StringComparer.OrdinalIgnoreCase);
+
+        var results =
+            new List<Engine30WorkoutEnergySegmentResult>();
+
+        foreach (var segment in segments)
+        {
+            var segmentCode =
+                NormalizeRequiredCode(
+                    segment.SegmentCode,
+                    nameof(segment.SegmentCode));
+
+            if (!calibrationBySegment.TryGetValue(
+                segmentCode,
+                out var segmentCalibration))
+            {
+                throw new KeyNotFoundException(
+                    $"No energy calibration was supplied for workout segment '{segmentCode}'.");
+            }
+
+            var calibration =
+                segmentCalibration.Calibration;
+
+            ValidateCalibration(
+                calibration);
+
+            var modalityCode =
+                NormalizeRequiredCode(
+                    segment.ModalityCode,
+                    nameof(segment.ModalityCode));
+
+            ValidateModalityMatch(
+                expectedModalityCode:
+                    modalityCode,
+
+                calibrationModalityCode:
+                    calibration.ModalityCode,
+
+                context:
+                    $"segment '{segmentCode}'");
+
+            var duration =
+                segment.ActualDurationMinutes
+                ?? segment.PlannedDurationMinutes;
+
+            var rpe =
+                segment.ActualRpe
+                ?? segment.PlannedRpeOverride
+                ?? segment.DefaultRpe;
+
+            ValidateRpe(
+                rpe,
+                $"segment '{segmentCode}'");
+
+            var actualRest =
+                segment.Resistance?.AverageRestSeconds;
+
+            var rest =
+                ResolveRest(
+                    calibration.DefaultRestSeconds,
+                    actualRest);
+
+            var energy =
+                _calculator.Calculate(
+                    CreateCalculatorInput(
+                        workoutTypeCode:
+                            input.Session.WorkoutTypeCode,
+
+                        baseLivingEnergyKcal:
+                            input.BaseLivingEnergyKcal,
+
+                        weightLb:
+                            input.WeightLb,
+
+                        fatFreeMassLb:
+                            input.FatFreeMassLb,
+
+                        durationMinutes:
+                            duration,
+
+                        rpe:
+                            rpe,
+
+                        calibration:
+                            calibration,
+
+                        defaultRestSeconds:
+                            rest.DefaultRestSeconds,
+
+                        resolvedRestSeconds:
+                            rest.ResolvedRestSeconds));
+
+            results.Add(
+                new Engine30WorkoutEnergySegmentResult(
+                    SegmentCode:
+                        segmentCode,
+
+                    ModalityCode:
+                        modalityCode,
+
+                    CalibrationCode:
+                        calibration.CalibrationCode,
+
+                    DurationMinutes:
+                        Round(
+                            duration),
+
+                    SessionRpe:
+                        Round(
+                            rpe,
+                            1),
+
+                    CalibrationReferenceWorkoutCaloriesPerMinute:
+                        calibration.ReferenceWorkoutCaloriesPerMinute,
+
+                    CalibrationReferenceRpe:
+                        calibration.ReferenceRpe,
+
+                    NormalizedCalculatorReferenceCaloriesPerMinute:
+                        GetNormalizedCalculatorReferenceCaloriesPerMinute(
+                            calibration),
+
+                    DefaultRestSeconds:
+                        rest.DefaultRestSeconds,
+
+                    ResolvedRestSeconds:
+                        rest.ResolvedRestSeconds,
+
+                    Energy:
+                        energy));
+        }
+
+        return results;
+    }
+
+    private static Engine30WorkoutEnergyInput CreateCalculatorInput(
+        string workoutTypeCode,
+        decimal baseLivingEnergyKcal,
+        decimal weightLb,
+        decimal? fatFreeMassLb,
+        decimal durationMinutes,
+        decimal rpe,
+        Engine30WorkoutEnergyCalibration calibration,
+        decimal? defaultRestSeconds,
+        decimal? resolvedRestSeconds)
+    {
+        var scalingBasisCode =
+            NormalizeRequiredCode(
+                calibration.ScalingBasisCode,
+                nameof(calibration.ScalingBasisCode));
+
+        if (scalingBasisCode == "FAT_FREE_MASS" &&
+            !fatFreeMassLb.HasValue)
+        {
+            throw new ArgumentException(
+                "FatFreeMassLb is required when the selected energy calibration uses FAT_FREE_MASS scaling.",
+                nameof(fatFreeMassLb));
+        }
+
+        var normalizedReferenceWorkoutCaloriesPerMinute =
+            GetNormalizedCalculatorReferenceCaloriesPerMinute(
+                calibration);
+
+        return new Engine30WorkoutEnergyInput(
+            WorkoutTypeCode:
+                workoutTypeCode,
+
+            BaseLivingEnergyKcal:
+                baseLivingEnergyKcal,
+
+            WeightLb:
+                weightLb,
+
+            DurationMinutes:
+                durationMinutes,
+
+            ReferenceWorkoutCaloriesPerMinute:
+                normalizedReferenceWorkoutCaloriesPerMinute,
+
+            ReferenceWeightLb:
+                calibration.ReferenceWeightLb,
+
+            SessionRpe:
+                rpe,
+
+            DefaultRestSeconds:
+                defaultRestSeconds,
+
+            ActualRestSeconds:
+                resolvedRestSeconds,
+
+            ScalingBasisCode:
+                scalingBasisCode,
+
+            FatFreeMassLb:
+                fatFreeMassLb,
+
+            ReferenceFatFreeMassLb:
+                calibration.ReferenceFatFreeMassLb);
+    }
+
+    private static (
+        decimal? DefaultRestSeconds,
+        decimal? ResolvedRestSeconds)
+        ResolveRest(
+            decimal? defaultRestSeconds,
+            decimal? actualRestSeconds)
+    {
+        if (actualRestSeconds.HasValue &&
+            actualRestSeconds.Value <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(actualRestSeconds),
+                "Actual resistance rest seconds must be greater than zero.");
+        }
+
+        if (defaultRestSeconds.HasValue &&
+            defaultRestSeconds.Value <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(defaultRestSeconds),
+                "Default resistance rest seconds must be greater than zero.");
+        }
+
+        if (actualRestSeconds.HasValue &&
+            !defaultRestSeconds.HasValue)
+        {
+            throw new ArgumentException(
+                "A configuration-owned default rest value is required before actual rest can be used as a density adjustment.");
+        }
+
+        if (!defaultRestSeconds.HasValue)
+        {
+            return (
+                null,
+                null);
+        }
+
+        /*
+            If the user did not report actual rest, use the configured
+            reference as both values. This intentionally produces a
+            density factor of 1.00 rather than inventing a density change.
+        */
+        return (
+            defaultRestSeconds,
+            actualRestSeconds
+            ?? defaultRestSeconds);
+    }
+
+    private static void ValidatePersonInputs(
+        Engine30WorkoutEnergyAdapterInput input)
+    {
+        if (input.BaseLivingEnergyKcal <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(input.BaseLivingEnergyKcal),
+                "Base Living energy must be greater than zero.");
+        }
+
+        if (input.WeightLb <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(input.WeightLb),
+                "Weight must be greater than zero.");
+        }
+
+        if (input.FatFreeMassLb.HasValue &&
+            input.FatFreeMassLb.Value <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(input.FatFreeMassLb),
+                "Fat-free mass must be greater than zero when supplied.");
+        }
+    }
+
+    private static void ValidateCalibration(
+        Engine30WorkoutEnergyCalibration calibration)
+    {
+        ArgumentNullException.ThrowIfNull(
+            calibration);
+
+        NormalizeRequiredCode(
+            calibration.CalibrationCode,
+            nameof(calibration.CalibrationCode));
+
+        NormalizeRequiredCode(
+            calibration.ModalityCode,
+            nameof(calibration.ModalityCode));
+
+        var scalingBasis =
+            NormalizeRequiredCode(
+                calibration.ScalingBasisCode,
+                nameof(calibration.ScalingBasisCode));
+
+        if (calibration.ReferenceWorkoutCaloriesPerMinute < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(calibration.ReferenceWorkoutCaloriesPerMinute),
+                "Reference workout calories per minute cannot be negative.");
+        }
+
+        if (calibration.ReferenceWeightLb <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(calibration.ReferenceWeightLb),
+                "Reference weight must be greater than zero.");
+        }
+
+        if (calibration.ReferenceRpe < 0m ||
+            calibration.ReferenceRpe > 10m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(calibration.ReferenceRpe),
+                "Reference RPE must be between 0 and 10.");
+        }
+
+        if (scalingBasis == "FAT_FREE_MASS")
+        {
+            if (!calibration.ReferenceFatFreeMassLb.HasValue ||
+                calibration.ReferenceFatFreeMassLb.Value <= 0m)
+            {
+                throw new ArgumentException(
+                    "ReferenceFatFreeMassLb must be supplied and greater than zero for FAT_FREE_MASS calibration.");
+            }
+        }
+        else if (scalingBasis != "BODY_WEIGHT")
+        {
+            throw new ArgumentException(
+                $"Unsupported energy scaling basis '{calibration.ScalingBasisCode}'.");
+        }
+    }
+
+    private static void ValidateModalityMatch(
+        string expectedModalityCode,
+        string calibrationModalityCode,
+        string context)
+    {
+        var expected =
+            NormalizeRequiredCode(
+                expectedModalityCode,
+                nameof(expectedModalityCode));
+
+        var actual =
+            NormalizeRequiredCode(
+                calibrationModalityCode,
+                nameof(calibrationModalityCode));
+
+        if (!string.Equals(
+            expected,
+            actual,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"Energy calibration modality '{actual}' does not match {context} modality '{expected}'.");
+        }
+    }
+
+    private static decimal GetNormalizedCalculatorReferenceCaloriesPerMinute(
+        Engine30WorkoutEnergyCalibration calibration)
+    {
+        var referenceIntensityFactor =
+            GetExistingCalculatorIntensityFactor(
+                calibration.ReferenceRpe);
+
+        return calibration.ReferenceWorkoutCaloriesPerMinute
+            / referenceIntensityFactor;
+    }
+
+    private static decimal GetExistingCalculatorIntensityFactor(
+        decimal rpe)
+    {
+        var factor =
+            0.70m
+            + rpe * 0.04m;
+
+        return Math.Min(
+            1.20m,
+            Math.Max(
+                0.70m,
+                factor));
+    }
+
+    private static void ValidateRpe(
+        decimal value,
+        string context)
+    {
+        if (value < 0m ||
+            value > 10m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(value),
+                $"{context} RPE must be between 0 and 10.");
+        }
+    }
+
+    private static string NormalizeRequiredCode(
+        string code,
+        string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new ArgumentException(
+                "Code is required.",
+                parameterName);
+        }
+
+        return code
+            .Trim()
+            .ToUpperInvariant();
+    }
+
+    private static decimal Round(
+        decimal value,
+        int decimals = 2)
+        => Math.Round(
+            value,
+            decimals,
+            MidpointRounding.AwayFromZero);
+}

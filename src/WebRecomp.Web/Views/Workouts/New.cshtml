@@ -1,0 +1,159 @@
+﻿@model WorkoutEntryViewModel
+<!-- V1006_GUIDED_WORKOUT_CLEAN -->
+@await Html.PartialAsync(
+    "_GuidedDemoCalloutSections",
+    new[]
+    {
+        "Your planned workout is already working in the background",
+        "Until you update this page, Recomp uses the workout on your Weekly Plan for its calculations so the Dashboard can still give you useful guidance.",
+
+        "Update the system with what actually happened",
+        "Log the workout you completed. If you trained more than once, add each session. Recomp recalculates training load, glycogen demand, recovery, and recommendations from the work you actually performed.",
+
+        "RPE keeps effort simple",
+        "Rate of Perceived Exertion is just how hard the session felt: 8-9 = very hard training, 5 = light cardio or moderate effort, and 2-3 = recovery, easy movement, or chores."
+    })
+@{
+    ViewData["Title"] = "Daily Workout";
+    var existingWorkouts =
+        ViewBag.ExistingWorkouts as System.Collections.Generic.List<WorkoutSessionSummaryViewModel>
+        ?? new System.Collections.Generic.List<WorkoutSessionSummaryViewModel>();
+    var isEdit = Model.WorkoutSessionId.HasValue;
+}
+<div class="app-page app-page-workout">
+    <header class="app-page-head">
+        <div>
+            <div class="app-kicker">DAILY • WORKOUT ACTUAL</div>
+            <h1>Daily Workout</h1>
+            <p class="lede">@Model.Date.ToString("dddd, MMMM d")</p>
+        </div>
+
+        <form asp-action="New" method="get" class="app-date-picker">
+            <label>Date
+                <input name="date" value="@Model.Date.ToString("yyyy-MM-dd")" type="date" onchange="this.form.submit()" />
+            </label>
+        </form>
+    </header>
+
+    @if (TempData["StatusMessage"] is string statusMessage)
+    {
+        <div class="app-message success">@statusMessage</div>
+    }
+
+    <form asp-action="New" method="post" class="stack" id="workout-autosave-form">
+        <input asp-for="WorkoutSessionId" type="hidden" />
+        <input asp-for="Date" type="hidden" />
+        <div asp-validation-summary="All" class="validation"></div>
+
+        <section class="card app-section app-section-blue">
+            <div class="app-section-label"><span class="app-number">1</span><span>@(isEdit ? "EDIT ACTUAL" : "ACTUAL WORKOUT")</span></div>
+            <div class="workout-form-heading">
+                <div>
+                    <h2>@(isEdit ? "Edit saved workout" : "What did you do?")</h2>
+                    <p class="required-note"><span class="required-mark">*</span> Required</p>
+                    <p class="small">
+                        @(isEdit
+                            ? "Saving changes updates this session and recalculates its workout and glycogen estimates."
+                            : "The planned workout is selected automatically when available. Change it if the workout you actually do is different.")
+                    </p>
+                </div>
+                @if (isEdit)
+                {
+                    <a class="button"
+                       asp-action="New"
+                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Cancel edit</a>
+                }
+            </div>
+
+            <label>
+                <span class="field-label-line">Workout type <span class="required-mark">*</span></span>
+                <select asp-for="WorkoutTypeCode" asp-items="Model.WorkoutTypes"></select>
+            </label>
+
+            <div class="grid-2">
+                <label><span class="field-label-line">Duration (min) <span class="required-mark">*</span></span><input asp-for="DurationMin" type="number" step="1" /></label>
+                <label>Typical rest (sec)<input asp-for="TypicalRestSec" type="number" /></label>
+                <label>Session RPE<input asp-for="SessionRpe" type="number" step="0.5" min="1" max="10" /></label>
+                <label>Device calories<input asp-for="DeviceCalories" type="number" step="1" /></label>
+            </div>
+
+            <div class="checks option4-checks workout-completed-check">
+                <label><input asp-for="CompletedFlag" /> Completed</label>
+            </div>
+
+            <label>Notes<textarea asp-for="Notes" rows="3"></textarea></label>
+        </section>
+
+        <div class="autosave-row" aria-live="polite">
+            <span id="workout-autosave-status" class="autosave-status" hidden></span>
+        </div>
+        <noscript>
+            <div class="app-action-row">
+                <button class="primary" type="submit">@(isEdit ? "Save changes" : "Save workout")</button>
+            </div>
+        </noscript>
+    </form>
+
+    <section class="card app-section app-section-teal workout-saved-card">
+        <div class="app-section-label"><span class="app-number">2</span><span>SAVED SESSIONS</span></div>
+        <div class="workout-saved-heading">
+            <div>
+                <h2>Additional / saved workouts</h2>
+                <p class="small">Edit or delete a saved session, or add another workout when you train more than once in a day.</p>
+            </div>
+            <a class="button"
+               asp-action="New"
+               asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+               asp-route-addAnother="true">+ Add another workout</a>
+        </div>
+
+        @if (existingWorkouts.Count == 0)
+        {
+            <div class="app-empty-state">No saved workouts yet.</div>
+        }
+        else
+        {
+            <div class="workout-saved-list">
+                @foreach (var saved in existingWorkouts)
+                {
+                    <div class="workout-saved-row">
+                        <div class="workout-saved-summary">
+                            <strong>@saved.WorkoutDisplayName</strong>
+                            <span>@saved.DurationMin.ToString("0.#") min</span>
+                            <span>@(saved.SessionRpe.HasValue ? $"RPE {saved.SessionRpe.Value:0.#}" : "RPE not entered")</span>
+                            <span class="app-pill @(saved.CompletedFlag ? "good" : "neutral")">@(saved.CompletedFlag ? "Completed" : "Not completed")</span>
+                        </div>
+                        <div class="workout-saved-actions">
+                            <a class="button workout-compact"
+                               asp-action="New"
+                               asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                               asp-route-editId="@saved.WorkoutSessionId">Edit</a>
+
+                            <form asp-action="Delete"
+                                  method="post"
+                                  class="workout-delete-form"
+                                  onsubmit="return confirm('Delete this saved workout?');">
+                                <input type="hidden" name="workoutSessionId" value="@saved.WorkoutSessionId" />
+                                <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                <button class="workout-delete-button" type="submit">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+<script>
+(() => {
+    const form = document.getElementById("workout-autosave-form");
+    window.RecompAutosave?.bind(form, {
+        statusSelector: "#workout-autosave-status",
+        delay: 650
+    });
+})();
+</script>
+
+
+
