@@ -1,3 +1,18 @@
+﻿@using System.Reflection
+@{
+    var assembly = Assembly.GetExecutingAssembly();
+
+    var appVersion =
+        assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
+        ?? "unknown";
+
+    var engineVersion =
+        assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(x => x.Key == "RecompEngineVersion")
+            ?.Value
+        ?? "unknown";
+}
 @{
     var isPublicPage = ViewData["PublicPage"] is bool publicPage && publicPage;
     var isOnboardingPage = ViewData["OnboardingPage"] is bool onboardingPage && onboardingPage;
@@ -365,7 +380,7 @@
     <div>
         <strong>Built on evidence. Simple enough for real life.</strong>
         <span>
-            Web Recomp v1008 TEST &bull; Plan &bull; Train &bull; Recover &bull; Adapt
+            Web Recomp @appVersion TEST &bull; Engine @engineVersion &bull; Plan &bull; Train &bull; Recover &bull; Adapt
             &bull;
             <a asp-controller="Contact"
                asp-action="Index">
@@ -437,3 +452,4 @@
     <script src="~/js/recent-workout-picker.js" asp-append-version="true"></script>
 </body>
 </html>
+

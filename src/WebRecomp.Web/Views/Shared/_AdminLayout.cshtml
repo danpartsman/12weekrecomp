@@ -1,4 +1,19 @@
-﻿@{
+﻿@using System.Reflection
+@{
+    var assembly = Assembly.GetExecutingAssembly();
+
+    var appVersion =
+        assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
+        ?? "unknown";
+
+    var engineVersion =
+        assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(x => x.Key == "RecompEngineVersion")
+            ?.Value
+        ?? "unknown";
+}
+@{
     var title = ViewData["Title"]?.ToString() ?? "Administration";
 }
 <!DOCTYPE html>
@@ -96,12 +111,13 @@
 <footer class="footer recomp-footer">
     <div>
         <strong>12 Week Recomp Administration</strong>
-        <span>Web Recomp v1008</span>
+        <span>Web Recomp @appVersion &bull; Engine @engineVersion</span>
     </div>
 </footer>
 
 </body>
 </html>
+
 
 
 
