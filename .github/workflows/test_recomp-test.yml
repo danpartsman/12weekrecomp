@@ -22,7 +22,7 @@ jobs:
       - name: Restore web project
         run: dotnet restore src/WebRecomp.Web/WebRecomp.Web.csproj
 
-      - name: Restore tests
+      - name: Restore test project
         run: dotnet restore tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj
 
       - name: Build web project
