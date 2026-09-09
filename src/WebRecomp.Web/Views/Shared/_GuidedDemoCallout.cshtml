@@ -1,0 +1,16 @@
+@model string[]
+@{
+    var guidedDemoCallout =
+        User.FindFirst("recomp_demo")?.Value == "true"
+        && User.FindFirst("recomp_demo_type")?.Value == "GUIDED";
+}
+
+@if (guidedDemoCallout && Model is { Length: >= 2 })
+{
+    <aside class="guided-demo-callout"
+           role="note"
+           aria-label="@Model[0]">
+        <strong>@Model[0]</strong>
+        <span>@Model[1]</span>
+    </aside>
+}

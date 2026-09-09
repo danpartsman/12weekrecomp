@@ -1,0 +1,86 @@
+@{
+    var title = ViewData["Title"]?.ToString() ?? "Coach";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@title - 12 Week Recomp</title>
+
+    <script>
+        (() => {
+            const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+            const applyTheme = () => {
+                const preference =
+                    localStorage.getItem('recomp-theme') || 'system';
+
+                const effective =
+                    preference === 'system'
+                        ? (media.matches ? 'dark' : 'light')
+                        : preference;
+
+                document.documentElement.dataset.theme = effective;
+            };
+
+            applyTheme();
+        })();
+    </script>
+
+    <link rel="stylesheet"
+          href="~/css/site.css"
+          asp-append-version="true" />
+</head>
+
+<body class="app-shell">
+
+<header class="topbar">
+
+    <div class="brand brand-logo-wrap">
+        <a asp-controller="Coach"
+           asp-action="Index"
+           aria-label="12 Week Recomp Coach">
+
+            <img class="brand-logo brand-logo-dark"
+                 src="~/images/recomp/recomp-logo-dark.png"
+                 alt="12 Week Recomp" />
+        </a>
+    </div>
+
+    <nav class="public-nav"
+         aria-label="Coach navigation">
+
+        <a asp-controller="Coach"
+           asp-action="Index">
+            Coach Home
+        </a>
+
+        <a asp-controller="Home"
+           asp-action="Index">
+            My Recomp
+        </a>
+
+        <a class="nav-signout"
+           asp-controller="Account"
+           asp-action="Logout">
+            Sign Out
+        </a>
+
+    </nav>
+
+</header>
+
+<main class="container">
+    @RenderBody()
+</main>
+
+<footer class="footer recomp-footer">
+    <div>
+        <strong>12 Week Recomp Coach</strong>
+        <span>Web Recomp v1006</span>
+    </div>
+</footer>
+
+</body>
+</html>

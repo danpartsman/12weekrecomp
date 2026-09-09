@@ -1,0 +1,185 @@
+@model WebRecomp.Web.ViewModels.AdminPromoCodeDetailViewModel
+
+@{
+    ViewData["Title"] = "Promotion Details";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-code-page">
+
+    <div class="admin-page-header">
+        <div>
+            <span class="admin-eyebrow">PROMOTION</span>
+            <h1>@Model.PromotionName</h1>
+            <p>
+                Promotion configuration and redemption history.
+            </p>
+        </div>
+
+        <a asp-controller="AdminGiveawayCodes"
+           asp-action="Index"
+           class="admin-back-link">
+            &larr; Giveaway &amp; Promotion Codes
+        </a>
+    </div>
+
+    <section class="admin-code-panel admin-promo-detail-summary">
+
+        <div class="admin-promo-detail-grid">
+
+            <div>
+                <span class="admin-contact-message-label">Promotion Code</span>
+                <div class="admin-code-value">
+                    <code>@Model.Code</code>
+                    <button type="button"
+                            class="admin-copy-button"
+                            data-copy="@Model.Code">
+                        Copy
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <span class="admin-contact-message-label">Status</span>
+                <span class="admin-status-chip">@Model.StatusCode</span>
+            </div>
+
+            <div>
+                <span class="admin-contact-message-label">Access Length</span>
+                <strong>@Model.AccessDurationDays days</strong>
+            </div>
+
+            <div>
+                <span class="admin-contact-message-label">Redemptions</span>
+                <strong>
+                    @Model.RedemptionCount.ToString("N0")
+                    /
+                    @Model.MaxRedemptions.ToString("N0")
+                </strong>
+            </div>
+
+            <div>
+                <span class="admin-contact-message-label">Redeem By</span>
+                <strong>
+                    @(Model.RedeemByUtc.HasValue
+                        ? Model.RedeemByUtc.Value.ToString("yyyy-MM-dd")
+                        : "None")
+                </strong>
+            </div>
+
+            <div>
+                <span class="admin-contact-message-label">Created</span>
+                <strong>@Model.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</strong>
+            </div>
+
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Notes))
+        {
+            <div class="admin-promo-detail-notes">
+                <span class="admin-contact-message-label">Notes</span>
+                <p>@Model.Notes</p>
+            </div>
+        }
+
+    </section>
+
+
+    <section class="admin-code-list-section">
+
+        <div class="admin-list-heading">
+            <div>
+                <h2>Redemption History</h2>
+                <p>
+                    Every user who has redeemed this promotion and the resulting
+                    access period.
+                </p>
+            </div>
+        </div>
+
+        @if (Model.Redemptions.Count == 0)
+        {
+            <div class="admin-empty-state">
+                This promotion has not been redeemed yet.
+            </div>
+        }
+        else
+        {
+            <div class="admin-table-wrap">
+
+                <table class="admin-code-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Redeemed</th>
+                            <th>Access Starts</th>
+                            <th>Access Ends</th>
+                            <th>Access Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                    @foreach (var redemption in Model.Redemptions)
+                    {
+                        <tr>
+                            <td>
+                                @(redemption.UserEmail ?? "Unknown")
+                            </td>
+
+                            <td>
+                                @redemption.RedeemedAtUtc.ToString("yyyy-MM-dd HH:mm")
+                                UTC
+                            </td>
+
+                            <td>
+                                @redemption.StartsAtUtc.ToString("yyyy-MM-dd HH:mm")
+                                UTC
+                            </td>
+
+                            <td>
+                                @(redemption.EndsAtUtc.HasValue
+                                    ? redemption.EndsAtUtc.Value.ToString("yyyy-MM-dd HH:mm") + " UTC"
+                                    : "No expiration")
+                            </td>
+
+                            <td>
+                                <span class="admin-status-chip">
+                                    @redemption.AccessStatus
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+
+                </table>
+
+            </div>
+        }
+
+    </section>
+
+</section>
+
+<script>
+    (() => {
+        document.querySelectorAll('[data-copy]').forEach(button => {
+            button.addEventListener('click', async () => {
+                const value = button.getAttribute('data-copy');
+
+                try {
+                    await navigator.clipboard.writeText(value);
+
+                    const original = button.textContent;
+                    button.textContent = 'Copied';
+
+                    window.setTimeout(() => {
+                        button.textContent = original;
+                    }, 1200);
+                }
+                catch {
+                    window.prompt('Copy this code:', value);
+                }
+            });
+        });
+    })();
+</script>

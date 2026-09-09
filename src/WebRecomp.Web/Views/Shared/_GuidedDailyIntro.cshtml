@@ -1,0 +1,19 @@
+@{
+    var isGuidedDailyPage =
+        User.FindFirst("recomp_demo")?.Value == "true"
+        && User.FindFirst("recomp_demo_type")?.Value == "GUIDED";
+}
+
+@if (isGuidedDailyPage)
+{
+    <aside class="guided-demo-daily-intro"
+           role="note"
+           aria-label="How the Daily pages work">
+        <strong>Daily pages make it simple</strong>
+        <span>
+            Enter a few simple numbers from your day. Recomp's analytical engine
+            uses them to calculate the personalized program details you see on
+            your Dashboard.
+        </span>
+    </aside>
+}

@@ -1,0 +1,458 @@
+@model WeekPlanViewModel
+<!-- V1006_GUIDED_SCHEDULE_CLEAN -->
+@await Html.PartialAsync(
+    "_GuidedDemoCalloutSections",
+    new[]
+    {
+        "Built for full-body recomposition",
+        "The goal is not simply weight loss. Recomp is built to help you lose fat while preserving - and when possible building - lean muscle across your whole body.",
+
+        "A weekly template that fits real life",
+        "We build your workout template for the week in advance using the days you can actually train. You can move workouts when your schedule changes, and Recomp keeps checking the plan against the program guidelines."
+    })
+@using System.Linq
+@functions {
+    private static string CategoryFromDay(string? code, string? role)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return "unplanned";
+
+        var normalizedRole = (role ?? "").ToUpperInvariant();
+
+        if (normalizedRole.Contains("HEAVY"))
+            return "major";
+
+        if (normalizedRole.Contains("LIGHT_STRENGTH"))
+            return "accessory";
+
+        // Match the Workout Actual selector grouping: conditioning/cardio is
+        // evaluated before recovery, so Zone 2 / RECOVERY_CARDIO appears here.
+        if (normalizedRole.Contains("CONDITION") || normalizedRole.Contains("CARDIO"))
+            return "cardio";
+
+        if (normalizedRole.Contains("RECOVERY"))
+            return "recovery";
+
+        return CategoryFromCode(code);
+    }
+
+    private static string CategoryFromCode(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return "unplanned";
+
+        var c = code.ToUpperInvariant();
+
+        if (c.StartsWith("MAJOR_")
+            || c == "FULL_BODY_STRENGTH")
+            return "major";
+
+        if (c == "ACCESSORY"
+            || c == "RESISTANCE_CIRCUIT")
+            return "accessory";
+
+        if (c is "GENERAL_CARDIO"
+            or "EASY_CARDIO"
+            or "ZONE2_CARDIO"
+            or "WALKING"
+            or "RUNNING"
+            or "TREADMILL"
+            or "CYCLING"
+            or "ROWING"
+            or "ELLIPTICAL"
+            or "STAIR_CLIMBER"
+            or "SWIMMING"
+            or "RUNNING_INTERVALS"
+            or "CYCLING_INTERVALS"
+            or "ROWING_INTERVALS"
+            or "MIXED_CONDITIONING"
+            or "TRUE_HIIT"
+            or "ORANGETHEORY"
+            or "MIXED_GYM_SESSION"
+            or "CUSTOM_COMPOSITE")
+            return "cardio";
+
+        if (c is "REST" or "MOBILITY_RECOVERY")
+            return "recovery";
+
+        return "other";
+    }
+
+    private static string CategoryLabel(string category) => category switch
+    {
+        "major" => "Major / hard strength",
+        "accessory" => "Accessory strength",
+        "cardio" => "Conditioning / cardio",
+        "recovery" => "Recovery / rest",
+        "other" => "Other activity",
+        _ => "Unplanned"
+    };
+}
+@{
+    ViewData["Title"] = "Weekly Plan";
+    var previous = Model.WeekStart.AddDays(-7).ToString("yyyy-MM-dd");
+    var next = Model.WeekStart.AddDays(7).ToString("yyyy-MM-dd");
+
+    var majorCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "major");
+    var accessoryCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "accessory");
+    var cardioCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "cardio");
+    var recoveryCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "recovery");
+    var otherCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "other");
+    var unplannedCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "unplanned");
+
+    var majorOptions = Model.WorkoutTypes.Where(x => CategoryFromCode(x.Value) == "major").ToList();
+    var accessoryOptions = Model.WorkoutTypes.Where(x => CategoryFromCode(x.Value) == "accessory").ToList();
+    var cardioOptions = Model.WorkoutTypes.Where(x => CategoryFromCode(x.Value) == "cardio").ToList();
+    var recoveryOptions = Model.WorkoutTypes.Where(x => CategoryFromCode(x.Value) == "recovery").ToList();
+    var otherOptions = Model.WorkoutTypes.Where(x => CategoryFromCode(x.Value) == "other").ToList();
+    var statusMessage = TempData["ScheduleStatus"] as string ?? TempData["StatusMessage"] as string;
+}
+<div class="app-page app-page-workout">
+    <header class="app-page-head">
+        <div>
+            <div class="app-kicker">WEEKLY • PLAN ONCE, ADJUST ANY TIME</div>
+            <h1>Weekly Workout Plan</h1>
+            <p class="lede">Start with the workouts you already do, then build a realistic seven-day mix around them.</p>
+        </div>
+        <div class="week-nav">
+            <a class="button" asp-action="Index" asp-route-weekStart="@previous">&larr; Prior week</a>
+            <a class="button" asp-action="Index" asp-route-weekStart="@next">Next week →</a>
+            <form asp-action="CopyToNextWeek" method="post" class="inline-week-action">
+                <input type="hidden" name="weekStart" value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+                <button class="button copy-week-button" type="submit" disabled="@(Model.NextWeekHasPlan ? "disabled" : null)"
+                        title="@(Model.NextWeekHasPlan ? "Next week already has a plan. Recomp will not overwrite it." : "Copy this saved week into next week")">
+                    Copy this week → next
+                </button>
+            </form>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="schedule-status-message">@statusMessage</div>
+    }
+
+    @if (Model.ShowRecommendedPlanPrompt)
+    {
+        <section class="recommended-week-review" aria-labelledby="recommended-week-title">
+            <div>
+                <div class="app-kicker">PLAN CHANGED • REVIEW BEFORE APPLYING</div>
+                <h2 id="recommended-week-title">Recommended week for @Model.PlanDisplayName</h2>
+                <p>@Model.PlanGuidance</p>
+                <p><strong>Your current week has not been overwritten.</strong> Apply the recommendation only if you want Recomp to replace today and the remaining days of this week. Earlier days stay intact.</p>
+            </div>
+            <div class="recommended-week-grid">
+                @foreach (var day in Model.RecommendedDays)
+                {
+                    <div class="recommended-day">
+                        <strong>@day.DayName</strong>
+                        <span>@day.WorkoutDisplayName</span>
+                    </div>
+                }
+            </div>
+            <div class="app-action-row">
+                <a class="button" asp-action="Index" asp-route-weekStart="@Model.WeekStart.ToString("yyyy-MM-dd")">Keep my current week</a>
+                <form asp-action="ApplyRecommendedWeek" method="post" class="inline-week-action">
+                    <input type="hidden" name="weekStart" value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+                    <button class="primary" type="submit">Apply recommended week from today forward</button>
+                </form>
+            </div>
+        </section>
+    }
+
+    @if (Model.SeededFromPlan)
+    {
+        <div class="plan-source-note"><strong>Recomp built this starting week for you.</strong> It is based on @Model.PlanDisplayName and your available training days. Move or replace anything that does not fit your life.</div>
+    }
+    else if (Model.AutoRolled)
+    {
+        <div class="plan-source-note"><strong>This week was carried forward automatically.</strong> The new week was blank, so Recomp copied your prior week. Review it and change anything that is different.</div>
+    }
+
+    <section class="weekly-plan-guide" aria-labelledby="weekly-guide-title">
+        <div class="weekly-guide-main">
+            <div class="setup-intro-icon" aria-hidden="true">7</div>
+            <div>
+                <div class="section-heading-with-help">
+                    <h2 id="weekly-guide-title">Start with Recomp's recommendation, then make it yours.</h2>
+                    <button type="button" class="help-tip" aria-label="How to build your weekly plan"
+                            data-tooltip="Recomp creates the starting mix from your Primary Plan and available training days. Move workouts to the days that fit your life, replace them with activities you already do, or change any day. Saving recalculates fuel and macro targets.">?</button>
+                </div>
+                <p><strong>@Model.PlanDisplayName:</strong> @Model.PlanGuidance</p>
+                <div class="resistance-plan-note"><strong>Resistance first.</strong> Body-weight work, bands, machines, dumbbells, and barbells all count. Compared with easy cardio, demanding resistance work creates a stronger localized muscle-glycogen demand and, more importantly, the training stimulus Recomp is trying to protect. Cardio complements that work; it does not replace it.<br /><strong>Fueling rule:</strong> Protein stays high every day. Recomp keeps a base carbohydrate intake, then harder training can earn additional carbs to help replace the glycogen it used.</div>
+                <div class="weekly-target-chips" aria-label="Weekly planning principles">
+                    <span><strong>1</strong> start with workouts you already do</span>
+                    <span><strong>2</strong> keep enough muscle-focused work</span>
+                    <span><strong>3</strong> protect conditioning and recovery</span>
+                </div>
+                <p class="form-footnote">The schedule is a starting point, not a rule. Change it any time. If the next week is still completely blank when a new week begins, Recomp automatically carries the prior week forward rather than making you rebuild it from scratch.</p>
+            </div>
+        </div>
+        <div class="setup-progress" aria-label="Setup progress">
+            <span>1 • Initial setup</span>
+            <span class="active">2 • Weekly plan</span>
+            <span>3 • Daily tracking</span>
+        </div>
+    </section>
+
+    <section class="app-status @(Model.WeeklyStatus == "GOOD" ? "good" : "review")">
+        <div class="app-status-dot"></div>
+        <div>
+            <strong>@(Model.WeeklyStatus == "GOOD" ? "Week looks balanced" : "Week needs review")</strong>
+            <span>@Model.WeeklyNote</span>
+        </div>
+        <button type="button" class="help-tip status-help" aria-label="About weekly balance"
+                data-tooltip="This status is a quick check of the planned training mix. It is guidance, not a pass/fail grade. Recomp still calculates each day's targets from the workouts you save.">?</button>
+    </section>
+
+    <div class="plan-week-mix-heading">
+        <div>
+            <div class="app-kicker">THIS WEEK AT A GLANCE</div>
+            <strong>Planned workout mix</strong>
+        </div>
+        <button type="button" class="help-tip" aria-label="About workout categories"
+                data-tooltip="These categories help you scan the week. Hard/major and accessory sessions are strength-focused; conditioning/cardio includes HIIT and cardio-style sessions; recovery/rest protects adaptation and readiness.">?</button>
+    </div>
+    <section class="plan-week-mix" aria-label="Weekly workout mix">
+        <div class="plan-mix-item plan-mix-major" data-count-category="major">
+            <strong data-count-value>@majorCount</strong>
+            <span>Hard / Major</span>
+        </div>
+        <div class="plan-mix-item plan-mix-accessory" data-count-category="accessory">
+            <strong data-count-value>@accessoryCount</strong>
+            <span>Accessory</span>
+        </div>
+        <div class="plan-mix-item plan-mix-cardio" data-count-category="cardio">
+            <strong data-count-value>@cardioCount</strong>
+            <span>Cardio</span>
+        </div>
+        <div class="plan-mix-item plan-mix-recovery" data-count-category="recovery">
+            <strong data-count-value>@recoveryCount</strong>
+            <span>Recovery / Rest</span>
+        </div>
+        <div class="plan-mix-item plan-mix-other" data-count-category="other">
+            <strong data-count-value>@otherCount</strong>
+            <span>Other</span>
+        </div>
+        <div class="plan-mix-item plan-mix-unplanned" data-count-category="unplanned">
+            <strong data-count-value>@unplannedCount</strong>
+            <span>Unplanned</span>
+        </div>
+    </section>
+
+    <form asp-action="Save" method="post" id="weekly-autosave-form">
+        <input type="hidden" name="WeekStart" value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+
+        <div class="plan-week-list">
+            @for (var i = 0; i < Model.Days.Count; i++)
+            {
+                var day = Model.Days[i];
+                var category = CategoryFromDay(day.WorkoutTypeCode, day.WeeklyRole);
+
+                <section class="card plan-day-row plan-cat-@category" data-plan-day data-category="@category">
+                    <input type="hidden" name="Days[@i].Date" value="@day.Date.ToString("yyyy-MM-dd")" />
+
+                    <div class="plan-day-heading">
+                        <div class="plan-day-date">
+                            <strong>@day.DayName</strong>
+                            <span>@day.Date.ToString("MMM d")</span>
+                        </div>
+                        <span class="plan-category-badge" data-category-label>@CategoryLabel(category)</span>
+                    </div>
+
+                    <div class="plan-day-workout">
+                        <label for="workout-@i">Planned workout <button type="button" class="help-tip small-tip" aria-label="Planned workout help" data-tooltip="Choose what you realistically expect to do on this day. If the workout changes later, update the Weekly Plan or simply log what you actually did in Daily Workout.">?</button></label>
+                        <select id="workout-@i"
+                                class="plan-workout-select"
+                                name="Days[@i].WorkoutTypeCode"
+                                data-original-value="@(day.WorkoutTypeCode ?? "")">
+                            <option value="" data-category="unplanned" selected="@(string.IsNullOrWhiteSpace(day.WorkoutTypeCode) ? "selected" : null)">
+                                Not planned
+                            </option>
+
+                            @if (majorOptions.Count > 0)
+                            {
+                                <optgroup label="Major strength">
+                                    @foreach (var option in majorOptions)
+                                    {
+                                        <option value="@option.Value"
+                                                data-category="major"
+                                                selected="@(option.Value == day.WorkoutTypeCode ? "selected" : null)">@option.Text</option>
+                                    }
+                                </optgroup>
+                            }
+
+                            @if (accessoryOptions.Count > 0)
+                            {
+                                <optgroup label="Accessory strength">
+                                    @foreach (var option in accessoryOptions)
+                                    {
+                                        <option value="@option.Value"
+                                                data-category="accessory"
+                                                selected="@(option.Value == day.WorkoutTypeCode ? "selected" : null)">@option.Text</option>
+                                    }
+                                </optgroup>
+                            }
+
+                            @if (cardioOptions.Count > 0)
+                            {
+                                <optgroup label="Conditioning & cardio">
+                                    @foreach (var option in cardioOptions)
+                                    {
+                                        <option value="@option.Value"
+                                                data-category="cardio"
+                                                selected="@(option.Value == day.WorkoutTypeCode ? "selected" : null)">@option.Text</option>
+                                    }
+                                </optgroup>
+                            }
+
+                            @if (recoveryOptions.Count > 0)
+                            {
+                                <optgroup label="Recovery & mobility">
+                                    @foreach (var option in recoveryOptions)
+                                    {
+                                        <option value="@option.Value"
+                                                data-category="recovery"
+                                                selected="@(option.Value == day.WorkoutTypeCode ? "selected" : null)">@option.Text</option>
+                                    }
+                                </optgroup>
+                            }
+
+                            @if (otherOptions.Count > 0)
+                            {
+                                <optgroup label="Other activity">
+                                    @foreach (var option in otherOptions)
+                                    {
+                                        <option value="@option.Value"
+                                                data-category="other"
+                                                selected="@(option.Value == day.WorkoutTypeCode ? "selected" : null)">@option.Text</option>
+                                    }
+                                </optgroup>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="plan-day-details" data-plan-details>
+                        @if (day.Calories.HasValue)
+                        {
+                            <div class="plan-targets">
+                                <span class="plan-target-cal"><strong>@day.Calories.Value.ToString("0")</strong> kcal</span>
+                                <span><strong>P</strong> @day.ProteinG?.ToString("0")</span>
+                                <span><strong>C</strong> @day.BaseCarbsG?.ToString("0")</span>
+                                <span><strong>F</strong> @day.FatG?.ToString("0")</span>
+                            </div>
+
+                            <div class="plan-day-context">
+                                <span>@day.WeeklyRole</span>
+                                @if (!string.IsNullOrWhiteSpace(day.Region))
+                                {
+                                    <span> • @day.Region</span>
+                                }
+                                <span class="plan-fuel-demand" title="Estimated workout glycogen demand used to help set carbohydrate and recovery targets."> • Fuel demand @day.ScaledGlycogenBurnG?.ToString("0") g</span>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(day.TimingNote))
+                            {
+                                <p class="plan-timing-note">@day.TimingNote</p>
+                            }
+                        }
+                        else if (!string.IsNullOrWhiteSpace(day.WorkoutTypeCode))
+                        {
+                            <p class="plan-timing-note">Targets will appear when a usable body weight is available.</p>
+                        }
+                        else
+                        {
+                            <p class="plan-timing-note">No workout planned.</p>
+                        }
+
+                        <p class="plan-recalc-note" data-recalc-note hidden>Saving this change and recalculating targets…</p>
+                    </div>
+                </section>
+            }
+        </div>
+
+        <div class="weekly-save-row" aria-live="polite">
+            <span id="weekly-autosave-status" class="autosave-status" hidden></span>
+            <noscript>
+                <button class="primary" type="submit">Save weekly plan and recalculate</button>
+            </noscript>
+        </div>
+    </form>
+</div>
+
+<script>
+(() => {
+    const labels = {
+        major: "Major / hard strength",
+        accessory: "Accessory strength",
+        cardio: "Conditioning / cardio",
+        recovery: "Recovery / rest",
+        other: "Other activity",
+        unplanned: "Unplanned"
+    };
+
+    const categories = Object.keys(labels);
+    const selects = Array.from(document.querySelectorAll(".plan-workout-select"));
+
+    function refreshCounts() {
+        const counts = Object.fromEntries(categories.map(x => [x, 0]));
+
+        selects.forEach(select => {
+            const option = select.options[select.selectedIndex];
+            const category = option?.dataset.category || "unplanned";
+            counts[category] = (counts[category] || 0) + 1;
+        });
+
+        document.querySelectorAll("[data-count-category]").forEach(item => {
+            const category = item.dataset.countCategory;
+            const target = item.querySelector("[data-count-value]");
+            if (target) target.textContent = counts[category] || 0;
+        });
+    }
+
+    selects.forEach(select => {
+        select.addEventListener("change", () => {
+            const row = select.closest("[data-plan-day]");
+            const option = select.options[select.selectedIndex];
+            const category = option?.dataset.category || "unplanned";
+
+            categories.forEach(x => row.classList.remove(`plan-cat-${x}`));
+            row.classList.add(`plan-cat-${category}`);
+            row.dataset.category = category;
+
+            const badge = row.querySelector("[data-category-label]");
+            if (badge) badge.textContent = labels[category];
+
+            const recalc = row.querySelector("[data-recalc-note]");
+            if (recalc) {
+                recalc.hidden = select.value === select.dataset.originalValue;
+            }
+
+            refreshCounts();
+        });
+    });
+
+    const form = document.getElementById("weekly-autosave-form");
+    window.RecompAutosave?.bind(form, {
+        statusSelector: "#weekly-autosave-status",
+        delay: 800,
+        reloadAfterSaveMs: 1200,
+        afterSave: () => {
+            selects.forEach(select => {
+                select.dataset.originalValue = select.value;
+                const row = select.closest("[data-plan-day]");
+                const recalc = row?.querySelector("[data-recalc-note]");
+                if (recalc && !recalc.hidden) {
+                    recalc.textContent = "Saved. Recalculating targets…";
+                }
+            });
+        }
+    });
+
+    refreshCounts();
+})();
+</script>
+
+
+
+

@@ -1,0 +1,250 @@
+@model WebRecomp.Web.ViewModels.AdminDemoSessionsViewModel
+
+@{
+    var pacificTimeZone =
+        TimeZoneInfo.FindSystemTimeZoneById("Pacific Standard Time");
+
+    DateTime ToPacific(DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.SpecifyKind(utc, DateTimeKind.Utc),
+            pacificTimeZone);
+}
+
+@{
+    ViewData["Title"] = "Demo Sessions";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-code-page">
+
+    <div class="admin-page-header">
+        <div>
+            <span class="admin-eyebrow">ADMINISTRATION</span>
+            <h1>Demo Sessions</h1>
+            <p>
+                Review active and recent temporary demo workspaces and sessions.
+            </p>
+        </div>
+
+        <a asp-controller="Admin"
+           asp-action="Index"
+           class="admin-back-link">
+            &larr; Admin Home
+        </a>
+    </div>
+
+    @if (TempData["DemoSessionSuccess"] is string success)
+    {
+        <div class="admin-success-message">
+            @success
+        </div>
+    }
+
+    @if (TempData["DemoSessionError"] is string error)
+    {
+        <div class="admin-code-error-message">
+            @error
+        </div>
+    }
+
+    <section class="admin-code-list-section">
+
+        <div class="admin-list-heading">
+            <div>
+                <h2>Recent Sessions</h2>
+                <p>
+                    @Model.ActiveCount active or expiring session@(Model.ActiveCount == 1 ? "" : "s").
+                </p>
+            </div>
+
+            @if (Model.ActiveCount > 0)
+            {
+                <span class="admin-unread-count">
+                    @Model.ActiveCount ACTIVE
+                </span>
+            }
+        </div>
+
+        @if (Model.Sessions.Count == 0)
+        {
+            <div class="admin-empty-state">
+                No demo sessions have been created yet.
+            </div>
+        }
+        else
+        {
+            <div class="admin-table-wrap">
+
+                <table class="admin-code-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Invite</th>
+                            <th>Source</th>
+                            <th>Device</th>
+                            <th>Engagement</th>
+                            <th>Session</th>
+                            <th>Workspace</th>
+                            <th>Started</th>
+                            <th>Last Activity</th>
+                            <th>Session Expires</th>
+                            <th>Workspace Expires</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                    @foreach (var session in Model.Sessions)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@session.DemoTypeCode</strong>
+                            </td>
+
+                            <td>
+                                <code>@session.InviteCode</code>
+                            </td>
+
+                            <td class="admin-demo-detail-cell">
+                                <strong>
+                                    @(!string.IsNullOrWhiteSpace(session.UtmSource)
+                                        ? session.UtmSource
+                                        : !string.IsNullOrWhiteSpace(session.ReferrerHost)
+                                            ? session.ReferrerHost
+                                            : "Direct / Unknown")
+                                </strong>
+
+                                @if (!string.IsNullOrWhiteSpace(session.UtmMedium))
+                                {
+                                    <span>@session.UtmMedium</span>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(session.UtmCampaign))
+                                {
+                                    <span>Campaign: @session.UtmCampaign</span>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(session.ReferrerHost)
+                                    && !string.Equals(
+                                        session.ReferrerHost,
+                                        session.UtmSource,
+                                        StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <span>Referrer: @session.ReferrerHost</span>
+                                }
+                            </td>
+
+                            <td class="admin-demo-detail-cell">
+                                <strong>
+                                    @(session.DeviceTypeCode ?? "Unknown")
+                                </strong>
+
+                                @if (!string.IsNullOrWhiteSpace(session.OperatingSystem)
+                                    || !string.IsNullOrWhiteSpace(session.BrowserName))
+                                {
+                                    <span>
+                                        @(session.OperatingSystem ?? "Unknown OS")
+                                        &middot;
+                                        @(session.BrowserName ?? "Unknown browser")
+                                    </span>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(session.CityName)
+                                    || !string.IsNullOrWhiteSpace(session.RegionName)
+                                    || !string.IsNullOrWhiteSpace(session.CountryCode))
+                                {
+                                    <span>
+                                        @{
+                                            var locationParts = new[]
+                                            {
+                                                session.CityName,
+                                                session.RegionName,
+                                                session.CountryCode
+                                            }
+                                            .Where(x => !string.IsNullOrWhiteSpace(x));
+                                        }
+
+                                        @string.Join(", ", locationParts)
+                                    </span>
+                                }
+                            </td>
+
+                            <td class="admin-demo-detail-cell">
+                                <strong>
+                                    @session.PageViewCount page@(session.PageViewCount == 1 ? "" : "s")
+                                </strong>
+
+                                <span>
+                                    Last:
+                                    @(string.IsNullOrWhiteSpace(session.LastPagePath)
+                                        ? "—"
+                                        : session.LastPagePath)
+                                </span>
+                            </td>
+
+                            <td>
+                                <span class="admin-status-chip">
+                                    @session.SessionStatus
+                                </span>
+                            </td>
+
+                            <td>
+                                <span class="admin-status-chip">
+                                    @session.WorkspaceStatus
+                                </span>
+                            </td>
+
+                            <td>
+                                @ToPacific(session.CreatedAtUtc).ToString("yyyy-MM-dd hh:mm tt")
+                                Pacific
+                            </td>
+
+                            <td>
+                                @ToPacific(session.LastActivityAtUtc).ToString("yyyy-MM-dd hh:mm tt")
+                                Pacific
+                            </td>
+
+                            <td>
+                                @ToPacific(session.SessionExpiresAtUtc).ToString("yyyy-MM-dd hh:mm tt")
+                                Pacific
+                            </td>
+
+                            <td>
+                                @ToPacific(session.WorkspaceExpiresAtUtc).ToString("yyyy-MM-dd hh:mm tt")
+                                Pacific
+                            </td>
+
+                            <td class="admin-code-actions">
+                                @if (session.SessionStatus == "ACTIVE"
+                                    || session.SessionStatus == "EXPIRING")
+                                {
+                                    <form asp-controller="AdminDemoSessions"
+                                          asp-action="Terminate"
+                                          asp-route-id="@session.DemoSessionId"
+                                          method="post"
+                                          onsubmit="return confirm('Terminate this demo session? The browser will lose access on its next request.');">
+
+                                        @Html.AntiForgeryToken()
+
+                                        <button type="submit"
+                                                class="admin-code-action-button admin-code-action-danger">
+                                            Terminate
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="admin-code-no-action">&mdash;</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+
+            </div>
+        }
+
+    </section>
+
+</section>

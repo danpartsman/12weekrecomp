@@ -1,0 +1,87 @@
+@model WebRecomp.Web.ViewModels.ContactFormViewModel
+
+@{
+    ViewData["Title"] = "Contact Us";
+    ViewData["PublicPage"] = true;
+}
+
+<section class="contact-page">
+
+    <div class="contact-card">
+
+        <span class="marketing-kicker">CONTACT 12 WEEK RECOMP</span>
+
+        <h1>Contact Us</h1>
+
+        <p class="contact-intro">
+            Have a question about 12 Week Recomp, your account, a promotion,
+            or how the program works? Send us a message.
+        </p>
+
+        @if (TempData["ContactSubmitted"] is bool submitted && submitted)
+        {
+            <div class="contact-success">
+                <strong>Message sent.</strong>
+                <span>
+                    Thanks for contacting 12 Week Recomp. Your message has been received.
+                </span>
+            </div>
+        }
+        else
+        {
+            <form asp-controller="Contact"
+                  asp-action="Submit"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <div asp-validation-summary="ModelOnly"
+                     class="admin-validation"></div>
+
+                <div class="contact-form-grid">
+
+                    <label>
+                        <span>Your name</span>
+                        <input asp-for="Name"
+                               autocomplete="name" />
+                        <span asp-validation-for="Name"
+                              class="admin-validation"></span>
+                    </label>
+
+                    <label>
+                        <span>Your email</span>
+                        <input asp-for="Email"
+                               type="email"
+                               autocomplete="email" />
+                        <span asp-validation-for="Email"
+                              class="admin-validation"></span>
+                    </label>
+
+                    <label class="contact-form-full">
+                        <span>Subject</span>
+                        <input asp-for="Subject" />
+                        <span asp-validation-for="Subject"
+                              class="admin-validation"></span>
+                    </label>
+
+                    <label class="contact-form-full">
+                        <span>Message</span>
+                        <textarea asp-for="Message"
+                                  rows="7"></textarea>
+                        <span asp-validation-for="Message"
+                              class="admin-validation"></span>
+                    </label>
+
+                </div>
+
+                <button type="submit"
+                        class="marketing-cta contact-submit">
+                    Send Message
+                </button>
+
+            </form>
+        }
+
+    </div>
+
+</section>

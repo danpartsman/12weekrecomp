@@ -1,0 +1,238 @@
+@model WebRecomp.Web.ViewModels.AdminEngine30EnergyPolicyPageViewModel
+
+@{
+    ViewData["Title"] = "Engine 3.0 Energy Prescription";
+    Layout = "_AdminLayout";
+}
+
+<style>
+    .e30-policy-page {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .e30-policy-intro,
+    .e30-policy-card {
+        border: 1px solid var(--border-color, #d7dbe3);
+        border-radius: 14px;
+        padding: 1.25rem;
+        background: var(--surface-color, rgba(255,255,255,.03));
+    }
+
+    .e30-policy-card {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .e30-policy-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .e30-policy-code {
+        font-size: .78rem;
+        letter-spacing: .08em;
+        opacity: .72;
+    }
+
+    .e30-policy-table-wrap {
+        overflow-x: auto;
+    }
+
+    .e30-policy-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 920px;
+    }
+
+    .e30-policy-table th,
+    .e30-policy-table td {
+        border-bottom: 1px solid var(--border-color, #d7dbe3);
+        padding: .6rem;
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    .e30-policy-table input {
+        width: 100%;
+        min-width: 88px;
+    }
+
+    .e30-policy-note {
+        font-size: .88rem;
+        opacity: .82;
+        line-height: 1.45;
+    }
+
+    .e30-policy-actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .e30-policy-success {
+        padding: .8rem 1rem;
+        border-radius: 10px;
+        background: rgba(24, 160, 88, .12);
+    }
+
+    .e30-policy-error {
+        padding: .8rem 1rem;
+        border-radius: 10px;
+        background: rgba(200, 55, 55, .12);
+    }
+</style>
+
+<section class="e30-policy-page">
+
+    <div class="admin-page-header">
+        <div>
+            <span class="admin-eyebrow">ENGINE 3.0 ADMINISTRATION</span>
+            <h1>Goal Energy Prescription</h1>
+            <p>
+                Configure how closely each workout category is fueled to modeled
+                daily maintenance for each 12 Week Recomp goal.
+            </p>
+        </div>
+
+        <a asp-controller="Admin"
+           asp-action="Index"
+           class="admin-back-link">
+            &larr; Admin Home
+        </a>
+    </div>
+
+    @if (TempData["Engine30EnergyPolicySuccess"] is string success)
+    {
+        <div class="e30-policy-success">@success</div>
+    }
+
+    @if (TempData["Engine30EnergyPolicyError"] is string error)
+    {
+        <div class="e30-policy-error">@error</div>
+    }
+
+    <section class="e30-policy-intro">
+        <h2>How this layer works</h2>
+        <p>
+            Engine 3.0 first calculates modeled maintenance from
+            <strong>Base Living + Habitual Activity + Net Workout Activity</strong>.
+            The selected recomp goal still owns the weekly energy budget.
+        </p>
+        <p>
+            These controls determine where that weekly budget is spent.
+            Higher-priority categories are filled toward their target first.
+            A day will never be pushed below the stronger of its configured
+            minimum or its physiological protein/fat/carbohydrate floor.
+        </p>
+        <p class="e30-policy-note">
+            <strong>Target %</strong> = preferred calories as a percentage of
+            that day's modeled maintenance.
+            <strong>Minimum %</strong> = category protection floor.
+            <strong>Maximum %</strong> = normal allocation ceiling.
+            <strong>Priority</strong> = which category receives available weekly
+            calories first (1–100).
+            <strong>Carryover cap</strong> is now active. It limits how many
+            calories from prior same-week overages may be removed from one day.
+            A zero cap fully protects that category from energy correction.
+        </p>
+    </section>
+
+    @foreach (var plan in Model.Plans)
+    {
+        <form asp-controller="AdminEngine30EnergyPolicy"
+              asp-action="Save"
+              method="post"
+              class="e30-policy-card">
+
+            @Html.AntiForgeryToken()
+
+            <input type="hidden"
+                   name="PlanCode"
+                   value="@plan.PlanCode" />
+
+            <input type="hidden"
+                   name="PlanDisplayName"
+                   value="@plan.PlanDisplayName" />
+
+            <div class="e30-policy-heading">
+                <div>
+                    <div class="e30-policy-code">@plan.PlanCode</div>
+                    <h2>@plan.PlanDisplayName</h2>
+                </div>
+
+                <label>
+                    <span>Surplus recovery</span>
+                    <div class="admin-input-suffix">
+                        <input name="SurplusRecoveryPct"
+                               type="number"
+                               min="0"
+                               max="100"
+                               step="1"
+                               value="@plan.SurplusRecoveryPct.ToString("0.##")" />
+                        <span>%</span>
+                    </div>
+                </label>
+            </div>
+
+            <div class="e30-policy-table-wrap">
+                <table class="e30-policy-table">
+                    <thead>
+                        <tr>
+                            <th>Workout category</th>
+                            <th>Target % maintenance</th>
+                            <th>Minimum %</th>
+                            <th>Maximum %</th>
+                            <th>Protection priority</th>
+                            <th>Carryover cap</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th>Major Strength</th>
+                            <td><input name="MajorTargetPct" type="number" min="50" max="120" step=".5" value="@plan.MajorTargetPct.ToString("0.##")" /></td>
+                            <td><input name="MajorMinimumPct" type="number" min="50" max="120" step=".5" value="@plan.MajorMinimumPct.ToString("0.##")" /></td>
+                            <td><input name="MajorMaximumPct" type="number" min="50" max="120" step=".5" value="@plan.MajorMaximumPct.ToString("0.##")" /></td>
+                            <td><input name="MajorPriority" type="number" min="1" max="100" step="1" value="@plan.MajorPriority" /></td>
+                            <td><input name="MajorCarryoverCapKcal" type="number" min="0" max="1000" step="10" value="@plan.MajorCarryoverCapKcal.ToString("0")" /></td>
+                        </tr>
+
+                        <tr>
+                            <th>Accessory Strength</th>
+                            <td><input name="AccessoryTargetPct" type="number" min="50" max="120" step=".5" value="@plan.AccessoryTargetPct.ToString("0.##")" /></td>
+                            <td><input name="AccessoryMinimumPct" type="number" min="50" max="120" step=".5" value="@plan.AccessoryMinimumPct.ToString("0.##")" /></td>
+                            <td><input name="AccessoryMaximumPct" type="number" min="50" max="120" step=".5" value="@plan.AccessoryMaximumPct.ToString("0.##")" /></td>
+                            <td><input name="AccessoryPriority" type="number" min="1" max="100" step="1" value="@plan.AccessoryPriority" /></td>
+                            <td><input name="AccessoryCarryoverCapKcal" type="number" min="0" max="1000" step="10" value="@plan.AccessoryCarryoverCapKcal.ToString("0")" /></td>
+                        </tr>
+
+                        <tr>
+                            <th>Conditioning / Cardio</th>
+                            <td><input name="ConditioningTargetPct" type="number" min="50" max="120" step=".5" value="@plan.ConditioningTargetPct.ToString("0.##")" /></td>
+                            <td><input name="ConditioningMinimumPct" type="number" min="50" max="120" step=".5" value="@plan.ConditioningMinimumPct.ToString("0.##")" /></td>
+                            <td><input name="ConditioningMaximumPct" type="number" min="50" max="120" step=".5" value="@plan.ConditioningMaximumPct.ToString("0.##")" /></td>
+                            <td><input name="ConditioningPriority" type="number" min="1" max="100" step="1" value="@plan.ConditioningPriority" /></td>
+                            <td><input name="ConditioningCarryoverCapKcal" type="number" min="0" max="1000" step="10" value="@plan.ConditioningCarryoverCapKcal.ToString("0")" /></td>
+                        </tr>
+
+                        <tr>
+                            <th>Rest / Recovery / Other</th>
+                            <td><input name="RestTargetPct" type="number" min="50" max="120" step=".5" value="@plan.RestTargetPct.ToString("0.##")" /></td>
+                            <td><input name="RestMinimumPct" type="number" min="50" max="120" step=".5" value="@plan.RestMinimumPct.ToString("0.##")" /></td>
+                            <td><input name="RestMaximumPct" type="number" min="50" max="120" step=".5" value="@plan.RestMaximumPct.ToString("0.##")" /></td>
+                            <td><input name="RestPriority" type="number" min="1" max="100" step="1" value="@plan.RestPriority" /></td>
+                            <td><input name="RestCarryoverCapKcal" type="number" min="0" max="1000" step="10" value="@plan.RestCarryoverCapKcal.ToString("0")" /></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="e30-policy-actions">
+                <button type="submit">Save @plan.PlanDisplayName</button>
+            </div>
+        </form>
+    }
+
+</section>
+

@@ -1,0 +1,19 @@
+@{
+    ViewData["Title"] = "Demo Unavailable";
+}
+
+<div class="container py-4">
+    <div class="mx-auto" style="max-width: 760px;">
+        <h1>Demo Unavailable</h1>
+
+        <div class="alert alert-warning">
+            @(ViewBag.Message ?? "This demo invitation is unavailable.")
+        </div>
+
+        <a asp-controller="Home"
+           asp-action="Index"
+           class="btn btn-primary">
+            Return to 12 Week Recomp
+        </a>
+    </div>
+</div>

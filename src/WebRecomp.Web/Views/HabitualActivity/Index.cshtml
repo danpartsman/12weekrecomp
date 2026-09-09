@@ -1,0 +1,95 @@
+﻿@model HabitualActivityViewModel
+@{
+    ViewData["Title"] = "Work & Habitual Activity";
+}
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">ENGINE 3.0 ACTIVITY PROFILE</div>
+        <h1>Work &amp; habitual activity</h1>
+        <p class="lede">Tell Recomp what a normal week looks like outside formal workouts. This feeds one Habitual Activity energy bucket; it does not stack steps, jobs, chores, and workouts as separate calorie add-ons.</p>
+    </div>
+    <a class="button" asp-controller="Profile" asp-action="Index">Back to profile</a>
+</div>
+
+<form asp-action="Index" method="post" class="stack">
+    <div asp-validation-summary="All" class="validation"></div>
+
+    <section class="card stack">
+        <div>
+            <div class="eyebrow">OCCUPATION</div>
+            <h2>Typical work roles</h2>
+            <p class="small">Add up to three recurring jobs or work roles. Enter the hours you typically spend in each role during a normal week. Do not include formal workouts here.</p>
+        </div>
+
+        @for (var i = 0; i < Model.Roles.Count; i++)
+        {
+            <div class="card stack" style="margin:0; padding:1rem;">
+                <div class="grid-2">
+                    <label>
+                        Occupation / role
+                        <input asp-for="Roles[i].OccupationName" placeholder="Example: School Bus Driver" />
+                        <span asp-validation-for="Roles[i].OccupationName" class="validation"></span>
+                    </label>
+
+                    <label>
+                        Typical hours / week
+                        <input asp-for="Roles[i].TypicalHoursPerWeek" type="number" min="0" max="168" step="0.5" placeholder="20" />
+                        <span asp-validation-for="Roles[i].TypicalHoursPerWeek" class="validation"></span>
+                    </label>
+                </div>
+
+                <label>
+                    Work activity level
+                    <select asp-for="Roles[i].OccupationActivityCode">
+                        <option value="">Choose activity level...</option>
+                        <option value="HIGHLY_SEDENTARY">Mostly seated / desk work</option>
+                        <option value="SEDENTARY_LIGHT">Mostly seated + light movement</option>
+                        <option value="SEDENTARY_MIXED">Seated + regular standing/walking</option>
+                        <option value="TYPICAL_MIXED">Mixed sitting / standing / walking</option>
+                        <option value="ACTIVE_LIGHT">On feet most of shift / light physical work</option>
+                        <option value="VERY_ACTIVE">Active physical work</option>
+                        <option value="HEAVY_PHYSICAL">Heavy manual work</option>
+                    </select>
+                    <span asp-validation-for="Roles[i].OccupationActivityCode" class="validation"></span>
+                </label>
+
+                <label class="confirm-check">
+                    <input asp-for="Roles[i].IsPrimary" type="checkbox" />
+                    <span>Primary occupation</span>
+                </label>
+            </div>
+        }
+
+        <p class="small"><strong>Examples:</strong> desk/IT work is usually near the seated end; a bus driver may fit seated + regular standing/walking; retail or nursing is typically farther toward active work; construction may fit heavy manual work. Choose what describes the actual job, not the job title alone.</p>
+    </section>
+
+    <section class="card stack">
+        <div>
+            <div class="eyebrow">NON-WORK LIFESTYLE</div>
+            <h2>Recurring activity outside work and workouts</h2>
+            <p class="small">This is for normal recurring movement such as errands, walking, household projects, gardening, or an active daily routine that is not entered as a workout.</p>
+        </div>
+
+        <label>
+            Lifestyle activity
+            <select asp-for="LifestyleActivityCode">
+                <option value="MINIMAL">Minimal — little recurring activity beyond work/workouts</option>
+                <option value="LIGHT">Light — some regular walking, errands, chores, or yardwork</option>
+                <option value="MODERATE">Moderate — meaningful recurring activity most weeks</option>
+                <option value="VERY_ACTIVE">Very active — consistently active outside work and formal workouts</option>
+            </select>
+            <span asp-validation-for="LifestyleActivityCode" class="validation"></span>
+        </label>
+
+        <div class="status-card neutral">
+            <strong>Steps are not a core Engine 3.0 calorie bucket.</strong>
+            <p class="small">Step data can still be kept as evidence/context, but Recomp does not add step calories on top of the occupation/home/lifestyle allowance.</p>
+        </div>
+    </section>
+
+    <div class="app-action-row">
+        <a class="button" asp-controller="Profile" asp-action="Index">Cancel</a>
+        <button class="primary" type="submit">Save work &amp; activity</button>
+    </div>
+</form>

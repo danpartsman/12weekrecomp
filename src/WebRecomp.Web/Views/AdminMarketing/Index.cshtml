@@ -1,0 +1,64 @@
+@model WebRecomp.Web.ViewModels.MarketingExperimentDashboardViewModel
+@{
+    ViewData["Title"] = "Marketing Traffic";
+}
+
+<section class="card">
+    <div class="app-kicker">TEST MARKETING TRAFFIC</div>
+    <h1>Welcome and Evidence traffic</h1>
+
+    <p>
+        <strong>U</strong> is the current single Welcome page.
+        A through D are retained only as historical data from the earlier rotating-page experiment.
+    </p>
+
+    <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:820px">
+            <thead>
+                <tr>
+                    <th style="text-align:left;padding:.65rem">Page / historical variant</th>
+                    <th style="text-align:right;padding:.65rem">Welcome visitors</th>
+                    <th style="text-align:right;padding:.65rem">Start Free</th>
+                    <th style="text-align:right;padding:.65rem">Start CTR</th>
+                    <th style="text-align:right;padding:.65rem">Evidence clicks</th>
+                    <th style="text-align:right;padding:.65rem">Evidence CTR</th>
+                    <th style="text-align:right;padding:.65rem">Evidence visitors</th>
+                    <th style="text-align:right;padding:.65rem">Start from Evidence</th>
+                </tr>
+            </thead>
+
+            <tbody>
+            @foreach (var row in Model.Variants)
+            {
+                var label =
+                    row.VariantCode == "U"
+                        ? "CURRENT"
+                        : row.VariantCode;
+
+                <tr style="border-top:1px solid rgba(127,127,127,.25)">
+                    <td style="padding:.65rem">
+                        <strong>@label</strong>
+                    </td>
+                    <td style="text-align:right;padding:.65rem">@row.WelcomeVisitors</td>
+                    <td style="text-align:right;padding:.65rem">@row.StartFreeVisitors</td>
+                    <td style="text-align:right;padding:.65rem">@row.StartFreeCtr.ToString("P1")</td>
+                    <td style="text-align:right;padding:.65rem">@row.EvidenceClickVisitors</td>
+                    <td style="text-align:right;padding:.65rem">@row.EvidenceCtr.ToString("P1")</td>
+                    <td style="text-align:right;padding:.65rem">@row.EvidenceVisitors</td>
+                    <td style="text-align:right;padding:.65rem">@row.EvidenceStartVisitors</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <p class="small" style="margin-top:1rem">
+        Generated @Model.GeneratedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC.
+        Historical A-D rows remain available for comparison, but new visitors use the CURRENT row.
+    </p>
+
+    <div class="app-action-row">
+        <a class="button primary" href="/">Welcome page</a>
+        <a class="button" href="/Home/Evidence">Evidence page</a>
+    </div>
+</section>

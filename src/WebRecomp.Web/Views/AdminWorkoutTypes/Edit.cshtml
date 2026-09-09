@@ -1,0 +1,933 @@
+@model WebRecomp.Web.ViewModels.AdminWorkoutTypeEditViewModel
+
+@{
+    var isCreate = Model.WorkoutTypeDefinitionId == Guid.Empty;
+    ViewData["Title"] = isCreate ? "Create Workout" : $"Edit {Model.DisplayName}";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-code-page">
+
+    <div class="admin-page-header">
+        <div>
+            <span class="admin-eyebrow">WORKOUT CATALOG + ENGINE 3.0 SHADOW PROFILE</span>
+            <h1>@(isCreate ? "Create Workout" : $"Edit {Model.DisplayName}")</h1>
+            <p>
+                @Model.WorkoutTypeCode
+                &bull; @Model.ConfigVersionCode
+                &bull; @Model.StatusCode
+                @if (!isCreate && !string.IsNullOrWhiteSpace(Model.Engine30ActiveVersionCode))
+                {
+                    <text>&bull; Engine 3.0 @Model.Engine30ActiveVersionCode</text>
+                }
+            </p>
+        </div>
+
+        <a asp-controller="AdminWorkoutTypes"
+           asp-action="Index"
+           class="admin-back-link">
+            &larr; Workout Types
+        </a>
+    </div>
+
+    @if (TempData["WorkoutSuccess"] is string success)
+    {
+        <div class="admin-success-message">@success</div>
+    }
+
+    @if (TempData["WorkoutError"] is string error)
+    {
+        <div class="admin-code-error-message">@error</div>
+    }
+
+    <section class="admin-code-panel">
+
+        <form asp-controller="AdminWorkoutTypes"
+              asp-action="@(isCreate ? "Create" : "Edit")"
+              asp-route-id="@(isCreate ? null : Model.WorkoutTypeDefinitionId)"
+              method="post">
+
+            @Html.AntiForgeryToken()
+
+            <div asp-validation-summary="All"
+                 class="admin-validation"></div>
+
+            <div class="admin-form-full">
+                <h2>1. Workout Basics</h2>
+                <p>
+                    User-facing identity and the four-category 12WR planning classification.
+                    Engine 3.0 physiology is configured separately below.
+                </p>
+            </div>
+
+            <div class="admin-form-grid">
+
+                <label>
+                    <span>Display name</span>
+                    <input asp-for="DisplayName" />
+                    <span asp-validation-for="DisplayName"
+                          class="admin-validation"></span>
+                </label>
+
+                <label>
+                    <span>Workout code</span>
+                    <input asp-for="WorkoutTypeCode"
+                           readonly="@(!isCreate)" />
+                    <small>
+                        @(isCreate
+                            ? "Permanent code, for example HILL_RUNNING_INTERVALS."
+                            : "Preserved for historical compatibility.")
+                    </small>
+                </label>
+
+                <label>
+                    <span>12WR category</span>
+                    <select asp-for="WorkoutCategoryCode">
+                        <option value="MAJOR_STRENGTH">Major Strength</option>
+                        <option value="ACCESSORY_STRENGTH">Accessory Strength</option>
+                        <option value="CONDITIONING_CARDIO">Conditioning &amp; Cardio</option>
+                        <option value="REST_RECOVERY_OTHER">Rest, Recovery &amp; Other</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Display order</span>
+                    <input asp-for="DisplayOrder" type="number" />
+                </label>
+
+                <label>
+                    <span>Fuel score</span>
+                    <input asp-for="FuelScore" type="number" step="0.25" />
+                </label>
+
+                <label>
+                    <input asp-for="IsSelectable" type="checkbox" />
+                    <span>Selectable by users</span>
+                    <small>
+                        New workouts remain hidden until reviewed.
+                    </small>
+                </label>
+
+            </div>
+
+            <label class="admin-form-full">
+                <span>Description</span>
+                <textarea asp-for="Description" rows="3"></textarea>
+            </label>
+
+            <div class="admin-form-full">
+                <h2>2. Engine 3.0 Definition</h2>
+                <p>
+                    This is the new planned-workout profile: family + modality + pattern +
+                    session structure + default RPE. Actual completed workout data can
+                    override these planning defaults later.
+                </p>
+
+                @if (!isCreate)
+                {
+                    <p>
+                        <strong>Active profile:</strong>
+                        @(Model.Engine30ActiveVersionCode ?? "not initialized")
+                        &nbsp; | &nbsp;
+                        <strong>Baseline:</strong>
+                        @(Model.Engine30BaselineVersionCode ?? "not initialized")
+                        &nbsp; | &nbsp;
+                        <strong>Current implied MET at 210 lb:</strong>
+                        @Model.Engine30ImpliedMetAt210Lb.ToString("0.00")
+                    </p>
+                }
+            </div>
+
+            <div class="admin-form-grid">
+
+                <label>
+                    <span>Workout family</span>
+                    <select asp-for="Engine30.WorkoutFamilyCode">
+                        <option value="RECOVERY">Recovery</option>
+                        <option value="RESISTANCE">Resistance</option>
+                        <option value="CARDIO">Continuous Cardio</option>
+                        <option value="INTERVALS">Intervals / HIIT</option>
+                        <option value="COMPOSITE">Composite / Multi-block</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Default modality</span>
+                    <select asp-for="Engine30.DefaultModalityCode">
+                        <option value="NONE">None</option>
+                        <option value="MOBILITY">Mobility</option>
+                        <option value="GENERAL_CARDIO">General Cardio</option>
+                        <option value="WALKING">Walking</option>
+                        <option value="RUNNING">Running</option>
+                        <option value="TREADMILL">Treadmill</option>
+                        <option value="CYCLING">Cycling</option>
+                        <option value="ROWING">Rowing</option>
+                        <option value="ELLIPTICAL">Elliptical</option>
+                        <option value="STAIR_CLIMBER">Stair Climber</option>
+                        <option value="SWIMMING">Swimming</option>
+                        <option value="RESISTANCE">Resistance</option>
+                        <option value="MIXED">Mixed</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Training pattern</span>
+                    <select asp-for="Engine30.TrainingPatternCode">
+                        <option value="REST">Rest</option>
+                        <option value="RECOVERY">Recovery</option>
+                        <option value="EASY">Easy</option>
+                        <option value="ZONE2">Zone 2</option>
+                        <option value="STEADY">Steady</option>
+                        <option value="RESISTANCE_MAJOR">Resistance - Major</option>
+                        <option value="RESISTANCE_ACCESSORY">Resistance - Accessory</option>
+                        <option value="RESISTANCE_CIRCUIT">Resistance - Circuit</option>
+                        <option value="INTERVALS">Intervals</option>
+                        <option value="HIIT">True HIIT</option>
+                        <option value="COMPOSITE">Composite</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Session structure</span>
+                    <select asp-for="Engine30.SessionStructureCode">
+                        <option value="CONTINUOUS">Continuous</option>
+                        <option value="RESISTANCE_SETS">Resistance Sets</option>
+                        <option value="INTERVALS">Intervals</option>
+                        <option value="COMPOSITE">Composite</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Default planned minutes</span>
+                    <input asp-for="Engine30.DefaultDurationMinutes"
+                           type="number" min="0" step="1" />
+                </label>
+
+                <label>
+                    <span>Default planned RPE</span>
+                    <input asp-for="Engine30.DefaultRpe"
+                           type="number" min="0" max="10" step="0.5" />
+                </label>
+
+            </div>
+
+            <div class="admin-form-grid">
+
+                <label>
+                    <input asp-for="Engine30.SupportsObjectiveWorkload"
+                           type="checkbox" />
+                    <span>Supports objective workload</span>
+                </label>
+
+                <label>
+                    <input asp-for="Engine30.SupportsResistanceDetails"
+                           type="checkbox" />
+                    <span>Supports resistance details</span>
+                </label>
+
+                <label>
+                    <input asp-for="Engine30.SupportsIntervalDetails"
+                           type="checkbox" />
+                    <span>Supports interval details</span>
+                </label>
+
+                <label>
+                    <input asp-for="Engine30.SupportsSegments"
+                           type="checkbox" />
+                    <span>Supports composite segments</span>
+                </label>
+
+            </div>
+
+            <div class="admin-form-full">
+                <h2>3. Engine 3.0 Energy Calibration</h2>
+                <p>
+                    These are Bucket 3 reference inputs. They are DRAFT calibration,
+                    versioned independently for each workout, and do not alter frozen Engine 2.0.
+                </p>
+            </div>
+
+            <div class="admin-form-grid">
+
+                <label>
+                    <span>Reference kcal/min</span>
+                    <input asp-for="Engine30.ReferenceWorkoutCaloriesPerMinute"
+                           type="number" min="0" step="0.0001" />
+                </label>
+
+                <label>
+                    <span>Reference RPE</span>
+                    <input asp-for="Engine30.ReferenceRpe"
+                           type="number" min="0" max="10" step="0.5" />
+                </label>
+
+                <label>
+                    <span>Reference weight lb</span>
+                    <input asp-for="Engine30.ReferenceWeightLb"
+                           type="number" min="1" step="0.1" />
+                </label>
+
+                <label>
+                    <span>Scaling basis</span>
+                    <select asp-for="Engine30.ScalingBasisCode">
+                        <option value="BODY_WEIGHT">Body Weight</option>
+                        <option value="FAT_FREE_MASS">Fat-Free Mass</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Reference FFM lb</span>
+                    <input asp-for="Engine30.ReferenceFatFreeMassLb"
+                           type="number" min="1" step="0.1" />
+                </label>
+
+                <label>
+                    <span>Default rest seconds</span>
+                    <input asp-for="Engine30.DefaultRestSeconds"
+                           type="number" min="0" step="1" />
+                </label>
+
+            </div>
+
+            <div class="admin-form-full">
+                <h3>Resistance energy workload</h3>
+            </div>
+
+            <div class="admin-form-grid">
+
+                <label>
+                    <span>Reference duration min</span>
+                    <input asp-for="Engine30.ResistanceReferenceDurationMinutes"
+                           type="number" min="1" step="1" />
+                </label>
+
+                <label>
+                    <span>Reference hard sets</span>
+                    <input asp-for="Engine30.ResistanceReferenceHardSets"
+                           type="number" min="0" step="1" />
+                </label>
+
+                <label>
+                    <span>Hard-set density sensitivity</span>
+                    <input asp-for="Engine30.ResistanceHardSetDensitySensitivity"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Rest fallback sensitivity</span>
+                    <input asp-for="Engine30.ResistanceRestFallbackSensitivity"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Minimum density factor</span>
+                    <input asp-for="Engine30.ResistanceDensityMinimumFactor"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Maximum density factor</span>
+                    <input asp-for="Engine30.ResistanceDensityMaximumFactor"
+                           type="number" step="0.01" />
+                </label>
+
+            </div>
+
+            <div class="admin-form-full">
+                <h2>4. Engine 3.0 Glycogen Calibration</h2>
+                <p>
+                    Energy expenditure and glycogen demand remain separate models.
+                    Reload carbohydrate is a macro diagnostic, not another calorie bucket.
+                </p>
+            </div>
+
+            <div class="admin-form-grid">
+
+                <label>
+                    <span>Glycogen model</span>
+                    <select asp-for="Engine30.GlycogenModelCode">
+                        <option value="ZERO">Zero / Recovery</option>
+                        <option value="CONTINUOUS">Continuous Cardio</option>
+                        <option value="RESISTANCE">Resistance</option>
+                        <option value="INTERVAL">Intervals</option>
+                        <option value="SEQUENTIAL_COMPOSITE">Sequential Composite</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Reference duration min</span>
+                    <input asp-for="Engine30.GlycogenReferenceDurationMinutes"
+                           type="number" min="0" step="1" />
+                </label>
+
+                <label>
+                    <span>Reference depletion fraction</span>
+                    <input asp-for="Engine30.GlycogenReferenceDepletionFraction"
+                           type="number" min="0" max="1" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Intensity sensitivity</span>
+                    <input asp-for="Engine30.GlycogenIntensitySensitivity"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Minimum depletion</span>
+                    <input asp-for="Engine30.GlycogenMinimumDepletionFraction"
+                           type="number" min="0" max="1" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Maximum depletion</span>
+                    <input asp-for="Engine30.GlycogenMaximumDepletionFraction"
+                           type="number" min="0" max="1" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Target restoration fraction</span>
+                    <input asp-for="Engine30.TargetRestorationFraction"
+                           type="number" min="0" max="1" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Carb g per glycogen g</span>
+                    <input asp-for="Engine30.CarbohydratePerGlycogenG"
+                           type="number" min="0" step="0.01" />
+                </label>
+
+            </div>
+
+            <div class="admin-form-full">
+                <h3>Muscle profile</h3>
+                <p>
+                    Add the regions recruited by this workout. Blank rows are ignored.
+                </p>
+            </div>
+
+            <div class="admin-table-wrap">
+                <table class="admin-code-table">
+                    <thead>
+                    <tr>
+                        <th>Region</th>
+                        <th>Whole-body muscle fraction</th>
+                        <th>Recruitment fraction</th>
+                        <th>Hard sets</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @for (var i = 0; i < Model.Engine30.MuscleRegions.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <input asp-for="Engine30.MuscleRegions[i].MuscleRegionCode" />
+                            </td>
+                            <td>
+                                <input asp-for="Engine30.MuscleRegions[i].WholeBodyMuscleFraction"
+                                       type="number" min="0" max="1" step="0.01" />
+                            </td>
+                            <td>
+                                <input asp-for="Engine30.MuscleRegions[i].RecruitmentFraction"
+                                       type="number" min="0" max="1" step="0.01" />
+                            </td>
+                            <td>
+                                <input asp-for="Engine30.MuscleRegions[i].HardSets"
+                                       type="number" min="0" step="1" />
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="admin-form-full">
+                <h2>5. Interval Defaults</h2>
+                <p>
+                    Used when this workout is modeled as structured intervals or HIIT.
+                </p>
+            </div>
+
+            <div class="admin-form-grid">
+
+                <label>
+                    <span>Work seconds</span>
+                    <input asp-for="Engine30.IntervalWorkSeconds"
+                           type="number" min="0" step="1" />
+                </label>
+
+                <label>
+                    <span>Recovery seconds</span>
+                    <input asp-for="Engine30.IntervalRecoverySeconds"
+                           type="number" min="0" step="1" />
+                </label>
+
+                <label>
+                    <span>Repetitions</span>
+                    <input asp-for="Engine30.IntervalRepetitions"
+                           type="number" min="1" step="1" />
+                </label>
+
+                <label>
+                    <span>Work RPE</span>
+                    <input asp-for="Engine30.IntervalWorkRpe"
+                           type="number" min="0" max="10" step="0.5" />
+                </label>
+
+                <label>
+                    <span>Recovery RPE</span>
+                    <input asp-for="Engine30.IntervalRecoveryRpe"
+                           type="number" min="0" max="10" step="0.5" />
+                </label>
+
+                <label>
+                    <span>Recovery contribution weight</span>
+                    <input asp-for="Engine30.IntervalRecoveryContributionWeight"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Work intensity sensitivity</span>
+                    <input asp-for="Engine30.IntervalWorkIntensitySensitivity"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Recovery intensity sensitivity</span>
+                    <input asp-for="Engine30.IntervalRecoveryIntensitySensitivity"
+                           type="number" step="0.01" />
+                </label>
+
+            </div>
+
+            <div class="admin-form-full">
+                <h2>6. Composite Segments</h2>
+                <p>
+                    Use these for Orangetheory, mixed gym sessions, or any new multi-block workout.
+                    Up to six segment rows are available now; disabled rows are ignored.
+                </p>
+            </div>
+
+            <div class="admin-table-wrap">
+                <table class="admin-code-table">
+                    <thead>
+                    <tr>
+                        <th>Use</th>
+                        <th>Order / Code</th>
+                        <th>Modality / Pattern</th>
+                        <th>Minutes / RPE</th>
+                        <th>Energy</th>
+                        <th>Glycogen</th>
+                        <th>Recruitment</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @for (var i = 0; i < Model.Engine30.Segments.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <input asp-for="Engine30.Segments[i].Enabled"
+                                       type="checkbox" />
+                            </td>
+
+                            <td>
+                                <input asp-for="Engine30.Segments[i].DisplayOrder"
+                                       type="number" step="1"
+                                       placeholder="Order" />
+                                <input asp-for="Engine30.Segments[i].SegmentCode"
+                                       placeholder="Code" />
+                                <input asp-for="Engine30.Segments[i].DisplayName"
+                                       placeholder="Display name" />
+                            </td>
+
+                            <td>
+                                <select asp-for="Engine30.Segments[i].ModalityCode">
+                                    <option value="GENERAL_CARDIO">General Cardio</option>
+                                    <option value="WALKING">Walking</option>
+                                    <option value="RUNNING">Running</option>
+                                    <option value="TREADMILL">Treadmill</option>
+                                    <option value="CYCLING">Cycling</option>
+                                    <option value="ROWING">Rowing</option>
+                                    <option value="ELLIPTICAL">Elliptical</option>
+                                    <option value="STAIR_CLIMBER">Stair Climber</option>
+                                    <option value="SWIMMING">Swimming</option>
+                                    <option value="RESISTANCE">Resistance</option>
+                                    <option value="MIXED">Mixed</option>
+                                </select>
+
+                                <select asp-for="Engine30.Segments[i].TrainingPatternCode">
+                                    <option value="EASY">Easy</option>
+                                    <option value="ZONE2">Zone 2</option>
+                                    <option value="STEADY">Steady</option>
+                                    <option value="RESISTANCE_MAJOR">Resistance - Major</option>
+                                    <option value="RESISTANCE_ACCESSORY">Resistance - Accessory</option>
+                                    <option value="RESISTANCE_CIRCUIT">Resistance - Circuit</option>
+                                    <option value="INTERVALS">Intervals</option>
+                                    <option value="HIIT">True HIIT</option>
+                                </select>
+
+                                <select asp-for="Engine30.Segments[i].SessionStructureCode">
+                                    <option value="CONTINUOUS">Continuous</option>
+                                    <option value="RESISTANCE_SETS">Resistance Sets</option>
+                                    <option value="INTERVALS">Intervals</option>
+                                </select>
+                            </td>
+
+                            <td>
+                                <input asp-for="Engine30.Segments[i].DurationMinutes"
+                                       type="number" min="0" step="1"
+                                       placeholder="Minutes" />
+                                <input asp-for="Engine30.Segments[i].DefaultRpe"
+                                       type="number" min="0" max="10" step="0.5"
+                                       placeholder="RPE" />
+                            </td>
+
+                            <td>
+                                <input asp-for="Engine30.Segments[i].ReferenceWorkoutCaloriesPerMinute"
+                                       type="number" min="0" step="0.01"
+                                       placeholder="kcal/min" />
+                                <input asp-for="Engine30.Segments[i].ReferenceRpe"
+                                       type="number" min="0" max="10" step="0.5"
+                                       placeholder="Ref RPE" />
+                                <select asp-for="Engine30.Segments[i].ScalingBasisCode">
+                                    <option value="BODY_WEIGHT">Body Weight</option>
+                                    <option value="FAT_FREE_MASS">FFM</option>
+                                </select>
+                                <input asp-for="Engine30.Segments[i].ReferenceFatFreeMassLb"
+                                       type="number" step="0.1"
+                                       placeholder="Ref FFM" />
+                                <input asp-for="Engine30.Segments[i].DefaultRestSeconds"
+                                       type="number" step="1"
+                                       placeholder="Rest sec" />
+                            </td>
+
+                            <td>
+                                <select asp-for="Engine30.Segments[i].GlycogenModelCode">
+                                    <option value="ZERO">Zero</option>
+                                    <option value="CONTINUOUS">Continuous</option>
+                                    <option value="RESISTANCE">Resistance</option>
+                                    <option value="INTERVAL">Interval</option>
+                                </select>
+                                <input asp-for="Engine30.Segments[i].GlycogenReferenceDepletionFraction"
+                                       type="number" min="0" max="1" step="0.01"
+                                       placeholder="Depletion" />
+                                <input asp-for="Engine30.Segments[i].HardSetsPerRegion"
+                                       type="number" min="0" step="1"
+                                       placeholder="Hard sets" />
+                            </td>
+
+                            <td>
+                                <input asp-for="Engine30.Segments[i].LowerBodyRecruitmentFraction"
+                                       type="number" min="0" max="1" step="0.01"
+                                       placeholder="Lower recruit" />
+                                <input asp-for="Engine30.Segments[i].UpperBodyRecruitmentFraction"
+                                       type="number" min="0" max="1" step="0.01"
+                                       placeholder="Upper recruit" />
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="admin-form-full">
+                <h2>7. Save Engine 3.0 Version</h2>
+                <p>
+                    Every changed Engine 3.0 profile is saved as a new version.
+                    Existing versions are never overwritten.
+                </p>
+            </div>
+
+            <label class="admin-form-full">
+                <span>Change notes</span>
+                <textarea asp-for="Engine30ChangeNotes"
+                          rows="2"
+                          placeholder="Example: Raise Zone 2 energy anchor; leave glycogen unchanged."></textarea>
+            </label>
+
+            <button type="submit"
+                    class="admin-primary-button">
+                @(isCreate ? "Create Workout + Baseline" : "Save Workout + New Engine 3.0 Version")
+            </button>
+
+            <div class="admin-form-full">
+                <h2>Legacy Engine 2 Compatibility</h2>
+                <p>
+                    These fields remain because frozen Engine 2.0 / older v1008 paths still reference them.
+                    Engine 3.0 does not use these values merely because they appear here.
+                </p>
+            </div>
+
+            <div class="admin-form-grid">
+
+                <label>
+                    <span>Weekly role</span>
+                    <select asp-for="WeeklyRoleCode">
+                        <option value="CONDITIONING">Conditioning</option>
+                        <option value="HEAVY">Heavy</option>
+                        <option value="HEAVY_GENERIC">Heavy Generic</option>
+                        <option value="LIGHT_STRENGTH">Light Strength</option>
+                        <option value="OTHER_LOAD">Other Load</option>
+                        <option value="RECOVERY">Recovery</option>
+                        <option value="RECOVERY_CARDIO">Recovery Cardio</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Region code</span>
+                    <input asp-for="RegionCode" />
+                </label>
+
+                <label>
+                    <span>Fuel priority</span>
+                    <select asp-for="FuelPriorityCode">
+                        <option value="HIGH">High</option>
+                        <option value="MODERATE">Moderate</option>
+                        <option value="LOW">Low</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Schedule principle</span>
+                    <select asp-for="SchedulePrincipleCode">
+                        <option value="PROTECT__FUEL">Protect / Fuel</option>
+                        <option value="SCHEDULE_NORMALLY">Schedule Normally</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>Macro class</span>
+                    <input asp-for="MacroClassCode" />
+                </label>
+
+                <label>
+                    <span>Primary focus</span>
+                    <input asp-for="PrimaryFocusCode" />
+                </label>
+
+                <label>
+                    <span>Raw glycogen g/min</span>
+                    <input asp-for="RawGlycogenGMin"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Legacy intensity factor</span>
+                    <input asp-for="DefaultIntensityFactor"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Legacy default rest sec</span>
+                    <input asp-for="DefaultRestSec"
+                           type="number" step="1" />
+                </label>
+
+                <label>
+                    <span>Legacy reference kcal/min</span>
+                    <input asp-for="ReferenceWorkoutCalPerMin"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Legacy glycogen carb share</span>
+                    <input asp-for="GlycogenCarbShare"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Strength stress</span>
+                    <input asp-for="StrengthStress"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Planned restoration %</span>
+                    <input asp-for="PlannedRestorationPct"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Protein adjustment g</span>
+                    <input asp-for="ProteinAdjustmentG"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Target fat g</span>
+                    <input asp-for="TargetFatG"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Typical recovery hours</span>
+                    <input asp-for="TypicalRecoveryHours"
+                           type="number" step="0.01" />
+                </label>
+
+                <label>
+                    <span>Push load</span>
+                    <input asp-for="PushLoad" type="number" step="0.25" />
+                </label>
+
+                <label>
+                    <span>Pull load</span>
+                    <input asp-for="PullLoad" type="number" step="0.25" />
+                </label>
+
+                <label>
+                    <span>Leg load</span>
+                    <input asp-for="LegLoad" type="number" step="0.25" />
+                </label>
+
+                <label>
+                    <span>Cardio load</span>
+                    <input asp-for="CardioLoad" type="number" step="0.25" />
+                </label>
+
+            </div>
+
+            <div class="admin-form-grid">
+                <label>
+                    <input asp-for="CountsDedicatedHeavy" type="checkbox" />
+                    <span>Counts as dedicated heavy</span>
+                </label>
+
+                <label>
+                    <input asp-for="CountsLightStrength" type="checkbox" />
+                    <span>Counts as light strength</span>
+                </label>
+
+                <label>
+                    <input asp-for="CountsPrimaryConditioning" type="checkbox" />
+                    <span>Counts as primary conditioning</span>
+                </label>
+
+                <label>
+                    <input asp-for="CountsRecovery" type="checkbox" />
+                    <span>Counts as recovery</span>
+                </label>
+            </div>
+
+            <label class="admin-form-full">
+                <span>Strategy note</span>
+                <textarea asp-for="StrategyNote" rows="3"></textarea>
+            </label>
+
+            <label class="admin-form-full">
+                <span>Planning note</span>
+                <textarea asp-for="PlanningNote" rows="3"></textarea>
+            </label>
+
+            <label class="admin-form-full">
+                <span>Workout instructions</span>
+                <textarea asp-for="Instructions" rows="5"></textarea>
+            </label>
+
+            <label class="admin-form-full">
+                <span>Overview video URL</span>
+                <input asp-for="OverviewVideoUrl" />
+            </label>
+
+        </form>
+
+    </section>
+
+    @if (!isCreate)
+    {
+        <section class="admin-code-panel">
+
+            <div class="admin-form-full">
+                <h2>Engine 3.0 Version History</h2>
+                <p>
+                    Restore any prior version or return to the immutable baseline.
+                    Restore operations create a new active version; they never erase history.
+                </p>
+            </div>
+
+            <form asp-controller="AdminWorkoutTypes"
+                  asp-action="ResetEngine30ToBaseline"
+                  asp-route-id="@Model.WorkoutTypeDefinitionId"
+                  method="post"
+                  style="margin-bottom:1rem">
+                @Html.AntiForgeryToken()
+
+                <button type="submit"
+                        class="admin-primary-button"
+                        onclick="return confirm('Create a new active version from the Engine 3.0 baseline?');">
+                    Reset Engine 3.0 to Baseline
+                </button>
+            </form>
+
+            <div class="admin-table-wrap">
+                <table class="admin-code-table">
+                    <thead>
+                    <tr>
+                        <th>Version</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>By</th>
+                        <th>Notes</th>
+                        <th>Action</th>
+                    </tr>
+                    </thead>
+
+                    <tbody>
+                    @foreach (var version in Model.Engine30History)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@version.VersionCode</strong>
+                            </td>
+
+                            <td>
+                                @if (version.IsActive)
+                                {
+                                    <span>ACTIVE</span>
+                                }
+                                @if (version.IsBaseline)
+                                {
+                                    <span> BASELINE</span>
+                                }
+                            </td>
+
+                            <td>
+                                @version.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'")
+                            </td>
+
+                            <td>@version.CreatedBy</td>
+
+                            <td>@version.ChangeNotes</td>
+
+                            <td>
+                                @if (!version.IsActive)
+                                {
+                                    <form asp-controller="AdminWorkoutTypes"
+                                          asp-action="RestoreProfileVersion"
+                                          asp-route-id="@Model.WorkoutTypeDefinitionId"
+                                          asp-route-profileVersionId="@version.Engine30WorkoutProfileVersionId"
+                                          method="post"
+                                          style="display:inline">
+                                        @Html.AntiForgeryToken()
+
+                                        <button type="submit"
+                                                class="admin-promo-detail-link"
+                                                onclick="return confirm('Restore @version.VersionCode into a new active Engine 3.0 version?');">
+                                            Restore
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span>Current</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+    }
+
+</section>

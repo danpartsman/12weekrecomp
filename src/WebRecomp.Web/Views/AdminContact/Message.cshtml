@@ -1,0 +1,87 @@
+@model WebRecomp.Web.ViewModels.AdminContactMessageDetailViewModel
+
+@{
+    ViewData["Title"] = "Contact Message";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-contact-page">
+
+    <div class="admin-page-header">
+
+        <div>
+            <span class="admin-eyebrow">CONTACT MESSAGE</span>
+            <h1>@Model.Subject</h1>
+        </div>
+
+        <a asp-controller="AdminContact"
+           asp-action="Index"
+           class="admin-back-link">
+            &larr; Contact Inbox
+        </a>
+
+    </div>
+
+
+    <article class="admin-contact-message">
+
+        <header class="admin-contact-message-header">
+
+            <div>
+                <span class="admin-contact-message-label">From</span>
+                <strong>@Model.SenderName</strong>
+                <a href="mailto:@Model.SenderEmail">
+                    @Model.SenderEmail
+                </a>
+            </div>
+
+            <div>
+                <span class="admin-contact-message-label">Received</span>
+                <strong>
+                    @Model.SubmittedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC
+                </strong>
+            </div>
+
+            <div>
+                <span class="admin-contact-message-label">Status</span>
+                <span class="admin-status-chip">
+                    @Model.StatusCode
+                </span>
+            </div>
+
+        </header>
+
+
+        <div class="admin-contact-message-body">
+            @Model.Message
+        </div>
+
+
+        <footer class="admin-contact-message-meta">
+
+            <div>
+                <strong>Email notification:</strong>
+                @Model.EmailNotificationStatus
+            </div>
+
+            @if (Model.EmailSentAtUtc.HasValue)
+            {
+                <div>
+                    <strong>Email sent:</strong>
+                    @Model.EmailSentAtUtc.Value.ToString("yyyy-MM-dd HH:mm") UTC
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Model.EmailError))
+            {
+                <div class="admin-contact-email-error">
+                    <strong>Email error:</strong>
+                    @Model.EmailError
+                </div>
+            }
+
+        </footer>
+
+    </article>
+
+</section>

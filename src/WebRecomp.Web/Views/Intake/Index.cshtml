@@ -1,0 +1,256 @@
+@model IntakeViewModel
+<!-- V1006_GUIDED_INTAKE_CLEAN -->
+@await Html.PartialAsync(
+    "_GuidedDemoCalloutSections",
+    new[]
+    {
+        "A few setup choices create the starting strategy",
+        "Recomp uses your baseline, goal, training experience, and available days to build the initial 12-week plan. From there, your real daily inputs keep refining the recommendations."
+    })
+@{
+    ViewData["Title"] = Model.ReviewMode ? "Review My Setup" : "Initial Setup";
+    var formAction = Model.ReviewMode ? "Review" : "Index";
+}
+<div class="app-page app-page-intake">
+    <header class="app-page-head">
+        <div>
+            <div class="app-kicker">@(Model.ReviewMode ? "YOUR RECOMP SETUP" : "ONE-TIME SETUP")</div>
+            <h1>@(Model.ReviewMode ? "Review my setup" : "Tell Recomp where you're starting")</h1>
+            <p class="lede">@(Model.ReviewMode ? "Your plan can change as your goals and life change. Review what Recomp is using and update what still matters." : "Use your best information today. It does not have to be perfect.")</p>
+        </div>
+    </header>
+
+    <section class="setup-intro-card" aria-labelledby="setup-intro-title">
+        <div class="setup-intro-icon" aria-hidden="true">✓</div>
+        <div>
+            @if (Model.ReviewMode)
+            {
+                <h2 id="setup-intro-title">This is the setup Recomp is using now.</h2>
+                <p>
+                    Update your profile, goals, training availability, or Primary Plan when those things genuinely change.
+                    Your original baseline and program start date stay protected as historical records; current body changes belong in Daily Weigh-In.
+                </p>
+                <div class="review-mode-note"><strong>Plan changes are forward-looking.</strong> A new Primary Plan takes effect today and changes new calorie, macro, fueling, recovery, and workout recommendations. Prior logged data and stored recommendations are not rewritten.</div>
+            }
+            else
+            {
+                <h2 id="setup-intro-title">Best estimates are enough to get started.</h2>
+                <p>
+                    This page creates your baseline and first 12-week plan. Enter what you know, leave optional
+                    measurements blank instead of guessing, and use the closest plan choice for your real goal.
+                    Recomp becomes more useful as your daily nutrition, weigh-ins, and workouts begin replacing estimates with actual data.
+                </p>
+                <div class="setup-progress" aria-label="Setup progress">
+                    <span class="active">1 • Initial setup</span>
+                    <span>2 • Weekly plan</span>
+                    <span>3 • Daily tracking</span>
+                </div>
+            }
+        </div>
+    </section>
+
+    <form asp-action="@formAction" method="post" class="stack">
+        <input asp-for="ReviewMode" type="hidden" />
+        <input asp-for="OriginalGoalCode" type="hidden" />
+        <div asp-validation-summary="All" class="validation"></div>
+        <p class="required-note"><span class="required-mark">*</span> Required</p>
+
+        <section class="card app-section app-section-blue">
+            <div class="app-section-label"><span class="app-number">1</span><span>PROFILE</span></div>
+            <div class="section-heading-with-help">
+                <h2>About you</h2>
+                <button type="button" class="help-tip" aria-label="About profile information"
+                        data-tooltip="Basic information helps Recomp interpret your measurements and calculate appropriate targets. Use your normal time zone and the training level that best describes you today.">?</button>
+            </div>
+            <p class="section-helper">Start with the basics. You do not need special testing or perfect precision.</p>
+            <div class="grid-2">
+                <label><span class="field-label-line">Name <span class="required-mark">*</span></span><input asp-for="ClientName" autocomplete="name" /></label>
+                <label>Date of birth<input asp-for="DateOfBirth" type="date" /></label>
+                <label>Sex used for calculations <span class="inline-help"><button type="button" class="help-tip small-tip" aria-label="Why sex is used for calculations" data-tooltip="Some body-composition and energy calculations use sex-based reference values. You may leave this unspecified.">?</button></span>
+                    <select asp-for="SexCode">
+                        <option value="">Prefer not to specify</option>
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                    </select>
+                </label>
+                <label><span class="field-label-line">Height (inches) <span class="required-mark">*</span></span><input asp-for="HeightIn" type="number" step="0.1" /></label>
+                <label><span class="field-label-line">Training experience <span class="required-mark">*</span> <span class="inline-help"><button type="button" class="help-tip small-tip" aria-label="Training experience help" data-tooltip="Choose the level that best reflects your current resistance-training experience. This helps Recomp avoid treating a newer trainee like an advanced lifter.">?</button></span></span>
+                    <select asp-for="TrainingExperienceCode">
+                        <option value="BEGINNER">Beginner</option>
+                        <option value="INTERMEDIATE">Intermediate</option>
+                        <option value="ADVANCED">Advanced</option>
+                    </select>
+                </label>
+                <label><span class="field-label-line">Time zone <span class="required-mark">*</span></span><input asp-for="TimeZone" /></label>
+            </div>
+        </section>
+
+        <section class="card app-section app-section-green">
+            <div class="app-section-label"><span class="app-number">2</span><span>BASELINE</span></div>
+            <div class="section-heading-with-help">
+                <h2>Starting measurements</h2>
+                <button type="button" class="help-tip" aria-label="About starting measurements"
+                        data-tooltip="Weight is the key starting value. Smart-scale body fat, muscle, water, and visceral-fat readings are useful context but are estimates. Use the same device consistently and let Recomp follow the trend.">?</button>
+            </div>
+            <p class="section-helper">Weight is the important starting point. Smart-scale and tape measurements are helpful, but optional.</p>
+            @if (Model.ReviewMode)
+            {
+                <input asp-for="StartingWeightLb" type="hidden" />
+                <input asp-for="StartingBodyFatPercent" type="hidden" />
+                <input asp-for="StartingMuscleMassLb" type="hidden" />
+                <input asp-for="StartingBodyWaterLb" type="hidden" />
+                <input asp-for="StartingWaistIn" type="hidden" />
+                <input asp-for="StartingHipsIn" type="hidden" />
+                <input asp-for="StartingVisceralFatRating" type="hidden" />
+                <div class="review-baseline-grid">
+                    <div><span>Starting weight</span><strong>@Model.StartingWeightLb.ToString("0.#") lb</strong></div>
+                    <div><span>Starting body fat</span><strong>@(Model.StartingBodyFatPercent.HasValue ? $"{Model.StartingBodyFatPercent:0.#}%" : "—")</strong></div>
+                    <div><span>Starting muscle mass</span><strong>@(Model.StartingMuscleMassLb.HasValue ? $"{Model.StartingMuscleMassLb:0.#} lb" : "—")</strong></div>
+                    <div><span>Starting waist</span><strong>@(Model.StartingWaistIn.HasValue ? $"{Model.StartingWaistIn:0.#} in" : "—")</strong></div>
+                </div>
+                <p class="form-footnote">Baseline measurements are preserved so progress remains meaningful. Enter current measurements under <strong>Daily Weigh-In</strong>.</p>
+            }
+            else
+            {
+                <div class="grid-3">
+                    <label><span class="field-label-line">Weight (lb) <span class="required-mark">*</span></span><input asp-for="StartingWeightLb" type="number" step="0.1" /></label>
+                    <label>Body fat (%)<input asp-for="StartingBodyFatPercent" type="number" step="0.1" /></label>
+                    <label>Muscle mass (lb)<input asp-for="StartingMuscleMassLb" type="number" step="0.1" /></label>
+                    <label>Body water (lb)<input asp-for="StartingBodyWaterLb" type="number" step="0.1" /></label>
+                    <label>Waist (in)<input asp-for="StartingWaistIn" type="number" step="0.1" /></label>
+                    <label>Hips (in)<input asp-for="StartingHipsIn" type="number" step="0.1" /></label>
+                    <label>Visceral-fat rating<input asp-for="StartingVisceralFatRating" type="number" step="0.1" /></label>
+                </div>
+                <p class="form-footnote">Tip: if your scale does not report a value, leave it blank. Unknown is better than invented precision.</p>
+            }
+        </section>
+
+        <section class="card app-section app-section-purple">
+            <div class="app-section-label"><span class="app-number">3</span><span>PLAN</span></div>
+            <div class="section-heading-with-help">
+                <h2>Choose your program direction</h2>
+                <button type="button" class="help-tip" aria-label="About program direction"
+                        data-tooltip="This is the most important choice on the setup page. Recomp maps this goal to the plan that drives calorie, macro, fueling, recovery, and workout recommendations throughout the program.">?</button>
+            </div>
+
+            <div class="critical-choice-callout">
+                <strong>This choice drives the plan.</strong>
+                <p>Your Primary Plan drives calorie, macro, fueling, recovery, and workout recommendations, and it also creates your initial recommended Weekly Plan. Choose the option that best describes what you want this 12-week block to prioritize.</p>
+            </div>
+
+            <div class="resistance-first-callout">
+                <strong>Resistance training is the anchor of Recomp.</strong>
+                <p>Compared with easy cardio such as Zone 2, demanding resistance work creates a much larger glycogen draw in the muscles being trained while also providing the mechanical stimulus that tells those muscles to stay strong or grow. That resistance can be body-weight work or bands for a beginner, or heavy barbell training for an advanced lifter. Cardio still belongs in the program, but it supports the resistance-first goal rather than replacing it.</p>
+                <p class="form-footnote">Hard intervals and long endurance sessions can also use substantial glycogen. Recomp distinguishes those from easy cardio and fuels them accordingly.</p>
+            </div>
+
+            <div class="grid-2">
+                <label class="plan-choice-field"><span class="field-label-line">Primary plan <span class="required-mark">*</span></span>
+                    <select asp-for="GoalCode" id="GoalCode">
+                        <option value="">Choose a Primary Plan...</option>
+                        <optgroup label="RECOMP">
+                            <option class="recomp-plan-option" value="MUSCLE_BUILD">Muscle Focus — Fat Loss Secondary</option>
+                            <option class="recomp-plan-option" value="FAT_LOSS_RECOMP">Fat Loss Focus — Muscle Secondary</option>
+                            <option class="recomp-plan-option" value="ATHLETIC_RECOMP">Athletic Reconditioning</option>
+                        </optgroup>
+                        <optgroup label="SPECIALIZED">
+                            <option value="HEALTH_RESET">Health Reset</option>
+                            <option value="PAIN_LIMITED">Pain-Limited / Mobility</option>
+                        </optgroup>
+                    </select>
+                    <span id="goal-description" class="plan-choice-description" aria-live="polite"></span>
+                </label>
+                <label><span class="field-label-line">Training days available <span class="required-mark">*</span> <span class="inline-help"><button type="button" class="help-tip small-tip" aria-label="Training days available help" data-tooltip="Use the number of days you can realistically make available most weeks—not the number you hope to reach on a perfect week.">?</button></span></span><input asp-for="AvailableTrainingDaysWeek" type="number" min="1" max="7" /></label>
+                <label>Target weight low<input asp-for="TargetWeightLowLb" type="number" step="0.1" /></label>
+                <label>Target weight high<input asp-for="TargetWeightHighLb" type="number" step="0.1" /></label>
+                <label>Target waist<input asp-for="TargetWaistIn" type="number" step="0.1" /></label>
+                @if (Model.ReviewMode)
+                {
+                    <input asp-for="StartDate" type="hidden" />
+                    <label>Program start <span class="field-locked">historical</span><input value="@Model.StartDate.ToString("yyyy-MM-dd")" type="date" disabled /></label>
+                }
+                else
+                {
+                    <label><span class="field-label-line">Program start <span class="required-mark">*</span></span><input asp-for="StartDate" type="date" /></label>
+                }
+            </div>
+            @if (Model.ReviewMode)
+            {
+                <div id="plan-change-confirm" class="plan-change-confirm" hidden>
+                    <label class="confirm-check">
+                        <input asp-for="ConfirmPlanChange" type="checkbox" />
+                        <span><strong>Confirm Primary Plan change.</strong> I understand this changes Recomp's calorie, macro, fueling, recovery, and workout recommendations from today forward.</span>
+                    </label>
+                    <span asp-validation-for="ConfirmPlanChange" class="validation"></span>
+                </div>
+            }
+            <label>What does success look like?
+                <textarea asp-for="GoalNotes" rows="3" placeholder="Example: feel stronger, reduce waist size, improve conditioning, keep energy high."></textarea>
+            </label>
+        </section>
+
+        @if (Model.ReviewMode)
+        {
+            <div class="setup-next-callout">
+                <strong>Change only what really changed.</strong>
+                <span>Current measurements belong in Daily Weigh-In and weekly workout changes belong in Weekly Plan. Setup is for the assumptions that shape Recomp's recommendations.</span>
+            </div>
+            <div class="app-action-row">
+                <a class="button" asp-controller="Profile" asp-action="Index">Cancel</a>
+                <button class="primary" type="submit">Save setup changes</button>
+            </div>
+        }
+        else
+        {
+            <div class="setup-next-callout">
+                <strong>Next: Recomp builds your starting week.</strong>
+                <span>Your Primary Plan and training availability create a recommended seven-day schedule automatically. Weekly Plan opens with that starting point already filled in so you can move, replace, or remove anything that does not fit your real life.</span>
+            </div>
+            <div class="app-action-row">
+                <button class="primary" type="submit">Create program and plan my week →</button>
+            </div>
+        }
+    </form>
+</div>
+
+<script>
+(() => {
+    const goal = document.getElementById('GoalCode');
+    const description = document.getElementById('goal-description');
+    if (!goal || !description) return;
+
+    const descriptions = {
+        MUSCLE_BUILD: 'Muscle Focus — Fat Loss Secondary. Resistance training is the center of the week. Recomp protects hard lifting with high protein, targeted carbohydrate refills, and enough recovery to support muscle growth while keeping body fat moving in the right direction.',
+        FAT_LOSS_RECOMP: 'Fat Loss Focus — Muscle Secondary. Recomp uses a controlled calorie deficit while keeping resistance training and protein non-negotiable. Carbohydrates are concentrated around the sessions that create the greatest muscular glycogen demand so fat loss does not come at the expense of training quality or lean mass.',
+        ATHLETIC_RECOMP: 'Athletic Reconditioning. Resistance remains the anchor, with more conditioning layered around it for work capacity, performance, and athletic readiness. The starting week balances dedicated strength, conditioning, aerobic recovery, and full recovery.',
+        HEALTH_RESET: 'Specialized Health Reset. Prioritizes sustainable activity, repeatable beginner-friendly resistance work, easy aerobic work, body-composition improvement, and consistent health habits without an aggressive training bias.',
+        PAIN_LIMITED: 'Specialized Pain-Limited / Mobility. Uses a more conservative starting week with mobility, tolerable resistance work, easy aerobic work, and more recovery when pain or mobility limits normal training volume.'
+    };
+
+    const update = () => {
+        description.textContent = descriptions[goal.value] || '';
+    };
+
+    const originalGoal = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.OriginalGoalCode));
+    const confirmPanel = document.getElementById('plan-change-confirm');
+    const confirmBox = document.getElementById('ConfirmPlanChange');
+
+    const updatePlanConfirmation = () => {
+        if (!confirmPanel || !originalGoal) return;
+        const changed = goal.value !== originalGoal;
+        confirmPanel.hidden = !changed;
+        if (!changed && confirmBox) confirmBox.checked = false;
+    };
+
+    goal.addEventListener('change', () => {
+        update();
+        updatePlanConfirmation();
+    });
+    update();
+    updatePlanConfirmation();
+})();
+</script>
+
+
+
+

@@ -1,0 +1,79 @@
+﻿@model NutritionViewModel
+<!-- V1006_GUIDED_NUTRITION_CLEAN -->
+@await Html.PartialAsync(
+    "_GuidedDemoCalloutSections",
+    new[]
+    {
+        "Bring over today's totals",
+        "Use the food tracker you already like. Enter your daily calories, protein, carbs, and fat here - there is no need to log every meal a second time.",
+
+        "Recomp turns those numbers into a fueling decision",
+        "Protein stays high to help protect lean muscle during fat loss. Harder training uses more muscle glycogen, so carbohydrates help replace that fuel and support energy, strength, and recovery. The analytical engine compares what you ate with what your training demanded."
+    })
+@{
+    ViewData["Title"] = "Daily Nutrition";
+}
+<div class="app-page app-page-nutrition">
+    <header class="app-page-head">
+        <div>
+            <div class="app-kicker">DAILY • FOOD TOTALS</div>
+            <h1>Daily Nutrition</h1>
+            <p class="lede">@Model.Date.ToString("dddd, MMMM d")</p>
+        </div>
+
+        <form asp-action="Index" method="get" class="app-date-picker">
+            <label>Date
+                <input name="date" value="@Model.Date.ToString("yyyy-MM-dd")" type="date" onchange="this.form.submit()" />
+            </label>
+        </form>
+    </header>
+
+    @if (TempData["StatusMessage"] is string statusMessage)
+    {
+        <div class="app-message success">@statusMessage</div>
+    }
+
+    <form asp-action="Index" method="post" class="stack" id="nutrition-autosave-form">
+        <input asp-for="Date" type="hidden" />
+
+        <section class="card app-section app-section-green">
+            <div class="app-section-label"><span class="app-number">1</span><span>ACTUAL NUTRITION</span></div>
+            <h2>Daily totals</h2>
+            <p class="required-note"><span class="required-mark">*</span> Required</p>
+            <p class="small">Enter the completed totals from your food tracker. <strong>Protein is the daily anchor.</strong> Recomp keeps a base carbohydrate intake and uses workout demand to add carbs for glycogen refill. If protein is covered and calories and fat remain within target, some of those carbs can come from foods you enjoy.</p>
+            <div class="nutrition-entry-grid">
+                <label class="nutrition-calories"><span class="field-label-line">Calories <span class="required-mark">*</span></span><input asp-for="ActualCalories" asp-format="{0:0}" type="number" step="1" /></label>
+                <label><span class="field-label-line">Protein (g) <span class="required-mark">*</span></span><input asp-for="ActualProteinG" asp-format="{0:0}" type="number" step="1" /></label>
+                <label><span class="field-label-line">Carbs (g) <span class="required-mark">*</span></span><input asp-for="ActualCarbsG" asp-format="{0:0}" type="number" step="1" /></label>
+                <label><span class="field-label-line">Fat (g) <span class="required-mark">*</span></span><input asp-for="ActualFatG" asp-format="{0:0}" type="number" step="1" /></label>
+                <label>Fiber (g)<input asp-for="FiberG" asp-format="{0:0}" type="number" step="1" /></label>
+                <label>Water (oz)<input asp-for="WaterOz" asp-format="{0:0}" type="number" step="1" /></label>
+            </div>
+            <label>Notes<textarea asp-for="Notes" rows="3"></textarea></label>
+        </section>
+
+        <div class="autosave-row" aria-live="polite">
+            <span id="nutrition-autosave-status" class="autosave-status" hidden></span>
+        </div>
+        <noscript>
+            <div class="app-action-row">
+                <button class="primary" type="submit">Save Daily Nutrition</button>
+            </div>
+        </noscript>
+    </form>
+</div>
+
+<script>
+(() => {
+    const form = document.getElementById("nutrition-autosave-form");
+    window.RecompAutosave?.bind(form, {
+        statusSelector: "#nutrition-autosave-status",
+        delay: 650
+    });
+})();
+</script>
+
+
+
+
+

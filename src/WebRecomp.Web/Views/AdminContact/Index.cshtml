@@ -1,0 +1,185 @@
+@model WebRecomp.Web.ViewModels.AdminContactIndexViewModel
+
+@{
+    ViewData["Title"] = "Contact Messages";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-contact-page">
+
+    <div class="admin-page-header">
+        <div>
+            <span class="admin-eyebrow">ADMINISTRATION</span>
+            <h1>Contact Messages</h1>
+            <p>
+                Manage the public Contact Us destination and review messages
+                submitted through 12 Week Recomp.
+            </p>
+        </div>
+
+        <a asp-controller="Admin"
+           asp-action="Index"
+           class="admin-back-link">
+            &larr; Admin Home
+        </a>
+    </div>
+
+    @if (TempData["ContactAdminSuccess"] is string success)
+    {
+        <div class="admin-success-message">
+            @success
+        </div>
+    }
+
+    <section class="admin-contact-settings">
+        <div class="admin-list-heading">
+            <div>
+                <h2>Contact Settings</h2>
+                <p>
+                    Messages are always stored in the Admin inbox. Once outgoing
+                    email is configured, notifications will also be sent here.
+                </p>
+            </div>
+        </div>
+
+        <form asp-controller="AdminContact"
+              asp-action="SaveSettings"
+              method="post">
+
+            @Html.AntiForgeryToken()
+
+            <div asp-validation-summary="ModelOnly"
+                 class="admin-validation"></div>
+
+            <div class="admin-contact-settings-grid">
+
+                <label>
+                    <span>Notification email</span>
+
+                    <input asp-for="Settings.DestinationEmail"
+                           type="email"
+                           placeholder="contact@12weekrecomp.com" />
+
+                    <small>
+                        Destination for future Contact Us email notifications.
+                    </small>
+
+                    <span asp-validation-for="Settings.DestinationEmail"
+                          class="admin-validation"></span>
+                </label>
+
+                <label class="admin-contact-enabled">
+                    <input asp-for="Settings.ContactEnabled"
+                           type="checkbox" />
+
+                    <span>
+                        <strong>Contact Us enabled</strong>
+                        <small>
+                            Allow visitors to submit messages through the website.
+                        </small>
+                    </span>
+                </label>
+
+            </div>
+
+            <button type="submit"
+                    class="admin-primary-button">
+                Save Contact Settings
+            </button>
+
+        </form>
+    </section>
+
+
+    <section class="admin-code-list-section">
+
+        <div class="admin-list-heading admin-contact-inbox-heading">
+
+            <div>
+                <h2>Inbox</h2>
+                <p>
+                    @Model.UnreadCount unread message@(Model.UnreadCount == 1 ? "" : "s")
+                </p>
+            </div>
+
+            @if (Model.UnreadCount > 0)
+            {
+                <span class="admin-unread-count">
+                    @Model.UnreadCount NEW
+                </span>
+            }
+
+        </div>
+
+        @if (Model.Messages.Count == 0)
+        {
+            <div class="admin-empty-state">
+                No Contact Us messages have been received yet.
+            </div>
+        }
+        else
+        {
+            <div class="admin-table-wrap">
+
+                <table class="admin-code-table admin-contact-table">
+
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>From</th>
+                            <th>Subject</th>
+                            <th>Received</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                    @foreach (var message in Model.Messages)
+                    {
+                        <tr class="@(message.StatusCode == "NEW"
+                            ? "admin-contact-row-new"
+                            : null)">
+
+                            <td>
+                                <span class="admin-status-chip">
+                                    @message.StatusCode
+                                </span>
+                            </td>
+
+                            <td>
+                                <a asp-controller="AdminContact"
+                                   asp-action="Message"
+                                   asp-route-id="@message.ContactMessageId"
+                                   class="admin-contact-message-link">
+                                    <strong>@message.SenderName</strong>
+                                    <span>@message.SenderEmail</span>
+                                </a>
+                            </td>
+
+                            <td>
+                                <a asp-controller="AdminContact"
+                                   asp-action="Message"
+                                   asp-route-id="@message.ContactMessageId"
+                                   class="admin-contact-subject-link">
+                                    @message.Subject
+                                </a>
+                            </td>
+
+                            <td>
+                                @message.SubmittedAtUtc.ToString("yyyy-MM-dd HH:mm")
+                                UTC
+                            </td>
+
+                        </tr>
+                    }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+        }
+
+    </section>
+
+</section>

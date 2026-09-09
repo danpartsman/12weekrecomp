@@ -1,0 +1,250 @@
+@model WebRecomp.Web.ViewModels.RecompProgressViewModel
+@{
+    ViewData["Title"] = "Progress";
+
+    string Value(decimal? value, string format = "0.0") =>
+        value.HasValue
+            ? value.Value.ToString(format)
+            : "--";
+
+    string Delta(decimal? value, string suffix = " lb") =>
+        value.HasValue
+            ? $"{(value.Value > 0 ? "+" : "")}{value.Value:0.0}{suffix}"
+            : "Not enough data";
+
+    string DeltaClass(decimal? value, bool lowerIsBetter) =>
+        !value.HasValue || value.Value == 0
+            ? "progress-delta"
+            : ((lowerIsBetter && value.Value < 0)
+                || (!lowerIsBetter && value.Value > 0))
+                ? "progress-delta is-good"
+                : "progress-delta is-watch";
+}
+
+<link rel="stylesheet"
+      href="~/css/progress-recomp.css"
+      asp-append-version="true" />
+
+<div class="progress-recomp">
+
+    <header class="progress-header">
+        <div>
+            <div class="progress-kicker">
+                BODY RECOMPOSITION
+            </div>
+
+            <h1>Progress</h1>
+
+            <p>
+                The main question is not simply whether body weight changed.
+                Recomp tracks whether fat is moving down while skeletal muscle
+                is being protected or built.
+            </p>
+        </div>
+
+        <a class="progress-entry-link"
+           asp-controller="DailyEntry"
+           asp-action="Index">
+            Update Daily Entry
+        </a>
+    </header>
+
+    <section class="progress-primary"
+             aria-label="Primary recomposition outcomes">
+
+        <article class="progress-primary-card fat">
+            <span class="progress-rank">1</span>
+            <div class="progress-label">FAT MASS</div>
+            <strong>@Value(Model.CurrentFatMassLb) <small>lb</small></strong>
+            <span class="@DeltaClass(Model.FatMassChangeLb, true)">
+                @Delta(Model.FatMassChangeLb)
+                <em>since first measurement</em>
+            </span>
+        </article>
+
+        <article class="progress-primary-card muscle">
+            <span class="progress-rank">2</span>
+            <div class="progress-label">
+                @Model.MuscleMetricLabel.ToUpperInvariant()
+            </div>
+            <strong>@Value(Model.CurrentMuscleLb) <small>lb</small></strong>
+            <span class="@DeltaClass(Model.MuscleChangeLb, false)">
+                @Delta(Model.MuscleChangeLb)
+                <em>since first comparable measurement</em>
+            </span>
+        </article>
+
+        <article class="progress-primary-card weight">
+            <span class="progress-rank">3</span>
+            <div class="progress-label">BODY WEIGHT</div>
+            <strong>@Value(Model.CurrentWeightLb) <small>lb</small></strong>
+            <span class="progress-delta">
+                @Delta(Model.WeightChangeLb)
+                <em>since first measurement</em>
+            </span>
+        </article>
+
+    </section>
+
+    <section class="progress-explainer">
+        <strong>Why muscle and fat come first</strong>
+        <span>
+            A successful recomp can happen even when scale weight moves slowly:
+            losing fat while maintaining or gaining skeletal muscle is the
+            result we are looking for.
+        </span>
+    </section>
+
+    <section class="progress-secondary">
+
+        <article>
+            <span>Body Fat</span>
+            <strong>@Value(Model.CurrentBodyFatPercent)%</strong>
+            <small>@Delta(Model.BodyFatPercentChange, " pts")</small>
+        </article>
+
+        <article>
+            <span>Subcutaneous Fat</span>
+            <strong>@Value(Model.CurrentSubcutaneousFatPercent)%</strong>
+            <small>@Delta(Model.SubcutaneousFatPercentChange, " pts")</small>
+        </article>
+
+        <article>
+            <span>Visceral Fat</span>
+            <strong>@Value(Model.CurrentVisceralFatRating)</strong>
+            <small>@Delta(Model.VisceralFatChange, "")</small>
+        </article>
+
+        <article>
+            <span>Body Water</span>
+            <strong>@Value(Model.CurrentBodyWaterLb) <small>lb</small></strong>
+            <small>Supporting metric</small>
+        </article>
+
+    </section>
+
+    <section class="progress-trends">
+        <div class="progress-section-heading">
+            <div>
+                <div class="progress-kicker">TREND HISTORY</div>
+                <h2>Fat, muscle, then weight</h2>
+            </div>
+            <p>
+                Consumer body-composition scales are estimates. Consistent
+                conditions and the trend over time matter more than one reading.
+            </p>
+        </div>
+
+        @if (Model.Points.Count == 0)
+        {
+            <div class="progress-empty">
+                No body measurements have been recorded yet.
+            </div>
+        }
+        else
+        {
+            <div class="progress-table-wrap">
+                <table class="progress-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Fat Mass</th>
+                            <th>@Model.MuscleMetricLabel</th>
+                            <th>Weight</th>
+                            <th>Body Fat</th>
+                            <th>Subcutaneous Fat</th>
+                            <th>Visceral Fat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var point in Model.Points.Reverse())
+                        {
+                            <tr>
+                                <td>@point.Date.ToString("MMM d")</td>
+                                <td>
+                                    @(point.FatMassLb?.ToString("0.0") ?? "--")
+                                    @if (point.FatMassLb.HasValue)
+                                    {
+                                        <span>lb</span>
+                                    }
+                                </td>
+                                <td>
+                                    @(point.MuscleLb?.ToString("0.0") ?? "--")
+                                    @if (point.MuscleLb.HasValue)
+                                    {
+                                        <span>lb</span>
+                                    }
+                                </td>
+                                <td>
+                                    @(point.WeightLb?.ToString("0.0") ?? "--")
+                                    @if (point.WeightLb.HasValue)
+                                    {
+                                        <span>lb</span>
+                                    }
+                                </td>
+                                <td>
+                                    @(point.BodyFatPercent?.ToString("0.0") ?? "--")
+                                    @if (point.BodyFatPercent.HasValue)
+                                    {
+                                        <span>%</span>
+                                    }
+                                </td>
+                                <td>
+                                    @(point.SubcutaneousFatPercent?.ToString("0.0") ?? "--")
+                                    @if (point.SubcutaneousFatPercent.HasValue)
+                                    {
+                                        <span>%</span>
+                                    }
+                                </td>
+                                <td>
+                                    @(point.VisceralFatRating?.ToString("0.0") ?? "--")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <details class="progress-additional">
+        <summary>Additional body metrics</summary>
+
+        <div class="progress-additional-grid">
+            <div>
+                <span>Latest waist</span>
+                <strong>
+                    @Value(Model.CurrentWaistIn)
+                    @if (Model.CurrentWaistIn.HasValue)
+                    {
+                        <small>in</small>
+                    }
+                </strong>
+            </div>
+
+            <div>
+                <span>Latest body water</span>
+                <strong>
+                    @Value(Model.CurrentBodyWaterLb)
+                    @if (Model.CurrentBodyWaterLb.HasValue)
+                    {
+                        <small>lb</small>
+                    }
+                </strong>
+            </div>
+        </div>
+    </details>
+
+    @if (!Model.UsingSkeletalMuscle)
+    {
+        <aside class="progress-muscle-note">
+            <strong>Skeletal muscle data is not available yet.</strong>
+            <span>
+                Progress is temporarily using the scale's generic Muscle Mass
+                field for comparable historical data. New Daily Entry records
+                use Skeletal Muscle when your scale provides it.
+            </span>
+        </aside>
+    }
+
+</div>

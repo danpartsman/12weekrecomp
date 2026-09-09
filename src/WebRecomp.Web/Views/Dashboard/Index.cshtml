@@ -1,0 +1,852 @@
+﻿@model DashboardViewModel
+@using WebRecomp.Web.Services.Coaching
+<!-- V1006_GUIDED_SHELL -->
+@await Html.PartialAsync("_GuidedDemoShell")
+@{
+    ViewData["Title"] = "Dashboard";
+    var todayCoachGuide =
+        CoachWorkoutGuideCatalog.Resolve(
+            Model.PreferredCoachCode,
+            Model.Engine30WorkoutTypeCode);
+
+    var tomorrowCoachGuide =
+        CoachWorkoutGuideCatalog.Resolve(
+            Model.PreferredCoachCode,
+            Model.TomorrowEngine30WorkoutTypeCode);
+    var isGuidedDemo =
+        User.FindFirst("recomp_demo")?.Value == "true"
+        && User.FindFirst("recomp_demo_type")?.Value == "GUIDED";
+}
+
+@if (isGuidedDemo)
+{
+    <style>
+        .guided-demo-banner,
+        .guided-demo-callout {
+            border: 2px solid #dc2626;
+            border-left-width: 8px;
+            border-radius: 10px;
+            background: #ffe3e3;
+            color: #7f1d1d;
+            box-shadow: 0 4px 14px rgba(127, 29, 29, 0.14);
+        }
+
+        .guided-demo-banner {
+            margin: 0 0 1.25rem 0;
+            padding: 1rem 1.1rem;
+        }
+
+        .guided-demo-callout {
+            margin-top: 1rem;
+            padding: 0.9rem 1rem;
+        }
+
+        .guided-demo-callout strong,
+        .guided-demo-banner strong {
+            display: inline-block;
+            margin-bottom: 0.45rem;
+            padding: 0.18rem 0.5rem;
+            border-radius: 999px;
+            background: #dc2626;
+            color: #ffffff;
+            font-size: 0.76rem;
+            letter-spacing: 0.045em;
+            text-transform: uppercase;
+        }
+
+        .guided-demo-callout span,
+        .guided-demo-banner span {
+            display: block;
+            line-height: 1.45;
+        }
+    </style>
+
+    <aside class="guided-demo-banner" role="note" aria-label="Guided Demo explanation">
+        <strong>Guided Demo: Red callouts</strong>
+        <span>Red boxes explain the decisions that matter. They appear only in the Guided Demo.</span>
+    </aside>
+}
+
+<div class="recomp-dashboard">
+    <header class="dash-title-row">
+        <div>
+            <div class="dash-kicker">TODAY</div>
+            <h1>@Model.ActionDate.ToString("dddd, MMMM d")</h1>
+            <p class="lede">Week @Model.ProgramWeek &bull; @Model.PlanCode</p>
+        </div>
+        <div class="dash-status @Model.TodayStatusClass">@Model.TodayStatusLabel</div>
+    </header>
+
+    @if (Model.NeedsCurrentWeight)
+    {
+        <section class="card dashboard-weight-needed" aria-labelledby="weight-needed-title">
+            <div class="app-kicker">ONE QUICK STEP</div>
+            <h2 id="weight-needed-title">Morning weight needed</h2>
+            <p>Enter today's morning weight before Recomp can calculate today's workout, nutrition, recovery, and glycogen recommendations. Your Dashboard will appear as soon as today's weight is saved.</p>
+            <div class="app-action-row">
+                <a class="primary button"
+                   asp-controller="Daily"
+                   asp-action="Index"
+                   asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Enter morning weight</a>
+            </div>
+        </section>
+    }
+    else
+    {
+    <!-- V1006_GUIDED_MUSCLE_CALLOUT -->
+    @await Html.PartialAsync(
+        "_GuidedDemoCallout",
+        new[]
+        {
+            "Why is 12 Week Recomp different?",
+            "Regular dieting can reduce muscle along with fat. Recomp combines resistance training, high protein, and controlled calories to lose fat while protecting - and when possible building - lean muscle."
+        })
+
+<div class="dash-primary-grid">
+        <section class="dash-panel dash-workout">
+            <div class="dash-panel-label"><span class="dash-number">1</span><span>WORKOUT</span></div>
+
+            <div class="dash-workout-stack">
+                <div class="dash-workout-block planned">
+                    <span class="dash-workout-step-label">PLANNED</span>
+                    <h2 class="dash-workout-title">@Model.PlannedWorkout</h2>
+                    <div class="dash-workout-meta">
+                        @Model.WorkoutDurationMin.ToString("0") min <span> &bull; </span> @Model.WorkoutEffort
+                    </div>
+                    <div class="dash-workout-burn-grid">
+                        <div>
+                            <strong>~@(Model.PlannedWorkoutCaloriesKcal?.ToString("0") ?? "-") kcal</strong>
+                            <span>Estimated calorie burn</span>
+                        </div>
+                        <div>
+                            <strong>~@(Model.PlannedWorkoutGlycogenG?.ToString("0") ?? "-") g</strong>
+                            <span>Estimated glycogen burn</span>
+                        </div>
+                    </div>
+                    <p class="dash-workout-description">@Model.WorkoutDescription</p>
+                </div>
+
+                <div class="dash-workout-block recomp">
+                    <span class="dash-workout-step-label">RECOMP RECOMMENDATION</span>
+                    @if (Model.ScheduleChangeRecommended)
+                    {
+                        <h3>Change to @Model.RecommendedWorkout</h3>
+                        <p class="dash-recomp-why"><strong>Why:</strong> @Model.WorkoutRecommendationRationale</p>
+                    }
+                    else
+                    {
+                        <h3>Keep Plan</h3>
+                    }
+                </div>
+
+                <div class="dash-workout-block actual">
+                    <span class="dash-workout-step-label">ACTUAL</span>
+                    @if (!string.IsNullOrWhiteSpace(Model.WorkoutActual))
+                    {
+                        <h2 class="dash-workout-title dash-workout-title-actual">@Model.WorkoutActual</h2>
+
+                        @if (Model.ActualWorkoutDurationMin.HasValue || Model.ActualWorkoutRpe.HasValue)
+                        {
+                            <div class="dash-workout-meta">
+                                @if (Model.ActualWorkoutDurationMin.HasValue)
+                                {
+                                    <span>@Model.ActualWorkoutDurationMin.Value.ToString("0") min</span>
+                                }
+                                @if (Model.ActualWorkoutDurationMin.HasValue && Model.ActualWorkoutRpe.HasValue)
+                                {
+                                    <span> &bull; </span>
+                                }
+                                @if (Model.ActualWorkoutRpe.HasValue)
+                                {
+                                    <span>RPE @Model.ActualWorkoutRpe.Value.ToString("0.#")</span>
+                                }
+                            </div>
+                        }
+
+                        <div class="dash-workout-burn-grid">
+                            <div>
+                                <strong>~@(Model.ActualWorkoutCaloriesKcal?.ToString("0") ?? "-") kcal</strong>
+                                <span>Actual-session calorie estimate</span>
+                            </div>
+                            <div>
+                                <strong>~@(Model.ActualWorkoutGlycogenG?.ToString("0") ?? "-") g</strong>
+                                <span>Actual-session glycogen estimate</span>
+                            </div>
+                        </div>
+
+                        <p class="muted">Modeled by Engine 3.0 from the completed session; glycogen is estimated, not directly measured.</p>
+                    }
+                    else
+                    {
+                        <h2 class="dash-workout-title dash-workout-title-actual dash-not-logged">Not logged yet</h2>
+                    }
+                </div>
+            </div>
+            @if (isGuidedDemo)
+            {
+                <aside class="guided-demo-callout" role="note" aria-label="Workout decision explanation">
+                    <strong>What am I supposed to do today?</strong>
+                    <span>Your workout week is planned in advance. Recomp checks today's plan against training balance, recovery, readiness, and safety signals, then confirms the workout or explains the adjustment here.</span>
+                </aside>
+            }
+        </section>
+
+        <section class="dash-panel dash-nutrition">
+            <div class="dash-panel-label"><span class="dash-number">2</span><span>NUTRITION</span></div>
+            <h2>@Model.Calories.ToString("0") <span class="dash-unit">calories</span></h2>
+            <div class="dash-macro-grid">
+                <div><strong>@Model.ProteinG.ToString("0")</strong><span>Protein</span></div>
+                <div><strong>@Model.CarbsG.ToString("0")</strong><span>Carbs</span></div>
+                <div><strong>@Model.FatG.ToString("0")</strong><span>Fat</span></div>
+            </div>
+            <p class="muted">
+                Engine @Model.Engine30VersionCode &bull; @Model.Engine30ConfigVersionCode
+                @if (!string.IsNullOrWhiteSpace(Model.Engine30WorkoutProfileVersionCode))
+                {
+                    <span> &bull; @Model.Engine30WorkoutProfileVersionCode</span>
+                }
+            </p>
+            <div class="dash-nutrition-class">@Model.NutritionDayLabel</div>
+
+            @if (
+                Model.WeekEligibleEnergyCarryoverKcal > 0m
+                && Model.Engine30WorkoutCategoryCode == "MAJOR_STRENGTH"
+                && Model.TodayEnergyCarryoverCorrectionKcal <= 0m)
+            {
+                <p class="muted">
+                    <strong>Major Strength calories are protected today.</strong>
+                    Prior calorie overage is being assigned to eligible lower-priority days instead of reducing today's hard-training prescription.
+                </p>
+            }
+            else if (Model.TodayEnergyCarryoverCorrectionKcal > 0m)
+            {
+                <p class="muted">
+                    Energy carryover reduced today's prescription by
+                    @Model.TodayEnergyCarryoverCorrectionKcal.ToString("0") kcal,
+                    within the Admin category cap and physiological floors.
+                </p>
+            }
+            <p>@Model.NutritionTip</p>
+
+            @if (Model.NutritionActualLogged)
+            {
+                <div class="dash-actual-line">
+                    <strong>Actual so far:</strong>
+                    @(Model.ActualCalories?.ToString("0") ?? "-") cal &bull; @(Model.ActualProteinG?.ToString("0") ?? "-") P &bull; @(Model.ActualCarbsG?.ToString("0") ?? "-") C &bull; @(Model.ActualFatG?.ToString("0") ?? "-") F
+                </div>
+            }
+            @if (isGuidedDemo)
+            {
+                <aside class="guided-demo-callout" role="note" aria-label="Nutrition target explanation">
+                    <strong>Why these macros?</strong>
+                    <span>Protein stays high to protect muscle while you lose fat. Harder training days use more muscle glycogen, so Recomp gives you more carbs to restore that fuel and keep energy, strength, and recovery high.</span>
+                </aside>
+            }
+        </section>
+
+        <section class="dash-panel dash-coach">
+            <div class="dash-panel-label"><span class="dash-number">3</span><span>COACH</span></div>
+            <h2>@Model.CoachTitle</h2>
+            <p class="dash-coach-copy">@Model.CoachRecommendation</p>
+
+@if (todayCoachGuide is not null)
+{
+    <button
+        type="button"
+        class="dash-coach-guide-card dash-coach-guide-card--@todayCoachGuide.PresentationVariant"
+        data-coach-guide-open="today"
+        data-coach-guide-asset="@Url.Content(todayCoachGuide.AssetPath)"
+        data-coach-guide-title="@todayCoachGuide.Title"
+        data-coach-guide-alt="@todayCoachGuide.AltText"
+        data-coach-guide-layout="@todayCoachGuide.PresentationVariant"
+        data-coach-guide-nutrition="@todayCoachGuide.NutritionGuideCode"
+        aria-haspopup="dialog"
+        aria-controls="coachTodayDetail">
+        <img
+            src="@Url.Content(todayCoachGuide.AvatarPath)"
+            alt=""
+            class="dash-coach-guide-card__portrait" />
+        <span class="dash-coach-guide-card__copy">
+            <strong>Coach @todayCoachGuide.CoachDisplayName</strong>
+            <span>See today's workout + nutrition guide</span>
+        </span>
+        <span class="dash-coach-guide-card__arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M5 12h13M13 6l6 6-6 6"></path>
+            </svg>
+        </span>
+    </button>
+}
+
+<div class="dash-coach-brief-launch">
+    <button
+        type="button"
+        class="button secondary dash-coach-brief-button"
+        data-coach-brief-open
+        aria-haspopup="dialog"
+        aria-controls="coachDailyBriefModal">
+        <span class="dash-coach-brief-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64" role="img" focusable="false">
+                <circle cx="32" cy="10" r="7"></circle>
+                <path d="M25 21h14l5 10-6 3-3-6-1 8 6 5-3 7h-4v8h-5v-8h-4l-3-7 6-5-1-8-3 6-6-3 5-10z"></path>
+                <path d="M22 29l20 9M42 29L22 38"></path>
+            </svg>
+        </span>
+        <span>Coach Daily Brief</span>
+    </button>
+</div>
+            <div class="dash-coach-factors">
+                @if (Model.EnergyScore.HasValue)
+                {
+                    <span>Energy @($"{Model.EnergyScore.Value}/10")</span>
+                }
+                @if (Model.SorenessScore.HasValue)
+                {
+                    <span>Soreness @($"{Model.SorenessScore.Value}/10")</span>
+                }
+                @if (Model.SleepHours.HasValue)
+                {
+                    <span>Sleep @Model.SleepHours.Value.ToString("0.#") h</span>
+                }
+                <span>Fuel @Model.GlycogenReadiness</span>
+            </div>
+            <details class="dash-why">
+                <summary>Why this recommendation?</summary>
+                <p>@Model.CoachWhy</p>
+            </details>
+            @if (isGuidedDemo)
+            {
+                <aside class="guided-demo-callout" role="note" aria-label="Coach recommendation explanation">
+                    <strong>Your virtual coach</strong>
+                    <span>Recomp calls out what is unique about today, explains what matters, and gives you a clear, motivating next step. On a hard training day like this, if it fits your targets, enjoy a sweet treat after the workout.</span>
+                </aside>
+            }
+        </section>
+    </div>
+
+    <section class="dash-tomorrow-repeat-section">
+        <div class="dash-section-heading dash-tomorrow-heading">
+            <div>
+                <div class="dash-kicker">TOMORROW'S PLAN</div>
+                <h2>@Model.TomorrowDate.ToString("dddd, MMMM d")</h2>
+            </div>
+            <span class="dash-preliminary">Preliminary</span>
+        </div>
+
+        @if (!Model.TomorrowPlanAvailable)
+        {
+            <div class="dash-empty">Tomorrow has not been planned yet. Use Weekly Plan to add the session.</div>
+        }
+        else
+        {
+            <div class="dash-primary-grid dash-tomorrow-repeat-grid">
+                <section class="dash-panel dash-workout dash-tomorrow-panel">
+                    <div class="dash-panel-label"><span>WORKOUT</span></div>
+                    <h2>@Model.TomorrowWorkout</h2>
+                    <p class="dash-focus">@Model.TomorrowFocus</p>
+                    <p class="dash-description">@Model.TomorrowDescription</p>
+                    <div class="dash-facts">
+                        <span><strong>Time</strong> @Model.TomorrowDurationMin?.ToString("0") min</span>
+                        <span><strong>Effort</strong> @Model.TomorrowEffort</span>
+                    </div>
+                </section>
+
+                <section class="dash-panel dash-nutrition dash-tomorrow-panel">
+                    <div class="dash-panel-label"><span>NUTRITION</span></div>
+                    @if (Model.TomorrowCalories.HasValue)
+                    {
+                        <h2>@Model.TomorrowCalories.Value.ToString("0") <span class="dash-unit">calories</span></h2>
+                        <div class="dash-macro-grid">
+                            <div><strong>@Model.TomorrowProteinG?.ToString("0")</strong><span>Protein</span></div>
+                            <div><strong>@Model.TomorrowCarbsG?.ToString("0")</strong><span>Carbs</span></div>
+                            <div><strong>@Model.TomorrowFatG?.ToString("0")</strong><span>Fat</span></div>
+                        </div>
+                        <p class="muted">Engine 3.0 preliminary prescription using what Recomp knows today.</p>
+                    }
+                    else
+                    {
+                        <p>Nutrition estimate unavailable until a current body weight is available.</p>
+                    }
+                </section>
+
+                <section class="dash-panel dash-coach dash-tomorrow-panel">
+                    <div class="dash-panel-label"><span>COACH</span></div>
+                    <h2>Prepare for tomorrow</h2>
+                    <p class="dash-coach-copy">@Model.TomorrowTip</p>
+
+                    @if (tomorrowCoachGuide is not null)
+                    {
+                        <button
+                            type="button"
+                            class="dash-coach-guide-card dash-coach-guide-card--tomorrow dash-coach-guide-card--@tomorrowCoachGuide.PresentationVariant"
+                            data-coach-guide-open="tomorrow"
+                            data-coach-guide-asset="@Url.Content(tomorrowCoachGuide.AssetPath)"
+                            data-coach-guide-title="@tomorrowCoachGuide.Title"
+                            data-coach-guide-alt="@tomorrowCoachGuide.AltText"
+                            data-coach-guide-layout="@tomorrowCoachGuide.PresentationVariant"
+                            data-coach-guide-nutrition="@tomorrowCoachGuide.NutritionGuideCode"
+                            aria-haspopup="dialog"
+                            aria-controls="coachTodayDetail">
+                            <img
+                                src="@Url.Content(todayCoachGuide.AvatarPath)"
+            alt=""
+            class="dash-coach-guide-card__portrait" />
+                            <span class="dash-coach-guide-card__copy">
+                                <strong>Coach @tomorrowCoachGuide.CoachDisplayName</strong>
+                                <span>Preview tomorrow's workout + nutrition guide</span>
+                            </span>
+                            <span class="dash-coach-guide-card__arrow" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M5 12h13M13 6l6 6-6 6"></path>
+                                </svg>
+                            </span>
+                        </button>
+                    }
+                </section>
+            </div>
+        }
+        @if (isGuidedDemo)
+        {
+            <aside class="guided-demo-callout" role="note" aria-label="Tomorrow plan explanation">
+                    <strong>A look ahead</strong>
+                    <span>See what is likely coming tomorrow so you can plan your day. It is preliminary - tomorrow's check-in and new data can still change the recommendation.</span>
+                </aside>
+        }
+    </section>
+
+    <section class="dash-section dash-fuel-detail">
+        <div class="dash-section-heading">
+            <div>
+                <div class="dash-kicker">ENGINE 3.0 &bull; FUEL / RECOVERY / ENERGY</div>
+                <h2>How yesterday affects today</h2>
+            </div>
+            <span class="dash-detail-date">@Model.PreviousDate.ToString("MMM d") &rarr; @Model.ActionDate.ToString("MMM d")</span>
+        </div>
+
+        @if (isGuidedDemo)
+        {
+            <aside class="guided-demo-callout" role="note" aria-label="Engine 3.0 yesterday to today explanation">
+                <strong>What changed because of yesterday?</strong>
+                <span>Engine 3.0 recalculates recent completed workouts from the raw workout details, compares those demands with actual carbohydrate evidence, carries the last four days forward, then shows what that means for today's fuel and prescription.</span>
+            </aside>
+        }
+
+        <div class="dash-fuel-flow">
+            <div class="dash-fuel-card">
+                <span class="dash-cell-label">1 &bull; YESTERDAY &mdash; WHAT ACTUALLY HAPPENED</span>
+
+                @if (!string.IsNullOrWhiteSpace(Model.PreviousWorkoutActual))
+                {
+                    <p><strong>Workout:</strong> @Model.PreviousWorkoutActual</p>
+                }
+                else
+                {
+                    <p><strong>Workout:</strong> No completed workout logged.</p>
+                }
+
+                <div class="dash-big-metric">@Model.PreviousGlycogenDemandG.ToString("0") g</div>
+                <span class="muted">Engine 3.0 modeled glycogen demand from completed workout data</span>
+
+                <div class="dash-compare-head"><span>Target</span><span>Actual</span></div>
+                <div class="dash-compare-row"><strong>Calories</strong><span>@(Model.PreviousTargetCalories?.ToString("0") ?? "-")</span><span>@(Model.PreviousActualCalories?.ToString("0") ?? "-")</span></div>
+                <div class="dash-compare-row"><strong>Protein</strong><span>@(Model.PreviousTargetProteinG?.ToString("0") ?? "-") g</span><span>@(Model.PreviousActualProteinG?.ToString("0") ?? "-") g</span></div>
+                <div class="dash-compare-row dash-carb-row"><strong>Carbs</strong><span>@(Model.PreviousTargetCarbsG?.ToString("0") ?? "-") g</span><span>@(Model.PreviousActualCarbsG?.ToString("0") ?? "-") g</span></div>
+                <div class="dash-compare-row"><strong>Fat</strong><span>@(Model.PreviousTargetFatG?.ToString("0") ?? "-") g</span><span>@(Model.PreviousActualFatG?.ToString("0") ?? "-") g</span></div>
+
+                @if (Model.PreviousCarbDifferenceG.HasValue)
+                {
+                    <div class="dash-difference @(Model.PreviousCarbDifferenceG.Value < 0 ? "short" : "met")">
+                        Carb difference: @Model.PreviousCarbDifferenceG.Value.ToString("+0;-0;0") g
+                    </div>
+                }
+
+                <div class="dash-refill-line">
+                    <div>
+                        <strong>@(Model.PreviousRestorationCreditG?.ToString("0") ?? "-") g</strong>
+                        <span>Restoration credit</span>
+                    </div>
+                    <div>
+                        <strong>@(Model.PreviousRestorationRatio?.ToString("P0") ?? "-")</strong>
+                        <span>Yesterday refill</span>
+                    </div>
+                </div>
+
+                <p>@Model.PreviousFuelSummary</p>
+
+                @if (Model.PreviousEnergyVarianceKcal.HasValue)
+                {
+                    <div class="dash-refill-line">
+                        <div>
+                            <strong>@Model.PreviousEnergyVarianceKcal.Value.ToString("+0;-0;0") kcal</strong>
+                            <span>Energy vs target</span>
+                        </div>
+                        <div>
+                            <strong>@(Model.PreviousEligibleEnergyCarryoverKcal?.ToString("0") ?? "-") kcal</strong>
+                            <span>Eligible energy correction</span>
+                        </div>
+                    </div>
+                }
+                <p class="muted">Target source: Engine 3.0 weekly prescription. Missing intake remains missing evidence - not zero intake.</p>
+            </div>
+
+            <div class="dash-flow-arrow" aria-hidden="true">&rarr;</div>
+
+            <div class="dash-fuel-card">
+                <span class="dash-cell-label">2 &bull; CARRYOVER &mdash; THE PRIOR FOUR DAYS</span>
+
+                <div class="dash-recovery-meter">
+                    <div class="dash-meter-value">@Model.AbsoluteRestorationRatio.ToString("P0")</div>
+                    <div>
+                        <strong>Absolute restoration</strong>
+                        <span>@Model.FourDayRestorationCreditG.ToString("0") g credit / @Model.FourDayGlycogenDemandG.ToString("0") g demand</span>
+                    </div>
+                </div>
+
+                <dl class="dash-detail-list">
+                    <dt>Carbohydrate evidence</dt>
+                    <dd>@Model.FourDayCarbohydrateEvidenceDays / 4 days</dd>
+
+                    <dt>Moderate / hard demand days</dt>
+                    <dd>@Model.FourDayModerateHardDays</dd>
+
+                    <dt>Hard demand days</dt>
+                    <dd>@Model.FourDayHardDays</dd>
+
+                    <dt>Functional target</dt>
+                    <dd>@Model.FunctionalTargetRatio.ToString("P0")</dd>
+
+                    <dt>Incoming target achievement</dt>
+                    <dd>@Model.IncomingTargetAchievementRatio.ToString("P0")</dd>
+
+                    <dt>Starting readiness</dt>
+                    <dd>@Model.GlycogenReadiness</dd>
+
+                    <dt>Historical shortfall</dt>
+                    <dd>@Model.HistoricalFuelShortfallG.ToString("0") g</dd>
+
+                    <dt>Energy over target this week</dt>
+                    <dd>@Model.WeekEnergyOverageKcal.ToString("0") kcal</dd>
+
+                    <dt>Energy correction eligible this week</dt>
+                    <dd>@Model.WeekEligibleEnergyCarryoverKcal.ToString("0") kcal</dd>
+
+                    <dt>Already assigned before today</dt>
+                    <dd>@Model.EnergyCorrectionAppliedBeforeTodayKcal.ToString("0") kcal</dd>
+
+                    <dt>Assigned to future days</dt>
+                    <dd>@Model.EnergyCorrectionAppliedFutureKcal.ToString("0") kcal</dd>
+
+                    <dt>Unallocated / accepted variance</dt>
+                    <dd>@Model.EnergyCorrectionUnallocatedKcal.ToString("0") kcal</dd>
+                </dl>
+            </div>
+
+            <div class="dash-flow-arrow" aria-hidden="true">&rarr;</div>
+
+            <div class="dash-fuel-card dash-today-impact">
+                <span class="dash-cell-label">3 &bull; TODAY &mdash; WHAT ENGINE 3.0 DOES ABOUT IT</span>
+
+                <div class="dash-big-metric">@Model.TodayPlannedGlycogenDemandG.ToString("0") g</div>
+                <span class="muted">Modeled demand for today's planned workout</span>
+
+                <dl class="dash-detail-list">
+                    <dt>Base-rest carbohydrate</dt>
+                    <dd>@Model.BaseCarbsG.ToString("0") g</dd>
+
+                    <dt>Recovery allocation</dt>
+                    <dd>@Model.CarryoverCarbsG.ToString("0") g</dd>
+
+                    <dt>Suggested before training</dt>
+                    <dd>@Model.PreWorkoutCarbsG.ToString("0") g</dd>
+
+                    <dt>Projected target achievement</dt>
+                    <dd>@Model.ProjectedTargetAchievementRatio.ToString("P0")</dd>
+
+                    <dt>Projected readiness</dt>
+                    <dd>@Model.ProjectedGlycogenReadiness</dd>
+
+                    <dt>Protected baseline calories</dt>
+                    <dd>@Model.TodayBaselinePrescribedEnergyKcal.ToString("0") kcal</dd>
+
+                    <dt>Energy correction applied today</dt>
+                    <dd>@Model.TodayEnergyCarryoverCorrectionKcal.ToString("0") kcal</dd>
+
+                    <dt>Today's adjusted prescription</dt>
+                    <dd>@Model.Calories.ToString("0") kcal</dd>
+                </dl>
+
+                <div class="dash-difference met">
+                    @Model.FuelActionLabel
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-physiology-note">
+            <strong>Energy carryover</strong>
+            @Model.EnergyCarryoverSummary
+        </div>
+
+        <div class="dash-physiology-note">
+            <strong>Today's Engine 3.0 energy model</strong>
+            Base Living @Model.Engine30BaseLivingKcal.ToString("0") +
+            Habitual Activity @Model.Engine30HabitualActivityKcal.ToString("0") +
+            Net Workout @Model.Engine30NetWorkoutKcal.ToString("0") =
+            Maintenance @Model.Engine30MaintenanceKcal.ToString("0") kcal.
+            Today's prescription is @Model.Calories.ToString("0") kcal with an effective goal deficit of @Model.Engine30EffectiveDeficitPct.ToString("P1").
+        </div>
+
+        <div class="dash-physiology-note">
+            <strong>Protein and dietary fat stay protected. Carbohydrate is the primary day-to-day variable.</strong>
+            Engine 3.0 uses carbohydrate to support training and glycogen recovery inside the weekly energy budget. Recovery allocation and pre-workout rescue are timing decisions inside prescribed carbohydrate; they are not extra exercise calories that get eaten back 1-for-1.
+        </div>
+
+        <details class="dash-why">
+            <summary>Engine 3.0 details / provenance</summary>
+            <p>
+                Engine @Model.Engine30VersionCode &bull; @Model.Engine30ConfigVersionCode
+                @if (!string.IsNullOrWhiteSpace(Model.Engine30WorkoutProfileVersionCode))
+                {
+                    <span> &bull; Workout profile @Model.Engine30WorkoutProfileVersionCode</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Engine30WorkoutProfileSourceCode))
+                {
+                    <span> &bull; @Model.Engine30WorkoutProfileSourceCode</span>
+                }
+            </p>
+            <p>Workout category: @Model.Engine30WorkoutCategoryCode &bull; Carb rule: @Model.Engine30CarbGoverningRuleCode</p>
+            @if (!string.IsNullOrWhiteSpace(Model.FuelReasonCodes))
+            {
+                <p>Fuel reason codes: @Model.FuelReasonCodes</p>
+            }
+        </details>
+    </section>
+    }
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div
+    class="dash-coach-modal"
+    id="coachDailyBriefModal"
+    hidden
+    aria-hidden="true">
+    <div class="dash-coach-modal__backdrop" data-coach-brief-close></div>
+
+    <div
+        class="dash-coach-modal__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="coachDailyBriefTitle">
+
+        <div class="dash-coach-modal__header">
+            <div>
+                <div class="dash-coach-modal__eyebrow">COACH</div>
+                <h2 id="coachDailyBriefTitle">Daily Brief</h2>
+            </div>
+
+            <button
+                type="button"
+                class="dash-coach-modal__close"
+                data-coach-brief-close
+                aria-label="Close Coach Daily Brief">
+                X
+            </button>
+        </div>
+
+        <div class="dash-coach-modal__body">
+            <div class="dash-coach-brief-grid">
+
+                <section class="dash-coach-card">
+                    <div class="dash-coach-card__eyebrow">Planned Workout</div>
+                    <h3 class="dash-coach-card__title">@Model.PlannedWorkout</h3>
+                    <p class="dash-coach-card__meta">
+                        @Model.WorkoutDurationMin.ToString("0") min
+                        <span> &bull; </span>
+                        @Model.WorkoutEffort
+                    </p>
+
+                    <div class="dash-coach-metric-grid">
+                        <div>
+                            <strong>~@(Model.PlannedWorkoutCaloriesKcal?.ToString("0") ?? "-") kcal</strong>
+                            <span>Estimated workout burn</span>
+                        </div>
+                        <div>
+                            <strong>~@(Model.PlannedWorkoutGlycogenG?.ToString("0") ?? "-") g</strong>
+                            <span>Estimated glycogen demand</span>
+                        </div>
+                    </div>
+
+                    <p class="dash-coach-note">@Model.WorkoutDescription</p>
+                </section>
+
+                <section class="dash-coach-card dash-coach-card-actual">
+                    <div class="dash-coach-card__eyebrow">Actual Workout</div>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.WorkoutActual))
+                    {
+                        <h3 class="dash-coach-card__title">@Model.WorkoutActual</h3>
+                    }
+                    else
+                    {
+                        <h3 class="dash-coach-card__title dash-not-logged">Not logged yet</h3>
+                    }
+
+                    @if (Model.ActualWorkoutDurationMin.HasValue || Model.ActualWorkoutRpe.HasValue)
+                    {
+                        <p class="dash-coach-card__meta">
+                            @if (Model.ActualWorkoutDurationMin.HasValue)
+                            {
+                                <span>@Model.ActualWorkoutDurationMin.Value.ToString("0") min</span>
+                            }
+
+                            @if (Model.ActualWorkoutDurationMin.HasValue && Model.ActualWorkoutRpe.HasValue)
+                            {
+                                <span> &bull; </span>
+                            }
+
+                            @if (Model.ActualWorkoutRpe.HasValue)
+                            {
+                                <span>RPE @Model.ActualWorkoutRpe.Value.ToString("0.#")</span>
+                            }
+                        </p>
+                    }
+
+                    <div class="dash-coach-metric-grid">
+                        <div>
+                            <strong>~@(Model.ActualWorkoutCaloriesKcal?.ToString("0") ?? "-") kcal</strong>
+                            <span>Completed-session calorie estimate</span>
+                        </div>
+                        <div>
+                            <strong>~@(Model.ActualWorkoutGlycogenG?.ToString("0") ?? "-") g</strong>
+                            <span>Completed-session glycogen estimate</span>
+                        </div>
+                    </div>
+
+                    <p class="dash-coach-note">
+                        Engine 3.0 uses completed-session inputs for the actual-side estimate.
+                        Glycogen remains modeled rather than directly measured.
+                    </p>
+                </section>
+
+                <section class="dash-coach-card">
+                    <div class="dash-coach-card__eyebrow">Nutrition Today</div>
+                    <h3 class="dash-coach-card__title">@Model.NutritionDayLabel</h3>
+
+                    <div class="dash-coach-metric-grid">
+                        <div>
+                            <strong>@Model.Calories.ToString("0") kcal</strong>
+                            <span>Today's prescription</span>
+                        </div>
+                        <div>
+                            <strong>@Model.TodayBaselinePrescribedEnergyKcal.ToString("0") kcal</strong>
+                            <span>Before energy carryover</span>
+                        </div>
+                        <div>
+                            <strong>@Model.ProteinG.ToString("0") g</strong>
+                            <span>Protein</span>
+                        </div>
+                        <div>
+                            <strong>@Model.CarbsG.ToString("0") g</strong>
+                            <span>Carbohydrate</span>
+                        </div>
+                        <div>
+                            <strong>@Model.FatG.ToString("0") g</strong>
+                            <span>Fat</span>
+                        </div>
+                        <div>
+                            <strong>@Model.TodayEnergyCarryoverCorrectionKcal.ToString("0") kcal</strong>
+                            <span>Carryover correction today</span>
+                        </div>
+                    </div>
+
+                    <p class="dash-coach-note">@Model.EnergyCarryoverSummary</p>
+
+                    @if (
+                        Model.WeekEligibleEnergyCarryoverKcal > 0m
+                        && Model.Engine30WorkoutCategoryCode == "MAJOR_STRENGTH"
+                        && Model.TodayEnergyCarryoverCorrectionKcal <= 0m)
+                    {
+                        <p class="dash-coach-note">
+                            Major Strength protection is active today. Eligible energy correction is being
+                            directed toward lower-priority days instead of cutting this hard-training day.
+                        </p>
+                    }
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var modal = document.getElementById('coachDailyBriefModal');
+
+    if (!modal) {
+        return;
+    }
+
+    var openButtons =
+        document.querySelectorAll('[data-coach-brief-open]');
+
+    var closeButtons =
+        modal.querySelectorAll('[data-coach-brief-close]');
+
+    function openCoachBrief() {
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('coach-brief-open');
+    }
+
+    function closeCoachBrief() {
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('coach-brief-open');
+    }
+
+    openButtons.forEach(function (button) {
+        button.addEventListener(
+            'click',
+            openCoachBrief);
+    });
+
+    closeButtons.forEach(function (button) {
+        button.addEventListener(
+            'click',
+            closeCoachBrief);
+    });
+
+    document.addEventListener(
+        'keydown',
+        function (event) {
+            if (
+                event.key === 'Escape'
+                && !modal.hidden
+            ) {
+                closeCoachBrief();
+            }
+        });
+})();
+</script>
+
+
+@await Html.PartialAsync("_CoachTodayDetail")
+<script src="~/js/coach-today-detail.js" asp-append-version="true"></script>
+
+
+

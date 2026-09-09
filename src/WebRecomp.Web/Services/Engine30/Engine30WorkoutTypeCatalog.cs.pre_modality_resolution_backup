@@ -1,0 +1,480 @@
+namespace WebRecomp.Web.Services.Engine30;
+
+/// <summary>
+/// Engine 3.0 descriptive workout preset catalog.
+///
+/// IMPORTANT TAXONOMY:
+///
+/// Workout selection is a USER-FACING PRESET.
+/// Underneath the preset, Engine 3.0 keeps separate physiological dimensions:
+///
+///     Workout family
+///     + modality
+///     + training pattern
+///     + session structure
+///     + default planned RPE
+///
+/// This prevents concepts such as "Zone 2" and "Cycling" from being treated
+/// as if they were mutually exclusive physiological categories.
+///
+/// Example:
+///
+///     ZONE2_CARDIO
+///         Family: CARDIO
+///         Default modality: GENERAL_CARDIO
+///         Pattern: ZONE2
+///         Default RPE: 3
+///
+/// A future UI can therefore keep the simple Zone 2 preset while allowing
+/// the user to identify the actual modality as cycling, rowing, treadmill,
+/// elliptical, etc.
+///
+/// No workout preset defines fixed calories or fixed glycogen.
+/// </summary>
+
+public static class Engine30WorkoutFamilyCodes
+{
+    public const string Recovery = "RECOVERY";
+    public const string Resistance = "RESISTANCE";
+    public const string Cardio = "CARDIO";
+    public const string Intervals = "INTERVALS";
+    public const string Composite = "COMPOSITE";
+}
+
+public static class Engine30WorkoutModalityCodes
+{
+    public const string None = "NONE";
+    public const string Mobility = "MOBILITY";
+    public const string GeneralCardio = "GENERAL_CARDIO";
+    public const string Walking = "WALKING";
+    public const string Running = "RUNNING";
+    public const string Treadmill = "TREADMILL";
+    public const string Cycling = "CYCLING";
+    public const string Rowing = "ROWING";
+    public const string Elliptical = "ELLIPTICAL";
+    public const string StairClimber = "STAIR_CLIMBER";
+    public const string Swimming = "SWIMMING";
+    public const string Resistance = "RESISTANCE";
+    public const string Mixed = "MIXED";
+}
+
+public static class Engine30TrainingPatternCodes
+{
+    public const string Rest = "REST";
+    public const string Recovery = "RECOVERY";
+    public const string Easy = "EASY";
+    public const string Zone2 = "ZONE2";
+    public const string Steady = "STEADY";
+    public const string ResistanceMajor = "RESISTANCE_MAJOR";
+    public const string ResistanceAccessory = "RESISTANCE_ACCESSORY";
+    public const string ResistanceCircuit = "RESISTANCE_CIRCUIT";
+    public const string Intervals = "INTERVALS";
+    public const string Hiit = "HIIT";
+    public const string Composite = "COMPOSITE";
+}
+
+public sealed record Engine30WorkoutTypeDefinition(
+    string WorkoutTypeCode,
+    string DisplayName,
+    string WorkoutFamilyCode,
+    string DefaultModalityCode,
+    string TrainingPatternCode,
+    string SessionStructureCode,
+    decimal DefaultRpe,
+    bool SupportsObjectiveWorkload,
+    bool SupportsResistanceDetails,
+    bool SupportsIntervalDetails,
+    bool SupportsSegments);
+
+public sealed class Engine30WorkoutTypeCatalog
+{
+    private static Engine30WorkoutTypeDefinition Def(
+        string code,
+        string display,
+        string family,
+        string modality,
+        string pattern,
+        string structure,
+        decimal defaultRpe,
+        bool workload = false,
+        bool resistance = false,
+        bool intervals = false,
+        bool segments = false)
+        => new(
+            WorkoutTypeCode: code,
+            DisplayName: display,
+            WorkoutFamilyCode: family,
+            DefaultModalityCode: modality,
+            TrainingPatternCode: pattern,
+            SessionStructureCode: structure,
+            DefaultRpe: defaultRpe,
+            SupportsObjectiveWorkload: workload,
+            SupportsResistanceDetails: resistance,
+            SupportsIntervalDetails: intervals,
+            SupportsSegments: segments);
+
+    private static readonly IReadOnlyList<Engine30WorkoutTypeDefinition> Definitions =
+        new[]
+        {
+            // RECOVERY / REST
+            Def(
+                "REST",
+                "Rest",
+                Engine30WorkoutFamilyCodes.Recovery,
+                Engine30WorkoutModalityCodes.None,
+                Engine30TrainingPatternCodes.Rest,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                0m),
+
+            Def(
+                "MOBILITY_RECOVERY",
+                "Mobility / Recovery",
+                Engine30WorkoutFamilyCodes.Recovery,
+                Engine30WorkoutModalityCodes.Mobility,
+                Engine30TrainingPatternCodes.Recovery,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                2m),
+
+            // CARDIO PRESETS
+            Def(
+                "GENERAL_CARDIO",
+                "General Cardio",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.GeneralCardio,
+                Engine30TrainingPatternCodes.Steady,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                4m,
+                workload: true),
+
+            Def(
+                "EASY_CARDIO",
+                "Easy Cardio",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.GeneralCardio,
+                Engine30TrainingPatternCodes.Easy,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                2m,
+                workload: true),
+
+            Def(
+                "ZONE2_CARDIO",
+                "Zone 2 Cardio",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.GeneralCardio,
+                Engine30TrainingPatternCodes.Zone2,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                3m,
+                workload: true),
+
+            Def(
+                "WALKING",
+                "Walking",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.Walking,
+                Engine30TrainingPatternCodes.Steady,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                3m,
+                workload: true),
+
+            Def(
+                "RUNNING",
+                "Running",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.Running,
+                Engine30TrainingPatternCodes.Steady,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                5m,
+                workload: true),
+
+            Def(
+                "TREADMILL",
+                "Treadmill",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.Treadmill,
+                Engine30TrainingPatternCodes.Steady,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                4m,
+                workload: true),
+
+            Def(
+                "CYCLING",
+                "Cycling",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.Cycling,
+                Engine30TrainingPatternCodes.Steady,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                4m,
+                workload: true),
+
+            Def(
+                "ROWING",
+                "Rowing",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.Rowing,
+                Engine30TrainingPatternCodes.Steady,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                5m,
+                workload: true),
+
+            Def(
+                "ELLIPTICAL",
+                "Elliptical",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.Elliptical,
+                Engine30TrainingPatternCodes.Steady,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                4m,
+                workload: true),
+
+            Def(
+                "STAIR_CLIMBER",
+                "Stair Climber",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.StairClimber,
+                Engine30TrainingPatternCodes.Steady,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                5m,
+                workload: true),
+
+            Def(
+                "SWIMMING",
+                "Swimming",
+                Engine30WorkoutFamilyCodes.Cardio,
+                Engine30WorkoutModalityCodes.Swimming,
+                Engine30TrainingPatternCodes.Steady,
+                Engine30WorkoutSessionCodes.StructureContinuous,
+                4m,
+                workload: true),
+
+            // RESISTANCE PRESETS
+            Def(
+                "MAJOR_LEGS",
+                "Major Legs",
+                Engine30WorkoutFamilyCodes.Resistance,
+                Engine30WorkoutModalityCodes.Resistance,
+                Engine30TrainingPatternCodes.ResistanceMajor,
+                Engine30WorkoutSessionCodes.StructureResistanceSets,
+                8m,
+                resistance: true),
+
+            Def(
+                "MAJOR_PUSH",
+                "Major Push",
+                Engine30WorkoutFamilyCodes.Resistance,
+                Engine30WorkoutModalityCodes.Resistance,
+                Engine30TrainingPatternCodes.ResistanceMajor,
+                Engine30WorkoutSessionCodes.StructureResistanceSets,
+                8m,
+                resistance: true),
+
+            Def(
+                "MAJOR_PULL",
+                "Major Pull",
+                Engine30WorkoutFamilyCodes.Resistance,
+                Engine30WorkoutModalityCodes.Resistance,
+                Engine30TrainingPatternCodes.ResistanceMajor,
+                Engine30WorkoutSessionCodes.StructureResistanceSets,
+                8m,
+                resistance: true),
+
+            Def(
+                "FULL_BODY_STRENGTH",
+                "Full-Body Strength",
+                Engine30WorkoutFamilyCodes.Resistance,
+                Engine30WorkoutModalityCodes.Resistance,
+                Engine30TrainingPatternCodes.ResistanceMajor,
+                Engine30WorkoutSessionCodes.StructureResistanceSets,
+                8m,
+                resistance: true),
+
+            Def(
+                "ACCESSORY",
+                "Accessory / Isolation",
+                Engine30WorkoutFamilyCodes.Resistance,
+                Engine30WorkoutModalityCodes.Resistance,
+                Engine30TrainingPatternCodes.ResistanceAccessory,
+                Engine30WorkoutSessionCodes.StructureResistanceSets,
+                7m,
+                resistance: true),
+
+            Def(
+                "RESISTANCE_CIRCUIT",
+                "Resistance Circuit",
+                Engine30WorkoutFamilyCodes.Resistance,
+                Engine30WorkoutModalityCodes.Resistance,
+                Engine30TrainingPatternCodes.ResistanceCircuit,
+                Engine30WorkoutSessionCodes.StructureResistanceSets,
+                7m,
+                resistance: true,
+                intervals: true),
+
+            // INTERVAL PRESETS
+            Def(
+                "RUNNING_INTERVALS",
+                "Running Intervals",
+                Engine30WorkoutFamilyCodes.Intervals,
+                Engine30WorkoutModalityCodes.Running,
+                Engine30TrainingPatternCodes.Intervals,
+                Engine30WorkoutSessionCodes.StructureIntervals,
+                8m,
+                workload: true,
+                intervals: true),
+
+            Def(
+                "CYCLING_INTERVALS",
+                "Cycling Intervals",
+                Engine30WorkoutFamilyCodes.Intervals,
+                Engine30WorkoutModalityCodes.Cycling,
+                Engine30TrainingPatternCodes.Intervals,
+                Engine30WorkoutSessionCodes.StructureIntervals,
+                8m,
+                workload: true,
+                intervals: true),
+
+            Def(
+                "ROWING_INTERVALS",
+                "Rowing Intervals",
+                Engine30WorkoutFamilyCodes.Intervals,
+                Engine30WorkoutModalityCodes.Rowing,
+                Engine30TrainingPatternCodes.Intervals,
+                Engine30WorkoutSessionCodes.StructureIntervals,
+                8m,
+                workload: true,
+                intervals: true),
+
+            Def(
+                "MIXED_CONDITIONING",
+                "Mixed Conditioning",
+                Engine30WorkoutFamilyCodes.Intervals,
+                Engine30WorkoutModalityCodes.Mixed,
+                Engine30TrainingPatternCodes.Intervals,
+                Engine30WorkoutSessionCodes.StructureIntervals,
+                8m,
+                workload: true,
+                resistance: true,
+                intervals: true,
+                segments: true),
+
+            Def(
+                "TRUE_HIIT",
+                "HIIT / Sprint Intervals",
+                Engine30WorkoutFamilyCodes.Intervals,
+                Engine30WorkoutModalityCodes.GeneralCardio,
+                Engine30TrainingPatternCodes.Hiit,
+                Engine30WorkoutSessionCodes.StructureIntervals,
+                9m,
+                workload: true,
+                intervals: true),
+
+            // COMPOSITE PRESETS
+            Def(
+                "ORANGETHEORY",
+                "Orangetheory / Mixed Interval Class",
+                Engine30WorkoutFamilyCodes.Composite,
+                Engine30WorkoutModalityCodes.Mixed,
+                Engine30TrainingPatternCodes.Composite,
+                Engine30WorkoutSessionCodes.StructureComposite,
+                7m,
+                workload: true,
+                resistance: true,
+                intervals: true,
+                segments: true),
+
+            Def(
+                "MIXED_GYM_SESSION",
+                "Mixed Gym Session",
+                Engine30WorkoutFamilyCodes.Composite,
+                Engine30WorkoutModalityCodes.Mixed,
+                Engine30TrainingPatternCodes.Composite,
+                Engine30WorkoutSessionCodes.StructureComposite,
+                7m,
+                workload: true,
+                resistance: true,
+                intervals: true,
+                segments: true),
+
+            Def(
+                "CUSTOM_COMPOSITE",
+                "Custom Multi-Block Workout",
+                Engine30WorkoutFamilyCodes.Composite,
+                Engine30WorkoutModalityCodes.Mixed,
+                Engine30TrainingPatternCodes.Composite,
+                Engine30WorkoutSessionCodes.StructureComposite,
+                6m,
+                workload: true,
+                resistance: true,
+                intervals: true,
+                segments: true)
+        };
+
+    private static readonly IReadOnlyDictionary<string, Engine30WorkoutTypeDefinition> ByCode =
+        Definitions.ToDictionary(
+            x => x.WorkoutTypeCode,
+            StringComparer.OrdinalIgnoreCase);
+
+    public IReadOnlyList<Engine30WorkoutTypeDefinition> GetAll()
+        => Definitions;
+
+    public Engine30WorkoutTypeDefinition GetRequired(
+        string workoutTypeCode)
+    {
+        if (string.IsNullOrWhiteSpace(workoutTypeCode))
+        {
+            throw new ArgumentException(
+                "Workout type code is required.",
+                nameof(workoutTypeCode));
+        }
+
+        var normalized =
+            workoutTypeCode
+                .Trim()
+                .ToUpperInvariant();
+
+        if (!ByCode.TryGetValue(
+            normalized,
+            out var definition))
+        {
+            throw new KeyNotFoundException(
+                $"Unknown Engine 3.0 workout type '{workoutTypeCode}'.");
+        }
+
+        return definition;
+    }
+
+    public bool TryGet(
+        string workoutTypeCode,
+        out Engine30WorkoutTypeDefinition? definition)
+    {
+        definition = null;
+
+        if (string.IsNullOrWhiteSpace(workoutTypeCode))
+        {
+            return false;
+        }
+
+        return ByCode.TryGetValue(
+            workoutTypeCode.Trim(),
+            out definition);
+    }
+
+    public Engine30WorkoutTypeProfile GetProfile(
+        string workoutTypeCode)
+    {
+        var definition =
+            GetRequired(
+                workoutTypeCode);
+
+        return new Engine30WorkoutTypeProfile(
+            WorkoutTypeCode:
+                definition.WorkoutTypeCode,
+
+            WorkoutFamilyCode:
+                definition.WorkoutFamilyCode,
+
+            SessionStructureCode:
+                definition.SessionStructureCode,
+
+            DefaultRpe:
+                definition.DefaultRpe);
+    }
+}

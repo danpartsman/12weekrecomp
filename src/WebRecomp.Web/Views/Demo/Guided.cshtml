@@ -1,0 +1,39 @@
+@{
+    ViewData["Title"] = "Guided Demo";
+}
+
+<div class="container py-4">
+    <div class="mx-auto" style="max-width: 760px;">
+        <h1>Guided Demo</h1>
+
+        <p class="lead">
+            Your isolated 12 Week Recomp demo workspace is active.
+        </p>
+
+        <div class="alert alert-success">
+            Demo invitation validation, temporary identity, persistent
+            database-backed session, and workspace isolation are working.
+        </div>
+
+        <p>
+            The next v1006 build will preload this workspace with the Guided
+            Recomp scenario and send you directly into the demonstration.
+        </p>
+
+        @if (ViewBag.WorkspaceId is not null)
+        {
+            <p class="text-muted small">
+                Workspace: @ViewBag.WorkspaceId
+            </p>
+        }
+
+        <form asp-controller="Demo"
+              asp-action="Exit"
+              method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-secondary">
+                Exit Demo
+            </button>
+        </form>
+    </div>
+</div>

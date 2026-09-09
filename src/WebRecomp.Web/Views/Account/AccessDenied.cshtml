@@ -1,0 +1,30 @@
+@{
+    ViewData["Title"] = "Access Denied";
+    ViewData["OnboardingPage"] = true;
+}
+
+<section class="access-denied-card">
+
+    <span class="admin-eyebrow">ACCESS DENIED</span>
+
+    <h1>You don't have permission to open this page.</h1>
+
+    <p>
+        Your 12 Week Recomp account is signed in, but the requested
+        feature requires a different application role.
+    </p>
+
+    <div class="access-denied-actions">
+        <a asp-controller="Home"
+           asp-action="AfterSignIn"
+           class="primary">
+            Return to 12 Week Recomp
+        </a>
+
+        <a asp-controller="Account"
+           asp-action="Logout">
+            Sign Out
+        </a>
+    </div>
+
+</section>

@@ -1,0 +1,191 @@
+@model WebRecomp.Web.ViewModels.AdminWorkoutTypesIndexViewModel
+
+@{
+    ViewData["Title"] = "Engine 3.0 Workouts";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-code-page">
+
+    <div class="admin-page-header">
+        <div>
+            <span class="admin-eyebrow">ADMINISTRATION</span>
+            <h1>Engine 3.0 Workouts</h1>
+            <p>
+                Manage the user-facing workout catalog and the versioned
+                Engine 3.0 shadow profile for each workout.
+            </p>
+        </div>
+
+        <a asp-controller="Admin"
+           asp-action="Index"
+           class="admin-back-link">
+            &larr; Admin Home
+        </a>
+    </div>
+
+    @if (TempData["WorkoutSuccess"] is string success)
+    {
+        <div class="admin-success-message">
+            @success
+        </div>
+    }
+
+    @if (TempData["WorkoutError"] is string error)
+    {
+        <div class="admin-code-error-message">
+            @error
+        </div>
+    }
+
+    <section class="admin-code-panel">
+        <div class="admin-code-panel-heading">
+            <span class="admin-card-status">@Model.StatusCode</span>
+            <h2>@Model.ConfigVersionCode</h2>
+            <p>
+                This is the Engine 3.0 shadow workout catalog. It is isolated
+                from the frozen Engine 2.0 configuration. Calibration changes
+                are versioned and can be restored to any prior version.
+            </p>
+        </div>
+    </section>
+
+    <section class="admin-code-list-section">
+
+        <div class="admin-list-heading">
+            <div>
+                <h2>Engine 3.0 Workout Catalog</h2>
+                <p>@Model.Workouts.Count workout definitions</p>
+            </div>
+
+            <a asp-controller="AdminWorkoutTypes"
+               asp-action="Create"
+               class="admin-primary-button">
+                Add Workout
+            </a>
+        </div>
+
+        <div class="admin-table-wrap">
+            <table class="admin-code-table">
+                <thead>
+                    <tr>
+                        <th>Workout</th>
+                        <th>12WR Category</th>
+                        <th>Engine 3.0</th>
+                        <th>Minutes</th>
+                        <th>RPE</th>
+                        <th title="Modeled glycogen depletion for a standardized 60-minute session: 200-lb male, 20% body fat.">Fuel (60m)</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                @foreach (var workout in Model.Workouts)
+                {
+                    <tr>
+                        <td>
+                            <strong>@workout.DisplayName</strong><br />
+                            <small>@workout.WorkoutTypeCode</small>
+                        </td>
+
+                        <td>@workout.WorkoutCategoryName</td>
+
+                        <td>
+                            <strong>
+                                @(workout.Engine30FamilyCode ?? "—")
+                            </strong>
+                            <br />
+                            <small>
+                                @(workout.Engine30ModalityCode ?? "—")
+                            </small>
+                            <br />
+                            <small>
+                                @(workout.Engine30VersionCode
+                                    ?? "Baseline created on first edit")
+                            </small>
+                        </td>
+
+                        <td>@workout.DefaultMinutes.ToString("0")</td>
+
+                        <td>
+                            @(workout.Engine30DefaultRpe.HasValue
+                                ? workout.Engine30DefaultRpe.Value.ToString("0.0")
+                                : "—")
+                        </td>
+
+                                                <td>
+                            @if (workout.Engine30FuelGlycogen60MinuteG.HasValue)
+                            {
+                                <span title="Modeled Engine 3.0 glycogen depletion for 60 minutes; standardized 200-lb male at 20% body fat.">
+                                    @($"{workout.Engine30FuelGlycogen60MinuteG.Value:0} g")
+                                </span>
+                            }
+                            else
+                            {
+                                <span title="Fuel comparison is unavailable until the glycogen profile is fully configured.">—</span>
+                            }
+                        </td>
+
+                        <td>
+                            @if (!workout.IsActive)
+                            {
+                                <span>Inactive</span>
+                            }
+                            else if (!workout.IsSelectable)
+                            {
+                                <span>Hidden</span>
+                            }
+                            else
+                            {
+                                <span>Selectable</span>
+                            }
+                        </td>
+
+                        <td>
+                            <form asp-controller="AdminWorkoutTypes"
+                                  asp-action="Edit"
+                                  asp-route-id="@workout.WorkoutTypeDefinitionId"
+                                  method="get"
+                                  style="display:inline">
+                                <button type="submit"
+                                        class="admin-promo-detail-link">
+                                    Edit / Calibrate
+                                </button>
+                            </form>
+
+                            <form asp-controller="AdminWorkoutTypes"
+                                  asp-action="Clone"
+                                  asp-route-id="@workout.WorkoutTypeDefinitionId"
+                                  method="post"
+                                  style="display:inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit"
+                                        class="admin-promo-detail-link">
+                                    Clone
+                                </button>
+                            </form>
+
+                            <form asp-controller="AdminWorkoutTypes"
+                                  asp-action="ToggleSelectable"
+                                  asp-route-id="@workout.WorkoutTypeDefinitionId"
+                                  method="post"
+                                  style="display:inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit"
+                                        class="admin-promo-detail-link">
+                                    @(workout.IsSelectable ? "Hide" : "Make Selectable")
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+</section>
+
+

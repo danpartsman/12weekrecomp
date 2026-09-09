@@ -1,0 +1,55 @@
+@model WebRecomp.Web.ViewModels.RedeemAccessCodeViewModel
+
+@{
+    ViewData["Title"] = "Redeem Code";
+}
+
+<section class="access-code-page">
+
+    <div class="access-code-card">
+
+        <span class="admin-eyebrow">12 WEEK RECOMP ACCESS</span>
+
+        <h1>Redeem your code</h1>
+
+        <p class="access-code-intro">
+            Enter your giveaway or promotion code. We'll remember it while
+            you explore 12 Week Recomp and create or sign in to your account.
+        </p>
+
+        <form asp-controller="Access"
+              asp-action="Continue"
+              method="post">
+
+            @Html.AntiForgeryToken()
+
+            <label class="access-code-label">
+                <span>Access code</span>
+
+                <input asp-for="Code"
+                       autofocus
+                       autocomplete="off"
+                       autocapitalize="characters"
+                       spellcheck="false"
+                       placeholder="Enter your code" />
+
+                <span asp-validation-for="Code"
+                      class="admin-validation"></span>
+            </label>
+
+            <button type="submit"
+                    class="admin-primary-button access-code-submit">
+                Continue
+            </button>
+
+        </form>
+
+        <div class="access-code-help">
+            <strong>Examples</strong>
+            <span>Individual code: 483217</span>
+            <span>Promotion code: TODAY4TOMORROW</span>
+        </div>
+
+    </div>
+
+</section>

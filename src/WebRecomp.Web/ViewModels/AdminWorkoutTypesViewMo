@@ -1,0 +1,160 @@
+using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.Rendering;
+
+namespace WebRecomp.Web.ViewModels;
+
+public sealed class AdminWorkoutTypesIndexViewModel
+{
+    public required string ConfigVersionCode { get; set; }
+    public required string StatusCode { get; set; }
+    public List<AdminWorkoutTypeRowViewModel> Workouts { get; set; } = [];
+}
+
+public sealed class AdminWorkoutTypeRowViewModel
+{
+    public Guid WorkoutTypeDefinitionId { get; set; }
+    public required string WorkoutTypeCode { get; set; }
+    public required string DisplayName { get; set; }
+    public required string WorkoutCategoryCode { get; set; }
+    public required string WorkoutCategoryName { get; set; }
+
+    public decimal FuelScore { get; set; }
+    public decimal DefaultMinutes { get; set; }
+
+    public decimal PushLoad { get; set; }
+    public decimal PullLoad { get; set; }
+    public decimal LegLoad { get; set; }
+    public decimal CardioLoad { get; set; }
+
+    public bool IsActive { get; set; }
+    public bool IsSelectable { get; set; }
+    public short DisplayOrder { get; set; }
+}
+
+public sealed class AdminWorkoutTypeEditViewModel
+{
+    public required string ConfigVersionCode { get; set; }
+    public required string StatusCode { get; set; }
+
+    public Guid? WorkoutTypeDefinitionId { get; set; }
+    public bool IsClone { get; set; }
+
+    public AdminWorkoutTypeInput Input { get; set; } = new();
+
+    public IReadOnlyList<SelectListItem> CategoryOptions { get; set; } =
+        Array.Empty<SelectListItem>();
+}
+
+public sealed class AdminWorkoutTypeInput
+{
+    [Required]
+    [StringLength(60)]
+    [RegularExpression(
+        @"^[A-Za-z0-9_]+$",
+        ErrorMessage = "Use letters, numbers, and underscores only.")]
+    public string WorkoutTypeCode { get; set; } = "";
+
+    [Required]
+    [StringLength(120)]
+    public string DisplayName { get; set; } = "";
+
+    [Required]
+    [StringLength(30)]
+    public string WorkoutCategoryCode { get; set; } = "";
+
+    [StringLength(1000)]
+    public string? Description { get; set; }
+
+    public string? Instructions { get; set; }
+
+    [Url]
+    [StringLength(1000)]
+    public string? OverviewVideoUrl { get; set; }
+
+    [Required]
+    [StringLength(30)]
+    public string WeeklyRoleCode { get; set; } = "OTHER_LOAD";
+
+    [StringLength(30)]
+    public string? RegionCode { get; set; }
+
+    public bool CountsDedicatedHeavy { get; set; }
+    public bool CountsLightStrength { get; set; }
+    public bool CountsPrimaryConditioning { get; set; }
+    public bool CountsRecovery { get; set; }
+
+    [Required]
+    [StringLength(20)]
+    public string FuelPriorityCode { get; set; } = "LOW";
+
+    [Required]
+    [StringLength(30)]
+    public string SchedulePrincipleCode { get; set; } =
+        "SCHEDULE_NORMALLY";
+
+    [StringLength(1000)]
+    public string? StrategyNote { get; set; }
+
+    [StringLength(40)]
+    public string? MacroClassCode { get; set; }
+
+    [StringLength(60)]
+    public string? PrimaryFocusCode { get; set; }
+
+    [Range(0, 10)]
+    public decimal FuelScore { get; set; }
+
+    [Range(0, 300)]
+    public decimal DefaultMinutes { get; set; } = 60;
+
+    [Range(0, 10)]
+    public decimal RawGlycogenGMin { get; set; }
+
+    [Range(0, 10)]
+    public decimal DefaultIntensityFactor { get; set; } = 1;
+
+    [Range(0, 900)]
+    public short DefaultRestSec { get; set; } = 60;
+
+    [Range(0, 100)]
+    public decimal ReferenceWorkoutCalPerMin { get; set; }
+
+    [Range(0, 1)]
+    public decimal GlycogenCarbShare { get; set; }
+
+    [Range(0, 10)]
+    public decimal PushLoad { get; set; }
+
+    [Range(0, 10)]
+    public decimal PullLoad { get; set; }
+
+    [Range(0, 10)]
+    public decimal LegLoad { get; set; }
+
+    [Range(0, 10)]
+    public decimal CardioLoad { get; set; }
+
+    [Range(0, 10)]
+    public decimal StrengthStress { get; set; }
+
+    [Range(0, 1)]
+    public decimal PlannedRestorationPct { get; set; }
+
+    [Range(-200, 200)]
+    public decimal ProteinAdjustmentG { get; set; }
+
+    [Range(0, 300)]
+    public decimal TargetFatG { get; set; }
+
+    [Range(0, 240)]
+    public decimal TypicalRecoveryHours { get; set; }
+
+    [StringLength(1200)]
+    public string? PlanningNote { get; set; }
+
+    public bool IsActive { get; set; } = true;
+    public bool IsSelectable { get; set; } = true;
+
+    [Range(0, 32000)]
+    public short DisplayOrder { get; set; } = 100;
+}

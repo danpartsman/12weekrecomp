@@ -1,0 +1,903 @@
+namespace WebRecomp.Web.Services.Engine30;
+
+/// <summary>
+/// Engine 3.0 descriptive workout-type catalog.
+///
+/// IMPORTANT:
+///
+/// A workout type describes the kind of physical work being performed.
+/// It does NOT define a fixed calorie burn or fixed glycogen cost.
+///
+/// Calories and glycogen remain individualized from:
+/// - duration
+/// - resolved RPE
+/// - objective workload when available
+/// - FFM or body weight as appropriate to modality
+/// - resistance rest/density
+/// - hard sets / muscle recruitment
+/// - interval structure
+/// - monitor/HR evidence
+/// - prior fuel state
+///
+/// Default RPE values are config-style starting values for planning.
+/// They are user-editable and may later be replaced by a personalized
+/// planned RPE learned from the individual's completed workouts.
+///
+/// ZONE2_CARDIO default RPE = 3 is an explicit Engine 3.0 requirement.
+/// </summary>
+
+public static class Engine30WorkoutFamilyCodes
+{
+    public const string Recovery = "RECOVERY";
+    public const string Resistance = "RESISTANCE";
+    public const string Cardio = "CARDIO";
+    public const string Intervals = "INTERVALS";
+    public const string Composite = "COMPOSITE";
+}
+
+public sealed record Engine30WorkoutTypeDefinition(
+    string WorkoutTypeCode,
+    string DisplayName,
+    string WorkoutFamilyCode,
+    string SessionStructureCode,
+    decimal DefaultRpe,
+    bool SupportsObjectiveWorkload,
+    bool SupportsResistanceDetails,
+    bool SupportsIntervalDetails,
+    bool SupportsSegments);
+
+public sealed class Engine30WorkoutTypeCatalog
+{
+    private static readonly IReadOnlyList<Engine30WorkoutTypeDefinition> Definitions =
+        new[]
+        {
+            // ---------------------------------------------------------
+            // RECOVERY / REST
+            // ---------------------------------------------------------
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "REST",
+
+                DisplayName:
+                    "Rest",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Recovery,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    0m,
+
+                SupportsObjectiveWorkload:
+                    false,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "MOBILITY_RECOVERY",
+
+                DisplayName:
+                    "Mobility / Recovery",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Recovery,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    2m,
+
+                SupportsObjectiveWorkload:
+                    false,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            // ---------------------------------------------------------
+            // CARDIO
+            // ---------------------------------------------------------
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "GENERAL_CARDIO",
+
+                DisplayName:
+                    "General Cardio",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    4m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "EASY_CARDIO",
+
+                DisplayName:
+                    "Easy Cardio",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    2m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "ZONE2_CARDIO",
+
+                DisplayName:
+                    "Zone 2 Cardio",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    3m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "WALKING",
+
+                DisplayName:
+                    "Walking",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    3m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "RUNNING",
+
+                DisplayName:
+                    "Running",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    5m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "TREADMILL",
+
+                DisplayName:
+                    "Treadmill",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    4m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "CYCLING",
+
+                DisplayName:
+                    "Cycling",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    4m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "ROWING",
+
+                DisplayName:
+                    "Rowing",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    5m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "ELLIPTICAL",
+
+                DisplayName:
+                    "Elliptical",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    4m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "STAIR_CLIMBER",
+
+                DisplayName:
+                    "Stair Climber",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    5m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "SWIMMING",
+
+                DisplayName:
+                    "Swimming",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Cardio,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureContinuous,
+
+                DefaultRpe:
+                    4m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            // ---------------------------------------------------------
+            // RESISTANCE
+            // ---------------------------------------------------------
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "MAJOR_LEGS",
+
+                DisplayName:
+                    "Major Legs",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Resistance,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureResistanceSets,
+
+                DefaultRpe:
+                    8m,
+
+                SupportsObjectiveWorkload:
+                    false,
+
+                SupportsResistanceDetails:
+                    true,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "MAJOR_PUSH",
+
+                DisplayName:
+                    "Major Push",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Resistance,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureResistanceSets,
+
+                DefaultRpe:
+                    8m,
+
+                SupportsObjectiveWorkload:
+                    false,
+
+                SupportsResistanceDetails:
+                    true,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "MAJOR_PULL",
+
+                DisplayName:
+                    "Major Pull",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Resistance,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureResistanceSets,
+
+                DefaultRpe:
+                    8m,
+
+                SupportsObjectiveWorkload:
+                    false,
+
+                SupportsResistanceDetails:
+                    true,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "FULL_BODY_STRENGTH",
+
+                DisplayName:
+                    "Full-Body Strength",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Resistance,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureResistanceSets,
+
+                DefaultRpe:
+                    8m,
+
+                SupportsObjectiveWorkload:
+                    false,
+
+                SupportsResistanceDetails:
+                    true,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "ACCESSORY",
+
+                DisplayName:
+                    "Accessory / Isolation",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Resistance,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureResistanceSets,
+
+                DefaultRpe:
+                    7m,
+
+                SupportsObjectiveWorkload:
+                    false,
+
+                SupportsResistanceDetails:
+                    true,
+
+                SupportsIntervalDetails:
+                    false,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "RESISTANCE_CIRCUIT",
+
+                DisplayName:
+                    "Resistance Circuit",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Resistance,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureResistanceSets,
+
+                DefaultRpe:
+                    7m,
+
+                SupportsObjectiveWorkload:
+                    false,
+
+                SupportsResistanceDetails:
+                    true,
+
+                SupportsIntervalDetails:
+                    true,
+
+                SupportsSegments:
+                    false),
+
+            // ---------------------------------------------------------
+            // INTERVALS / CONDITIONING
+            // ---------------------------------------------------------
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "RUNNING_INTERVALS",
+
+                DisplayName:
+                    "Running Intervals",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Intervals,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureIntervals,
+
+                DefaultRpe:
+                    8m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    true,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "CYCLING_INTERVALS",
+
+                DisplayName:
+                    "Cycling Intervals",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Intervals,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureIntervals,
+
+                DefaultRpe:
+                    8m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    true,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "ROWING_INTERVALS",
+
+                DisplayName:
+                    "Rowing Intervals",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Intervals,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureIntervals,
+
+                DefaultRpe:
+                    8m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    true,
+
+                SupportsSegments:
+                    false),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "MIXED_CONDITIONING",
+
+                DisplayName:
+                    "Mixed Conditioning",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Intervals,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureIntervals,
+
+                DefaultRpe:
+                    8m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    true,
+
+                SupportsIntervalDetails:
+                    true,
+
+                SupportsSegments:
+                    true),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "TRUE_HIIT",
+
+                DisplayName:
+                    "HIIT / Sprint Intervals",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Intervals,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureIntervals,
+
+                DefaultRpe:
+                    9m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    false,
+
+                SupportsIntervalDetails:
+                    true,
+
+                SupportsSegments:
+                    false),
+
+            // ---------------------------------------------------------
+            // COMPOSITE
+            // ---------------------------------------------------------
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "ORANGETHEORY",
+
+                DisplayName:
+                    "Orangetheory / Mixed Interval Class",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Composite,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureComposite,
+
+                DefaultRpe:
+                    7m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    true,
+
+                SupportsIntervalDetails:
+                    true,
+
+                SupportsSegments:
+                    true),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "MIXED_GYM_SESSION",
+
+                DisplayName:
+                    "Mixed Gym Session",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Composite,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureComposite,
+
+                DefaultRpe:
+                    7m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    true,
+
+                SupportsIntervalDetails:
+                    true,
+
+                SupportsSegments:
+                    true),
+
+            new Engine30WorkoutTypeDefinition(
+                WorkoutTypeCode:
+                    "CUSTOM_COMPOSITE",
+
+                DisplayName:
+                    "Custom Multi-Block Workout",
+
+                WorkoutFamilyCode:
+                    Engine30WorkoutFamilyCodes.Composite,
+
+                SessionStructureCode:
+                    Engine30WorkoutSessionCodes.StructureComposite,
+
+                DefaultRpe:
+                    6m,
+
+                SupportsObjectiveWorkload:
+                    true,
+
+                SupportsResistanceDetails:
+                    true,
+
+                SupportsIntervalDetails:
+                    true,
+
+                SupportsSegments:
+                    true)
+        };
+
+    private static readonly IReadOnlyDictionary<string, Engine30WorkoutTypeDefinition> ByCode =
+        Definitions.ToDictionary(
+            x => x.WorkoutTypeCode,
+            StringComparer.OrdinalIgnoreCase);
+
+    public IReadOnlyList<Engine30WorkoutTypeDefinition> GetAll()
+        => Definitions;
+
+    public Engine30WorkoutTypeDefinition GetRequired(
+        string workoutTypeCode)
+    {
+        if (string.IsNullOrWhiteSpace(
+            workoutTypeCode))
+        {
+            throw new ArgumentException(
+                "Workout type code is required.",
+                nameof(workoutTypeCode));
+        }
+
+        var normalized =
+            workoutTypeCode
+                .Trim()
+                .ToUpperInvariant();
+
+        if (!ByCode.TryGetValue(
+            normalized,
+            out var definition))
+        {
+            throw new KeyNotFoundException(
+                $"Unknown Engine 3.0 workout type '{workoutTypeCode}'.");
+        }
+
+        return definition;
+    }
+
+    public bool TryGet(
+        string workoutTypeCode,
+        out Engine30WorkoutTypeDefinition? definition)
+    {
+        definition = null;
+
+        if (string.IsNullOrWhiteSpace(
+            workoutTypeCode))
+        {
+            return false;
+        }
+
+        return ByCode.TryGetValue(
+            workoutTypeCode.Trim(),
+            out definition);
+    }
+
+    public Engine30WorkoutTypeProfile GetProfile(
+        string workoutTypeCode)
+    {
+        var definition =
+            GetRequired(
+                workoutTypeCode);
+
+        return new Engine30WorkoutTypeProfile(
+            WorkoutTypeCode:
+                definition.WorkoutTypeCode,
+
+            WorkoutFamilyCode:
+                definition.WorkoutFamilyCode,
+
+            SessionStructureCode:
+                definition.SessionStructureCode,
+
+            DefaultRpe:
+                definition.DefaultRpe);
+    }
+}

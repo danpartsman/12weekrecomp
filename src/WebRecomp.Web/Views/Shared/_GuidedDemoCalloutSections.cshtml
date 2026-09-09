@@ -1,0 +1,20 @@
+@model string[]
+@{
+    var isGuidedDemo =
+        User.FindFirst("recomp_demo")?.Value == "true"
+        && User.FindFirst("recomp_demo_type")?.Value == "GUIDED";
+}
+
+@if (isGuidedDemo && Model is { Length: >= 2 })
+{
+    <aside class="guided-demo-callout guided-demo-callout-sections"
+           role="note">
+        @for (var i = 0; i + 1 < Model.Length; i += 2)
+        {
+            <section class="guided-demo-callout-section">
+                <strong>@Model[i]</strong>
+                <span>@Model[i + 1]</span>
+            </section>
+        }
+    </aside>
+}

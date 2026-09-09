@@ -1,0 +1,445 @@
+@model WebRecomp.Web.ViewModels.AdminGiveawayCodesViewModel
+
+@{
+    ViewData["Title"] = "Giveaway & Promotion Codes";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-code-page">
+
+    <div class="admin-page-header">
+        <div>
+            <span class="admin-eyebrow">ADMINISTRATION</span>
+            <h1>Giveaway &amp; Promotion Codes</h1>
+            <p>
+                Create individual one-time access codes or reusable promotional
+                codes for 12 Week Recomp.
+            </p>
+        </div>
+
+        <a asp-controller="Admin"
+           asp-action="Index"
+           class="admin-back-link">
+            &larr; Admin Home
+        </a>
+    </div>
+
+    @if (TempData["GiveawaySuccess"] is string success)
+    {
+        <div class="admin-success-message">
+            @success
+        </div>
+    }
+
+    @if (TempData["GiveawayError"] is string error)
+    {
+        <div class="admin-code-error-message">
+            @error
+        </div>
+    }
+
+    <div class="admin-code-create-grid">
+
+        <section class="admin-code-panel">
+            <div class="admin-code-panel-heading">
+                <span class="admin-card-status">INDIVIDUAL</span>
+                <h2>Generate Giveaway Codes</h2>
+                <p>
+                    Creates unique six-digit codes. Each code can be redeemed
+                    by one user.
+                </p>
+            </div>
+
+            <form asp-controller="AdminGiveawayCodes"
+                  asp-action="Generate"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <div asp-validation-summary="ModelOnly"
+                     class="admin-validation"></div>
+
+                <div class="admin-form-grid">
+
+                    <label>
+                        <span>Number of codes</span>
+                        <input asp-for="Generate.Quantity"
+                               type="number"
+                               min="1"
+                               max="1000" />
+                        <small>Generate 1 to 1,000 codes at once.</small>
+                        <span asp-validation-for="Generate.Quantity"
+                              class="admin-validation"></span>
+                    </label>
+
+                    <label>
+                        <span>Access length</span>
+                        <div class="admin-input-suffix">
+                            <input asp-for="Generate.AccessDurationDays"
+                                   type="number"
+                                   min="1"
+                                   max="365" />
+                            <span>days</span>
+                        </div>
+                        <small>Access begins when the code is redeemed.</small>
+                        <span asp-validation-for="Generate.AccessDurationDays"
+                              class="admin-validation"></span>
+                    </label>
+
+                    <label>
+                        <span>Batch name</span>
+                        <input asp-for="Generate.BatchName"
+                               placeholder="Example: September Giveaway" />
+                        <small>Internal name for this group of codes.</small>
+                        <span asp-validation-for="Generate.BatchName"
+                              class="admin-validation"></span>
+                    </label>
+
+                    <label>
+                        <span>Redeem by</span>
+                        <input asp-for="Generate.RedeemByDate"
+                               type="date" />
+                        <small>Optional. Leave blank for no redemption deadline.</small>
+                        <span asp-validation-for="Generate.RedeemByDate"
+                              class="admin-validation"></span>
+                    </label>
+
+                </div>
+
+                <label class="admin-form-full">
+                    <span>Notes</span>
+                    <textarea asp-for="Generate.Notes"
+                              rows="3"
+                              placeholder="Optional internal notes"></textarea>
+                    <span asp-validation-for="Generate.Notes"
+                          class="admin-validation"></span>
+                </label>
+
+                <button type="submit"
+                        class="admin-primary-button">
+                    Generate Codes
+                </button>
+
+            </form>
+        </section>
+
+
+        <section class="admin-code-panel admin-code-panel-promo">
+
+            <div class="admin-code-panel-heading">
+                <span class="admin-card-status">PROMOTION</span>
+                <h2>Create Promotion Code</h2>
+                <p>
+                    Creates one reusable code that can grant access to many
+                    different users.
+                </p>
+            </div>
+
+            <form asp-controller="AdminGiveawayCodes"
+                  asp-action="GeneratePromo"
+                  method="post">
+
+                @Html.AntiForgeryToken()
+
+                <div class="admin-form-grid">
+
+                    <label>
+                        <span>Promotion name</span>
+                        <input asp-for="PromoGenerate.PromotionName"
+                               placeholder="Today for Tomorrow Campaign" />
+                        <small>Internal campaign name.</small>
+                        <span asp-validation-for="PromoGenerate.PromotionName"
+                              class="admin-validation"></span>
+                    </label>
+
+                    <label>
+                        <span>Promotion code</span>
+                        <input asp-for="PromoGenerate.Code"
+                               class="admin-promo-code-input"
+                               placeholder="TODAY4TOMORROW"
+                               autocomplete="off" />
+                        <small>Letters, numbers, hyphens or underscores.</small>
+                        <span asp-validation-for="PromoGenerate.Code"
+                              class="admin-validation"></span>
+                    </label>
+
+                    <label>
+                        <span>Access length</span>
+                        <div class="admin-input-suffix">
+                            <input asp-for="PromoGenerate.AccessDurationDays"
+                                   type="number"
+                                   min="1"
+                                   max="365" />
+                            <span>days</span>
+                        </div>
+                        <small>Access begins when each person redeems it.</small>
+                        <span asp-validation-for="PromoGenerate.AccessDurationDays"
+                              class="admin-validation"></span>
+                    </label>
+
+                    <label>
+                        <span>Maximum users</span>
+                        <input asp-for="PromoGenerate.MaxRedemptions"
+                               type="number"
+                               min="1"
+                               max="1000000" />
+                        <small>Up to 1,000,000 unique users.</small>
+                        <span asp-validation-for="PromoGenerate.MaxRedemptions"
+                              class="admin-validation"></span>
+                    </label>
+
+                    <label>
+                        <span>Redeem by</span>
+                        <input asp-for="PromoGenerate.RedeemByDate"
+                               type="date" />
+                        <small>Optional campaign redemption deadline.</small>
+                        <span asp-validation-for="PromoGenerate.RedeemByDate"
+                              class="admin-validation"></span>
+                    </label>
+
+                </div>
+
+                <label class="admin-form-full">
+                    <span>Notes</span>
+                    <textarea asp-for="PromoGenerate.Notes"
+                              rows="3"
+                              placeholder="Optional internal notes"></textarea>
+                    <span asp-validation-for="PromoGenerate.Notes"
+                          class="admin-validation"></span>
+                </label>
+
+                <button type="submit"
+                        class="admin-primary-button">
+                    Create Promotion
+                </button>
+
+            </form>
+        </section>
+
+    </div>
+
+
+    <section class="admin-code-list-section">
+
+        <div class="admin-list-heading">
+            <div>
+                <h2>Promotion Codes</h2>
+                <p>Reusable campaign codes and redemption progress.</p>
+            </div>
+        </div>
+
+        @if (Model.PromoCodes.Count == 0)
+        {
+            <div class="admin-empty-state">
+                No promotion codes have been created yet.
+            </div>
+        }
+        else
+        {
+            <div class="admin-table-wrap">
+                <table class="admin-code-table">
+                    <thead>
+                        <tr>
+                            <th>Promotion</th>
+                            <th>Code</th>
+                            <th>Status</th>
+                            <th>Access</th>
+                            <th>Redemptions</th>
+                            <th>Redeem By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var promo in Model.PromoCodes)
+                    {
+                        <tr>
+                            <td>
+                                <a asp-controller="AdminGiveawayCodes"
+                                   asp-action="PromoDetail"
+                                   asp-route-id="@promo.PromoCodeId"
+                                   class="admin-promo-detail-link">
+                                    <strong>@promo.PromotionName</strong>
+                                </a>
+                            </td>
+                            <td>
+                                <div class="admin-code-value">
+                                    <code>@promo.Code</code>
+                                    <button type="button"
+                                            class="admin-copy-button"
+                                            data-copy="@promo.Code">
+                                        Copy
+                                    </button>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="admin-status-chip">
+                                    @promo.StatusCode
+                                </span>
+                            </td>
+                            <td>@promo.AccessDurationDays days</td>
+                            <td>
+                                @promo.RedemptionCount.ToString("N0")
+                                /
+                                @promo.MaxRedemptions.ToString("N0")
+                            </td>
+                            <td>
+                                @(promo.RedeemByUtc.HasValue
+                                    ? promo.RedeemByUtc.Value.ToString("yyyy-MM-dd")
+                                    : "None")
+                            </td>
+                            <td class="admin-code-actions">
+                                @if (promo.StatusCode == "ACTIVE")
+                                {
+                                    <form asp-controller="AdminGiveawayCodes"
+                                          asp-action="DisablePromo"
+                                          asp-route-id="@promo.PromoCodeId"
+                                          method="post"
+                                          onsubmit="return confirm('Disable promotion @promo.Code?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit"
+                                                class="admin-code-action-button admin-code-action-danger">
+                                            Disable
+                                        </button>
+                                    </form>
+                                }
+                                else if (promo.StatusCode == "DISABLED")
+                                {
+                                    <form asp-controller="AdminGiveawayCodes"
+                                          asp-action="EnablePromo"
+                                          asp-route-id="@promo.PromoCodeId"
+                                          method="post">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit"
+                                                class="admin-code-action-button">
+                                            Enable
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="admin-code-no-action">&mdash;</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+    </section>
+
+
+    <section class="admin-code-list-section">
+
+        <div class="admin-list-heading">
+            <div>
+                <h2>Individual Giveaway Codes</h2>
+                <p>
+                    Six-digit, single-use access codes. Most recent codes are
+                    shown first.
+                </p>
+            </div>
+        </div>
+
+        @if (Model.Codes.Count == 0)
+        {
+            <div class="admin-empty-state">
+                No individual giveaway codes have been generated yet.
+            </div>
+        }
+        else
+        {
+            <div class="admin-table-wrap">
+                <table class="admin-code-table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Batch</th>
+                            <th>Status</th>
+                            <th>Access</th>
+                            <th>Redeem By</th>
+                            <th>Redeemed By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var code in Model.Codes)
+                    {
+                        <tr>
+                            <td>
+                                <div class="admin-code-value">
+                                    <code>@code.Code</code>
+                                    <button type="button"
+                                            class="admin-copy-button"
+                                            data-copy="@code.Code">
+                                        Copy
+                                    </button>
+                                </div>
+                            </td>
+                            <td>@(code.BatchName ?? "—")</td>
+                            <td>
+                                <span class="admin-status-chip">
+                                    @code.StatusCode
+                                </span>
+                            </td>
+                            <td>@code.AccessDurationDays days</td>
+                            <td>
+                                @(code.RedeemByUtc.HasValue
+                                    ? code.RedeemByUtc.Value.ToString("yyyy-MM-dd")
+                                    : "None")
+                            </td>
+                            <td>@(code.RedeemedByEmail ?? "—")</td>
+                            <td class="admin-code-actions">
+                                @if (code.StatusCode == "AVAILABLE")
+                                {
+                                    <form asp-controller="AdminGiveawayCodes"
+                                          asp-action="RevokeGiveaway"
+                                          asp-route-id="@code.GiveawayCodeId"
+                                          method="post"
+                                          onsubmit="return confirm('Revoke giveaway code @code.Code? This cannot be undone.');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit"
+                                                class="admin-code-action-button admin-code-action-danger">
+                                            Revoke
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="admin-code-no-action">&mdash;</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+    </section>
+
+</section>
+
+<script>
+    (() => {
+        document.querySelectorAll('[data-copy]').forEach(button => {
+            button.addEventListener('click', async () => {
+                const value = button.getAttribute('data-copy');
+
+                try {
+                    await navigator.clipboard.writeText(value);
+                    const original = button.textContent;
+                    button.textContent = 'Copied';
+
+                    window.setTimeout(() => {
+                        button.textContent = original;
+                    }, 1200);
+                }
+                catch {
+                    window.prompt('Copy this code:', value);
+                }
+            });
+        });
+    })();
+</script>
