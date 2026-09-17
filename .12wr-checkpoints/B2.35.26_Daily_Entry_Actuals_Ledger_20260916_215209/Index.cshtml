@@ -1,0 +1,1519 @@
+@model WebRecomp.Web.ViewModels.DailyEntryViewModel
+@{
+    ViewData["Title"] = "Daily Entry";
+
+    var isGuidedDemo =
+        User.FindFirst("recomp_demo")?.Value == "true"
+        && User.FindFirst("recomp_demo_type")?.Value == "GUIDED";
+
+    string CompletionClass(bool complete) =>
+        complete ? "daily-entry-status is-complete" : "daily-entry-status";
+
+    string CompletionText(bool complete) =>
+        complete ? "Complete" : "Open";
+
+    var systemCategoryOrder =
+        WebRecomp.Web.Services.WorkoutIntelligence
+            .SystemWorkoutRecipeCatalog
+            .PresentationCategoryOrder;
+
+    string SystemWorkoutCategory(string engineWorkoutTypeCode) =>
+        WebRecomp.Web.Services.WorkoutIntelligence
+            .SystemWorkoutRecipeCatalog
+            .PresentationCategoryForEngineWorkoutType(
+                engineWorkoutTypeCode);
+
+    var nutritionFromFoodLog =
+        string.Equals(
+            Model.NutritionSourceLabel,
+            "Food Log",
+            StringComparison.OrdinalIgnoreCase);
+
+    var nutritionManualOverride =
+        Model.NutritionFoodLogEnabled
+        && !nutritionFromFoodLog;
+}
+
+<link rel="stylesheet"
+      href="~/css/daily-entry.css"
+      asp-append-version="true" />
+
+<div class="daily-entry-page">
+
+    <header class="daily-entry-header">
+        <div>
+            <p class="daily-entry-kicker">
+                PLAN &bull; ENTER &bull; ANALYZE &bull; ADAPT
+            </p>
+
+            <h1>Daily Entry</h1>
+
+            <p class="daily-entry-lede">
+                Tell Recomp what happened today. One page gives the analytical
+                engine the body, recovery, training, and nutrition inputs it
+                needs to keep your program current.
+            </p>
+        </div>
+
+        <a class="daily-entry-dashboard-link"
+           asp-controller="Dashboard"
+           asp-action="Index">
+            View Dashboard
+        </a>
+    </header>
+
+    @if (TempData["StatusMessage"] is string statusMessage)
+    {
+        <div class="daily-entry-success" role="status">
+            @statusMessage
+        </div>
+    }
+
+    @if (isGuidedDemo)
+    {
+        <aside class="guided-demo-callout" role="note">
+            <strong>One daily page. The engine does the hard part.</strong>
+            <span>
+                Enter a few numbers here, then Recomp combines them with the
+                Weekly Plan to update the recommendations on the Dashboard.
+            </span>
+        </aside>
+    }
+
+    <section class="daily-entry-datebar">
+        <form asp-action="Index"
+              method="get"
+              class="daily-entry-date-form">
+
+            <label for="daily-entry-date">Entry date</label>
+
+            <input id="daily-entry-date"
+                   name="date"
+                   type="date"
+                   value="@Model.Date.ToString("yyyy-MM-dd")" />
+        </form>
+
+        <div class="daily-entry-progress"
+             aria-label="Daily entry progress">
+
+            <span data-completion="body" class="@CompletionClass(Model.BodyRecoveryComplete)">
+                <b>1</b>
+                Body &amp; Recovery
+                <em>@CompletionText(Model.BodyRecoveryComplete)</em>
+            </span>
+
+            <span data-completion="workout" class="@CompletionClass(Model.WorkoutComplete)">
+                <b>2</b>
+                Training
+                <em>@CompletionText(Model.WorkoutComplete)</em>
+            </span>
+
+            <span data-completion="nutrition" class="@CompletionClass(Model.NutritionComplete)">
+                <b>3</b>
+                Nutrition
+                <em>@CompletionText(Model.NutritionComplete)</em>
+            </span>
+        </div>
+    </section>
+
+    <form asp-action="Index"
+          method="post"
+          id="daily-entry-autosave-form"
+          class="daily-entry-form">
+
+        @Html.AntiForgeryToken()
+        <input asp-for="Date" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly"
+             class="validation"></div>
+
+        <section class="daily-entry-section" id="body-recovery">
+
+            <div class="daily-entry-section-heading">
+                <div class="daily-entry-section-number">1</div>
+                <div>
+                    <h2>Body &amp; Recovery</h2>
+                    <p>
+                        Track the body-composition signals that matter most to
+                        recomposition, plus the recovery signals that help shape
+                        today's recommendation.
+                    </p>
+                </div>
+            </div>
+
+            <div class="daily-entry-info">
+                <strong>Recomposition means fat down, skeletal muscle protected or up</strong>
+                <span>
+                    Body weight is useful, but it cannot tell that story by
+                    itself. If your scale provides skeletal muscle,
+                    subcutaneous fat, or visceral fat estimates, enter them
+                    here and judge them by trend rather than a single reading.
+                </span>
+
+                @if (!string.IsNullOrWhiteSpace(Model.MeasurementSourceLabel))
+                {
+                    <small>Source: @Model.MeasurementSourceLabel</small>
+                }
+            </div>
+
+            <div class="daily-entry-grid daily-entry-grid-body">
+
+                <label>
+                    Weight (lb)
+                    <input asp-for="WeightLb"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <span asp-validation-for="WeightLb"></span>
+                </label>
+
+                <label>
+                    Body fat (%)
+                    <input asp-for="BodyFatPercent"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="BodyFatPercent"></span>
+                </label>
+
+                <label>
+                    Skeletal muscle (lb)
+                    <input asp-for="SkeletalMuscleMassLb"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Preferred muscle metric</small>
+                    <span asp-validation-for="SkeletalMuscleMassLb"></span>
+                </label>
+
+                <label>
+                    Subcutaneous fat (%)
+                    <input asp-for="SubcutaneousFatPercent"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="SubcutaneousFatPercent"></span>
+                </label>
+
+                <label>
+                    Visceral fat rating
+                    <input asp-for="VisceralFatRating"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="VisceralFatRating"></span>
+                </label>
+
+                <label>
+                    Body water (lb)
+                    <input asp-for="BodyWaterLb"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="BodyWaterLb"></span>
+                </label>
+
+                <label>
+                    Waist (in)
+                    <input asp-for="WaistIn"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional secondary metric</small>
+                    <span asp-validation-for="WaistIn"></span>
+                </label>
+
+                <label>
+                    Hips (in)
+                    <input asp-for="HipsIn"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional secondary metric</small>
+                    <span asp-validation-for="HipsIn"></span>
+                </label>
+
+            </div>
+
+            <div class="daily-entry-subheading">
+                <h3>Recovery signals</h3>
+                <p>
+                    Sleep, resting heart rate, energy, soreness, pain, and
+                    illness give the analytical engine context when evaluating
+                    the workout on your Weekly Plan.
+                </p>
+            </div>
+
+            <div class="daily-entry-grid">
+
+                <label>
+                    Sleep (hours)
+                    <input asp-for="SleepHours"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <span asp-validation-for="SleepHours"></span>
+                </label>
+
+                <label>
+                    Resting HR
+                    <input asp-for="RestingHr"
+                           inputmode="numeric" />
+                    <span asp-validation-for="RestingHr"></span>
+                </label>
+
+
+
+                <label>
+                    Energy (1-10)
+                    <input asp-for="EnergyScore"
+                           inputmode="numeric"
+                           min="1"
+                           max="10" />
+                    <span asp-validation-for="EnergyScore"></span>
+                </label>
+
+                <label>
+                    Soreness (1-10)
+                    <input asp-for="SorenessScore"
+                           inputmode="numeric"
+                           min="1"
+                           max="10" />
+                    <span asp-validation-for="SorenessScore"></span>
+                </label>
+
+            </div>
+
+            <div class="daily-entry-checks">
+                <label>
+                    <input asp-for="PainFlag" />
+                    Pain or injury today
+                </label>
+
+                <label>
+                    <input asp-for="IllnessFlag" />
+                    Illness today
+                </label>
+            </div>
+
+            <label class="daily-entry-notes">
+                Recovery notes
+                <textarea asp-for="RecoveryNotes" rows="2"></textarea>
+                <small>Optional</small>
+                <span asp-validation-for="RecoveryNotes"></span>
+            </label>
+
+        </section>
+
+        <section class="daily-entry-section" id="training">
+
+            <div class="daily-entry-section-heading">
+                <div class="daily-entry-section-number">2</div>
+                <div>
+                    <h2>Training</h2>
+                    <p>
+                        Recomp starts with the Weekly Plan and replaces the
+                        estimate with your actual workload when you log it.
+                    </p>
+                </div>
+            </div>
+
+            <div class="daily-entry-planned">
+                <span>Planned today</span>
+                <strong>@Model.PlannedWorkoutName</strong>
+            </div>
+
+            <div class="daily-entry-info">
+                <strong>Your plan is already doing work</strong>
+                <span>
+                    Until you record an actual session, Recomp uses today's
+                    planned workout in its calculations. After you train, the
+                    system uses what you really did to recalculate workload,
+                    glycogen demand, recovery, and future recommendations.
+                </span>
+            </div>
+
+            <!-- PHASE2D1_WORKOUT_BUILDER_LINK -->
+            @if (Model.DetailedWorkoutEntryEnabled)
+            {
+                <div class="daily-entry-info daily-entry-workout-builder-link">
+                    <div>
+                        <strong>Workout Builder is active</strong>
+                        <span>
+                            Use the exercise-based builder for today's training,
+                            saved workouts, sets, reps, and max weight.
+                        </span>
+                    </div>
+
+                    <a class="button primary"
+                       asp-controller="DetailedWorkout"
+                       asp-action="Index"
+                       asp-route-mode="@(!string.IsNullOrWhiteSpace(Model.PlannedSystemWorkoutCode) ? "system" : null)"
+                       asp-route-systemCode="@Model.PlannedSystemWorkoutCode"
+                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                       asp-route-returnContext="daily">
+                        @(!string.IsNullOrWhiteSpace(Model.PlannedSystemWorkoutCode)
+                            ? "Open Planned Workout"
+                            : "Open Workout Builder")
+                    </a>
+                </div>
+            }
+            <div id="workout-list" class="daily-entry-workouts">
+
+@for (var i = 0; i < Model.Workouts.Count; i++)
+                {
+                    var workout = Model.Workouts[i];
+                    var isSaved = workout.WorkoutSessionId.HasValue;
+
+                    <article class="daily-entry-workout-card"
+                             data-workout-row>
+
+                        <input asp-for="Workouts[i].WorkoutSessionId"
+                               type="hidden" />
+                        <input asp-for="Workouts[i].WorkoutTypeCode"
+                               type="hidden"
+                               data-daily-engine-code />
+                        <input asp-for="Workouts[i].SystemWorkoutCode"
+                               type="hidden"
+                               data-daily-system-code />
+                        <input asp-for="Workouts[i].WorkoutName"
+                               type="hidden"
+                               data-daily-workout-name />
+
+                        <div class="daily-entry-workout-title">
+                            <h3>
+                                @(!string.IsNullOrWhiteSpace(workout.WorkoutName)
+                                    ? workout.WorkoutName
+                                    : isSaved
+                                        ? $"Workout {i + 1}"
+                                        : "Add workout")
+                            </h3>
+
+                            @if (!string.IsNullOrWhiteSpace(workout.SourceLabel))
+                            {
+                                <small>Source: @workout.SourceLabel</small>
+                            }
+
+                            @* B2.35.25_WORKOUT_CLEANUP *@
+                            @if (isSaved)
+                            {
+                                <div class="daily-entry-workout-correction">
+                                    <button type="button"
+                                            class="daily-entry-workout-not-completed"
+                                            data-workout-not-completed
+                                            data-workout-session-id="@workout.WorkoutSessionId"
+                                            data-workout-name="@workout.WorkoutName">
+                                        Mark Not Completed
+                                    </button>
+                                    <small>
+                                        Removes this workout from Actuals and Engine 3.0 without deleting the saved workout.
+                                    </small>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="daily-entry-grid">
+
+                            <label>
+                                Workout type
+                                <select class="daily-workout-type-select"
+                                        data-collapsible-workout-picker
+                                    data-daily-workout-type>
+                                    <option value="">Choose...</option>
+
+                                    @foreach (var categoryName in systemCategoryOrder)
+                                    {
+                                        var groupedWorkouts =
+                                            Model.SystemWorkouts
+                                                .Where(
+                                                    x => SystemWorkoutCategory(
+                                                x.EngineWorkoutTypeCode).Equals(
+                                                categoryName,
+                                                StringComparison.OrdinalIgnoreCase))
+                                                .OrderBy(
+                                                    x => x.DisplayName,
+                                                    StringComparer.OrdinalIgnoreCase)
+                                                .ToList();
+
+                                        if (groupedWorkouts.Count == 0)
+                                        {
+                                            continue;
+                                        }
+
+                                        <optgroup label="@categoryName">
+                                            @foreach (var option in groupedWorkouts)
+                                            {
+                                                var selectedSystem =
+                                                    !string.IsNullOrWhiteSpace(
+                                                        workout.SystemWorkoutCode)
+                                                    && option.SystemCode.Equals(
+                                                        workout.SystemWorkoutCode,
+                                                        StringComparison.OrdinalIgnoreCase);
+
+                                                <option value="@($"SYSTEM:{option.SystemCode}")"
+                                                        data-workout-type-code="@option.EngineWorkoutTypeCode"
+                                                        data-system-code="@option.SystemCode"
+                                                        data-default-minutes="@option.DefaultMinutes"
+                                                        data-default-rpe="@option.DefaultRpe"
+                                                        selected="@(selectedSystem ? "selected" : null)">
+                                                    @option.DisplayName
+                                                </option>
+                                            }
+                                        </optgroup>
+                                    }
+
+                                    @if (string.IsNullOrWhiteSpace(workout.SystemWorkoutCode)
+                                        && !string.IsNullOrWhiteSpace(workout.WorkoutTypeCode))
+                                    {
+                                        var fallback =
+                                            Model.WorkoutTypeOptions
+                                                .FirstOrDefault(
+                                                    x => x.Code.Equals(
+                                                        workout.WorkoutTypeCode,
+                                                        StringComparison.OrdinalIgnoreCase));
+
+                                        if (fallback is not null)
+                                        {
+                                            <option value="@($"MANUAL:{fallback.Code}")"
+                                                    data-workout-type-code="@fallback.Code"
+                                                    selected="selected">
+                                                Current / manual: @fallback.DisplayName
+                                            </option>
+                                        }
+                                    }
+
+                                    @if (Model.DetailedWorkoutEntryEnabled)
+                                    {
+                                        <option value="__MY_WORKOUTS__">
+                                            ▶ My Workouts
+                                        </option>
+                                        <option value="__CREATE_CUSTOM__">
+                                            + Create Custom Workout
+                                        </option>
+                                    }
+                                </select>
+                                <span asp-validation-for="Workouts[i].WorkoutTypeCode"></span>
+                            </label>
+
+                            <label>
+                                Duration (minutes)
+                                <input asp-for="Workouts[i].DurationMin"
+                                       inputmode="decimal"
+                                       step="1" />
+                                <span asp-validation-for="Workouts[i].DurationMin"></span>
+                            </label>
+
+                            <label>
+                                RPE
+                                <input asp-for="Workouts[i].SessionRpe"
+                                       inputmode="decimal"
+                                       step="0.5"
+                                       min="1"
+                                       max="10" />
+                                <small>
+                                    8-9 very hard &bull; 5 light/moderate &bull;
+                                    2-3 recovery/easy
+                                </small>
+                                <span asp-validation-for="Workouts[i].SessionRpe"></span>
+                            </label>
+
+                            <label>
+                                Typical rest (seconds)
+                                <input asp-for="Workouts[i].TypicalRestSec"
+                                       inputmode="numeric" />
+                                <small>Optional</small>
+                                <span asp-validation-for="Workouts[i].TypicalRestSec"></span>
+                            </label>
+
+                            <label>
+                                Device calories
+                                <input asp-for="Workouts[i].DeviceCalories"
+                                       inputmode="decimal"
+                                       step="1" />
+                                <small>Optional</small>
+                                <span asp-validation-for="Workouts[i].DeviceCalories"></span>
+                            </label>
+
+                        </div>
+
+                        @if (i == 0)
+                        {
+                            <div class="daily-entry-activity-grid">
+                                <label>
+                                    Daily activity (hours)
+                                    <input asp-for="DailyActivityHours"
+                                           type="number"
+                                           inputmode="decimal"
+                                           min="0"
+                                           max="24"
+                                           step="0.1" />
+                                    <small>
+                                        Non-workout activity for the day: walking,
+                                        yardwork, housework, vehicle cleaning,
+                                        moving, construction, and similar activity.
+                                    </small>
+                                    <span asp-validation-for="DailyActivityHours"></span>
+                                </label>
+
+                                <label>
+                                    Activity effort
+                                    <select asp-for="DailyActivityEffortCode">
+                                        <option value="">Not specified</option>
+                                        <option value="LIGHT">Light</option>
+                                        <option value="MODERATE">Moderate</option>
+                                        <option value="HARD">Hard</option>
+                                    </select>
+                                    <small>
+                                        Overall effort of your non-workout activity
+                                        for the day.
+                                    </small>
+                                    <span asp-validation-for="DailyActivityEffortCode"></span>
+                                </label>
+                            </div>
+                        }
+
+                        <label class="daily-entry-notes">
+                            Workout notes
+                            <textarea asp-for="Workouts[i].Notes"
+                                      rows="2"></textarea>
+                            <small>Optional</small>
+                            <span asp-validation-for="Workouts[i].Notes"></span>
+                        </label>
+
+                    </article>
+                }
+
+            </div>
+
+            <button id="add-workout"
+                    class="daily-entry-add-workout"
+                    type="button">
+                + Add another workout
+            </button>
+
+            <p class="daily-entry-microcopy">
+                Multiple sessions in one day are supported. Each session
+                contributes independently to the analytical engine.
+            </p>
+
+            <template id="workout-template">
+                <article class="daily-entry-workout-card" data-workout-row>
+
+                    <input name="Workouts[__index__].WorkoutSessionId"
+                           type="hidden"
+                           value="" />
+                    <input name="Workouts[__index__].WorkoutTypeCode"
+                           type="hidden"
+                           value=""
+                           data-daily-engine-code />
+                    <input name="Workouts[__index__].SystemWorkoutCode"
+                           type="hidden"
+                           value=""
+                           data-daily-system-code />
+                    <input name="Workouts[__index__].WorkoutName"
+                           type="hidden"
+                           value=""
+                           data-daily-workout-name />
+
+                    <div class="daily-entry-workout-title">
+                        <h3>Additional workout</h3>
+                    </div>
+
+                    <div class="daily-entry-grid">
+
+                        <label>
+                            Workout type
+                            <select class="daily-workout-type-select"
+                                    data-collapsible-workout-picker
+                                    data-daily-workout-type>
+                                <option value="">Choose...</option>
+
+                                @foreach (var categoryName in systemCategoryOrder)
+                                {
+                                    var groupedWorkouts =
+                                        Model.SystemWorkouts
+                                            .Where(
+                                                x => SystemWorkoutCategory(
+                                                x.EngineWorkoutTypeCode).Equals(
+                                                categoryName,
+                                                StringComparison.OrdinalIgnoreCase))
+                                            .OrderBy(
+                                                x => x.DisplayName,
+                                                StringComparer.OrdinalIgnoreCase)
+                                            .ToList();
+
+                                    if (groupedWorkouts.Count == 0)
+                                    {
+                                        continue;
+                                    }
+
+                                    <optgroup label="@categoryName">
+                                        @foreach (var option in groupedWorkouts)
+                                        {
+                                            <option value="@($"SYSTEM:{option.SystemCode}")"
+                                                    data-workout-type-code="@option.EngineWorkoutTypeCode"
+                                                    data-system-code="@option.SystemCode"
+                                                    data-default-minutes="@option.DefaultMinutes"
+                                                    data-default-rpe="@option.DefaultRpe">
+                                                @option.DisplayName
+                                            </option>
+                                        }
+                                    </optgroup>
+                                }
+
+                                @if (Model.DetailedWorkoutEntryEnabled)
+                                {
+                                    <option value="__MY_WORKOUTS__">
+                                        ▶ My Workouts
+                                    </option>
+                                    <option value="__CREATE_CUSTOM__">
+                                        + Create Custom Workout
+                                    </option>
+                                }
+                            </select>
+                        </label>
+
+                        <label>
+                            Duration (minutes)
+                            <input name="Workouts[__index__].DurationMin"
+                                   inputmode="decimal"
+                                   step="1" />
+                        </label>
+
+                        <label>
+                            RPE
+                            <input name="Workouts[__index__].SessionRpe"
+                                   inputmode="decimal"
+                                   step="0.5"
+                                   min="1"
+                                   max="10" />
+                            <small>
+                                8-9 very hard &bull; 5 light/moderate &bull;
+                                2-3 recovery/easy
+                            </small>
+                        </label>
+
+                        <label>
+                            Typical rest (seconds)
+                            <input name="Workouts[__index__].TypicalRestSec"
+                                   inputmode="numeric" />
+                            <small>Optional</small>
+                        </label>
+
+                        <label>
+                            Device calories
+                            <input name="Workouts[__index__].DeviceCalories"
+                                   inputmode="decimal"
+                                   step="1" />
+                            <small>Optional</small>
+                        </label>
+
+                    </div>
+
+                    <label class="daily-entry-notes">
+                        Workout notes
+                        <textarea name="Workouts[__index__].Notes"
+                                  rows="2"></textarea>
+                        <small>Optional</small>
+                    </label>
+
+                </article>
+            </template>
+
+        </section>
+
+        <section class="daily-entry-section" id="nutrition">
+
+            <div class="daily-entry-section-heading">
+                <div class="daily-entry-section-number">3</div>
+                <div>
+                    <h2>Nutrition</h2>
+                    <p>
+                        Daily Entry is the final nutrition summary used by
+                        Engine 3.0. Use Food Log for detailed foods, or enter
+                        totals here manually when you do not use the Food Log.
+                    </p>
+                </div>
+            </div>
+
+            <div class="daily-entry-info">
+                <strong>One Engine-facing nutrition record</strong>
+                <span>
+                    Food Log totals flow into this Daily Entry automatically.
+                    Manual Override always wins and remains in control until
+                    you turn it off again.
+                </span>
+
+                <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-top:.65rem;">
+                    @if (Model.NutritionFoodLogEnabled)
+                    {
+                        <a class="daily-entry-dashboard-link"
+                           asp-controller="Nutrition"
+                           asp-action="Index"
+                           asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">
+                            Open Food Log
+                        </a>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(Model.NutritionSourceLabel))
+                    {
+                        <small id="nutrition-source-label">
+                            Source: @Model.NutritionSourceLabel
+                        </small>
+                    }
+                    else
+                    {
+                        <small id="nutrition-source-label">
+                            Source: Manual entry
+                        </small>
+                    }
+                </div>
+            </div>
+
+            @if (Model.NutritionFoodLogEnabled)
+            {
+                <div class="daily-entry-info">
+                    <strong>Nutrition source control</strong>
+                    <span>
+                        Leave Manual Override off to use current Food Log
+                        totals. Turn it on when you want your manually entered
+                        calories and macros to replace the calculated Food Log
+                        values for this date.
+                    </span>
+
+                    <label style="display:flex;align-items:center;gap:.55rem;margin-top:.7rem;"
+                           for="nutrition-manual-override">
+                        @if (nutritionManualOverride)
+                        {
+                            <input id="nutrition-manual-override"
+                                   name="nutritionManualOverride"
+                                   type="checkbox"
+                                   value="true"
+                                   checked />
+                        }
+                        else
+                        {
+                            <input id="nutrition-manual-override"
+                                   name="nutritionManualOverride"
+                                   type="checkbox"
+                                   value="true" />
+                        }
+
+                        <span>Manual Override</span>
+                    </label>
+                </div>
+            }
+
+            <div class="daily-entry-grid daily-entry-grid-nutrition">
+
+                <label>
+                    Calories
+                    <input asp-for="Calories"
+                           data-nutrition-engine-field
+                           inputmode="decimal"
+                           step="1" />
+                    <span asp-validation-for="Calories"></span>
+                </label>
+
+                <label>
+                    Protein (g)
+                    <input asp-for="ProteinG"
+                           data-nutrition-engine-field
+                           inputmode="decimal"
+                           step="1" />
+                    <span asp-validation-for="ProteinG"></span>
+                </label>
+
+                <label>
+                    Carbs (g)
+                    <input asp-for="CarbsG"
+                           data-nutrition-engine-field
+                           inputmode="decimal"
+                           step="1" />
+                    <span asp-validation-for="CarbsG"></span>
+                </label>
+
+                <label>
+                    Fat (g)
+                    <input asp-for="FatG"
+                           data-nutrition-engine-field
+                           inputmode="decimal"
+                           step="1" />
+                    <span asp-validation-for="FatG"></span>
+                </label>
+
+                <label>
+                    Fiber (g)
+                    <input asp-for="FiberG"
+                           data-nutrition-engine-field
+                           inputmode="decimal"
+                           step="1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="FiberG"></span>
+                </label>
+
+                <label>
+                    Water (oz)
+                    <input asp-for="WaterOz"
+                           inputmode="decimal"
+                           step="1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="WaterOz"></span>
+                </label>
+
+            </div>
+
+            <label class="daily-entry-notes">
+                Nutrition notes
+                <textarea asp-for="NutritionNotes" rows="2"></textarea>
+                <small>Optional</small>
+                <span asp-validation-for="NutritionNotes"></span>
+            </label>
+
+            <div class="daily-entry-future">
+                <strong>How source precedence works</strong>
+                <span>
+                    Food Log can populate this record automatically. Existing
+                    manual calories/macros are never silently replaced. Once
+                    Manual Override is on, later Food Log changes do not
+                    overwrite these values. Turn Manual Override off to return
+                    to the current calculated Food Log totals.
+                </span>
+            </div>
+
+        </section>
+
+        <div class="daily-entry-autosave-row">
+            <span id="daily-entry-autosave-status"
+                  class="autosave-status"
+                  aria-live="polite"
+                  hidden></span>
+
+            <noscript>
+                <button class="daily-entry-save"
+                        type="submit">
+                    Save Daily Entry
+                </button>
+            </noscript>
+        </div>
+
+    </form>
+
+    @if (Model.DetailedWorkoutEntryEnabled)
+    {
+        <dialog id="daily-my-workouts-dialog"
+                class="workout-template-dialog"
+                data-create-custom-url="@Url.Action(
+                    "Index",
+                    "DetailedWorkout",
+                    new
+                    {
+                        mode = "new",
+                        date = Model.Date.ToString("yyyy-MM-dd"),
+                        returnContext = "daily"
+                    })">
+            <div class="workout-template-dialog-head">
+                <div>
+                    <div class="app-kicker">MY WORKOUTS</div>
+                    <h2>Start a custom workout</h2>
+                </div>
+                <button type="button"
+                        class="workout-template-dialog-close"
+                        data-template-dialog-close
+                        aria-label="Close">
+                    ×
+                </button>
+            </div>
+
+            @if (Model.MyWorkouts.Count == 0)
+            {
+                <p class="workout-template-empty">
+                    No custom workouts saved yet.
+                </p>
+            }
+            else
+            {
+                <div class="workout-template-choice-list">
+                    @foreach (var templateOption in Model.MyWorkouts)
+                    {
+                        <button type="button"
+                                class="workout-template-choice"
+                                data-daily-template-choice
+                                data-template-id="@templateOption.WorkoutTemplateId">
+                            <strong>@templateOption.TemplateName</strong>
+                            <span>
+                                @templateOption.ExerciseCount exercises
+                                • @templateOption.DefaultDurationMin.ToString("0") min
+                            </span>
+                        </button>
+                    }
+                </div>
+            }
+
+            <button type="button"
+                    class="primary workout-template-create"
+                    data-daily-create-custom>
+                + Create Custom Workout
+            </button>
+        </dialog>
+    }
+
+</div>
+
+<script>
+    (() => {
+        const addButton = document.getElementById('add-workout');
+        const list = document.getElementById('workout-list');
+        const template = document.getElementById('workout-template');
+
+        if (!addButton || !list || !template) {
+            return;
+        }
+
+        addButton.addEventListener('click', () => {
+            const index =
+                list.querySelectorAll('[data-workout-row]').length;
+
+            const html =
+                template.innerHTML.replaceAll(
+                    '__index__',
+                    index.toString());
+
+            list.insertAdjacentHTML('beforeend', html);
+
+            const rows =
+                list.querySelectorAll('[data-workout-row]');
+
+            const newest = rows[rows.length - 1];
+
+            newest
+                ?.querySelector('select, input')
+                ?.focus();
+
+            newest?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest'
+            });
+        });
+    })();
+</script>
+
+<script src="~/js/system-workout-picker.js"
+        asp-append-version="true"></script>
+
+<script>
+(() => {
+    const form =
+        document.getElementById(
+            "daily-entry-autosave-form");
+
+    if (!form) return;
+
+    const dialog =
+        document.getElementById(
+            "daily-my-workouts-dialog");
+
+    const date =
+        form.querySelector(
+            'input[name="Date"]')
+            ?.value;
+
+    const antiForgery =
+        form.querySelector(
+            'input[name="__RequestVerificationToken"]')
+            ?.value;
+
+    form.querySelectorAll(
+        "[data-daily-workout-type]"
+    ).forEach(select => {
+        select.dataset.previousValue =
+            select.value;
+    });
+
+    function closeDialog() {
+        if (dialog?.close) {
+            dialog.close();
+        }
+        else {
+            dialog?.removeAttribute(
+                "open");
+        }
+    }
+
+    function openDialog() {
+        if (dialog?.showModal) {
+            dialog.showModal();
+        }
+        else if (dialog) {
+            dialog.setAttribute(
+                "open",
+                "open");
+        }
+    }
+
+    function createCustom() {
+        const url =
+            dialog?.dataset
+                .createCustomUrl;
+
+        if (url) {
+            window.location.href = url;
+        }
+    }
+
+    form.addEventListener(
+        "change",
+        event => {
+            const select =
+                event.target.closest(
+                    "[data-daily-workout-type]");
+
+            if (!select) return;
+
+            if (
+                select.value
+                    === "__MY_WORKOUTS__"
+            ) {
+                event.stopImmediatePropagation();
+
+                select.value =
+                    select.dataset
+                        .previousValue
+                    || "";
+
+                openDialog();
+                return;
+            }
+
+            if (
+                select.value
+                    === "__CREATE_CUSTOM__"
+            ) {
+                event.stopImmediatePropagation();
+
+                select.value =
+                    select.dataset
+                        .previousValue
+                    || "";
+
+                createCustom();
+                return;
+            }
+
+            const row =
+                select.closest(
+                    "[data-workout-row]");
+
+            const option =
+                select.options[
+                    select.selectedIndex];
+
+            const engineInput =
+                row?.querySelector(
+                    "[data-daily-engine-code]");
+
+            const systemInput =
+                row?.querySelector(
+                    "[data-daily-system-code]");
+
+            const nameInput =
+                row?.querySelector(
+                    "[data-daily-workout-name]");
+
+            if (engineInput) {
+                engineInput.value =
+                    option?.dataset.workoutTypeCode
+                    || "";
+            }
+
+            if (systemInput) {
+                systemInput.value =
+                    option?.dataset.systemCode
+                    || "";
+            }
+
+            if (nameInput) {
+                nameInput.value =
+                    option?.dataset.systemCode
+                        ? option.textContent.trim()
+                        : "";
+            }
+
+            if (option?.dataset.systemCode) {
+                const durationInput =
+                    row?.querySelector(
+                        'input[name$=".DurationMin"]');
+
+                const rpeInput =
+                    row?.querySelector(
+                        'input[name$=".SessionRpe"]');
+
+                if (durationInput
+                    && option.dataset.defaultMinutes) {
+                    durationInput.value =
+                        option.dataset.defaultMinutes;
+                }
+
+                if (rpeInput
+                    && option.dataset.defaultRpe) {
+                    rpeInput.value =
+                        option.dataset.defaultRpe;
+                }
+            }
+
+            select.dataset.previousValue =
+                select.value;
+        });
+
+    dialog?.querySelectorAll(
+        "[data-template-dialog-close]"
+    ).forEach(button => {
+        button.addEventListener(
+            "click",
+            closeDialog);
+    });
+
+    dialog?.addEventListener(
+        "click",
+        event => {
+            if (event.target === dialog) {
+                closeDialog();
+            }
+        });
+
+    dialog?.querySelectorAll(
+        "[data-daily-template-choice]"
+    ).forEach(button => {
+        button.addEventListener(
+            "click",
+            () => {
+                const templateId =
+                    button.dataset.templateId;
+
+                if (
+                    !templateId
+                    || !date
+                    || !antiForgery
+                ) {
+                    return;
+                }
+
+                const post =
+                    document.createElement(
+                        "form");
+
+                post.method = "post";
+                post.action =
+                    "/DetailedWorkout/UseTemplate";
+
+                post.style.display =
+                    "none";
+
+                const values = {
+                    __RequestVerificationToken:
+                        antiForgery,
+                    templateId,
+                    date,
+                    returnContext: "daily"
+                };
+
+                Object.entries(values)
+                    .forEach(
+                        ([name, value]) => {
+                            const input =
+                                document.createElement(
+                                    "input");
+
+                            input.type =
+                                "hidden";
+                            input.name =
+                                name;
+                            input.value =
+                                value;
+
+                            post.appendChild(
+                                input);
+                        });
+
+                document.body.appendChild(
+                    post);
+
+                post.submit();
+            });
+    });
+
+    dialog?.querySelector(
+        "[data-daily-create-custom]"
+    )?.addEventListener(
+        "click",
+        createCustom);
+})();
+</script>
+
+<script>
+(() => {
+    const override =
+        document.getElementById("nutrition-manual-override");
+
+    const fields =
+        Array.from(
+            document.querySelectorAll(
+                "[data-nutrition-engine-field]"));
+
+    const applyMode = () => {
+        if (!override) {
+            return;
+        }
+
+        fields.forEach(field => {
+            field.readOnly = !override.checked;
+
+            if (override.checked) {
+                field.removeAttribute("aria-readonly");
+                field.removeAttribute("title");
+            }
+            else {
+                field.setAttribute("aria-readonly", "true");
+                field.setAttribute(
+                    "title",
+                    "Calculated from Food Log. Turn on Manual Override to edit.");
+            }
+        });
+    };
+
+    applyMode();
+
+    override?.addEventListener("change", () => {
+        applyMode();
+    });
+})();
+</script>
+
+<script>
+(() => {
+    const form = document.getElementById("daily-entry-autosave-form");
+
+
+    window.RecompAutosave?.bind(form, {
+        statusSelector: "#daily-entry-autosave-status",
+        delay: 750,
+        afterSave: payload => {
+            refreshDailyEntryCompletion();
+
+            if (payload?.nutrition) {
+                const nutritionMap = {
+                    Calories: payload.nutrition.calories,
+                    ProteinG: payload.nutrition.proteinG,
+                    CarbsG: payload.nutrition.carbsG,
+                    FatG: payload.nutrition.fatG,
+                    FiberG: payload.nutrition.fiberG
+                };
+
+                Object.entries(nutritionMap).forEach(([name, value]) => {
+                    const input =
+                        form.querySelector(`[name="${name}"]`);
+
+                    if (input && value !== null && value !== undefined) {
+                        input.value = value;
+                    }
+                });
+
+                const sourceLabel =
+                    document.getElementById("nutrition-source-label");
+
+                if (sourceLabel && payload.nutrition.source) {
+                    sourceLabel.textContent =
+                        `Source: ${payload.nutrition.source}`;
+                }
+            }
+
+            if (!Array.isArray(payload?.workoutSessionIds)) {
+                return;
+            }
+
+            const rows = form.querySelectorAll("[data-workout-row]");
+
+            payload.workoutSessionIds.forEach((id, index) => {
+                if (!id || !rows[index]) {
+                    return;
+                }
+
+                const idField =
+                    rows[index].querySelector(
+                        'input[name$=".WorkoutSessionId"]');
+
+                if (idField) {
+                    idField.value = id;
+                }
+            });
+        }
+    });
+})();
+</script>
+
+<script>
+<script>
+/* B2.35.25_WORKOUT_CLEANUP */
+(() => {
+    const form =
+        document.getElementById(
+            "daily-entry-autosave-form");
+
+    if (!form) return;
+
+    const token =
+        form.querySelector(
+            'input[name="__RequestVerificationToken"]')
+            ?.value;
+
+    const date =
+        form.querySelector(
+            'input[name="Date"]')
+            ?.value;
+
+    const endpoint =
+        '@Url.Action("RemoveWorkoutFromActuals", "DailyEntry")';
+
+    document.querySelectorAll(
+        "[data-workout-not-completed]"
+    ).forEach(button => {
+        button.addEventListener(
+            "click",
+            async () => {
+                const workoutSessionId =
+                    button.dataset.workoutSessionId;
+
+                const workoutName =
+                    button.dataset.workoutName
+                    || "this workout";
+
+                if (
+                    !workoutSessionId
+                    || !date
+                    || !token
+                ) {
+                    window.alert(
+                        "Workout correction information is incomplete.");
+                    return;
+                }
+
+                const confirmed =
+                    window.confirm(
+                        `Mark "${workoutName}" as Not Completed?\n\n` +
+                        "It will disappear from Daily Entry Actuals and stop " +
+                        "counting in Engine 3.0. The saved workout record will " +
+                        "not be deleted.");
+
+                if (!confirmed) return;
+
+                button.disabled = true;
+                button.textContent =
+                    "Updating...";
+
+                const body =
+                    new URLSearchParams();
+
+                body.set(
+                    "__RequestVerificationToken",
+                    token);
+
+                body.set(
+                    "workoutSessionId",
+                    workoutSessionId);
+
+                body.set(
+                    "date",
+                    date);
+
+                try {
+                    const response =
+                        await fetch(
+                            endpoint,
+                            {
+                                method: "POST",
+                                credentials: "same-origin",
+                                headers: {
+                                    "Content-Type":
+                                        "application/x-www-form-urlencoded; charset=UTF-8"
+                                },
+                                body: body.toString()
+                            });
+
+                    const payload =
+                        await response.json()
+                            .catch(() => null);
+
+                    if (!response.ok || !payload?.success) {
+                        throw new Error(
+                            payload?.message
+                            || "Workout could not be updated.");
+                    }
+
+                    window.location.reload();
+                }
+                catch (error) {
+                    button.disabled = false;
+                    button.textContent =
+                        "Mark Not Completed";
+
+                    window.alert(
+                        error?.message
+                        || "Workout could not be updated.");
+                }
+            });
+    });
+})();
+</script>
+/* v1006-daily-entry-ui */
+(() => {
+    const dateInput = document.getElementById("daily-entry-date");
+
+    dateInput?.addEventListener("change", () => {
+        dateInput.form?.requestSubmit();
+    });
+})();
+
+async function refreshDailyEntryCompletion() {
+    const form = document.getElementById("daily-entry-autosave-form");
+    if (!form) return;
+
+    try {
+        const url = new URL(window.location.href);
+        const date = form.querySelector('input[name="Date"]')?.value;
+
+        if (date) {
+            url.searchParams.set("date", date);
+        }
+
+        const response = await fetch(url.toString(), {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+
+        if (!response.ok) return;
+
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+
+        ["body", "workout", "nutrition"].forEach(key => {
+            const current = document.querySelector(
+                `[data-completion="${key}"]`);
+
+            const updated = doc.querySelector(
+                `[data-completion="${key}"]`);
+
+            if (!current || !updated) return;
+
+            current.className = updated.className;
+
+            const currentText = current.querySelector("em");
+            const updatedText = updated.querySelector("em");
+
+            if (currentText && updatedText) {
+                currentText.textContent =
+                    updatedText.textContent;
+            }
+        });
+    }
+    catch {
+        // Autosave itself has already succeeded.
+        // A completion-refresh failure should not interrupt entry.
+    }
+}
+</script>

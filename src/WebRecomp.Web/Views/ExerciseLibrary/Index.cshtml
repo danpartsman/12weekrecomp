@@ -1,0 +1,120 @@
+@model ExerciseLibraryViewModel
+@{
+    ViewData["Title"] = "Exercise Library";
+}
+
+<div class="app-page workout-intelligence-page">
+    <header class="app-page-head">
+        <div>
+            <div class="app-kicker">WORKOUT INTELLIGENCE</div>
+            <h1>Exercise Library</h1>
+            <p class="lede">Browse the exercise catalog used by detailed workout entry.</p>
+        </div>
+    </header>
+
+    @if (!Model.FeatureEnabled)
+    {
+        <section class="card app-section app-section-blue">
+            <h2>Detailed workout entry is off</h2>
+            <p>
+                Turn on <strong>Detailed Workout Entry</strong> in Settings
+                to use the exercise library and record exercises and sets.
+            </p>
+            <a class="button primary"
+               asp-controller="Profile"
+               asp-action="Settings">Open Settings</a>
+        </section>
+    }
+    else
+    {
+        <section class="card app-section app-section-blue">
+            <div class="wi-toolbar">
+                <form method="get" asp-action="Index" class="wi-search-form">
+                    <label>
+                        Search exercises
+                        <input type="search"
+                               name="q"
+                               value="@Model.Query"
+                               placeholder="Bench press, row, squat..." />
+                    </label>
+                    <button class="button primary" type="submit">Search</button>
+                    @if (!string.IsNullOrWhiteSpace(Model.Query))
+                    {
+                        <a class="button" asp-action="Index">Clear</a>
+                    }
+                </form>
+
+                <a class="button"
+                   asp-controller="DetailedWorkout"
+                   asp-action="Index">Detailed Workout</a>
+            </div>
+        </section>
+
+        <section class="card app-section app-section-teal">
+            <div class="app-section-label">
+                <span class="app-number">1</span>
+                <span>CATALOG</span>
+            </div>
+
+            @if (Model.Exercises.Count == 0)
+            {
+                <div class="app-empty-state">No exercises matched your search.</div>
+            }
+            else
+            {
+                <div class="wi-library-grid">
+                    @foreach (var exercise in Model.Exercises)
+                    {
+                        <article class="wi-exercise-tile">
+                            <h2>
+                                <a asp-controller="DetailedWorkout"
+                                   asp-action="Index"
+                                   asp-route-addExerciseId="@exercise.ExerciseId">@exercise.Name</a>
+                            </h2>
+
+                            <div class="wi-meta-row">
+                                @if (!string.IsNullOrWhiteSpace(exercise.Mechanics))
+                                {
+                                    <span class="app-pill neutral">@exercise.Mechanics</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(exercise.Category))
+                                {
+                                    <span class="app-pill neutral">@exercise.Category</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(exercise.DifficultyLevel))
+                                {
+                                    <span class="app-pill neutral">@exercise.DifficultyLevel</span>
+                                }
+                            </div>
+
+                            <dl class="wi-library-detail">
+                                <dt>Primary muscles</dt>
+                                <dd>
+                                    @(exercise.PrimaryMuscles.Count == 0
+                                        ? "Not specified"
+                                        : string.Join(", ", exercise.PrimaryMuscles))
+                                </dd>
+
+                                <dt>Equipment</dt>
+                                <dd>
+                                    @(exercise.Equipment.Count == 0
+                                        ? "None / not specified"
+                                        : string.Join(", ", exercise.Equipment))
+                                </dd>
+                            </dl>
+
+                            <div class="app-action-row">
+                                <a class="button primary workout-compact"
+                                   asp-controller="DetailedWorkout"
+                                   asp-action="Index"
+                                   asp-route-addExerciseId="@exercise.ExerciseId">
+                                    Add to detailed workout
+                                </a>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    }
+</div>

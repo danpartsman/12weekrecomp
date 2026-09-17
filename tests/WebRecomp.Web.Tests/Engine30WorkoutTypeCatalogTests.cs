@@ -40,7 +40,7 @@ public sealed class Engine30WorkoutTypeCatalogTests
 
         _output.WriteLine("");
         _output.WriteLine(
-            "ENGINE 3.0 Ã¢â‚¬â€ WORKOUT TYPE / DEFAULT RPE CATALOG");
+            "ENGINE 3.0 — WORKOUT TYPE / DEFAULT RPE CATALOG");
 
         _output.WriteLine(
             "Default RPE is a planning starting value only and remains user-editable.");

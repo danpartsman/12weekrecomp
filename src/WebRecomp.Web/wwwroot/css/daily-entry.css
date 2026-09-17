@@ -714,3 +714,54 @@ body.guided-demo-dark-theme .daily-entry-add-workout:focus-visible {
         grid-template-columns: 1fr !important;
     }
 }
+
+/* ===== B2.35.25 Daily Entry workout cleanup ===== */
+
+.daily-entry-workout-correction {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    flex-wrap: wrap;
+    margin-top: .55rem;
+}
+
+.daily-entry-workout-correction small {
+    color: #64748b;
+    font-size: .8rem;
+    line-height: 1.35;
+}
+
+.daily-entry-workout-not-completed {
+    min-height: 34px;
+    padding: .4rem .7rem;
+    border: 1px solid #b45309;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #9a3412;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.daily-entry-workout-not-completed:hover,
+.daily-entry-workout-not-completed:focus-visible {
+    background: #ffedd5;
+}
+
+.daily-entry-workout-not-completed:disabled {
+    opacity: .6;
+    cursor: wait;
+}
+
+html[data-theme="dark"] .daily-entry-workout-not-completed,
+body.guided-demo-dark-theme .daily-entry-workout-not-completed {
+    border-color: #d97706;
+    background: #431407;
+    color: #fed7aa;
+}
+
+html[data-theme="dark"] .daily-entry-workout-not-completed:hover,
+html[data-theme="dark"] .daily-entry-workout-not-completed:focus-visible,
+body.guided-demo-dark-theme .daily-entry-workout-not-completed:hover,
+body.guided-demo-dark-theme .daily-entry-workout-not-completed:focus-visible {
+    background: #7c2d12;
+}

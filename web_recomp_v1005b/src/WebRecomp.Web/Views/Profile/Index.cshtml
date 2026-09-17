@@ -1,0 +1,93 @@
+@model ProfileViewModel
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">YOUR RECOMP ACCOUNT</div>
+        <h1>Profile</h1>
+        <p class="lede">Your personal baseline, active 12-week program, goals, and latest body-composition snapshot.</p>
+    </div>
+    <div class="profile-actions">
+        <a class="primary" asp-controller="Intake" asp-action="Review">Review my setup</a>
+        <a class="button" asp-action="Edit">Edit profile</a>
+        <a class="button" asp-action="Settings">Settings</a>
+        <a class="button" asp-controller="Progress" asp-action="Index">View progress</a>
+    </div>
+</div>
+
+@if (TempData["StatusMessage"] is string statusMessage)
+{
+    <div class="status-card good">@statusMessage</div>
+}
+
+<div class="profile-grid">
+    <section class="card profile-panel">
+        <div class="profile-panel-label">PERSON</div>
+        <h2>@Model.ClientName</h2>
+        <dl>
+            <dt>Preferred name</dt><dd>@(Model.PreferredDisplayName ?? "—")</dd>
+            <dt>Contact email</dt><dd>@(Model.ContactEmail ?? "—")</dd>
+            <dt>Sign-in identity</dt><dd>@(Model.SignInEmail ?? "—")</dd>
+            <dt>Date of birth</dt><dd>@(Model.DateOfBirth?.ToString("MMM d, yyyy") ?? "—")</dd>
+            <dt>Sex</dt><dd>@(Model.SexCode ?? "—")</dd>
+            <dt>Height</dt><dd>@Model.HeightIn.ToString("0.#") in</dd>
+            <dt>Training experience</dt><dd>@(Model.TrainingExperienceCode ?? "—")</dd>
+            <dt>Time zone</dt><dd>@Model.TimeZone</dd>
+        </dl>
+    </section>
+
+    <section class="card profile-panel">
+        <div class="profile-panel-label">ACTIVE PROGRAM</div>
+        <h2>Week @Model.ProgramWeek of @Model.DurationWeeks</h2>
+        <dl>
+            <dt>Start date</dt><dd>@Model.StartDate.ToString("MMM d, yyyy")</dd>
+            <dt>Goal</dt><dd>@Model.GoalCode.Replace("_", " ")</dd>
+            <dt>Primary plan</dt><dd>@Model.SelectedPlanDisplayName</dd>
+            <dt>Training days</dt><dd>@Model.AvailableTrainingDaysWeek / week</dd>
+            <dt>Target weight</dt>
+            <dd>
+                @if (Model.TargetWeightLowLb.HasValue || Model.TargetWeightHighLb.HasValue)
+                {
+                    <span>@Model.TargetWeightLowLb?.ToString("0.#") – @Model.TargetWeightHighLb?.ToString("0.#") lb</span>
+                }
+                else { <span>—</span> }
+            </dd>
+            <dt>Target waist</dt><dd>@(Model.TargetWaistIn.HasValue ? $"{Model.TargetWaistIn:0.#} in" : "—")</dd>
+        </dl>
+        @if (!string.IsNullOrWhiteSpace(Model.GoalNotes))
+        {
+            <div class="profile-note"><strong>Goal notes</strong><p>@Model.GoalNotes</p></div>
+        }
+        <div class="profile-setup-review">
+            <strong>Your setup is not locked forever.</strong>
+            <p class="small">Use <em>Review my setup</em> if your priorities, training availability, or Primary Plan change. Plan changes apply from the change date forward; prior logged data and stored recommendations stay intact.</p>
+        </div>
+        @if (Model.PlanChanges.Count > 0)
+        {
+            <div class="plan-history">
+                <strong>Primary Plan history</strong>
+                @foreach (var change in Model.PlanChanges)
+                {
+                    <div class="plan-history-row">
+                        <span>@change.EffectiveDate.ToString("MMM d, yyyy")</span>
+                        <span>@change.OldPlanDisplayName → @change.NewPlanDisplayName</span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    <section class="card profile-panel profile-latest">
+        <div class="profile-panel-label">LATEST BODY COMPOSITION</div>
+        <h2>@(Model.LatestMeasurementDate?.ToString("MMM d, yyyy") ?? "No measurement yet")</h2>
+        <div class="profile-metric-grid">
+            <div><span>Weight</span><strong>@(Model.LatestWeightLb.HasValue ? $"{Model.LatestWeightLb:0.0}" : "—")</strong><small>lb</small></div>
+            <div><span>Body fat</span><strong>@(Model.LatestBodyFatPercent.HasValue ? $"{Model.LatestBodyFatPercent:0.0}" : "—")</strong><small>%</small></div>
+            <div><span>Muscle mass</span><strong>@(Model.LatestMuscleMassLb.HasValue ? $"{Model.LatestMuscleMassLb:0.0}" : "—")</strong><small>lb</small></div>
+            <div><span>Waist</span><strong>@(Model.LatestWaistIn.HasValue ? $"{Model.LatestWaistIn:0.0}" : "—")</strong><small>in</small></div>
+        </div>
+        <a class="button" asp-controller="Daily" asp-action="Index">Enter today's stats</a>
+    </section>
+</div>

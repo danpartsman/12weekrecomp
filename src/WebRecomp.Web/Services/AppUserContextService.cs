@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
@@ -12,7 +12,8 @@ public sealed record AppClientContext(
 
 public sealed class AppUserContextService(
     RecompDbContext db,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    FirstSignInWelcomeEmailService? welcomeEmail = null)
 {
     public async Task<AppClientContext> GetAsync(
         HttpContext httpContext,
@@ -88,6 +89,17 @@ public sealed class AppUserContextService(
 
             db.UserAccounts.Add(user);
             await db.SaveChangesAsync(cancellationToken);
+
+            // V1009_FIRST_SIGNIN_WELCOME_EMAIL
+            //
+            // Account creation/sign-in MUST NOT depend on mail delivery.
+            // The mail service catches transport failures and returns false.
+            if (welcomeEmail is not null)
+            {
+                await welcomeEmail.TrySendAsync(
+                    user,
+                    cancellationToken);
+            }
         }
         else
         {

@@ -1,0 +1,44 @@
+﻿12WR TEST v1010 - Migration 031 Audit
+Applied: 2026-09-12 00:29:09 -07:00
+
+Server: sql-recomp-test-dan.database.windows.net
+Database: sqldb-recomp
+Entra: dlandon@lockedontech.com
+Migration: C:\RecompAzure\web_recomp_v1010\database\031_v1010_catalog_provider_sync.sql
+Migration SHA-256: EDFF734620E7224CD88715B7F7FF45D7A003EF41996BBBCCABA86064327CAAA7
+
+Preflight: PASS
+Migration execution: PASS
+Post-verification: PASS
+
+ 
+-
+ExerciseCatalogSyncSettings=READY
+ 
+-
+ExerciseCatalogSyncRuns=READY
+ 
+-
+ExerciseMediaAssets=READY
+ 
+-
+DEFAULT_PROVIDER=KINETIC
+ 
+-
+DEFAULT_MEDIA_PROVIDER=NONE
+ 
+-
+DEFAULT_AUTO_SYNC=0
+ 
+-
+DEFAULT_INTERVAL_DAYS=7
+ 
+-
+SYNC_RUN_COUNT=0
+ 
+-
+MEDIA_ASSET_COUNT=0
+
+Catalog sync/import: NOT YET RUN
+Azure deployment: NONE
+LIVE / PRODUCTION: NOT TOUCHED

@@ -1,0 +1,267 @@
+@model WebRecomp.Web.ViewComponents.DashboardPlanDecisionDisplayModel
+
+@if (Model.DecisionAlreadyMade)
+{
+    <!-- B2.33 DASHBOARD RECOMMENDATION UX - DECISION MADE -->
+    <style>
+        .dash-workout-block.recomp {
+            display: none !important;
+        }
+    </style>
+}
+else if (Model.Show)
+{
+    <!-- B2.33 DASHBOARD RECOMMENDATION UX -->
+
+    <div class="dash-recommendation-actions"
+         aria-label="Choose whether to keep or accept the recommended change">
+
+        <form asp-controller="DashboardPlanDecision"
+              asp-action="KeepPlan"
+              method="post">
+            @Html.AntiForgeryToken()
+
+            <input type="hidden"
+                   name="date"
+                   value="@Model.Date.ToString("yyyy-MM-dd")" />
+
+            <button type="submit"
+                    class="dash-recommendation-button keep">
+                Keep Original
+            </button>
+        </form>
+
+        <form asp-controller="DashboardPlanDecision"
+              asp-action="AcceptChange"
+              method="post">
+            @Html.AntiForgeryToken()
+
+            <input type="hidden"
+                   name="date"
+                   value="@Model.Date.ToString("yyyy-MM-dd")" />
+
+            <input type="hidden"
+                   name="recommendedWorkoutName"
+                   value="@Model.ProposedWorkout" />
+
+            <button type="submit"
+                    class="dash-recommendation-button accept">
+                Accept Change
+            </button>
+        </form>
+
+    </div>
+
+    <div id="dash-proposed-nutrition"
+         class="dash-proposed-nutrition"
+         hidden>
+
+        <div class="dash-proposed-nutrition-label">
+            RECOMP SUGGESTED ADJUSTMENT
+        </div>
+
+        <div class="dash-proposed-nutrition-calories">
+            <strong>@Model.ProposedCalories.ToString("0")</strong>
+            <span>calories</span>
+        </div>
+
+        <div class="dash-proposed-nutrition-macros">
+            <div>
+                <strong>@Model.ProposedProteinG.ToString("0")</strong>
+                <span>Protein</span>
+            </div>
+            <div>
+                <strong>@Model.ProposedCarbsG.ToString("0")</strong>
+                <span>Carbs</span>
+            </div>
+            <div>
+                <strong>@Model.ProposedFatG.ToString("0")</strong>
+                <span>Fat</span>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.TimingNote))
+        {
+            <p class="dash-proposed-nutrition-note">
+                @Model.TimingNote
+            </p>
+        }
+
+    </div>
+
+    <style>
+        .dash-recommendation-actions {
+            display: flex;
+            gap: .55rem;
+            margin-top: .75rem;
+        }
+
+        .dash-recommendation-actions form {
+            margin: 0;
+            flex: 1 1 0;
+        }
+
+        .dash-recommendation-button {
+            width: 100%;
+            min-height: 2.35rem;
+            padding: .5rem .7rem;
+            border-radius: .55rem;
+            font: inherit;
+            font-size: .82rem;
+            font-weight: 850;
+            cursor: pointer;
+        }
+
+        .dash-recommendation-button.keep {
+            border: 1px solid #4f7fa8;
+            background: #0c2a46;
+            color: #f5f8ff;
+        }
+
+        .dash-recommendation-button.accept {
+            border: 1px solid #8d72f4;
+            background: #6f4bd8;
+            color: #ffffff;
+        }
+
+        .dash-proposed-nutrition {
+            margin-top: 1rem;
+            padding-top: .85rem;
+            border-top: 1px solid rgba(139, 92, 246, .55);
+        }
+
+        .dash-proposed-nutrition-label {
+            margin-bottom: .55rem;
+            color: #9b7cff;
+            font-size: .70rem;
+            font-weight: 900;
+            letter-spacing: .075em;
+        }
+
+        .dash-proposed-nutrition-calories {
+            display: flex;
+            align-items: baseline;
+            gap: .35rem;
+        }
+
+        .dash-proposed-nutrition-calories strong {
+            font-size: 1.45rem;
+            line-height: 1;
+        }
+
+        .dash-proposed-nutrition-calories span {
+            font-size: .9rem;
+            font-weight: 750;
+        }
+
+        .dash-proposed-nutrition-macros {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: .65rem;
+            margin-top: .75rem;
+        }
+
+        .dash-proposed-nutrition-macros div {
+            min-width: 0;
+        }
+
+        .dash-proposed-nutrition-macros strong,
+        .dash-proposed-nutrition-macros span {
+            display: block;
+        }
+
+        .dash-proposed-nutrition-macros strong {
+            font-size: 1.05rem;
+        }
+
+        .dash-proposed-nutrition-macros span {
+            margin-top: .12rem;
+            font-size: .76rem;
+            color: #c6d4e3;
+        }
+
+        .dash-proposed-nutrition-note {
+            margin: .7rem 0 0;
+            color: #c8bdf5;
+            font-size: .78rem;
+            line-height: 1.35;
+        }
+
+        @@media (max-width: 700px) {
+            .dash-recommendation-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <script>
+        (() => {
+            const proposal =
+                document.getElementById(
+                    "dash-proposed-nutrition");
+
+            if (!proposal) {
+                return;
+            }
+
+            const labels =
+                Array.from(
+                    document.querySelectorAll(
+                        ".dash-panel-label"));
+
+            const nutritionLabel =
+                labels.find(label =>
+                    label.textContent
+                        .replace(/\s+/g, " ")
+                        .trim()
+                        .toUpperCase()
+                        .includes("NUTRITION"));
+
+            if (!nutritionLabel) {
+                return;
+            }
+
+            const nutritionPanel =
+                nutritionLabel.closest(
+                    ".dash-panel, .dash-today-panel, .card, section");
+
+            if (!nutritionPanel) {
+                return;
+            }
+
+            const descendants =
+                Array.from(
+                    nutritionPanel.querySelectorAll(
+                        "p, div, span, small"));
+
+            const engineLine =
+                descendants.find(element => {
+                    if (element.children.length > 0) {
+                        return false;
+                    }
+
+                    const text =
+                        element.textContent
+                            .replace(/\s+/g, " ")
+                            .trim();
+
+                    return text.startsWith("Engine ")
+                        && text.includes("CFG-");
+                });
+
+            if (engineLine
+                && engineLine.parentNode) {
+                engineLine.parentNode.insertBefore(
+                    proposal,
+                    engineLine);
+            }
+            else {
+                nutritionPanel.appendChild(
+                    proposal);
+            }
+
+            proposal.hidden = false;
+        })();
+    </script>
+}

@@ -203,7 +203,11 @@ public sealed class WeeklyPlanService(
                 targetWeekStart.AddDays(offset),
                 ResolveCode(item.WorkoutTypeCode, validCodes),
                 sourceCode,
-                now));
+                now,
+                item.WorkoutTemplateId,
+                item.SystemWorkoutCode,
+                item.PlannedDurationMin,
+                item.PlannedRpe));
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -279,7 +283,11 @@ public sealed class WeeklyPlanService(
         DateOnly date,
         string workoutTypeCode,
         string sourceCode,
-        DateTime now)
+        DateTime now,
+        Guid? workoutTemplateId = null,
+        string? systemWorkoutCode = null,
+        decimal? plannedDurationMin = null,
+        decimal? plannedRpe = null)
         => new()
         {
             PlannedWorkoutId = Guid.NewGuid(),
@@ -287,6 +295,10 @@ public sealed class WeeklyPlanService(
             ProgramId = program.ProgramId,
             PlannedDate = date,
             WorkoutTypeCode = workoutTypeCode,
+            WorkoutTemplateId = workoutTemplateId,
+            SystemWorkoutCode = systemWorkoutCode,
+            PlannedDurationMin = plannedDurationMin,
+            PlannedRpe = plannedRpe,
             SourceCode = sourceCode,
             CreatedAtUtc = now,
             UpdatedAtUtc = now

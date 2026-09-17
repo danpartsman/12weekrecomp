@@ -1,0 +1,156 @@
+@model WebRecomp.Web.ViewModels.AdminNutritionProvidersViewModel
+@{
+    ViewData["Title"] = "Nutrition Data Providers";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-home">
+    <header class="admin-heading">
+        <span class="admin-eyebrow">NUTRITION INTELLIGENCE</span>
+        <h1>Nutrition Data Providers</h1>
+        <p>
+            Choose which external food database is searched first.
+            Primary and secondary ordering affects new provider searches only.
+            Existing foods, logged meals, Daily Entry values, and Engine data
+            are not rewritten.
+        </p>
+    </header>
+
+    @if (TempData["NutritionProviderSuccess"] is string success)
+    {
+        <div class="alert success">@success</div>
+    }
+
+    @if (TempData["NutritionProviderError"] is string error)
+    {
+        <div class="alert error">@error</div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert error" asp-validation-summary="All"></div>
+    }
+
+    <section class="card">
+        <h2>Provider Order</h2>
+
+        <form asp-action="SaveSettings"
+              method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="form-grid">
+                <div>
+                    <label asp-for="PrimaryProviderCode">
+                        Primary provider
+                    </label>
+                    <select asp-for="PrimaryProviderCode">
+                        @foreach (var provider in Model.Providers)
+                        {
+                            <option value="@provider.ProviderCode">
+                                @provider.DisplayName
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div>
+                    <label asp-for="SecondaryProviderCode">
+                        Secondary provider
+                    </label>
+                    <select asp-for="SecondaryProviderCode">
+                        @foreach (var provider in Model.Providers)
+                        {
+                            <option value="@provider.ProviderCode">
+                                @provider.DisplayName
+                            </option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <p class="muted">
+                The primary provider is ranked ahead of the secondary provider.
+                Past/frequent foods and your custom foods still remain ahead of
+                external-provider search results in the Nutrition picker.
+            </p>
+
+            <button type="submit" class="button primary">
+                Save Provider Order
+            </button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Provider Status</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Provider</th>
+                    <th>Role</th>
+                    <th>Cache</th>
+                    <th>Attribution</th>
+                    <th>Status</th>
+                    <th>Test</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var provider in
+                    Model.Providers.OrderBy(x => x.SearchPriority))
+                {
+                    var role =
+                        provider.ProviderCode == Model.PrimaryProviderCode
+                            ? "Primary"
+                            : provider.ProviderCode == Model.SecondaryProviderCode
+                                ? "Secondary"
+                                : "Inactive";
+
+                    var cacheText =
+                        provider.CachePolicyCode == "TEMPORARY"
+                            ? $"{provider.CacheTtlMinutes ?? 0} min"
+                            : provider.CachePolicyCode;
+
+                    <tr>
+                        <td>
+                            <strong>@provider.DisplayName</strong>
+                            <div class="muted">@provider.ProviderCode</div>
+                        </td>
+                        <td>@role</td>
+                        <td>@cacheText</td>
+                        <td>
+                            @(provider.RequiresAttribution ? "Required" : "No")
+                        </td>
+                        <td>
+                            @(provider.IsEnabled ? "Enabled" : "Disabled")
+                        </td>
+                        <td>
+                            <form asp-action="TestProvider"
+                                  method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden"
+                                       name="providerCode"
+                                       value="@provider.ProviderCode" />
+                                <button type="submit"
+                                        class="button">
+                                    Test
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>FatSecret Premier Cache</h2>
+        <p>
+            FatSecret provider content is cached for up to 24 hours.
+            Durable FatSecret identifiers are retained so expired content can
+            be refreshed from the provider. USDA FoodData Central remains
+            persistently cached under its existing policy.
+        </p>
+    </section>
+</section>

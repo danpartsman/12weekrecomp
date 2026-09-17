@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace WebRecomp.Web.ViewModels;
@@ -97,6 +97,8 @@ public sealed class WorkoutEntryViewModel
     [Required]
     public string WorkoutTypeCode { get; set; } = "";
 
+    public string? SystemWorkoutCode { get; set; }
+
     [Range(0, 360)]
     public decimal DurationMin { get; set; }
 
@@ -113,6 +115,7 @@ public sealed class WorkoutEntryViewModel
     public string? Notes { get; set; }
 
     public List<SelectListItem> WorkoutTypes { get; set; } = [];
+    public List<SystemWorkoutOptionViewModel> SystemWorkouts { get; set; } = [];
 }
 
 public sealed class WorkoutSessionSummaryViewModel
@@ -144,7 +147,11 @@ public sealed class PlannedDayViewModel
     public DateOnly Date { get; set; }
     public string DayName { get; set; } = "";
     public string? WorkoutTypeCode { get; set; }
+    public Guid? WorkoutTemplateId { get; set; }
+    public string? SystemWorkoutCode { get; set; }
     public string? WorkoutDisplayName { get; set; }
+    public decimal? PlannedDurationMin { get; set; }
+    public decimal? PlannedRpe { get; set; }
     public string? WeeklyRole { get; set; }
     public string? Region { get; set; }
 
@@ -172,6 +179,8 @@ public sealed class WeekPlanViewModel
 
     public List<PlannedDayViewModel> Days { get; set; } = [];
     public List<SelectListItem> WorkoutTypes { get; set; } = [];
+    public List<SystemWorkoutOptionViewModel> SystemWorkouts { get; set; } = [];
+    public List<WorkoutTemplateOptionViewModel> MyWorkouts { get; set; } = [];
     public List<RecommendedDayViewModel> RecommendedDays { get; set; } = [];
 
     public string PlanCode { get; set; } = "";
@@ -198,6 +207,27 @@ public sealed class WeekPlanDayPostModel
     [DataType(DataType.Date)]
     public DateOnly Date { get; set; }
     public string? WorkoutTypeCode { get; set; }
+    public Guid? WorkoutTemplateId { get; set; }
+    public string? SystemWorkoutCode { get; set; }
+}
+
+public sealed class SystemWorkoutOptionViewModel
+{
+    public string SystemCode { get; set; } = "";
+    public string EngineWorkoutTypeCode { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string GroupName { get; set; } = "Standard";
+    public decimal DefaultMinutes { get; set; }
+    public decimal DefaultRpe { get; set; }
+}
+
+public sealed class WorkoutTemplateOptionViewModel
+{
+    public Guid WorkoutTemplateId { get; set; }
+    public string TemplateName { get; set; } = "";
+    public string WorkoutTypeCode { get; set; } = "";
+    public decimal DefaultDurationMin { get; set; }
+    public int ExerciseCount { get; set; }
 }
 
 public sealed class DashboardViewModel
@@ -255,6 +285,11 @@ public sealed class DashboardViewModel
     public string NutritionDayLabel { get; set; } = "";
     public string NutritionTip { get; set; } = "";
     public bool NutritionActualLogged { get; set; }
+
+    // v1009: switch the lower analysis card to current-day progress after
+    // either nutrition or a completed workout has been logged today.
+    public bool ShowTodayAnalysis =>
+        NutritionActualLogged || ActualWorkoutDurationMin.HasValue;
     public decimal? ActualCalories { get; set; }
     public decimal? ActualProteinG { get; set; }
     public decimal? ActualCarbsG { get; set; }
@@ -292,6 +327,10 @@ public sealed class DashboardViewModel
     public string ProjectedGlycogenReadiness { get; set; } = "";
     public string FuelActionLabel { get; set; } = "";
     public string FuelReasonCodes { get; set; } = "";
+    // v1009 context-aware Yesterday + Trend interpretation.
+    public WebRecomp.Web.Services.Engine30.Engine30DashboardAnalysisResult? Engine30Analysis { get; set; }
+    // v1009 adaptive workout + nutrition recommendation.
+    public WebRecomp.Web.Services.Engine30.Engine30AdaptiveRecommendationResult? Engine30AdaptiveRecommendation { get; set; }
     // Engine 3.0 actual-intake ENERGY carryover.
     public decimal? PreviousEnergyVarianceKcal { get; set; }
     public decimal? PreviousEligibleEnergyCarryoverKcal { get; set; }
@@ -425,6 +464,11 @@ public sealed class SettingsViewModel
 
     [Required, RegularExpression("^(SYSTEM|LIGHT|DARK)$")]
     public string ThemeCode { get; set; } = "SYSTEM";
+
+    // v1010 optional detailed-input preferences for the active program.
+    public bool HasActiveProgram { get; set; }
+    public bool DetailedWorkoutEntryEnabled { get; set; }
+    public bool NutritionFoodLogEnabled { get; set; }
 }
 
 public sealed class ProgressViewModel

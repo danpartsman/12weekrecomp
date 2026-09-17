@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -9,6 +9,17 @@ using WebRecomp.Web.Data;
 using WebRecomp.Web.Middleware;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Engine30;
+using WebRecomp.Web.Services.WorkoutIntelligence;
+using WebRecomp.WorkoutIntelligence;
+using WebRecomp.WorkoutIntelligence.Persistence;
+using WebRecomp.CatalogSync;
+using WebRecomp.CatalogSync.Providers;
+using WebRecomp.Web.Services.CatalogSync;
+using WebRecomp.Web.Services.Nutrition;
+using WebRecomp.NutritionIntelligence.Contracts;
+using WebRecomp.NutritionIntelligence.Persistence;
+using WebRecomp.NutritionIntelligence.Providers.FatSecret;
+using WebRecomp.NutritionIntelligence.Providers.Usda;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -92,11 +103,49 @@ builder.Services.AddDbContext<RecompDbContext>(options =>
     options.UseSqlServer(connectionString, sql =>
         sql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null)));
 
+// v1011 Nutrition Intelligence composition root.
+// Nutrition Intelligence remains independent; Web owns provider wiring.
+builder.Services.AddSingleton(_ => FatSecretOptions.FromEnvironment());
+builder.Services.AddHttpClient<FatSecretFoodProvider>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("12WeekRecomp-Nutrition/1.0");
+});
+builder.Services.AddTransient<IFoodCompositionProvider>(
+    services => services.GetRequiredService<FatSecretFoodProvider>());
+
+builder.Services.AddSingleton(_ => UsdaFoodDataCentralOptions.FromEnvironment());
+builder.Services.AddHttpClient<UsdaFoodDataCentralProvider>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("12WeekRecomp-Nutrition/1.0");
+});
+builder.Services.AddTransient<IFoodCompositionProvider>(
+    services => services.GetRequiredService<UsdaFoodDataCentralProvider>());
+builder.Services.AddScoped<INutritionFoodLogStore, SqlNutritionFoodLogStore>();
+builder.Services.AddScoped<NutritionFoodSearchService>();
+builder.Services.AddHostedService<NutritionProviderCacheMaintenanceService>();
+
+builder.Services.AddScoped<FirstSignInWelcomeEmailService>();
 builder.Services.AddScoped<AppUserContextService>();
 builder.Services.AddScoped<AccessEntitlementService>();
 builder.Services.AddScoped<PendingAccessCodeService>();
 builder.Services.AddScoped<ConfigurationService>();
 builder.Services.AddScoped<WorkoutMathService>();
+builder.Services.AddSingleton<IWorkoutIntelligenceGateway, WorkoutIntelligenceGateway>();
+builder.Services.AddScoped<IExerciseCatalogStore, SqlExerciseCatalogStore>();
+builder.Services.AddScoped<IDetailedWorkoutStore, SqlDetailedWorkoutStore>();
+builder.Services.AddHttpClient<KineticExerciseCatalogProvider>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("12WeekRecomp/1.0");
+});
+builder.Services.AddTransient<IExerciseCatalogProvider>(
+    services => services.GetRequiredService<KineticExerciseCatalogProvider>());
+builder.Services.AddSingleton<IExerciseMediaProvider, NoExerciseMediaProvider>();
+builder.Services.AddScoped<ICatalogSyncStore, SqlCatalogSyncStore>();
+builder.Services.AddScoped<CatalogSyncCoordinator>();
+builder.Services.AddHostedService<CatalogSyncHostedService>();
 builder.Services.AddScoped<Engine30WorkoutProfileService>();
 builder.Services.AddScoped<Engine30WorkoutUiCatalogService>();
 builder.Services.AddScoped<IEngine30WorkoutRuntimeProfileProvider, Engine30WorkoutRuntimeProfileProvider>();
@@ -108,6 +157,8 @@ builder.Services.AddScoped<Engine30GoalEnergyPolicyService>();
 builder.Services.AddSingleton<Engine30RecompEnergyPolicyAllocator>();
 builder.Services.AddSingleton<Engine30EnergyCarryoverService>();
 builder.Services.AddScoped<Engine30DashboardProjectionService>();
+builder.Services.AddScoped<Engine30DashboardAnalysisService>();
+builder.Services.AddScoped<Engine30AdaptiveRecommendationService>();
 builder.Services.AddSingleton<Engine30FuelStateService>();
 builder.Services.AddSingleton<Engine30WeeklyFuelProjectionService>();
 builder.Services.AddScoped<Engine30AdminFuelComparisonService>();
@@ -143,7 +194,7 @@ builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
-app.UseExceptionHandler("/Home/Error");
+app.UseExceptionHandler("/TestDiagnostics/Error");
 
 // Must be before HTTPS redirection and authentication.
 app.UseForwardedHeaders();
@@ -169,28 +220,3 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

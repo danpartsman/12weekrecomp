@@ -49,7 +49,10 @@
         </div>
     </section>
 
-    <form asp-action="@formAction" method="post" class="stack">
+    @* V1009_CLIENT_START_GUIDE_HOST *@
+<partial name="_ClientStartGuide" />
+<partial name="_BaselineEntryGuide" />
+<form asp-action="@formAction" method="post" class="stack">
         <input asp-for="ReviewMode" type="hidden" />
         <input asp-for="OriginalGoalCode" type="hidden" />
         <div asp-validation-summary="All" class="validation"></div>

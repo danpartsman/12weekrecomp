@@ -629,7 +629,7 @@ public sealed class Engine30WorkoutTypeGlycogenPlausibilityTests
 
         _output.WriteLine("");
         _output.WriteLine(
-            "ENGINE 3.0 â€” WORKOUT-TYPE ENERGY + GLYCOGEN PLAUSIBILITY");
+            "ENGINE 3.0 — WORKOUT-TYPE ENERGY + GLYCOGEN PLAUSIBILITY");
 
         _output.WriteLine(
             "Known individual: 40M | 69 in | 180 lb | supplied 20% BF");

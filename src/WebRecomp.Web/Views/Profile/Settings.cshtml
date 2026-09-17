@@ -48,6 +48,49 @@
 
     <section class="card stack">
         <div>
+            <div class="profile-panel-label">TRACKING DETAIL</div>
+            <h2>Optional detailed entry</h2>
+        </div>
+
+        @if (Model.HasActiveProgram)
+        {
+            <label class="check">
+                <input asp-for="DetailedWorkoutEntryEnabled" type="checkbox" />
+                <span>
+                    <strong>Detailed workout entry</strong><br />
+                    <small>
+                        When enabled, 12 Week Recomp can collect exercise/set-level workout detail.
+                        Manual workout entry remains available and is never added to detailed values.
+                    </small>
+                </span>
+            </label>
+
+            <label class="check">
+                <input asp-for="NutritionFoodLogEnabled" type="checkbox" />
+                <span>
+                    <strong>12WR food log</strong><br />
+                    <small>
+                        When enabled, foods and servings can build the day's nutrition totals.
+                        Manual calorie and macro entry remains available as a supported path.
+                    </small>
+                </span>
+            </label>
+
+            <p class="small">
+                These options are independent. Turning one off does not delete previously
+                entered detailed data. OFF/OFF preserves the original manual-entry workflow.
+            </p>
+        }
+        else
+        {
+            <p class="small">
+                Tracking-detail options become available after an active 12-week program is created.
+            </p>
+        }
+    </section>
+
+    <section class="card stack">
+        <div>
             <div class="profile-panel-label">SIGN-IN & SECURITY</div>
             <h2>Sign-in account</h2>
         </div>

@@ -1,0 +1,295 @@
+{
+  "package": "web_recomp_azure_manual_v1001_schedule_first",
+  "specificationVersion": "1001",
+  "engineVersion": "1001.0",
+  "sourceBehavior": "Dan_Recomp v64 schedule-first",
+  "generatedDate": "2026-08-12",
+  "fileCountExcludingManifest": 57,
+  "files": [
+    {
+      "path": "README_FIRST.md",
+      "bytes": 3958,
+      "sha256": "3ef7ceff33268196ac4f4fb976ec0b85d3014597ca77a309fba3cb1218d86a96"
+    },
+    {
+      "path": "VALIDATION_REPORT.md",
+      "bytes": 952,
+      "sha256": "4565c6768fc0b63ab469d059ce2c7e25aa6c669d533c3128b7c4298435f14239"
+    },
+    {
+      "path": "database/001_create_schema_v1001.sql",
+      "bytes": 20484,
+      "sha256": "6fe722824fb67cfb259dc96899247abd8f6b5d2d82bf09c889e5ee8dfa703298"
+    },
+    {
+      "path": "database/002_seed_configuration_v1001.sql",
+      "bytes": 32341,
+      "sha256": "5dd40a390c50ad6b42cc17c1aa78b53e596ece7814bbb3fb58560058af093ef6"
+    },
+    {
+      "path": "database/003_grant_managed_identity.sql",
+      "bytes": 876,
+      "sha256": "3108b8bc37ff432ee54f6cb6c81e2384d6b50ef502cb0d5816225d65ceb16f65"
+    },
+    {
+      "path": "database/004_verify_database.sql",
+      "bytes": 1198,
+      "sha256": "bdef255f0f09f201475b1592e19027e79cf5eea3b4eefad3dbb691263e78c4ee"
+    },
+    {
+      "path": "docs/EXTERNAL_ID_APP_SERVICE_AUTH.md",
+      "bytes": 1298,
+      "sha256": "19071dd84c05eb3a290c937e6fee3cf8fd25fe562d3f15a501602a67415acb0c"
+    },
+    {
+      "path": "docs/MANUAL_DEPLOYMENT.md",
+      "bytes": 2570,
+      "sha256": "a266b51ca0734d766d77a4b0f4be6938ddf8df448f31fa3083c39073449dd425"
+    },
+    {
+      "path": "docs/RESOURCE_VALUES_TEMPLATE.txt",
+      "bytes": 356,
+      "sha256": "2061a8dd4a6eb1da0faca3a6be3c164f4a260dc8936fc8e24e325b387b422365"
+    },
+    {
+      "path": "docs/SCHEDULE_FIRST_LOGIC.md",
+      "bytes": 3822,
+      "sha256": "b9e2cbc1ebd7dfe916e4e777d364ac852249623d713ada8390d66291d03ab5b7"
+    },
+    {
+      "path": "docs/SECURITY_NOTES.md",
+      "bytes": 698,
+      "sha256": "43a98029d0cd51de6bfba84fe2086391782fecb4b58473582d844990d50fbb13"
+    },
+    {
+      "path": "docs/extracted_v64_workout_configuration.json",
+      "bytes": 27688,
+      "sha256": "1094adf67cd41b23c23a0d246c0dbd1fbeddb4586bf43a16bd5e8db595692ac4"
+    },
+    {
+      "path": "scripts/00_check_prerequisites.ps1",
+      "bytes": 1227,
+      "sha256": "8db5e736d8c8d3702d6e5b94898cc41374398105e2577d0f2716c7508b9be4bd"
+    },
+    {
+      "path": "scripts/01_configure_app_settings.ps1",
+      "bytes": 1743,
+      "sha256": "4537d207cb26992e24a4a5823c47fea5f5d5d19d2ac3e3ae1c92e56fcf9e57f5"
+    },
+    {
+      "path": "scripts/02_apply_database.ps1",
+      "bytes": 1275,
+      "sha256": "cd29fd4396c438d18541ccce1faed4704ca7b2637d622cc888757691d90f3d85"
+    },
+    {
+      "path": "scripts/03_grant_webapp_identity.ps1",
+      "bytes": 1597,
+      "sha256": "1e0bff0bf499f6b7cab06d597383f5d44675cb89686ee26ea3cbfebabb5123fc"
+    },
+    {
+      "path": "scripts/04_deploy_application.ps1",
+      "bytes": 2051,
+      "sha256": "bd97e428fe4b9909d508d42830300f7ab1cd6254197e980eaa1fae03359b0aa3"
+    },
+    {
+      "path": "scripts/05_verify_webapp.ps1",
+      "bytes": 1519,
+      "sha256": "489fbfa93d8e3a2acaf2f7c336d90890bfede68864de7c1d9978ed706c963a2c"
+    },
+    {
+      "path": "scripts/06_regression_math_smoke.ps1",
+      "bytes": 2298,
+      "sha256": "6ab85ca802aa3de63a04c21423e6e2c8716ab81196860c7a5336f9010d31e463"
+    },
+    {
+      "path": "scripts/INSTALL_TEST_ENVIRONMENT.ps1",
+      "bytes": 2081,
+      "sha256": "9e1884d618883c3fb64cac548984c74f3d77df1241d7396b41404523e9c821b7"
+    },
+    {
+      "path": "scripts/README.md",
+      "bytes": 1579,
+      "sha256": "2f5a59d91345120ce0ceaaa72ae85ad308fabec1bdf963df1bb2d289810a0c9e"
+    },
+    {
+      "path": "spec/web_recomp_spreadsheet_v1001_schedule_first.xlsx",
+      "bytes": 29161,
+      "sha256": "8ba590abbd84f0afae1df5ac8bb96cd9257ee807e422e5257109233c9354e583"
+    },
+    {
+      "path": "src/WebRecomp.Web/Controllers/DailyController.cs",
+      "bytes": 5683,
+      "sha256": "3e3a397fa34b4ebffb90882c4eeb925d6586bb007919e8b1556f93990e4366db"
+    },
+    {
+      "path": "src/WebRecomp.Web/Controllers/DashboardController.cs",
+      "bytes": 751,
+      "sha256": "d25c3fa45900da127721da1027055994bb2bc6dc2953c3a29089fee31d16b721"
+    },
+    {
+      "path": "src/WebRecomp.Web/Controllers/HomeController.cs",
+      "bytes": 582,
+      "sha256": "b9fe78b0a9260474d401b79c92a88bc15ce10b604c7094933ff013cada5ab3fe"
+    },
+    {
+      "path": "src/WebRecomp.Web/Controllers/IntakeController.cs",
+      "bytes": 4726,
+      "sha256": "7154b809093c6fc050d4d8a78694780b23a878c1fd3ab160b8f9a180d31ed6d6"
+    },
+    {
+      "path": "src/WebRecomp.Web/Controllers/NutritionController.cs",
+      "bytes": 2868,
+      "sha256": "dbcfbe4e049e806729b81bbc8aee344a2d52ead885cfd6aeea449ba31d01060c"
+    },
+    {
+      "path": "src/WebRecomp.Web/Controllers/ScheduleController.cs",
+      "bytes": 6440,
+      "sha256": "39be09209274da1783f5537d6d0bb9b15ee1d81db860c99f007496a2eb99e6c2"
+    },
+    {
+      "path": "src/WebRecomp.Web/Controllers/SystemController.cs",
+      "bytes": 1192,
+      "sha256": "3bafb76db94a7cbb6fcdcb58ec4e3fa3368ac1863bde0764d7e968e91f2edd77"
+    },
+    {
+      "path": "src/WebRecomp.Web/Controllers/WorkoutsController.cs",
+      "bytes": 4578,
+      "sha256": "51d1f0e6feab6bd75a3cad16945e24fc5a1ef34676d2badbe5772b63bf03dc47"
+    },
+    {
+      "path": "src/WebRecomp.Web/Data/RecompDbContext.cs",
+      "bytes": 6169,
+      "sha256": "3b0f043a369f1a0fa73d50f25c2c5cc4c94003f0d0bc1d5f2b22fcef0ba92b0e"
+    },
+    {
+      "path": "src/WebRecomp.Web/Models/Entities.cs",
+      "bytes": 12569,
+      "sha256": "33b3a38a372c7678a087288458a7985f2675f3481be1f500391b194edc724ffb"
+    },
+    {
+      "path": "src/WebRecomp.Web/Program.cs",
+      "bytes": 1240,
+      "sha256": "fce963e9efe34a7ef4c5ef05bf5e4e63c93bddba46772fde4c8eb1a319233dda"
+    },
+    {
+      "path": "src/WebRecomp.Web/Properties/launchSettings.json",
+      "bytes": 423,
+      "sha256": "1478a7cdc641ede0f23c6e73759bfad8b47df8ef95afa943f650f3722f90fee9"
+    },
+    {
+      "path": "src/WebRecomp.Web/Services/AppUserContextService.cs",
+      "bytes": 3451,
+      "sha256": "0c5a07e9174d717e3b9d657db4574bdb7bf4cab332a2f37f98a6f13639cac9ac"
+    },
+    {
+      "path": "src/WebRecomp.Web/Services/ConfigurationService.cs",
+      "bytes": 2528,
+      "sha256": "1348f77b813dba0674298ba15bbae37aa35c2baf42fd2dabd1894f88e9978bf2"
+    },
+    {
+      "path": "src/WebRecomp.Web/Services/DashboardService.cs",
+      "bytes": 4787,
+      "sha256": "55ee6a193453f6499f041c5c489a81de80fd324cfc361d0a45cf1b1fbf01ad18"
+    },
+    {
+      "path": "src/WebRecomp.Web/Services/RecommendationService.cs",
+      "bytes": 21409,
+      "sha256": "a134fdcd22ee5cefbc3e7be09e6da06f714cf42e0fc2939458af2744f41cbc94"
+    },
+    {
+      "path": "src/WebRecomp.Web/Services/WeeklyStrategyService.cs",
+      "bytes": 7362,
+      "sha256": "3079263383a3021e0288457002eec18b8b836b94be03783c192170f14c7f33b5"
+    },
+    {
+      "path": "src/WebRecomp.Web/Services/WorkoutMathService.cs",
+      "bytes": 6928,
+      "sha256": "c0e09bc6ac5512b5ea2df78f9245da09e7770683a892cd0d68068e5f926209c4"
+    },
+    {
+      "path": "src/WebRecomp.Web/ViewModels/AppViewModels.cs",
+      "bytes": 6545,
+      "sha256": "889d5aa1b797f346ca8b26d4e8be4af1e6796bad83752d8b82bd846edf681d17"
+    },
+    {
+      "path": "src/WebRecomp.Web/Views/Daily/Index.cshtml",
+      "bytes": 2356,
+      "sha256": "176c083d0373da595993917dd6bb2a42b80c147576664817469748ee839b19e6"
+    },
+    {
+      "path": "src/WebRecomp.Web/Views/Dashboard/Index.cshtml",
+      "bytes": 3649,
+      "sha256": "ed784f6f91907123ffa05ee3b0079b5aaee087595d8e57c6660efd05a1973bf0"
+    },
+    {
+      "path": "src/WebRecomp.Web/Views/Home/Error.cshtml",
+      "bytes": 232,
+      "sha256": "ed658e806ca8a55bdd3708f36c7e510597ef825cf499a39bbd08e26476351e24"
+    },
+    {
+      "path": "src/WebRecomp.Web/Views/Intake/Index.cshtml",
+      "bytes": 3611,
+      "sha256": "6083c0e1f6836134068041c7024932ac13385eb2387995b359a6b4138a8d8711"
+    },
+    {
+      "path": "src/WebRecomp.Web/Views/Nutrition/Index.cshtml",
+      "bytes": 1023,
+      "sha256": "9d651ecd154f0d06037adbbd3b7525e1c14cd6c455eaa30026feaa5d37dcb2c0"
+    },
+    {
+      "path": "src/WebRecomp.Web/Views/Schedule/Index.cshtml",
+      "bytes": 2896,
+      "sha256": "5d07020b96df20f43095d07236625eed6a1fd73dfcb3798dbe198ecb97ff4645"
+    },
+    {
+      "path": "src/WebRecomp.Web/Views/Shared/_Layout.cshtml",
+      "bytes": 946,
+      "sha256": "93916b3d2383f441bcbf87e9840257a0497801e8f7d6f1e95626b2e62c689c56"
+    },
+    {
+      "path": "src/WebRecomp.Web/Views/Workouts/New.cshtml",
+      "bytes": 1088,
+      "sha256": "54816cd49b626e5fba029a67ee9d080a01b410c2da94ba4c728c88043c48b3ef"
+    },
+    {
+      "path": "src/WebRecomp.Web/Views/_ViewImports.cshtml",
+      "bytes": 134,
+      "sha256": "92d33a5bdc522d276dc7659032fbed133c70ed43e4f4c761d32ecd112a7ac8ee"
+    },
+    {
+      "path": "src/WebRecomp.Web/Views/_ViewStart.cshtml",
+      "bytes": 29,
+      "sha256": "62afaee3500962d2262cf59943e45ad8be3d3e0d26698b4152a0c4b7705fc129"
+    },
+    {
+      "path": "src/WebRecomp.Web/WebRecomp.Web.csproj",
+      "bytes": 585,
+      "sha256": "17e392702f75db084084e70a55c73eea79d1883eb9b902a4802a9f77ebdc6e5e"
+    },
+    {
+      "path": "src/WebRecomp.Web/appsettings.Development.json",
+      "bytes": 58,
+      "sha256": "f78afee10d4403dac0647e0b8db473e50d10bb9e9e962fd2502bd3d3c9d33639"
+    },
+    {
+      "path": "src/WebRecomp.Web/appsettings.json",
+      "bytes": 387,
+      "sha256": "5dedc206ca1e826f1d5e516112e4870880d0da76e7cc5821b10a0cf76034d452"
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/css/site.css",
+      "bytes": 4495,
+      "sha256": "94d2df96122d7dfa7926f563e096365bef9ae99619ca64e901cce7059beddcee"
+    },
+    {
+      "path": "tests/README.md",
+      "bytes": 996,
+      "sha256": "4d1fe3ba1d0cfe1919e1bc8ee70a8a75fd5db15cb25427ab4dcebb6d2c28ffb2"
+    },
+    {
+      "path": "tests/v1001_regression_vectors.json",
+      "bytes": 4834,
+      "sha256": "32666a3fc3a626be47e5634ec9dfb4aa7fe86c322442ff34cdbc2f2ff1a17146"
+    }
+  ]
+}

@@ -199,9 +199,19 @@ public sealed class Engine30WorkoutRuntimeService(
                             ModalityCode: actual?.ModalityCode ?? configured.ModalityCode,
                             PlannedDurationMinutes: plannedSegmentDuration,
                             DefaultRpe: configured.DefaultRpe,
-                            PlannedRpeOverride: actual?.PlannedRpeOverride,
+
+                            // Segment-specific RPE wins. If the client supplied
+                            // only a whole-session planned/actual RPE, use that
+                            // as the fallback for each composite segment.
+                            PlannedRpeOverride:
+                                actual?.PlannedRpeOverride
+                                ?? source.PlannedRpeOverride,
+
                             ActualDurationMinutes: actualSegmentDuration,
-                            ActualRpe: actual?.ActualRpe,
+
+                            ActualRpe:
+                                actual?.ActualRpe
+                                ?? source.ActualRpe,
                             ObjectiveWorkload: actual?.ObjectiveWorkload,
                             Resistance: MergeResistance(configured, actual?.Resistance),
                             Intervals: MergeIntervals(profile, configured, actual?.Intervals, plannedSegmentDuration));

@@ -1,0 +1,222 @@
+@{
+    ViewData["Title"] = "Review Workout";
+
+    var workoutSessionId =
+        ViewData["WorkoutSessionId"] is Guid id
+            ? id
+            : Guid.Empty;
+
+    var workoutName =
+        ViewData["WorkoutName"] as string
+        ?? "Workout";
+
+    var durationMin =
+        ViewData["DurationMin"] is decimal duration
+            ? duration
+            : 1m;
+
+    var sessionRpe =
+        ViewData["SessionRpe"] as decimal?;
+
+    var recordedSets =
+        ViewData["RecordedSets"] is int sets
+            ? sets
+            : 0;
+
+    var totalReps =
+        ViewData["TotalReps"] is int reps
+            ? reps
+            : 0;
+
+    var exerciseCount =
+        ViewData["ExerciseCount"] is int exercises
+            ? exercises
+            : 0;
+
+    var primaryMuscles =
+        ViewData["PrimaryMuscles"] as string
+        ?? "";
+
+    var deadlineUtc =
+        ViewData["ReviewDeadlineUtc"] as string
+        ?? "";
+
+}
+
+<div class="app-page workout-intelligence-page wi-review-page">
+    <section class="card wi-review-card">
+        <div class="wi-review-kicker">
+            WORKOUT STOPPED
+        </div>
+
+        <h1>Review Workout</h1>
+
+        <div class="wi-review-workout-name">
+            @workoutName
+        </div>
+
+        <p class="wi-review-intro">
+            Quick check before 12WR uses this workout for today's analysis.
+            Change only what needs correcting.
+        </p>
+
+        <form asp-action="FinalizeWorkout"
+              method="post"
+              id="wi-review-form"
+              data-review-deadline="@deadlineUtc">
+
+            <input type="hidden"
+                   name="workoutSessionId"
+                   value="@workoutSessionId" />
+
+            <div class="wi-review-fields">
+                <label>
+                    <span>Duration</span>
+                    <div class="wi-review-input-unit">
+                        <input type="number"
+                               name="durationMin"
+                               min="1"
+                               max="360"
+                               step="0.1"
+                               inputmode="decimal"
+                               value="@durationMin.ToString("0.#")"
+                               required />
+                        <small>min</small>
+                    </div>
+                </label>
+
+                <label>
+                    <span>RPE</span>
+                    <input type="number"
+                           name="sessionRpe"
+                           min="1"
+                           max="10"
+                           step="0.5"
+                           inputmode="decimal"
+                           value="@(sessionRpe.HasValue ? sessionRpe.Value.ToString("0.#") : "")"
+                           placeholder="Optional" />
+                </label>
+
+                <label>
+                    <span>Untracked sets</span>
+                    <input type="number"
+                           name="extraSets"
+                           min="0"
+                           max="50"
+                           step="1"
+                           inputmode="numeric"
+                           value="0" />
+                </label>
+            </div>
+
+            <div class="wi-review-summary-line">
+                <span><strong>@exerciseCount</strong> exercises</span>
+                <span aria-hidden="true">&bull;</span>
+                <span><strong>@recordedSets</strong> working sets</span>
+                <span aria-hidden="true">&bull;</span>
+                <span><strong>@totalReps</strong> total reps</span>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(primaryMuscles))
+            {
+                <div class="wi-review-muscles">
+                    <strong>Primary work:</strong>
+                    <span>@primaryMuscles</span>
+                </div>
+            }
+
+            <div class="wi-review-engine-note">
+                These confirmed values become the actual workout sent to
+                12WR Analysis / Engine 3.0.
+            </div>
+
+            <button class="button primary wi-review-finalize"
+                    type="submit">
+                Finalize Workout
+            </button>
+
+            <div class="wi-review-auto">
+                Automatically finalizes in
+                <strong id="wi-review-countdown">10:00</strong>
+                if you make no changes.
+            </div>
+        </form>
+    </section>
+</div>
+
+<script>
+(() => {
+    const form =
+        document.getElementById("wi-review-form");
+
+    const countdown =
+        document.getElementById("wi-review-countdown");
+
+    if (!form || !countdown) {
+        return;
+    }
+
+    const rawDeadline =
+        form.dataset.reviewDeadline;
+
+    const deadline =
+        rawDeadline
+            ? Date.parse(rawDeadline)
+            : Number.NaN;
+
+    if (!Number.isFinite(deadline)) {
+        return;
+    }
+
+    let submitted = false;
+
+    const tick = () => {
+        if (submitted) {
+            return;
+        }
+
+        const remainingMs =
+            Math.max(
+                0,
+                deadline - Date.now());
+
+        const totalSeconds =
+            Math.ceil(
+                remainingMs / 1000);
+
+        const minutes =
+            Math.floor(
+                totalSeconds / 60);
+
+        const seconds =
+            totalSeconds % 60;
+
+        countdown.textContent =
+            `${minutes}:${String(seconds).padStart(2, "0")}`;
+
+        if (remainingMs <= 0) {
+            submitted = true;
+            form.requestSubmit();
+        }
+    };
+
+    form.addEventListener(
+        "submit",
+        () => {
+            submitted = true;
+        });
+
+    document.addEventListener(
+        "visibilitychange",
+        () => {
+            if (!document.hidden) {
+                tick();
+            }
+        });
+
+    tick();
+    window.setInterval(
+        tick,
+        1000);
+})();
+</script>

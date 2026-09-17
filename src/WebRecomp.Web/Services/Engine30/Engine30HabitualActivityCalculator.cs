@@ -24,7 +24,7 @@ public sealed record Engine30OccupationalRoleResult(
 ///
 /// 1. Occupational activity
 /// 2. Home-equivalent activity filling unused portions of the
-///    standard 40-hour habitual activity window
+///    age-adjusted habitual activity window
 /// 3. A recurring lifestyle activity premium for activity outside
 ///    work and outside separately reported workouts
 ///
@@ -59,6 +59,8 @@ public sealed record Engine30HabitualActivityResult(
 
 public sealed class Engine30HabitualActivityCalculator
 {
+    // Backward-compatible default for direct calculator callers.
+    // Engine30DailyRuntimeService supplies the age-adjusted window explicitly.
     public const decimal StandardHabitualHoursPerWeek = 40m;
 
     /*
@@ -86,14 +88,16 @@ public sealed class Engine30HabitualActivityCalculator
     public Engine30HabitualActivityResult Calculate(
         decimal baseLivingEnergyKcal,
         IReadOnlyCollection<Engine30OccupationalRoleInput> roles,
-        decimal homeActivityFactor = DefaultHomeActivityFactor)
+        decimal homeActivityFactor = DefaultHomeActivityFactor,
+        decimal habitualWindowHoursPerWeek = StandardHabitualHoursPerWeek)
     {
         return CalculateCore(
             baseLivingEnergyKcal,
             roles,
             lifestyleActivityCode: "MINIMAL",
             lifestyleEquivalentHoursPerWeek: 0m,
-            homeActivityFactor);
+            homeActivityFactor,
+            habitualWindowHoursPerWeek);
     }
 
     /// <summary>
@@ -115,7 +119,8 @@ public sealed class Engine30HabitualActivityCalculator
         decimal baseLivingEnergyKcal,
         IReadOnlyCollection<Engine30OccupationalRoleInput> roles,
         string lifestyleActivityCode,
-        decimal homeActivityFactor = DefaultHomeActivityFactor)
+        decimal homeActivityFactor = DefaultHomeActivityFactor,
+        decimal habitualWindowHoursPerWeek = StandardHabitualHoursPerWeek)
     {
         var lifestyle =
             ResolveLifestyleActivity(
@@ -126,7 +131,8 @@ public sealed class Engine30HabitualActivityCalculator
             roles,
             lifestyle.Code,
             lifestyle.EquivalentHoursPerWeek,
-            homeActivityFactor);
+            homeActivityFactor,
+            habitualWindowHoursPerWeek);
     }
 
     private static Engine30HabitualActivityResult CalculateCore(
@@ -134,7 +140,8 @@ public sealed class Engine30HabitualActivityCalculator
         IReadOnlyCollection<Engine30OccupationalRoleInput> roles,
         string lifestyleActivityCode,
         decimal lifestyleEquivalentHoursPerWeek,
-        decimal homeActivityFactor)
+        decimal homeActivityFactor,
+        decimal habitualWindowHoursPerWeek)
     {
         if (baseLivingEnergyKcal <= 0m)
         {
@@ -157,6 +164,14 @@ public sealed class Engine30HabitualActivityCalculator
             throw new ArgumentOutOfRangeException(
                 nameof(lifestyleEquivalentHoursPerWeek),
                 "Lifestyle equivalent hours cannot be negative.");
+        }
+
+        if (habitualWindowHoursPerWeek < 0m ||
+            habitualWindowHoursPerWeek > 168m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(habitualWindowHoursPerWeek),
+                "Habitual activity window must be between 0 and 168 hours per week.");
         }
 
         var restingEnergyPerHour =
@@ -211,18 +226,22 @@ public sealed class Engine30HabitualActivityCalculator
         }
 
         /*
-            Actual work fills the standard 40-hour habitual window.
+            Actual work fills the resolved habitual-activity window.
 
-            If work is less than 40 hours, the remaining portion is
-            modeled as ordinary home/non-work activity.
+            The production Daily Runtime resolves that window from age:
+            60 h/week through age 50, then -1 h/week per year, with a
+            30 h/week floor at age 80+.
 
-            If work exceeds 40 hours, all actual work is still counted
-            and home-equivalent hours become zero.
+            If work is below the resolved window, the remaining portion
+            is modeled as ordinary home/non-work activity.
+
+            If work exceeds the resolved window, ALL actual work is still
+            counted and home-equivalent hours become zero.
         */
         var homeEquivalentHours =
             Math.Max(
                 0m,
-                StandardHabitualHoursPerWeek
+                habitualWindowHoursPerWeek
                 - totalWorkHours);
 
         var weeklyHomeActivity =
@@ -242,8 +261,8 @@ public sealed class Engine30HabitualActivityCalculator
             - active household projects
             - recreational activity not logged as a workout
 
-            It is deliberately NOT taken away from the 40-hour window.
-            It represents additional recurring activity.
+            It is deliberately NOT taken away from the age-adjusted
+            work/home window. It represents additional recurring activity.
         */
         var weeklyLifestyleActivity =
             restingEnergyPerHour
@@ -322,7 +341,7 @@ public sealed class Engine30HabitualActivityCalculator
                 Round(basePlusHabitual),
 
             StandardHabitualHoursPerWeek:
-                StandardHabitualHoursPerWeek,
+                Round(habitualWindowHoursPerWeek),
 
             HomeActivityFactor:
                 homeActivityFactor,

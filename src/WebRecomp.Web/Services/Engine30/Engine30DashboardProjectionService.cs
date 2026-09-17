@@ -1,7 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
+using WebRecomp.Web.Services.WorkoutIntelligence;
+using WebRecomp.WorkoutIntelligence;
 
 namespace WebRecomp.Web.Services.Engine30;
 
@@ -135,7 +137,8 @@ public sealed class Engine30DashboardProjectionService(
     Engine30GoalEnergyPolicyService energyPolicies,
     Engine30RecompEnergyPolicyAllocator energyPolicyAllocator,
     Engine30EnergyCarryoverService energyCarryover,
-    ProgramPlanService planSelection)
+    ProgramPlanService planSelection,
+    IWorkoutIntelligenceGateway workoutIntelligence)
 {
     public const string EngineVersionCode = "3000.0";
     public const string ConfigVersionCode = "CFG-3000.0";
@@ -277,6 +280,14 @@ public sealed class Engine30DashboardProjectionService(
                 .OrderBy(x => x.WorkoutDate)
                 .ThenBy(x => x.CreatedAtUtc)
                 .ToListAsync(cancellationToken);
+
+        actualSessions =
+            (await DetailedWorkoutEngine30Adapter
+                .PreferBuilderSessionsAsync(
+                    db,
+                    actualSessions,
+                    cancellationToken))
+            .ToList();
 
         var sessionsByDate =
             actualSessions
@@ -556,6 +567,35 @@ public sealed class Engine30DashboardProjectionService(
                 readiness.ReasonCodes);
     }
 
+    // B2.35.5.2 HISTORICAL DURATION FALLBACK
+    private static decimal EffectiveCompletedDurationMinutes(
+        WorkoutSession session)
+    {
+        if (session.DurationMin > 0m)
+            return session.DurationMin;
+
+        if (session.CreatedAtUtc != default
+            && session.UpdatedAtUtc > session.CreatedAtUtc)
+        {
+            var elapsed =
+                (decimal)(
+                    session.UpdatedAtUtc
+                    - session.CreatedAtUtc)
+                    .TotalMinutes;
+
+            if (elapsed > 0m)
+            {
+                return Math.Max(
+                    1m,
+                    Math.Round(
+                        elapsed,
+                        1,
+                        MidpointRounding.AwayFromZero));
+            }
+        }
+
+        return 1m;
+    }
     public async Task<Engine30DashboardActualWorkoutProjection>
         BuildActualWorkoutAsync(
             AppClientContext context,
@@ -584,6 +624,14 @@ public sealed class Engine30DashboardProjectionService(
                     && x.CompletedFlag)
                 .OrderBy(x => x.CreatedAtUtc)
                 .ToListAsync(cancellationToken);
+
+        sessions =
+            (await DetailedWorkoutEngine30Adapter
+                .PreferBuilderSessionsAsync(
+                    db,
+                    sessions,
+                    cancellationToken))
+            .ToList();
 
         if (sessions.Count == 0)
         {
@@ -646,6 +694,8 @@ public sealed class Engine30DashboardProjectionService(
 
         foreach (var stored in sessions)
         {
+            var effectiveDurationMinutes =
+                EffectiveCompletedDurationMinutes(stored);
             var workoutCode =
                 NormalizeWorkoutCode(
                     stored.WorkoutTypeCode);
@@ -667,34 +717,15 @@ public sealed class Engine30DashboardProjectionService(
                 continue;
             }
 
-            IReadOnlyCollection<Engine30WorkoutSegmentInput>? suppliedSegments =
-                BuildActualResistanceSegment(
-                    profileResolution.Profile,
-                    stored);
-
-            var monitor =
-                stored.DeviceCalories.HasValue
-                    ? new Engine30WorkoutMonitorData(
-                        ReportedCalories:
-                            stored.DeviceCalories,
-                        ReportedCalorieTypeCode:
-                            Engine30WorkoutSessionCodes.MonitorCaloriesUnknown)
-                    : null;
-
             var session =
-                new Engine30WorkoutSessionInput(
-                    WorkoutTypeCode:
+                await DetailedWorkoutEngine30Adapter
+                    .BuildActualInputAsync(
+                        db,
+                        workoutIntelligence,
+                        stored,
+                        profileResolution.Profile,
                         workoutCode,
-                    PlannedDurationMinutes:
-                        0m,
-                    ActualDurationMinutes:
-                        stored.DurationMin,
-                    ActualRpe:
-                        stored.SessionRpe,
-                    MonitorData:
-                        monitor,
-                    Segments:
-                        suppliedSegments);
+                        cancellationToken);
 
             var runtime =
                 await dailyRuntime.CalculateAsync(
@@ -733,18 +764,18 @@ public sealed class Engine30DashboardProjectionService(
                 runtime.Glycogen.EstimatedGlycogenDepletedG;
 
             totalDuration +=
-                stored.DurationMin;
+                effectiveDurationMinutes;
 
             if (
                 stored.SessionRpe.HasValue
-                && stored.DurationMin > 0m
+                && effectiveDurationMinutes > 0m
             ) {
                 rpeWeightedMinutes +=
                     stored.SessionRpe.Value
-                    * stored.DurationMin;
+                    * effectiveDurationMinutes;
 
                 rpeMinutes +=
-                    stored.DurationMin;
+                    effectiveDurationMinutes;
             }
 
             labels.Add(
@@ -966,7 +997,11 @@ public sealed class Engine30DashboardProjectionService(
                     ? null
                     : new Engine30WorkoutSessionInput(
                         WorkoutTypeCode: workoutCode,
-                        PlannedDurationMinutes: 0m);
+                        PlannedDurationMinutes:
+                            plannedWorkout?.PlannedDurationMin
+                            ?? 0m,
+                        PlannedRpeOverride:
+                            plannedWorkout?.PlannedRpe);
 
             var runtime =
                 await dailyRuntime.CalculateAsync(
@@ -1165,6 +1200,8 @@ public sealed class Engine30DashboardProjectionService(
 
         foreach (var stored in sessions)
         {
+            var effectiveDurationMinutes =
+                EffectiveCompletedDurationMinutes(stored);
             var workoutCode =
                 NormalizeWorkoutCode(
                     stored.WorkoutTypeCode);
@@ -1188,34 +1225,15 @@ public sealed class Engine30DashboardProjectionService(
                 continue;
             }
 
-            IReadOnlyCollection<Engine30WorkoutSegmentInput>? suppliedSegments =
-                BuildActualResistanceSegment(
-                    profileResolution.Profile,
-                    stored);
-
-            var monitor =
-                stored.DeviceCalories.HasValue
-                    ? new Engine30WorkoutMonitorData(
-                        ReportedCalories:
-                            stored.DeviceCalories,
-                        ReportedCalorieTypeCode:
-                            Engine30WorkoutSessionCodes.MonitorCaloriesUnknown)
-                    : null;
-
             var session =
-                new Engine30WorkoutSessionInput(
-                    WorkoutTypeCode:
+                await DetailedWorkoutEngine30Adapter
+                    .BuildActualInputAsync(
+                        db,
+                        workoutIntelligence,
+                        stored,
+                        profileResolution.Profile,
                         workoutCode,
-                    PlannedDurationMinutes:
-                        0m,
-                    ActualDurationMinutes:
-                        stored.DurationMin,
-                    ActualRpe:
-                        stored.SessionRpe,
-                    MonitorData:
-                        monitor,
-                    Segments:
-                        suppliedSegments);
+                        cancellationToken);
 
             var runtime =
                 await dailyRuntime.CalculateAsync(

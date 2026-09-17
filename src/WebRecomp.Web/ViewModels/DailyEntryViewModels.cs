@@ -8,10 +8,17 @@ public sealed class DailyEntryViewModel
 
     public string PlannedWorkoutName { get; set; } = "No workout planned";
     public string? PlannedWorkoutTypeCode { get; set; }
+    public Guid? PlannedWorkoutTemplateId { get; set; }
+    public string? PlannedSystemWorkoutCode { get; set; }
 
     public bool BodyRecoveryComplete { get; set; }
     public bool WorkoutComplete { get; set; }
     public bool NutritionComplete { get; set; }
+
+    // v1010 program-scoped optional-input switches. These do not change
+    // the Engine contract by themselves; they gate richer entry UI.
+    public bool DetailedWorkoutEntryEnabled { get; set; }
+    public bool NutritionFoodLogEnabled { get; set; }
 
     public string? MeasurementSourceLabel { get; set; }
     public string? NutritionSourceLabel { get; set; }
@@ -87,6 +94,8 @@ public sealed class DailyEntryViewModel
     public List<DailyEntryWorkoutInput> Workouts { get; set; } = [];
 
     public List<DailyEntryWorkoutTypeOption> WorkoutTypeOptions { get; set; } = [];
+    public List<SystemWorkoutOptionViewModel> SystemWorkouts { get; set; } = [];
+    public List<WorkoutTemplateOptionViewModel> MyWorkouts { get; set; } = [];
 
     // ------------------------------------------------------------
     // Nutrition actual
@@ -117,6 +126,9 @@ public sealed class DailyEntryViewModel
 public sealed class DailyEntryWorkoutInput
 {
     public Guid? WorkoutSessionId { get; set; }
+    public Guid? WorkoutTemplateId { get; set; }
+    public string? SystemWorkoutCode { get; set; }
+    public string? WorkoutName { get; set; }
 
     public string? WorkoutTypeCode { get; set; }
 

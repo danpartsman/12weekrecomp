@@ -1,0 +1,320 @@
+@{
+    var isPublicPage = ViewData["PublicPage"] is bool publicPage && publicPage;
+    var isOnboardingPage = ViewData["OnboardingPage"] is bool onboardingPage && onboardingPage;
+    var shellClass = isPublicPage ? "public-shell" : (isOnboardingPage ? "onboarding-shell" : "app-shell");
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - 12 Week Recomp</title>
+
+    <script>
+        (() => {
+            const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+            const applyTheme = () => {
+                const preference = localStorage.getItem('recomp-theme') || 'system';
+                const effective =
+                    preference === 'system'
+                        ? (media.matches ? 'dark' : 'light')
+                        : preference;
+
+                document.documentElement.dataset.theme = effective;
+            };
+
+            applyTheme();
+
+            if (media.addEventListener) {
+                media.addEventListener('change', () => {
+                    if ((localStorage.getItem('recomp-theme') || 'system') === 'system') {
+                        applyTheme();
+                    }
+                });
+            }
+        })();
+    </script>
+
+    <link rel="stylesheet"
+          href="~/css/site.css"
+          asp-append-version="true" />
+    <script src="~/js/recomp-autosave.js" asp-append-version="true"></script>
+</head>
+
+<body class="@shellClass">
+
+<header class="topbar">
+
+    <div class="brand brand-logo-wrap">
+
+        @if (isPublicPage || isOnboardingPage)
+        {
+            <a asp-controller="Home"
+               asp-action="Index"
+               aria-label="12 Week Recomp home">
+
+                <img class="brand-logo brand-logo-light"
+                     src="~/images/recomp/recomp-logo-light.png"
+                     alt="12 Week Recomp" />
+
+                <img class="brand-logo brand-logo-dark"
+                     src="~/images/recomp/recomp-logo-dark.png"
+                     alt="12 Week Recomp" />
+
+            </a>
+        }
+        else
+        {
+            <a asp-controller="Dashboard"
+               asp-action="Index"
+               aria-label="12 Week Recomp Dashboard">
+
+                <img class="brand-logo brand-logo-light"
+                     src="~/images/recomp/recomp-logo-light.png"
+                     alt="12 Week Recomp" />
+
+                <img class="brand-logo brand-logo-dark"
+                     src="~/images/recomp/recomp-logo-dark.png"
+                     alt="12 Week Recomp" />
+
+            </a>
+        }
+
+    </div>
+
+
+    @if (isPublicPage)
+    {
+        <nav class="public-nav"
+             aria-label="Public navigation">
+
+            <a asp-controller="Home"
+               asp-action="Index">
+                Welcome
+            </a>
+
+            <a asp-controller="Home"
+               asp-action="Evidence">
+                Evidence
+            </a>
+
+            <a asp-controller="Account"
+               asp-action="SignIn">
+                Sign In
+            </a>
+
+            <a class="public-nav-create"
+               asp-controller="Account"
+               asp-action="CreateAccount">
+                Create Account
+            </a>
+
+        </nav>
+    }
+    else if (isOnboardingPage)
+    {
+        <nav class="public-nav onboarding-nav"
+             aria-label="Onboarding navigation">
+
+            <a asp-controller="Home"
+               asp-action="Evidence">
+                Evidence
+            </a>
+
+            <a class="nav-signout"
+               asp-controller="Account"
+               asp-action="Logout">
+                Sign Out
+            </a>
+
+        </nav>
+    }
+    else
+    {
+        <nav class="app-quick-nav"
+             aria-label="Quick application navigation">
+
+            <a class="quick-nav-dashboard"
+               asp-controller="Dashboard"
+               asp-action="Index">
+                Dashboard
+            </a>
+
+            <a asp-controller="Schedule"
+               asp-action="Index">
+                Weekly Plan
+            </a>
+
+            <a asp-controller="Daily"
+               asp-action="Index">
+                Daily Weigh-In
+            </a>
+
+            <a asp-controller="Workouts"
+               asp-action="New">
+                Daily Workout
+            </a>
+
+            <a asp-controller="Nutrition"
+               asp-action="Index">
+                Daily Nutrition
+            </a>
+
+        </nav>
+
+
+        <button class="nav-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="app-nav"
+                aria-label="Open navigation menu"
+                title="All pages">
+
+            <span class="nav-toggle-line"></span>
+            <span class="nav-toggle-line"></span>
+            <span class="nav-toggle-line"></span>
+
+        </button>
+
+
+        <nav id="app-nav"
+             class="app-nav app-menu"
+             aria-label="All application pages">
+
+            <a asp-controller="Dashboard"
+               asp-action="Index">
+                Dashboard
+            </a>
+
+            <a asp-controller="Schedule"
+               asp-action="Index">
+                Weekly Plan
+            </a>
+
+            <a asp-controller="Daily"
+               asp-action="Index">
+                Daily Weigh-In
+            </a>
+
+            <a asp-controller="Workouts"
+               asp-action="New">
+                Daily Workout
+            </a>
+
+            <a asp-controller="Nutrition"
+               asp-action="Index">
+                Daily Nutrition
+            </a>
+
+            <a asp-controller="Progress"
+               asp-action="Index">
+                Progress
+            </a>
+
+            <a asp-controller="Onboarding"
+               asp-action="Index">
+                How It Works
+            </a>
+
+            <a asp-controller="Home"
+               asp-action="Evidence">
+                Evidence
+            </a>
+
+            <a asp-controller="Profile"
+               asp-action="Index">
+                Profile
+            </a>
+
+            <a asp-controller="Profile"
+               asp-action="Settings">
+                Settings
+            </a>
+
+            <a class="nav-signout"
+               asp-controller="Account"
+               asp-action="Logout">
+                Sign Out
+            </a>
+
+        </nav>
+    }
+
+</header>
+
+
+<main class="container">
+    @RenderBody()
+</main>
+
+
+<footer class="footer recomp-footer">
+
+    <div>
+        <strong>Built on evidence. Simple enough for real life.</strong>
+        <span>Web Recomp v1005a &bull; Plan &bull; Train &bull; Recover &bull; Adapt</span>
+    </div>
+
+</footer>
+
+
+@if (!isPublicPage && !isOnboardingPage)
+{
+    <script>
+        (() => {
+            const toggle = document.querySelector('.nav-toggle');
+            const nav = document.getElementById('app-nav');
+
+            if (!toggle || !nav) {
+                return;
+            }
+
+            const closeMenu = () => {
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.setAttribute('aria-label', 'Open navigation menu');
+                nav.classList.remove('is-open');
+            };
+
+            toggle.addEventListener('click', () => {
+                const opening =
+                    toggle.getAttribute('aria-expanded') !== 'true';
+
+                toggle.setAttribute(
+                    'aria-expanded',
+                    opening ? 'true' : 'false'
+                );
+
+                toggle.setAttribute(
+                    'aria-label',
+                    opening
+                        ? 'Close navigation menu'
+                        : 'Open navigation menu'
+                );
+
+                nav.classList.toggle('is-open', opening);
+            });
+
+            nav.addEventListener('click', event => {
+                if (event.target.closest('a')) {
+                    closeMenu();
+                }
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    closeMenu();
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 820) {
+                    closeMenu();
+                }
+            });
+        })();
+    </script>
+}
+
+</body>
+</html>

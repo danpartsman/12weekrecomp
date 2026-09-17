@@ -1,0 +1,1336 @@
+@model DetailedWorkoutEditorViewModel
+@{
+    ViewData["Title"] = "Workout Builder";
+
+    var mode =
+        Model.WorkspaceMode?.Trim().ToLowerInvariant()
+        ?? "";
+
+    var isStart = mode == "start";
+    var isNew = mode == "new";
+    var isSaved = mode == "saved";
+    var isSystem = mode == "system";
+
+    var systemCategoryOrder =
+        WebRecomp.Web.Services.WorkoutIntelligence
+            .SystemWorkoutRecipeCatalog
+            .PresentationCategoryOrder;
+
+    string SystemWorkoutCategory(string engineWorkoutTypeCode) =>
+        WebRecomp.Web.Services.WorkoutIntelligence
+            .SystemWorkoutRecipeCatalog
+            .PresentationCategoryForEngineWorkoutType(
+                engineWorkoutTypeCode);
+}
+
+<div class="app-page workout-intelligence-page wi-simple-page">
+    <header class="app-page-head wi-simple-head wi-analysis-head">
+        <div class="wi-head-title">
+            <div class="app-kicker">WORKOUT INTELLIGENCE</div>
+            <h1>@(isStart ? "Start Workout" : "Workout Builder")</h1>
+        </div>
+
+        @if (Model.FeatureEnabled)
+        {
+            <form asp-action="Index"
+                  method="get"
+                  class="app-date-picker wi-head-date">
+                <input type="hidden"
+                       name="mode"
+                       value="@mode" />
+
+                <label>
+                    <span class="wi-date-label-row">
+                        <span>Date</span>
+                    </span>
+                    <input name="date"
+                           value="@Model.Date.ToString("yyyy-MM-dd")"
+                           type="date"
+                           onchange="this.form.submit()" />
+                    <span class="wi-date-tracking-note">
+                        *insure the data is accurate for correct tracking.
+                    </span>
+                </label>
+            </form>
+
+            <section class="wi-header-analysis"
+                     aria-label="Workout analysis">
+                <div class="wi-header-analysis-label">
+                    WORKOUT ANALYSIS
+                </div>
+
+                @if (Model.TemplateOnlyMode)
+                {
+                    <div class="wi-header-analysis-line">
+                        <strong>Planning mode</strong>
+                        <span class="wi-analysis-separator">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢</span>
+                        <span>My Workout template</span>
+                    </div>
+
+                    <div class="wi-header-analysis-line wi-analysis-muted">
+                        No actual workout is created until you start it.
+                    </div>
+                }
+                else
+                {
+                    @if (Model.HeaderAnalysis.HasDetailedAnalysis)
+                    {
+                        <div class="wi-header-analysis-line">
+                            <strong>@Model.HeaderAnalysis.HardSets</strong>
+                            hard sets
+                            @if (!string.IsNullOrWhiteSpace(
+                                Model.HeaderAnalysis.MuscleDemandSummary))
+                            {
+                                <span class="wi-analysis-separator">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢</span>
+                                <span title="@Model.HeaderAnalysis.MuscleDemandSummary">
+                                    @Model.HeaderAnalysis.MuscleDemandSummary
+                                </span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="wi-header-analysis-line wi-analysis-muted">
+                            No detailed muscle demand yet
+                        </div>
+                    }
+
+                    <div class="wi-header-analysis-line">
+                        @if (Model.HeaderAnalysis.HasEngineResult)
+                        {
+                            <strong>
+                                @Model.HeaderAnalysis.EstimatedCalories.ToString("0") kcal
+                            </strong>
+                            <span class="wi-analysis-separator">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢</span>
+                            <span>
+                                @Model.HeaderAnalysis.GlycogenDemandG.ToString("0") g glycogen
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="wi-analysis-muted">
+                                Calories + glycogen calculated when workout is complete
+                            </span>
+                        }
+                    </div>
+                }
+
+                <div class="wi-header-analysis-source">
+                    @Model.HeaderAnalysis.SourceLabel
+                    @if (!string.IsNullOrWhiteSpace(
+                        Model.HeaderAnalysis.ScopeLabel))
+                    {
+                        <span>
+                            ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â @Model.HeaderAnalysis.ScopeLabel
+                        </span>
+                    }
+                </div>
+            </section>
+        }
+    </header>
+
+    @if (TempData["StatusMessage"] is string statusMessage)
+    {
+        <div class="app-message success">@statusMessage</div>
+    }
+
+    @if (!Model.FeatureEnabled)
+    {
+        <section class="card wi-workspace">
+            <h2>Workout Builder is off</h2>
+            <p>
+                Enable <strong>Detailed Workout Entry</strong> in Settings
+                to use the exercise-based Workout Builder.
+            </p>
+
+            <a class="button primary"
+               asp-controller="Profile"
+               asp-action="Settings">
+                Open Settings
+            </a>
+        </section>
+    }
+    else
+    {
+        @if (Model.TemplateOnlyMode)
+        {
+            <div class="app-message wi-plan-builder-banner">
+                <strong>Create a custom workout for Weekly Plan</strong>
+                <span>
+                    Build the workout below. Saving adds it to
+                    <strong>My Workouts</strong> and assigns it to
+                    <strong>@Model.Date.ToString("dddd, MMM d")</strong>.
+                    It does not create or complete an actual workout session.
+                </span>
+            </div>
+        }
+        else
+        {
+            <nav class="wi-mode-tabs"
+                 aria-label="Workout choices">
+
+                <a class="wi-mode-button wi-start-workout-tab @(isStart ? "is-active" : "")"
+                   asp-action="Index"
+                   asp-route-mode="start"
+                   asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                   asp-route-returnContext="start">
+                    Start Workout
+                </a>
+
+                <a class="wi-mode-button @(isNew ? "is-active" : "")"
+                   asp-action="Index"
+                   asp-route-mode="new"
+                   asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                   asp-route-returnContext="@Model.ReturnContext">
+                    New Workout
+                </a>
+
+                <a class="wi-mode-button @(isSaved ? "is-active" : "")"
+                   asp-action="Index"
+                   asp-route-mode="saved"
+                   asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                   asp-route-returnContext="@Model.ReturnContext">
+                    My Workouts
+                </a>
+
+                <a class="wi-mode-button @(isSystem ? "is-active" : "")"
+                   asp-action="Index"
+                   asp-route-mode="system"
+                   asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                   asp-route-returnContext="@Model.ReturnContext">
+                    System Workouts
+                </a>
+            </nav>
+        }
+
+        <section class="card wi-workspace">
+            @if (string.IsNullOrWhiteSpace(mode))
+            {
+                <div class="wi-workspace-empty">
+                    Choose <strong>Start Workout</strong> to train now, or use
+                    <strong>New Workout</strong>, <strong>My Workouts</strong>,
+                    and <strong>System Workouts</strong> to prepare future workouts.
+                </div>
+            }
+            else if (isStart)
+            {
+                <div class="wi-start-launcher">
+                    <div class="wi-start-launcher-head">
+                        <div>
+                            <div class="app-kicker">TRAIN NOW</div>
+                            <h2>Choose today's workout</h2>
+                        </div>
+                        <span class="wi-start-date">
+                            @Model.Date.ToString("dddd, MMM d")
+                        </span>
+                    </div>
+
+                    <section class="wi-start-section wi-start-planned">
+                        <div class="wi-start-section-head">
+                            <div>
+                                <div class="app-kicker">TODAY'S PLAN</div>
+                                <h3>Planned Workout</h3>
+                            </div>
+                        </div>
+
+                        @{
+                            var plannedFound = false;
+                        }
+
+                        @if (Model.PlannedWorkoutTemplateId.HasValue)
+                        {
+                            @foreach (var workout in Model.Templates
+                                .Where(x => x.WorkoutTemplateId == Model.PlannedWorkoutTemplateId.Value)
+                                .Take(1))
+                            {
+                                plannedFound = true;
+
+                                <form asp-action="UseTemplate"
+                                      method="post"
+                                      class="wi-start-choice-form wi-start-choice-planned">
+                                    @Html.AntiForgeryToken()
+
+                                    <input type="hidden"
+                                           name="templateId"
+                                           value="@workout.WorkoutTemplateId" />
+                                    <input type="hidden"
+                                           name="date"
+                                           value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                    <input type="hidden"
+                                           name="returnContext"
+                                           value="start" />
+
+                                    <button type="submit"
+                                            class="wi-start-choice-button">
+                                        <span class="wi-start-choice-main">
+                                            <strong>@workout.TemplateName</strong>
+                                            <span>@workout.ExerciseCount exercises</span>
+                                        </span>
+                                        <span class="wi-start-now">Start</span>
+                                    </button>
+                                </form>
+                            }
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(Model.PlannedSystemWorkoutCode))
+                        {
+                            @foreach (var workout in Model.WorkoutTypes
+                                .Where(x => x.Code.Equals(
+                                    Model.PlannedSystemWorkoutCode,
+                                    StringComparison.OrdinalIgnoreCase))
+                                .Take(1))
+                            {
+                                plannedFound = true;
+
+                                <form asp-action="UseSystemWorkout"
+                                      method="post"
+                                      class="wi-start-choice-form wi-start-choice-planned">
+                                    @Html.AntiForgeryToken()
+
+                                    <input type="hidden"
+                                           name="systemCode"
+                                           value="@workout.Code" />
+                                    <input type="hidden"
+                                           name="date"
+                                           value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                    <input type="hidden"
+                                           name="returnContext"
+                                           value="start" />
+
+                                    <button type="submit"
+                                            class="wi-start-choice-button">
+                                        <span class="wi-start-choice-main">
+                                            <strong>@workout.DisplayName</strong>
+                                            <span>@workout.GroupName</span>
+                                        </span>
+                                        <span class="wi-start-now">Start</span>
+                                    </button>
+                                </form>
+                            }
+                        }
+
+                        @if (!plannedFound)
+                        {
+                            <div class="wi-start-empty">
+                                No workout is assigned to today's Weekly Plan.
+                                Choose one below.
+                            </div>
+                        }
+                    </section>
+
+                    <section class="wi-start-section">
+                        <details class="wi-start-picker" open>
+                            <summary>
+                                <span>
+                                    <strong>My Workouts</strong>
+                                    <small>Saved workouts you created</small>
+                                </span>
+                                <span>@Model.Templates.Count</span>
+                            </summary>
+
+                            <div class="wi-start-choice-list">
+                                @if (Model.Templates.Count == 0)
+                                {
+                                    <div class="wi-start-empty">
+                                        No saved workouts yet. Use Workout Builder to create one.
+                                    </div>
+                                }
+                                else
+                                {
+                                    @foreach (var workout in Model.Templates)
+                                    {
+                                        var isPlanned =
+                                            Model.PlannedWorkoutTemplateId.HasValue
+                                            && workout.WorkoutTemplateId
+                                                == Model.PlannedWorkoutTemplateId.Value;
+
+                                        <form asp-action="UseTemplate"
+                                              method="post"
+                                              class="wi-start-choice-form @(isPlanned ? "is-planned" : "")">
+                                            @Html.AntiForgeryToken()
+
+                                            <input type="hidden"
+                                                   name="templateId"
+                                                   value="@workout.WorkoutTemplateId" />
+                                            <input type="hidden"
+                                                   name="date"
+                                                   value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                            <input type="hidden"
+                                                   name="returnContext"
+                                                   value="start" />
+
+                                            <button type="submit"
+                                                    class="wi-start-choice-button">
+                                                <span class="wi-start-choice-main">
+                                                    <strong>@workout.TemplateName</strong>
+                                                    <span>
+                                                        @workout.ExerciseCount exercises
+                                                        @(isPlanned ? " - Weekly Plan" : "")
+                                                    </span>
+                                                </span>
+                                                <span class="wi-start-now">Start</span>
+                                            </button>
+                                        </form>
+                                    }
+                                }
+                            </div>
+                        </details>
+                    </section>
+
+                    <section class="wi-start-section">
+                        <details class="wi-start-picker">
+                            <summary>
+                                <span>
+                                    <strong>System Workouts</strong>
+                                    <small>12WR built-in workout recipes</small>
+                                </span>
+                                <span>@Model.WorkoutTypes.Count</span>
+                            </summary>
+
+                            <div class="wi-start-choice-list">
+                                @foreach (var workout in Model.WorkoutTypes)
+                                {
+                                    var isPlanned =
+                                        !string.IsNullOrWhiteSpace(Model.PlannedSystemWorkoutCode)
+                                        && workout.Code.Equals(
+                                            Model.PlannedSystemWorkoutCode,
+                                            StringComparison.OrdinalIgnoreCase);
+
+                                    <form asp-action="UseSystemWorkout"
+                                          method="post"
+                                          class="wi-start-choice-form @(isPlanned ? "is-planned" : "")">
+                                        @Html.AntiForgeryToken()
+
+                                        <input type="hidden"
+                                               name="systemCode"
+                                               value="@workout.Code" />
+                                        <input type="hidden"
+                                               name="date"
+                                               value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                        <input type="hidden"
+                                               name="returnContext"
+                                               value="start" />
+
+                                        <button type="submit"
+                                                class="wi-start-choice-button">
+                                            <span class="wi-start-choice-main">
+                                                <strong>@workout.DisplayName</strong>
+                                                <span>
+                                                    @workout.GroupName
+                                                    @(isPlanned ? " - Weekly Plan" : "")
+                                                </span>
+                                            </span>
+                                            <span class="wi-start-now">Start</span>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </details>
+                    </section>
+
+                    <div class="wi-start-builder-link">
+                        <span>Need to create or change a reusable workout?</span>
+                        <a class="button"
+                           asp-action="Index"
+                           asp-route-mode="saved"
+                           asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">
+                            Open Workout Builder
+                        </a>
+                    </div>
+                </div>
+            }
+            else if (isNew)
+            {
+                @if (Model.EditCompleted)
+                {
+                    <div class="app-message warning">
+                        You are editing a completed workout.
+                        Saving changes updates that historical workout only.
+                    </div>
+                }
+
+                <form asp-action="Save"
+                      method="post"
+                      id="wi-detailed-workout-form"
+                      class="wi-editor">
+
+                    @Html.AntiForgeryToken()
+
+                    <input asp-for="WorkoutSessionId" type="hidden" />
+                    <input asp-for="Date" type="hidden" />
+                    <input asp-for="DefaultLoadUnitCode" type="hidden" />
+                    <input asp-for="SourceTemplateId" type="hidden" />
+                    <input asp-for="EditCompleted" type="hidden" />
+                    <input asp-for="DraftWorkoutTypeCode" type="hidden" />
+                    <input asp-for="TemplateOnlyMode" type="hidden" />
+                    <input asp-for="ReturnContext" type="hidden" />
+                    <input type="hidden"
+                           name="ReturnWeekStart"
+                           value="@(Model.ReturnWeekStart?.ToString("yyyy-MM-dd") ?? "")" />
+
+                    <label class="wi-name-field">
+                        Workout name
+                        <input asp-for="WorkoutName"
+                               maxlength="120"
+                               required
+                               placeholder="Name this workout" />
+                    </label>
+
+                    <div id="wi-exercise-search"
+                         class="wi-search-simple"
+                         data-search-url="@Url.Action("SearchExercises", "DetailedWorkout")"
+                         data-favorite-url="@Url.Action("SetFavorite", "DetailedWorkout")">
+
+                        <input id="wi-search-input"
+                               type="search"
+                               autocomplete="off"
+                               placeholder="Search exercise or muscle..." />
+
+                        <div id="wi-search-status"
+                             class="wi-search-status"
+                             aria-live="polite">
+                            Type an exercise name or muscle to search.
+                        </div>
+
+                        <div id="wi-search-results"
+                             class="wi-search-results"
+                             hidden></div>
+                    </div>
+
+                    <div id="wi-exercise-list"
+                         class="wi-selected-exercises"
+                         data-default-unit="@Model.DefaultLoadUnitCode">
+
+                        @for (var i = 0;
+                              i < Model.Exercises.Count;
+                              i++)
+                        {
+                            var exercise =
+                                Model.Exercises[i];
+
+                            <article class="wi-workout-exercise"
+                                     data-exercise-card
+                                     data-exercise-id="@exercise.ExerciseId">
+
+                                <input type="hidden"
+                                       name="Exercises[@i].ExerciseId"
+                                       value="@exercise.ExerciseId"
+                                       data-field="ExerciseId" />
+
+                                <input type="hidden"
+                                       name="Exercises[@i].ExerciseName"
+                                       value="@exercise.ExerciseName"
+                                       data-field="ExerciseName" />
+
+                                <input type="hidden"
+                                       name="Exercises[@i].Mechanics"
+                                       value="@exercise.Mechanics"
+                                       data-field="Mechanics" />
+
+                                <div class="wi-workout-exercise-name">
+                                    <strong>@exercise.ExerciseName</strong>
+                                </div>
+
+                                @{
+                                    var setReps =
+                                        exercise.SetReps.Count == exercise.Sets
+                                            ? exercise.SetReps
+                                            : Enumerable.Repeat(
+                                                    exercise.Reps,
+                                                    Math.Clamp(
+                                                        exercise.Sets,
+                                                        1,
+                                                        20))
+                                                .ToList();
+                                }
+
+                                <input type="hidden"
+                                       name="Exercises[@i].Reps"
+                                       value="@setReps[0]"
+                                       data-field="Reps" />
+
+                                <input type="hidden"
+                                       name="Exercises[@i].LoadUnitCode"
+                                       value="@exercise.LoadUnitCode"
+                                       data-field="LoadUnitCode" />
+
+                                <label class="wi-sets-field">
+                                    Sets
+                                    <input type="number"
+                                           min="1"
+                                           max="20"
+                                           name="Exercises[@i].Sets"
+                                           value="@exercise.Sets"
+                                           data-field="Sets"
+                                           data-set-count />
+                                </label>
+
+                                <div class="wi-set-reps-group" data-set-reps>
+                                    @for (var setIndex = 0; setIndex < setReps.Count; setIndex++)
+                                    {
+                                        <label class="wi-set-rep-field">
+                                            <span>Reps @(setIndex + 1)</span>
+                                            <input type="number"
+                                                   min="1"
+                                                   max="500"
+                                                   name="Exercises[@i].SetReps[@setIndex]"
+                                                   value="@setReps[setIndex]"
+                                                   data-field="SetReps[@setIndex]"
+                                                   data-set-rep />
+                                                    <input type="hidden"
+                                                           name="Exercises[@i].SetLoads[@setIndex]"
+                                                           value="@(exercise.SetLoads.Count > setIndex && exercise.SetLoads[setIndex].HasValue
+                                                               ? exercise.SetLoads[setIndex]!.Value.ToString("0.##")
+                                                               : "")"
+                                                           data-field="SetLoads[@setIndex]"
+                                                           data-set-load />
+                                        </label>
+                                    }
+                                </div>
+
+                                <label class="wi-heaviest-field">
+                                    Heaviest
+                                    <input type="number"
+                                           min="0"
+                                           max="10000"
+                                           step="1"
+                                           name="Exercises[@i].MaxWeight"
+                                           value="@(exercise.MaxWeight.HasValue
+                                               ? Math.Round(
+                                                   exercise.MaxWeight.Value,
+                                                   0,
+                                                   MidpointRounding.AwayFromZero)
+                                                   .ToString("0")
+                                               : null)"
+                                           data-field="MaxWeight"
+                                           placeholder="Heaviest" />
+                                </label>
+
+                                <button type="button"
+                                        class="workout-delete-button wi-remove-exercise"
+                                        data-remove-exercise>
+                                    Remove
+                                </button>
+                            </article>
+                        }
+                    </div>
+
+                    <div id="wi-empty-workout"
+                         class="wi-empty-selection"
+                         hidden="@(Model.Exercises.Count > 0)">
+                        No exercises selected yet.
+                    </div>
+
+                    <div class="wi-actions wi-primary-save-row">
+                        @if (Model.TemplateOnlyMode)
+                        {
+                            <button class="primary"
+                                    type="submit"
+                                    name="saveTemplate"
+                                    value="true">
+                                Save to Weekly Plan
+                            </button>
+
+                            <span class="wi-save-note">
+                                Saves this as a reusable My Workout and assigns it to
+                                @Model.Date.ToString("dddd"). No actual workout is created yet.
+                            </span>
+                        }
+                        else if (Model.EditCompleted)
+                        {
+                            <button class="primary"
+                                    type="submit"
+                                    name="saveTemplate"
+                                    value="false">
+                                Save Corrections
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="primary"
+                                    type="submit"
+                                    name="saveTemplate"
+                                    value="true">
+                                Save Workout
+                            </button>
+
+                            <button class="button"
+                                    type="submit"
+                                    name="completeWorkout"
+                                    value="true">
+                                Complete
+                            </button>
+
+                            <span class="wi-save-note">
+                                Save keeps it available for later. Workout Complete locks
+                                the session and sends the detailed workout to Engine 3.0.
+                            </span>
+                        }
+                    </div>
+                </form>
+            }
+            else if (isSaved)
+            {
+                @if (Model.Templates.Count == 0)
+                {
+                    <div class="wi-workspace-empty">
+                        You do not have any workouts saved to My Workouts yet.
+                    </div>
+                }
+                else
+                {
+                    <div class="wi-direct-workout-list"
+                         aria-label="My recent workouts">
+                        @foreach (var template in Model.Templates)
+                        {
+                            var isPlanned =
+                                Model.PlannedWorkoutTemplateId.HasValue
+                                && Model.PlannedWorkoutTemplateId.Value
+                                    == template.WorkoutTemplateId;
+
+                            var isSelected =
+                                Model.SelectedTemplateId.HasValue
+                                && Model.SelectedTemplateId.Value
+                                    == template.WorkoutTemplateId;
+
+                            <a class="wi-direct-workout-item @(isPlanned ? "is-weekly-plan" : "") @(isSelected ? "is-selected" : "")"
+                               asp-action="Index"
+                               asp-route-mode="saved"
+                               asp-route-templateId="@template.WorkoutTemplateId"
+                               asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                               asp-route-returnContext="@Model.ReturnContext">
+                                <span class="wi-direct-workout-name">
+                                    @template.TemplateName
+                                </span>
+
+                                <span class="wi-direct-workout-meta">
+                                    @template.ExerciseCount exercise@(template.ExerciseCount == 1 ? "" : "s")
+                                </span>
+
+                                @if (isPlanned)
+                                {
+                                    <span class="wi-weekly-plan-badge">
+                                        Weekly Plan
+                                    </span>
+                                }
+                            </a>
+                        }
+                    </div>
+
+                    @if (Model.SelectedTemplate is not null)
+                    {
+                        if (!Model.ModifySelection)
+                        {
+                            <div class="wi-preview">
+                                <h2>@Model.SelectedTemplate.TemplateName</h2>
+
+                                <div class="wi-preview-list">
+                                    @foreach (var exercise in Model.SelectedTemplate.Exercises)
+                                    {
+                                        <div class="wi-preview-exercise">
+                                            <strong>@exercise.ExerciseName</strong>
+                                            <span>@exercise.Sets sets</span>
+                                            <span>@exercise.Reps reps</span>
+                                            <span>
+                                                @(exercise.MaxWeight.HasValue
+                                                    ? $"{exercise.MaxWeight:0.##} {exercise.LoadUnitCode.ToLowerInvariant()}"
+                                                    : "heaviest set ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â")
+                                            </span>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="wi-actions">
+                                    <form asp-action="UseTemplate"
+                                          method="post">
+                                        @Html.AntiForgeryToken()
+
+                                        <input type="hidden"
+                                               name="templateId"
+                                               value="@Model.SelectedTemplate.WorkoutTemplateId" />
+
+                                        <input type="hidden"
+                                               name="date"
+                                               value="@Model.Date.ToString("yyyy-MM-dd")" />
+
+                                        <input type="hidden"
+                                               name="returnContext"
+                                               value="@Model.ReturnContext" />
+
+                                        <button class="primary"
+                                                type="submit">
+                                            Start Workout
+                                        </button>
+                                    </form>
+
+                                    <a class="button"
+                                       asp-action="Index"
+                                       asp-route-mode="saved"
+                                       asp-route-templateId="@Model.SelectedTemplate.WorkoutTemplateId"
+                                       asp-route-modifySelection="true"
+                                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                       asp-route-returnContext="@Model.ReturnContext">
+                                        Modify
+                                    </a>
+
+                                    <form asp-action="DeleteTemplate"
+                                          method="post"
+                                          onsubmit="return confirm('Delete this workout from My Workouts? Completed workout history will not be changed.');">
+                                        @Html.AntiForgeryToken()
+
+                                        <input type="hidden"
+                                               name="templateId"
+                                               value="@Model.SelectedTemplate.WorkoutTemplateId" />
+
+                                        <input type="hidden"
+                                               name="date"
+                                               value="@Model.Date.ToString("yyyy-MM-dd")" />
+
+                                        <button class="workout-delete-button"
+                                                type="submit">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <form asp-action="UpdateTemplate"
+                                  method="post"
+                                  id="wi-detailed-workout-form"
+                                  class="wi-editor">
+
+                                @Html.AntiForgeryToken()
+
+                                <input asp-for="SelectedTemplateId" type="hidden" />
+                                <input asp-for="Date" type="hidden" />
+                                <input asp-for="DefaultLoadUnitCode" type="hidden" />
+                                <input asp-for="ReturnContext" type="hidden" />
+
+                                <label class="wi-name-field">
+                                    My workout name
+                                    <input asp-for="TemplateName"
+                                           maxlength="120" />
+                                </label>
+
+                                <div id="wi-exercise-search"
+                                     class="wi-search-simple"
+                                     data-search-url="@Url.Action("SearchExercises", "DetailedWorkout")"
+                                     data-favorite-url="@Url.Action("SetFavorite", "DetailedWorkout")">
+
+                                    <input id="wi-search-input"
+                                           type="search"
+                                           autocomplete="off"
+                                           placeholder="Search exercise or muscle..." />
+
+                                    <div id="wi-search-status"
+                                         class="wi-search-status"
+                                         aria-live="polite">
+                                        Type an exercise name or muscle to add another exercise.
+                                    </div>
+
+                                    <div id="wi-search-results"
+                                         class="wi-search-results"
+                                         hidden></div>
+                                </div>
+
+                                <div id="wi-exercise-list"
+                                     class="wi-selected-exercises"
+                                     data-default-unit="@Model.DefaultLoadUnitCode">
+
+                                    @for (var i = 0;
+                                          i < Model.Exercises.Count;
+                                          i++)
+                                    {
+                                        var exercise =
+                                            Model.Exercises[i];
+
+                                        <article class="wi-workout-exercise"
+                                                 data-exercise-card
+                                                 data-exercise-id="@exercise.ExerciseId">
+
+                                            <input type="hidden"
+                                                   name="Exercises[@i].ExerciseId"
+                                                   value="@exercise.ExerciseId"
+                                                   data-field="ExerciseId" />
+
+                                            <input type="hidden"
+                                                   name="Exercises[@i].ExerciseName"
+                                                   value="@exercise.ExerciseName"
+                                                   data-field="ExerciseName" />
+
+                                            <input type="hidden"
+                                                   name="Exercises[@i].Mechanics"
+                                                   value="@exercise.Mechanics"
+                                                   data-field="Mechanics" />
+
+                                            <div class="wi-workout-exercise-name">
+                                                <strong>@exercise.ExerciseName</strong>
+                                            </div>
+
+                                            @{
+                                                var setReps =
+                                                    exercise.SetReps.Count == exercise.Sets
+                                                        ? exercise.SetReps
+                                                        : Enumerable.Repeat(
+                                                                exercise.Reps,
+                                                                Math.Clamp(
+                                                                    exercise.Sets,
+                                                                    1,
+                                                                    20))
+                                                            .ToList();
+                                            }
+
+                                            <input type="hidden"
+                                                   name="Exercises[@i].Reps"
+                                                   value="@setReps[0]"
+                                                   data-field="Reps" />
+
+                                            <input type="hidden"
+                                                   name="Exercises[@i].LoadUnitCode"
+                                                   value="@exercise.LoadUnitCode"
+                                                   data-field="LoadUnitCode" />
+
+                                            <label class="wi-sets-field">
+                                                Sets
+                                                <input type="number"
+                                                       min="1"
+                                                       max="20"
+                                                       name="Exercises[@i].Sets"
+                                                       value="@exercise.Sets"
+                                                       data-field="Sets"
+                                                       data-set-count />
+                                            </label>
+
+                                            <div class="wi-set-reps-group" data-set-reps>
+                                                @for (var setIndex = 0; setIndex < setReps.Count; setIndex++)
+                                                {
+                                                    <label class="wi-set-rep-field">
+                                                        <span>Reps @(setIndex + 1)</span>
+                                                        <input type="number"
+                                                               min="1"
+                                                               max="500"
+                                                               name="Exercises[@i].SetReps[@setIndex]"
+                                                               value="@setReps[setIndex]"
+                                                               data-field="SetReps[@setIndex]"
+                                                               data-set-rep />
+                                                    <input type="hidden"
+                                                           name="Exercises[@i].SetLoads[@setIndex]"
+                                                           value="@(exercise.SetLoads.Count > setIndex && exercise.SetLoads[setIndex].HasValue
+                                                               ? exercise.SetLoads[setIndex]!.Value.ToString("0.##")
+                                                               : "")"
+                                                           data-field="SetLoads[@setIndex]"
+                                                           data-set-load />
+                                                    </label>
+                                                }
+                                            </div>
+
+                                            <label class="wi-heaviest-field">
+                                                Heaviest
+                                                <input type="number"
+                                                       min="0"
+                                                       max="10000"
+                                                       step="1"
+                                                       name="Exercises[@i].MaxWeight"
+                                                       value="@(exercise.MaxWeight.HasValue
+                                               ? Math.Round(
+                                                   exercise.MaxWeight.Value,
+                                                   0,
+                                                   MidpointRounding.AwayFromZero)
+                                                   .ToString("0")
+                                               : null)"
+                                                       data-field="MaxWeight"
+                                                       placeholder="Heaviest" />
+                                            </label>
+
+                                            <button type="button"
+                                                    class="workout-delete-button wi-remove-exercise"
+                                                    data-remove-exercise>
+                                                Remove
+                                            </button>
+                                        </article>
+                                    }
+                                </div>
+
+                                <div id="wi-empty-workout"
+                                     class="wi-empty-selection"
+                                     hidden="@(Model.Exercises.Count > 0)">
+                                    No exercises selected.
+                                </div>
+
+                                <div class="wi-actions">
+                                    <button class="primary"
+                                            type="submit">
+                                        Save Changes
+                                    </button>
+
+                                    <a class="button"
+                                       asp-action="Index"
+                                       asp-route-mode="saved"
+                                       asp-route-templateId="@Model.SelectedTemplateId"
+                                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                       asp-route-returnContext="@Model.ReturnContext">
+                                        Cancel
+                                    </a>
+                                </div>
+                            </form>
+                        }
+                    }
+                }
+            }
+            else if (isSystem)
+            {
+                @if (Model.WorkoutTypes.Count == 0)
+                {
+                    <div class="wi-workspace-empty">
+                        No system workouts are available.
+                    </div>
+                }
+                else
+                {
+                    <div class="wi-direct-workout-list wi-system-workout-list"
+                         aria-label="System workouts">
+                        @foreach (
+                            var option in Model.WorkoutTypes
+                                .OrderByDescending(
+                                    x =>
+                                        !string.IsNullOrWhiteSpace(
+                                            Model.PlannedSystemWorkoutCode)
+                                        && x.Code.Equals(
+                                            Model.PlannedSystemWorkoutCode,
+                                            StringComparison.OrdinalIgnoreCase))
+                                .ThenBy(
+                                    x => x.GroupName,
+                                    StringComparer.OrdinalIgnoreCase)
+                                .ThenBy(
+                                    x => x.DisplayName,
+                                    StringComparer.OrdinalIgnoreCase))
+                        {
+                            var isPlanned =
+                                !string.IsNullOrWhiteSpace(
+                                    Model.PlannedSystemWorkoutCode)
+                                && option.Code.Equals(
+                                    Model.PlannedSystemWorkoutCode,
+                                    StringComparison.OrdinalIgnoreCase);
+
+                            var isSelected =
+                                !string.IsNullOrWhiteSpace(
+                                    Model.SelectedSystemWorkoutCode)
+                                && option.Code.Equals(
+                                    Model.SelectedSystemWorkoutCode,
+                                    StringComparison.OrdinalIgnoreCase);
+
+                            <a class="wi-direct-workout-item @(isPlanned ? "is-weekly-plan" : "") @(isSelected ? "is-selected" : "")"
+                               asp-action="Index"
+                               asp-route-mode="system"
+                               asp-route-systemCode="@option.Code"
+                               asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                               asp-route-returnContext="@Model.ReturnContext">
+                                <span class="wi-direct-workout-name">
+                                    @option.DisplayName
+                                </span>
+
+                                <span class="wi-direct-workout-meta">
+                                    @option.GroupName
+                                </span>
+
+                                @if (isPlanned)
+                                {
+                                    <span class="wi-weekly-plan-badge">
+                                        Weekly Plan
+                                    </span>
+                                }
+                            </a>
+                        }
+                    </div>
+
+                    @if (Model.SelectedSystemWorkout is not null)
+                    {
+                        if (!Model.ModifySelection)
+                        {
+                            <div class="wi-preview">
+                                <h2>@Model.SelectedSystemWorkout.DisplayName</h2>
+                                <p class="small">
+                                    @Model.SelectedSystemWorkout.GroupName ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢
+                                    @Model.SelectedSystemWorkout.DefaultMinutes.ToString("0") min ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢
+                                    RPE @Model.SelectedSystemWorkout.DefaultRpe.ToString("0.#")
+                                </p>
+
+                                @if (!string.IsNullOrWhiteSpace(
+                                    Model.SelectedSystemWorkout.Description))
+                                {
+                                    <p class="small">
+                                        @Model.SelectedSystemWorkout.Description
+                                    </p>
+                                }
+
+                                @if (Model.SelectedSystemWorkout.Exercises.Count > 0)
+                                {
+                                    <p class="small">
+                                        Exercise fit comes first. Initial choices are seeded from public evidence-oriented trainer recommendations; as 12WR heart data grows, platform favorites can rotate equally appropriate exercises. Your own favorites and prior use still help.
+                                    </p>
+
+                                    <div class="wi-preview-list">
+                                        @foreach (var exercise in Model.SelectedSystemWorkout.Exercises)
+                                        {
+                                            <div class="wi-preview-exercise">
+                                                <strong>@exercise.ExerciseName</strong>
+                                                <span>@exercise.Sets sets</span>
+                                                <span>@exercise.Reps reps</span>
+                                                <span>
+                                                    @(exercise.MaxWeight.HasValue
+                                                        ? $"{exercise.MaxWeight:0.##} {exercise.LoadUnitCode.ToLowerInvariant()}"
+                                                        : "heaviest set ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â")
+                                                </span>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="wi-workspace-empty">
+                                        This workout is driven by its Engine 3.0 duration/intensity prescription. 12WR intentionally does not create fake rep-based lifting sets for it.
+                                    </div>
+                                }
+
+                                <div class="wi-actions">
+                                    <form asp-action="UseSystemWorkout"
+                                          method="post">
+                                        @Html.AntiForgeryToken()
+
+                                        <input type="hidden"
+                                               name="systemCode"
+                                               value="@Model.SelectedSystemWorkout.SystemCode" />
+
+                                        <input type="hidden"
+                                               name="date"
+                                               value="@Model.Date.ToString("yyyy-MM-dd")" />
+
+                                        <input type="hidden"
+                                               name="returnContext"
+                                               value="@Model.ReturnContext" />
+
+                                        <button class="primary"
+                                                type="submit">
+                                            Start Workout
+                                        </button>
+                                    </form>
+
+                                    <a class="button"
+                                       asp-action="Index"
+                                       asp-route-mode="system"
+                                       asp-route-systemCode="@Model.SelectedSystemWorkout.SystemCode"
+                                       asp-route-modifySelection="true"
+                                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                       asp-route-returnContext="@Model.ReturnContext">
+                                        Modify
+                                    </a>
+
+                                    <button class="workout-delete-button"
+                                            type="button"
+                                            disabled
+                                            title="System workouts are built in. Modify one to make your own version.">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <form asp-action="Save"
+                                  method="post"
+                                  id="wi-detailed-workout-form"
+                                  class="wi-editor">
+
+                                @Html.AntiForgeryToken()
+
+                                <input asp-for="WorkoutSessionId" type="hidden" />
+                                <input asp-for="Date" type="hidden" />
+                                <input asp-for="DefaultLoadUnitCode" type="hidden" />
+                                <input asp-for="DraftWorkoutTypeCode" type="hidden" />
+                                <input asp-for="ReturnContext" type="hidden" />
+
+                                <label class="wi-name-field">
+                                    Workout name
+                                    <input asp-for="WorkoutName"
+                                           maxlength="120"
+                                           required />
+                                </label>
+
+                                <div id="wi-exercise-search"
+                                     class="wi-search-simple"
+                                     data-search-url="@Url.Action("SearchExercises", "DetailedWorkout")"
+                                     data-favorite-url="@Url.Action("SetFavorite", "DetailedWorkout")">
+
+                                    <input id="wi-search-input"
+                                           type="search"
+                                           autocomplete="off"
+                                           placeholder="Search exercise or muscle..." />
+
+                                    <div id="wi-search-status"
+                                         class="wi-search-status"
+                                         aria-live="polite">
+                                        Type an exercise name or muscle to modify this workout.
+                                    </div>
+
+                                    <div id="wi-search-results"
+                                         class="wi-search-results"
+                                         hidden></div>
+                                </div>
+
+                                <div id="wi-exercise-list"
+                                     class="wi-selected-exercises"
+                                     data-default-unit="@Model.DefaultLoadUnitCode">
+
+                                    @for (var i = 0;
+                                          i < Model.Exercises.Count;
+                                          i++)
+                                    {
+                                        var exercise =
+                                            Model.Exercises[i];
+
+                                        <article class="wi-workout-exercise"
+                                                 data-exercise-card
+                                                 data-exercise-id="@exercise.ExerciseId">
+
+                                            <input type="hidden"
+                                                   name="Exercises[@i].ExerciseId"
+                                                   value="@exercise.ExerciseId"
+                                                   data-field="ExerciseId" />
+
+                                            <input type="hidden"
+                                                   name="Exercises[@i].ExerciseName"
+                                                   value="@exercise.ExerciseName"
+                                                   data-field="ExerciseName" />
+
+                                            <input type="hidden"
+                                                   name="Exercises[@i].Mechanics"
+                                                   value="@exercise.Mechanics"
+                                                   data-field="Mechanics" />
+
+                                            <div class="wi-workout-exercise-name">
+                                                <strong>@exercise.ExerciseName</strong>
+                                            </div>
+
+                                            @{
+                                                var setReps =
+                                                    exercise.SetReps.Count == exercise.Sets
+                                                        ? exercise.SetReps
+                                                        : Enumerable.Repeat(
+                                                                exercise.Reps,
+                                                                Math.Clamp(
+                                                                    exercise.Sets,
+                                                                    1,
+                                                                    20))
+                                                            .ToList();
+                                            }
+
+                                            <input type="hidden"
+                                                   name="Exercises[@i].Reps"
+                                                   value="@setReps[0]"
+                                                   data-field="Reps" />
+
+                                            <input type="hidden"
+                                                   name="Exercises[@i].LoadUnitCode"
+                                                   value="@exercise.LoadUnitCode"
+                                                   data-field="LoadUnitCode" />
+
+                                            <label class="wi-sets-field">
+                                                Sets
+                                                <input type="number"
+                                                       min="1"
+                                                       max="20"
+                                                       name="Exercises[@i].Sets"
+                                                       value="@exercise.Sets"
+                                                       data-field="Sets"
+                                                       data-set-count />
+                                            </label>
+
+                                            <div class="wi-set-reps-group" data-set-reps>
+                                                @for (var setIndex = 0; setIndex < setReps.Count; setIndex++)
+                                                {
+                                                    <label class="wi-set-rep-field">
+                                                        <span>Reps @(setIndex + 1)</span>
+                                                        <input type="number"
+                                                               min="1"
+                                                               max="500"
+                                                               name="Exercises[@i].SetReps[@setIndex]"
+                                                               value="@setReps[setIndex]"
+                                                               data-field="SetReps[@setIndex]"
+                                                               data-set-rep />
+                                                    <input type="hidden"
+                                                           name="Exercises[@i].SetLoads[@setIndex]"
+                                                           value="@(exercise.SetLoads.Count > setIndex && exercise.SetLoads[setIndex].HasValue
+                                                               ? exercise.SetLoads[setIndex]!.Value.ToString("0.##")
+                                                               : "")"
+                                                           data-field="SetLoads[@setIndex]"
+                                                           data-set-load />
+                                                    </label>
+                                                }
+                                            </div>
+
+                                            <label class="wi-heaviest-field">
+                                                Heaviest
+                                                <input type="number"
+                                                       min="0"
+                                                       max="10000"
+                                                       step="1"
+                                                       name="Exercises[@i].MaxWeight"
+                                                       value="@(exercise.MaxWeight.HasValue
+                                               ? Math.Round(
+                                                   exercise.MaxWeight.Value,
+                                                   0,
+                                                   MidpointRounding.AwayFromZero)
+                                                   .ToString("0")
+                                               : null)"
+                                                       data-field="MaxWeight"
+                                                       placeholder="Heaviest" />
+                                            </label>
+
+                                            <button type="button"
+                                                    class="workout-delete-button wi-remove-exercise"
+                                                    data-remove-exercise>
+                                                Remove
+                                            </button>
+                                        </article>
+                                    }
+                                </div>
+
+                                <div id="wi-empty-workout"
+                                     class="wi-empty-selection"
+                                     hidden="@(Model.Exercises.Count > 0)">
+                                    No exercises selected.
+                                </div>
+
+                                <div class="wi-actions">
+                                    <button class="primary wi-live-primary"
+                                            type="submit"
+                                            name="saveTemplate"
+                                            value="true">
+                                        Save as My Workout
+                                    </button>
+
+                                    <a class="button wi-live-secondary"
+                                       asp-action="Index"
+                                       asp-route-mode="system"
+                                       asp-route-systemCode="@Model.SelectedSystemWorkoutCode"
+                                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                       asp-route-returnContext="@Model.ReturnContext">
+                                        Cancel
+                                    </a>
+                                </div>
+                            </form>
+                        }
+                    }
+                }
+            }
+        </section>
+    }
+</div>
+
+<script src="~/js/system-workout-picker.js"
+        asp-append-version="true"></script>
+
+<script src="~/js/detailed-workout.js"
+        asp-append-version="true"></script>

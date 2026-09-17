@@ -1,0 +1,53 @@
+12 Week Recomp v1005a
+
+Purpose
+-------
+v1005a is a UX/authentication refinement of the working v1005 External ID build.
+No database migration is required.
+
+Included changes
+----------------
+1. Promptless sign-out behavior
+   - If the signed-in ID token contains Entra's optional login_hint claim, Recomp sends it as logout_hint for a full promptless OIDC sign-out.
+   - If an older session does not contain login_hint, Recomp clears the local application session and returns directly to Welcome instead of showing the account-selection prompt.
+
+2. Dashboard missing-weight state
+   - Dashboard remains a Dashboard route/page when today’s morning weight has not been entered.
+   - It shows a clear Morning weight needed message and an Enter morning weight action instead of redirecting or throwing an HTTP 500.
+   - Daily Weigh-In marks Weight with the required asterisk because today’s Dashboard remains gated until today’s weight is saved.
+
+3. Autosave for operational entry pages
+   - Daily Weigh-In
+   - Daily Nutrition
+   - Daily Workout
+   - Weekly Plan
+   Values post automatically after changes; manual Save buttons are retained only as a no-JavaScript fallback.
+   Weekly Plan refreshes after the autosave settles so recalculated targets are visible.
+
+4. Daily measurement autosave safety
+   - Daily measurements use a stable DAILY source record and update that row during autosave.
+   - Intake baseline measurements use INTAKE provenance so autosave does not overwrite the protected baseline.
+
+5. Required-field display convention
+   - Required fields use a single asterisk (*).
+   - Optional fields are left unmarked; repeated "optional" labels were removed from Intake.
+   - Nutrition required fields are Calories, Protein, Carbs, and Fat.
+
+6. Version labeling
+   - SpecificationVersion = 1005a
+   - Footer = Web Recomp v1005a
+   - Deployment artifact name = web-recomp-v1005a.zip
+
+Entra step for full promptless provider logout
+----------------------------------------------
+In the 12 Week Recomp External ID tenant:
+App registrations -> 12 Week Recomp - Test -> Token configuration -> Add optional claim -> ID -> login_hint -> Add.
+Then sign out locally and sign in again so a fresh ID token contains login_hint.
+
+Validation before deployment
+----------------------------
+Run:
+  dotnet build .\src\WebRecomp.Web\WebRecomp.Web.csproj -c Release
+  powershell -ExecutionPolicy Bypass -File .\scripts\06_regression_math_smoke.ps1
+
+Then deploy only if both pass.

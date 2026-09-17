@@ -1,0 +1,86 @@
+@model WebRecomp.Web.Controllers.TestDiagnosticErrorViewModel
+@{
+    ViewData["Title"] = "Something went wrong";
+}
+
+<div class="app-page" style="max-width: 1000px; margin: 0 auto;">
+    <section class="card" style="border: 2px solid #f59e0b;">
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+            <span style="font-weight:800; letter-spacing:.08em; color:#b45309;">
+                TEST DIAGNOSTICS
+            </span>
+            <span class="small">
+                Keep in TEST. Do not promote this diagnostic surface to LIVE.
+            </span>
+        </div>
+
+        <h1>Something went wrong</h1>
+        <p>
+            The request failed, but TEST captured a sanitized diagnostic report.
+            Copy it and paste it into the development chat so the exact failure can be traced.
+        </p>
+
+        <div class="app-action-row" style="margin:16px 0;">
+            <button type="button"
+                    class="primary"
+                    id="copy-test-diagnostics">
+                Copy Diagnostics
+            </button>
+            <span id="copy-test-diagnostics-status"
+                  class="small"
+                  aria-live="polite"></span>
+        </div>
+
+        <pre id="test-error-diagnostics"
+             style="white-space:pre-wrap; overflow-wrap:anywhere; padding:16px; border-radius:10px; background:#111827; color:#f9fafb; line-height:1.5;">12 WEEK RECOMP - TEST ERROR DIAGNOSTICS
+Error ID: @Model.ErrorId
+UTC: @Model.TimestampUtc.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+Method: @Model.RequestMethod
+Path: @Model.RequestPath
+Controller: @(Model.Controller ?? "(unknown)")
+Action: @(Model.Action ?? "(unknown)")
+Endpoint: @(Model.Endpoint ?? "(unknown)")
+Exception Type: @Model.ExceptionType
+Message: @(Model.Message ?? "(no message)")
+Inner Exception Type: @(Model.InnerExceptionType ?? "(none)")
+Inner Message: @(Model.InnerMessage ?? "(none)")
+SQL Error Number: @(Model.SqlErrorNumber?.ToString() ?? "(none)")</pre>
+
+        <p class="small" style="margin-top:12px;">
+            This page intentionally omits stack traces, authentication data,
+            cookies, claims, tokens, connection strings, and request bodies.
+            The Error ID is also written to the TEST server log with the full exception.
+        </p>
+    </section>
+</div>
+
+<script>
+(() => {
+    const button = document.getElementById("copy-test-diagnostics");
+    const report = document.getElementById("test-error-diagnostics");
+    const status = document.getElementById("copy-test-diagnostics-status");
+
+    if (!button || !report) return;
+
+    button.addEventListener("click", async () => {
+        const text = report.innerText;
+
+        try {
+            await navigator.clipboard.writeText(text);
+            if (status) status.textContent = "Copied.";
+        }
+        catch {
+            const range = document.createRange();
+            range.selectNodeContents(report);
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            if (status) {
+                status.textContent =
+                    "Clipboard access was blocked. The diagnostics are selected; press Ctrl+C.";
+            }
+        }
+    });
+})();
+</script>

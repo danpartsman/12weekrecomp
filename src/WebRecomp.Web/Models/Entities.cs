@@ -174,6 +174,13 @@ public sealed class ProgramRecord
     public DateOnly StartDate { get; set; }
     public short DurationWeeks { get; set; }
     public byte AvailableTrainingDaysWeek { get; set; }
+
+    // v1010 optional-input preferences are program-scoped so a future
+    // coach account can manage multiple clients without one account-level
+    // preference leaking across client programs. Defaults remain OFF/OFF.
+    public bool DetailedWorkoutEntryEnabled { get; set; }
+    public bool NutritionFoodLogEnabled { get; set; }
+
     public string ProgramStatusCode { get; set; } = "ACTIVE";
     public byte[] RowVersion { get; set; } = [];
     public DateTime CreatedAtUtc { get; set; }
@@ -256,7 +263,25 @@ public sealed class PlannedWorkout
     public Guid ClientId { get; set; }
     public Guid ProgramId { get; set; }
     public DateOnly PlannedDate { get; set; }
+
+    // Generic Engine/planning category used for target calculations.
     public required string WorkoutTypeCode { get; set; }
+
+    // Optional client-owned reusable workout selected from My Workouts.
+    // When present, WorkoutTypeCode remains the template's underlying
+    // Engine-compatible planning category.
+    public Guid? WorkoutTemplateId { get; set; }
+
+    // Optional built-in 12WR System Workout recipe selected for this day.
+    // WorkoutTypeCode remains the canonical Engine 3.0 physiology type.
+    public string? SystemWorkoutCode { get; set; }
+
+    // Optional presentation-level plan defaults from a selected System Workout.
+    // Null preserves the underlying Engine 3.0 profile defaults. These values
+    // are canonical planned-input overrides, not new physiology coefficients.
+    public decimal? PlannedDurationMin { get; set; }
+    public decimal? PlannedRpe { get; set; }
+
     public string SourceCode { get; set; } = "CLIENT";
     public string? Notes { get; set; }
     public byte[] RowVersion { get; set; } = [];
@@ -270,6 +295,9 @@ public sealed class WorkoutSession
     public Guid ClientId { get; set; }
     public Guid ProgramId { get; set; }
     public DateOnly WorkoutDate { get; set; }
+    public string? WorkoutName { get; set; }
+    public Guid? WorkoutTemplateId { get; set; }
+    public string? SystemWorkoutCode { get; set; }
     public required string WorkoutTypeCode { get; set; }
     public decimal DurationMin { get; set; }
     public short? TypicalRestSec { get; set; }
@@ -582,5 +610,212 @@ public sealed class ClientOccupationalActivity
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime UpdatedAtUtc { get; set; }
+}
+
+public sealed class ExerciseCatalogImportRecord
+{
+    public Guid ExerciseCatalogImportId { get; set; }
+    public required string SourceCode { get; set; }
+    public required string LicenseCode { get; set; }
+    public string? SourceVersion { get; set; }
+    public string? ManifestSha256 { get; set; }
+    public DateTime CapturedAtUtc { get; set; }
+    public int ExerciseCount { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+}
+
+public sealed class ExerciseCatalogItemRecord
+{
+    public Guid ExerciseCatalogItemId { get; set; }
+    public required string SourceCode { get; set; }
+    public required string SourceExternalId { get; set; }
+    public required string Name { get; set; }
+    public required string MeasurementType { get; set; }
+    public string? DifficultyLevel { get; set; }
+    public string? ForceType { get; set; }
+    public string? Mechanics { get; set; }
+    public string? Category { get; set; }
+    public string? InstructionsJson { get; set; }
+    public bool IsActive { get; set; } = true;
+    public Guid? LastImportId { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+
+    public List<ExerciseMuscleTargetRecord> MuscleTargets { get; set; } = [];
+    public List<ExerciseEquipmentRequirementRecord> Equipment { get; set; } = [];
+}
+
+public sealed class ExerciseMuscleTargetRecord
+{
+    public Guid ExerciseMuscleTargetId { get; set; }
+    public Guid ExerciseCatalogItemId { get; set; }
+    public required string ExternalId { get; set; }
+    public required string MuscleSlug { get; set; }
+    public required string MuscleName { get; set; }
+    public required string RoleCode { get; set; }
+    public short DisplayOrder { get; set; }
+    public ExerciseCatalogItemRecord? Exercise { get; set; }
+}
+
+public sealed class ExerciseEquipmentRequirementRecord
+{
+    public Guid ExerciseEquipmentRequirementId { get; set; }
+    public Guid ExerciseCatalogItemId { get; set; }
+    public required string ExternalId { get; set; }
+    public required string EquipmentName { get; set; }
+    public required string EquipmentType { get; set; }
+    public string? UsageType { get; set; }
+    public int? NumItems { get; set; }
+    public short DisplayOrder { get; set; }
+    public ExerciseCatalogItemRecord? Exercise { get; set; }
+}
+
+public sealed class DetailedWorkoutExerciseRecord
+{
+    public Guid DetailedWorkoutExerciseId { get; set; }
+    public Guid WorkoutSessionId { get; set; }
+    public Guid ExerciseCatalogItemId { get; set; }
+    public short ExerciseOrder { get; set; }
+    public required string ExerciseNameSnapshot { get; set; }
+    public string? MechanicsSnapshot { get; set; }
+    public string? Notes { get; set; }
+    public decimal? MaxWeight { get; set; }
+    public string LoadUnitCode { get; set; } = "LB";
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+    public List<DetailedWorkoutSetRecord> Sets { get; set; } = [];
+}
+
+public sealed class DetailedWorkoutSetRecord
+{
+    public Guid DetailedWorkoutSetId { get; set; }
+    public Guid DetailedWorkoutExerciseId { get; set; }
+    public short SetOrder { get; set; }
+    public short? Reps { get; set; }
+    public decimal? Load { get; set; }
+    public string LoadUnitCode { get; set; } = "LB";
+    public decimal? Rpe { get; set; }
+    public decimal? Rir { get; set; }
+    public int? RestSeconds { get; set; }
+    public int? DurationSeconds { get; set; }
+    public bool IsWarmup { get; set; }
+    public string? Notes { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+}
+
+
+
+public sealed class WorkoutTemplateRecord
+{
+    public Guid WorkoutTemplateId { get; set; }
+    public Guid ClientId { get; set; }
+    public required string TemplateName { get; set; }
+    public required string WorkoutTypeCode { get; set; }
+    public decimal DefaultDurationMin { get; set; }
+    public string? Notes { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+    public List<WorkoutTemplateExerciseRecord> Exercises { get; set; } = [];
+}
+
+public sealed class WorkoutTemplateExerciseRecord
+{
+    public Guid WorkoutTemplateExerciseId { get; set; }
+    public Guid WorkoutTemplateId { get; set; }
+    public Guid ExerciseCatalogItemId { get; set; }
+    public short ExerciseOrder { get; set; }
+    public required string ExerciseNameSnapshot { get; set; }
+    public string? MechanicsSnapshot { get; set; }
+    public short Sets { get; set; } = 3;
+    public short Reps { get; set; } = 10;
+
+    // Optional JSON array containing one rep value per working set.
+    // Legacy rows with null continue to use Reps for every set.
+    public string? SetRepsJson { get; set; }
+
+    // B2.35.16 TEMPLATE PRESCRIPTION TEXT
+    // These fields preserve the user's intended prescription exactly.
+    // Numeric Sets/Reps/MaxWeight remain deterministic launch defaults.
+    public string? SetsPrescription { get; set; }
+    public string? RepsPrescription { get; set; }
+    public string? WeightPrescription { get; set; }
+
+    public decimal? MaxWeight { get; set; }
+    public string LoadUnitCode { get; set; } = "LB";
+    public string? Notes { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+}
+
+public sealed class ClientExercisePreferenceRecord
+{
+    public Guid ClientExercisePreferenceId { get; set; }
+    public Guid ClientId { get; set; }
+    public Guid ExerciseCatalogItemId { get; set; }
+    public bool IsFavorite { get; set; }
+    public short DefaultSets { get; set; } = 3;
+    public short DefaultReps { get; set; } = 10;
+    public decimal? DefaultMaxWeight { get; set; }
+    public string LoadUnitCode { get; set; } = "LB";
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+}
+
+public sealed class ExerciseCatalogSyncSettingRecord
+{
+    public Guid ExerciseCatalogSyncSettingId { get; set; }
+    public required string SettingsKey { get; set; }
+    public required string ActiveProviderCode { get; set; }
+    public required string MediaProviderCode { get; set; }
+    public bool AutoSyncEnabled { get; set; }
+    public int RefreshIntervalDays { get; set; }
+    public DateTime? LastCheckedAtUtc { get; set; }
+    public DateTime? LastSuccessfulSyncAtUtc { get; set; }
+    public string? LastDatasetSha256 { get; set; }
+    public string? LastProviderVersion { get; set; }
+    public string? LastProviderEtag { get; set; }
+    public string? LastError { get; set; }
+    public Guid? SyncLeaseId { get; set; }
+    public DateTime? SyncLeaseUntilUtc { get; set; }
+    public Guid? UpdatedByUserId { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+}
+
+public sealed class ExerciseCatalogSyncRunRecord
+{
+    public Guid ExerciseCatalogSyncRunId { get; set; }
+    public required string ProviderCode { get; set; }
+    public required string TriggerCode { get; set; }
+    public required string StatusCode { get; set; }
+    public DateTime StartedAtUtc { get; set; }
+    public DateTime? CompletedAtUtc { get; set; }
+    public string? DatasetSha256 { get; set; }
+    public string? SourceVersion { get; set; }
+    public int? AddedCount { get; set; }
+    public int? UpdatedCount { get; set; }
+    public int? DeactivatedCount { get; set; }
+    public int? ActiveCount { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+public sealed class ExerciseMediaAssetRecord
+{
+    public Guid ExerciseMediaAssetId { get; set; }
+    public Guid ExerciseCatalogItemId { get; set; }
+    public required string ProviderCode { get; set; }
+    public required string SourceExternalId { get; set; }
+    public required string MediaTypeCode { get; set; }
+    public string? MediaUrl { get; set; }
+    public string? LocalPath { get; set; }
+    public string? LicenseCode { get; set; }
+    public string? Attribution { get; set; }
+    public short DisplayOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+    public Guid? LastSeenSyncRunId { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+    public ExerciseCatalogItemRecord? Exercise { get; set; }
 }
 

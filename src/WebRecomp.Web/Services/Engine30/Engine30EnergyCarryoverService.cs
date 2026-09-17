@@ -1,4 +1,4 @@
-﻿namespace WebRecomp.Web.Services.Engine30;
+namespace WebRecomp.Web.Services.Engine30;
 
 public sealed record Engine30EnergyCarryoverDayResult(
     DateOnly Date,
@@ -280,10 +280,25 @@ public sealed class Engine30EnergyCarryoverService
             }
         }
 
+        var totalApplied =
+            states.Sum(
+                x => x.CorrectionAppliedKcal);
+
         if (totalEligible > 0m)
         {
             reasons.Add(
-                "PRIOR_CALORIE_SURPLUS_PARTIALLY_RECOVERED");
+                "PRIOR_CALORIE_SURPLUS_ELIGIBLE_FOR_RECOVERY");
+
+            if (totalApplied > 0m)
+            {
+                reasons.Add(
+                    "PRIOR_CALORIE_SURPLUS_PARTIALLY_RECOVERED");
+            }
+            else
+            {
+                reasons.Add(
+                    "PRIOR_CALORIE_SURPLUS_NOT_RECOVERED");
+            }
         }
 
         if (

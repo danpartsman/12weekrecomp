@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
+using WebRecomp.Web.Services.Engine30;
+using WebRecomp.Web.Services.WorkoutIntelligence;
 using WebRecomp.Web.ViewModels;
 
 namespace WebRecomp.Web.Controllers;
@@ -13,6 +15,7 @@ public sealed class WorkoutsController(
     AppUserContextService userContext,
     ConfigurationService configuration,
     WorkoutMathService math,
+    Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
     IConfiguration appConfiguration) : Controller
 {
     private static readonly HashSet<string> HiddenLegacyDuplicateCodes =
@@ -44,6 +47,9 @@ public sealed class WorkoutsController(
         if (context.Client is null || context.Program is null)
             return RedirectToAction("Index", "Intake");
 
+        ViewBag.DetailedWorkoutEntryEnabled =
+            context.Program.DetailedWorkoutEntryEnabled;
+
         WorkoutEntryViewModel vm;
 
         if (editId.HasValue)
@@ -62,7 +68,15 @@ public sealed class WorkoutsController(
             {
                 WorkoutSessionId = existing.WorkoutSessionId,
                 Date = existing.WorkoutDate,
-                WorkoutTypeCode = existing.WorkoutTypeCode,
+                WorkoutTypeCode =
+                    Engine30WorkoutUiCatalogService.NormalizeCode(
+                        existing.WorkoutTypeCode),
+                SystemWorkoutCode =
+                    existing.SystemWorkoutCode
+                    ?? SystemWorkoutRecipeCatalog
+                        .GetDefaultPresentationForEngine(
+                            existing.WorkoutTypeCode)
+                        ?.SystemCode,
                 DurationMin = existing.DurationMin,
                 TypicalRestSec = existing.TypicalRestSec,
                 SessionRpe = existing.SessionRpe,
@@ -97,14 +111,38 @@ public sealed class WorkoutsController(
                 }
             }
 
+            var normalizedPlannedCode =
+                string.IsNullOrWhiteSpace(planned?.WorkoutTypeCode)
+                    ? ""
+                    : Engine30WorkoutUiCatalogService.NormalizeCode(
+                        planned!.WorkoutTypeCode);
+
+            var plannedSystemCode =
+                planned?.SystemWorkoutCode;
+
+            if (string.IsNullOrWhiteSpace(plannedSystemCode)
+                && !string.IsNullOrWhiteSpace(normalizedPlannedCode))
+            {
+                plannedSystemCode =
+                    SystemWorkoutRecipeCatalog
+                        .GetDefaultPresentationForEngine(
+                            normalizedPlannedCode)
+                        ?.SystemCode;
+            }
+
             vm = new WorkoutEntryViewModel
             {
                 Date = targetDate,
-                WorkoutTypeCode = planned?.WorkoutTypeCode ?? "",
-                DurationMin = plannedDefinition?.DefaultMinutes ?? 60,
+                WorkoutTypeCode = normalizedPlannedCode,
+                SystemWorkoutCode = plannedSystemCode,
+                DurationMin =
+                    planned?.PlannedDurationMin
+                    ?? plannedDefinition?.DefaultMinutes
+                    ?? 60,
                 TypicalRestSec = plannedDefinition is { DefaultRestSec: > 0 }
                     ? plannedDefinition.DefaultRestSec
                     : null,
+                SessionRpe = planned?.PlannedRpe,
                 CompletedFlag = true
             };
         }
@@ -113,6 +151,7 @@ public sealed class WorkoutsController(
             vm,
             context.Program.ConfigVersionId,
             vm.WorkoutTypeCode,
+            vm.SystemWorkoutCode,
             cancellationToken);
 
         await PopulateExistingWorkouts(
@@ -134,15 +173,108 @@ public sealed class WorkoutsController(
         if (context.Client is null || context.Program is null)
             return RedirectToAction("Index", "Intake");
 
-        var workout = await db.WorkoutTypeDefinitions
-            .SingleOrDefaultAsync(
-                x => x.ConfigVersionId == context.Program.ConfigVersionId
-                     && x.WorkoutTypeCode == model.WorkoutTypeCode
-                     && x.IsActive,
+        SystemWorkoutRecipe? selectedSystemWorkout = null;
+
+        if (!string.IsNullOrWhiteSpace(model.SystemWorkoutCode))
+        {
+            if (!SystemWorkoutRecipeCatalog.TryGet(
+                    model.SystemWorkoutCode,
+                    out selectedSystemWorkout)
+                || selectedSystemWorkout is null)
+            {
+                ModelState.AddModelError(
+                    nameof(model.WorkoutTypeCode),
+                    "Select a valid System Workout.");
+            }
+            else
+            {
+                model.WorkoutTypeCode =
+                    selectedSystemWorkout.EngineWorkoutTypeCode;
+            }
+        }
+
+        model.WorkoutTypeCode =
+            Engine30WorkoutUiCatalogService.NormalizeCode(
+                model.WorkoutTypeCode);
+
+        // The visible selector binds SystemWorkoutCode. Re-evaluate the
+        // canonical hidden Engine code after resolving the System Workout.
+        ModelState.Remove(nameof(model.WorkoutTypeCode));
+
+        if (string.IsNullOrWhiteSpace(model.WorkoutTypeCode))
+        {
+            ModelState.AddModelError(
+                nameof(model.WorkoutTypeCode),
+                "Select a valid workout type.");
+        }
+
+        var activeWorkoutTypes =
+            await engine30WorkoutCatalog
+                .GetActiveListAsync(cancellationToken);
+
+        var engineWorkout =
+            activeWorkoutTypes.SingleOrDefault(
+                x => x.WorkoutTypeCode.Equals(
+                    model.WorkoutTypeCode,
+                    StringComparison.OrdinalIgnoreCase));
+
+        if (engineWorkout is null)
+        {
+            ModelState.AddModelError(
+                nameof(model.WorkoutTypeCode),
+                "Select a valid workout type.");
+        }
+
+        if (selectedSystemWorkout is not null
+            && engineWorkout is not null)
+        {
+            if (model.DurationMin <= 0m)
+            {
+                model.DurationMin =
+                    SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(
+                        selectedSystemWorkout,
+                        engineWorkout.DefaultMinutes);
+            }
+
+            if (!model.SessionRpe.HasValue)
+            {
+                var engineTypeCatalog =
+                    new Engine30WorkoutTypeCatalog();
+
+                var baseRpe =
+                    engineTypeCatalog.TryGet(
+                        model.WorkoutTypeCode,
+                        out var engineDefinition)
+                    && engineDefinition is not null
+                        ? engineDefinition.DefaultRpe
+                        : 5m;
+
+                model.SessionRpe =
+                    SystemWorkoutRecipeCatalog.ResolveDefaultRpe(
+                        selectedSystemWorkout,
+                        baseRpe);
+            }
+        }
+
+        var legacyWorkoutTypes =
+            await configuration.GetWorkoutTypesAsync(
+                context.Program.ConfigVersionId,
                 cancellationToken);
 
+        var legacyCode =
+            Engine30WorkoutUiCatalogService.ToLegacyCompatibilityCode(
+                model.WorkoutTypeCode);
+
+        legacyWorkoutTypes.TryGetValue(
+            legacyCode,
+            out var workout);
+
         if (workout is null)
-            ModelState.AddModelError(nameof(model.WorkoutTypeCode), "Select a valid workout type.");
+        {
+            ModelState.AddModelError(
+                nameof(model.WorkoutTypeCode),
+                "The selected workout cannot be mapped to this program configuration.");
+        }
 
         var weight = await db.Measurements
             .Where(x => x.ClientId == context.Client.ClientId
@@ -172,6 +304,7 @@ public sealed class WorkoutsController(
                 model,
                 context.Program.ConfigVersionId,
                 model.WorkoutTypeCode,
+                model.SystemWorkoutCode,
                 cancellationToken);
 
             await PopulateExistingWorkouts(
@@ -179,6 +312,9 @@ public sealed class WorkoutsController(
                 context.Program.ConfigVersionId,
                 model.Date,
                 cancellationToken);
+
+            ViewBag.DetailedWorkoutEntryEnabled =
+                context.Program.DetailedWorkoutEntryEnabled;
 
             return View(model);
         }
@@ -198,6 +334,11 @@ public sealed class WorkoutsController(
 
             // Editing changes the stored actual session; it does not create a duplicate row.
             session.WorkoutDate = model.Date;
+            session.WorkoutName =
+                selectedSystemWorkout?.DisplayName
+                ?? session.WorkoutName;
+            session.SystemWorkoutCode =
+                selectedSystemWorkout?.SystemCode;
             session.WorkoutTypeCode = model.WorkoutTypeCode;
             session.DurationMin = model.DurationMin;
             session.TypicalRestSec = model.TypicalRestSec;
@@ -217,6 +358,9 @@ public sealed class WorkoutsController(
                 ClientId = context.Client.ClientId,
                 ProgramId = context.Program.ProgramId,
                 WorkoutDate = model.Date,
+                WorkoutName = selectedSystemWorkout?.DisplayName,
+                SystemWorkoutCode =
+                    selectedSystemWorkout?.SystemCode,
                 WorkoutTypeCode = model.WorkoutTypeCode,
                 DurationMin = model.DurationMin,
                 TypicalRestSec = model.TypicalRestSec,
@@ -224,7 +368,7 @@ public sealed class WorkoutsController(
                 DeviceCalories = model.DeviceCalories,
                 CompletedFlag = model.CompletedFlag,
                 Notes = model.Notes,
-                EntrySourceCode = "MANUAL",
+                EntrySourceCode = RecompInputSourceCodes.Manual,
                 CalculationEngineVersion =
                     appConfiguration["WebRecomp:EngineVersion"] ?? "1001.0",
                 CreatedAtUtc = DateTime.UtcNow,
@@ -328,9 +472,20 @@ public sealed class WorkoutsController(
         ViewBag.ExistingWorkouts = rows
             .Select(x =>
             {
-                var displayName = definitions.TryGetValue(x.WorkoutTypeCode, out var definition)
-                    ? FriendlyDisplayName(definition)
-                    : x.WorkoutTypeCode.Replace('_', ' ');
+                var displayName =
+                    !string.IsNullOrWhiteSpace(x.WorkoutName)
+                        ? x.WorkoutName
+                        : !string.IsNullOrWhiteSpace(x.SystemWorkoutCode)
+                          && SystemWorkoutRecipeCatalog.TryGet(
+                              x.SystemWorkoutCode,
+                              out var systemRecipe)
+                          && systemRecipe is not null
+                            ? systemRecipe.DisplayName
+                            : definitions.TryGetValue(
+                                x.WorkoutTypeCode,
+                                out var definition)
+                                ? FriendlyDisplayName(definition)
+                                : x.WorkoutTypeCode.Replace('_', ' ');
 
                 return new WorkoutSessionSummaryViewModel
                 {
@@ -348,72 +503,123 @@ public sealed class WorkoutsController(
         WorkoutEntryViewModel vm,
         Guid configVersionId,
         string? currentCode,
+        string? currentSystemCode,
         CancellationToken cancellationToken)
     {
-        var types = await configuration.GetWorkoutTypeListAsync(
-            configVersionId,
-            cancellationToken);
+        _ = configVersionId;
 
-        var strengthMajor = new SelectListGroup
+        var active =
+            await engine30WorkoutCatalog
+                .GetActiveListAsync(cancellationToken);
+
+        var activeMap =
+            active.ToDictionary(
+                x => x.WorkoutTypeCode,
+                StringComparer.OrdinalIgnoreCase);
+
+        var engineTypeCatalog =
+            new Engine30WorkoutTypeCatalog();
+
+        var groupNames = new[]
         {
-            Name = WorkoutCategoryCatalog.DisplayName(
-                WorkoutCategoryCatalog.MajorStrength)
+            "Set A",
+            "Set B",
+            "Easy",
+            "Standard",
+            "Hard",
+            "Recovery"
         };
 
-        var strengthAccessory = new SelectListGroup
-        {
-            Name = WorkoutCategoryCatalog.DisplayName(
-                WorkoutCategoryCatalog.AccessoryStrength)
-        };
+        var groups =
+            groupNames.ToDictionary(
+                x => x,
+                x => new SelectListGroup { Name = x },
+                StringComparer.OrdinalIgnoreCase);
 
-        var conditioning = new SelectListGroup
-        {
-            Name = WorkoutCategoryCatalog.DisplayName(
-                WorkoutCategoryCatalog.ConditioningCardio)
-        };
+        vm.SystemWorkouts =
+            SystemWorkoutRecipeCatalog
+                .PresentationRecipes
+                .Where(x => activeMap.ContainsKey(
+                    x.EngineWorkoutTypeCode))
+                .Select(
+                    recipe =>
+                    {
+                        var configured =
+                            activeMap[recipe.EngineWorkoutTypeCode];
 
-        var restRecoveryOther = new SelectListGroup
-        {
-            Name = WorkoutCategoryCatalog.DisplayName(
-                WorkoutCategoryCatalog.RestRecoveryOther)
-        };
+                        var baseRpe =
+                            engineTypeCatalog.TryGet(
+                                recipe.EngineWorkoutTypeCode,
+                                out var engineDefinition)
+                            && engineDefinition is not null
+                                ? engineDefinition.DefaultRpe
+                                : 5m;
+
+                        return new SystemWorkoutOptionViewModel
+                        {
+                            SystemCode = recipe.SystemCode,
+                            EngineWorkoutTypeCode =
+                                recipe.EngineWorkoutTypeCode,
+                            DisplayName = recipe.DisplayName,
+                            GroupName = recipe.GroupName,
+                            DefaultMinutes =
+                                SystemWorkoutRecipeCatalog
+                                    .ResolveDefaultMinutes(
+                                        recipe,
+                                        configured.DefaultMinutes),
+                            DefaultRpe =
+                                SystemWorkoutRecipeCatalog
+                                    .ResolveDefaultRpe(
+                                        recipe,
+                                        baseRpe)
+                        };
+                    })
+                .ToList();
 
         vm.WorkoutTypes =
         [
             new SelectListItem("(Select workout)", "")
         ];
 
-        foreach (var type in types
-                     .Where(x =>
-                         x.IsSelectable
-                         || string.Equals(
-                             x.WorkoutTypeCode,
-                             currentCode,
-                             StringComparison.OrdinalIgnoreCase))
-                     .Where(x =>
-                         !HiddenLegacyDuplicateCodes.Contains(x.WorkoutTypeCode)
-                         || string.Equals(
-                             x.WorkoutTypeCode,
-                             currentCode,
-                             StringComparison.OrdinalIgnoreCase))
-                     .OrderBy(x =>
-                         WorkoutCategoryCatalog.SortOrder(
-                             x.WorkoutCategoryCode))
-                     .ThenBy(x => x.DisplayOrder)
-                     .ThenBy(x => FriendlyDisplayName(x)))
+        foreach (var recipe in SystemWorkoutRecipeCatalog
+                     .PresentationRecipes
+                     .Where(x => activeMap.ContainsKey(
+                         x.EngineWorkoutTypeCode)))
         {
             vm.WorkoutTypes.Add(
                 new SelectListItem(
-                    FriendlyDisplayName(type),
-                    type.WorkoutTypeCode)
+                    recipe.DisplayName,
+                    recipe.SystemCode,
+                    string.Equals(
+                        recipe.SystemCode,
+                        currentSystemCode,
+                        StringComparison.OrdinalIgnoreCase))
                 {
-                    Group = WorkoutGroup(
-                        type,
-                        strengthMajor,
-                        strengthAccessory,
-                        conditioning,
-                        restRecoveryOther)
+                    Group = groups[recipe.GroupName]
                 });
+        }
+
+        if (string.IsNullOrWhiteSpace(currentSystemCode)
+            && !string.IsNullOrWhiteSpace(currentCode))
+        {
+            var fallback =
+                SystemWorkoutRecipeCatalog
+                    .GetDefaultPresentationForEngine(
+                        Engine30WorkoutUiCatalogService.NormalizeCode(
+                            currentCode));
+
+            if (fallback is not null)
+            {
+                var item =
+                    vm.WorkoutTypes.FirstOrDefault(
+                        x => string.Equals(
+                            x.Value,
+                            fallback.SystemCode,
+                            StringComparison.OrdinalIgnoreCase));
+
+                if (item is not null)
+                    item.Selected = true;
+            }
         }
     }
 
@@ -446,4 +652,3 @@ public sealed class WorkoutsController(
                 $"Workout type '{type.WorkoutTypeCode}' has invalid workout category '{type.WorkoutCategoryCode}'.")
         };
 }
-

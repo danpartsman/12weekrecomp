@@ -1,0 +1,156 @@
+{
+  "specificationVersion": "1001",
+  "engineVersion": "1001.0",
+  "source": "dan_recomp_v64_schedule_first.xlsx",
+  "cases": [
+    {
+      "id": "TC-001-DAN-V64-BASELINE",
+      "purpose": "Primary regression gate for the new schedule-first behavior.",
+      "inputs": {
+        "weightLb": 208.4,
+        "selectedPlan": "PLAN_4",
+        "actionDate": "2026-08-12",
+        "plannedWorkout": "MAJOR_PUSH",
+        "userSelectedWorkout": "MAJOR_PUSH",
+        "recentFourDayGlycogenDemandG": 220,
+        "recentFourDayRestorationCreditG": 155,
+        "moderateHardDays": 3,
+        "hardDays": 3,
+        "weeklyStructure": {
+          "majorPush": 1,
+          "majorPull": 1,
+          "majorLegs": 1,
+          "lightStrength": 1,
+          "primaryConditioning": 2,
+          "recovery": 1
+        },
+        "regionRecovery": {
+          "pushRecentLoad": 0.61,
+          "pullRecentLoad": 0.61,
+          "legsRecentLoad": 1.57,
+          "cardioRecentLoad": 2.25,
+          "pushRecovered": true,
+          "pullRecovered": true,
+          "legsRecovered": true,
+          "cardioRecovered": true
+        }
+      },
+      "expected": {
+        "weeklyStatus": "GOOD",
+        "recommendedWorkout": "MAJOR_PUSH",
+        "scheduleChangeRecommended": false,
+        "recommendationBasis": "KEEP_PLAN",
+        "absoluteRestorationRatioApprox": 0.7045,
+        "functionalTargetRatio": 0.75,
+        "targetAchievementRatioApprox": 0.9394,
+        "glycogenReadiness": "SLIGHTLY_REDUCED",
+        "recoveryAllocationG": 10,
+        "preWorkoutPortionG": 10,
+        "recommendedCalories": 2150,
+        "recommendedProteinG": 190,
+        "recommendedCarbsG": 190,
+        "recommendedFatG": 70
+      }
+    },
+    {
+      "id": "TC-002-REST-DAY-DOES-NOT-FORCE-Z2",
+      "purpose": "Regression for the bug that prompted v64.",
+      "inputs": {
+        "yesterday": "RECOVERY_0_RPE2",
+        "todayPlanned": "MAJOR_PUSH",
+        "weeklyStructureGood": true,
+        "plannedRegionRecovered": true,
+        "fuelReadiness": "SLIGHTLY_REDUCED",
+        "pain": false,
+        "illness": false
+      },
+      "expected": {
+        "recommendedWorkout": "MAJOR_PUSH",
+        "scheduleChangeRecommended": false
+      }
+    },
+    {
+      "id": "TC-003-HARD-COUNT-IS-WARNING",
+      "purpose": "Three recent hard sessions do not automatically downgrade a planned heavy day.",
+      "inputs": {
+        "todayPlanned": "MAJOR_PULL",
+        "hardDays4d": 3,
+        "plannedRegionRecovered": true,
+        "fuelReadiness": "SLIGHTLY_REDUCED",
+        "pain": false,
+        "illness": false
+      },
+      "expected": {
+        "recommendedWorkout": "MAJOR_PULL",
+        "scheduleChangeRecommended": false,
+        "explanationContains": "warning"
+      }
+    },
+    {
+      "id": "TC-004-UNRECOVERED-HEAVY-REGION",
+      "purpose": "A true local recovery conflict can override the schedule.",
+      "inputs": {
+        "todayPlanned": "MAJOR_LEGS",
+        "legsRecovered": false,
+        "anotherFutureHeavyRegionRecovered": true
+      },
+      "expected": {
+        "scheduleChangeRecommended": true,
+        "preferredBehavior": "Swap with a recovered future dedicated-heavy day before falling to an accessory session."
+      }
+    },
+    {
+      "id": "TC-005-VERY-LOW-FUEL",
+      "purpose": "Very-low workout-specific readiness remains a real guardrail.",
+      "inputs": {
+        "todayPlannedFuelScore": 3,
+        "fuelReadiness": "VERY_LOW",
+        "pain": false,
+        "illness": false
+      },
+      "expected": {
+        "scheduleChangeRecommended": true,
+        "preferredBehavior": "Swap with a recovery/recovery-cardio day already present later in the week when possible."
+      }
+    },
+    {
+      "id": "TC-006-WEEKLY-STRUCTURE",
+      "purpose": "Week-ahead plan validator.",
+      "inputs": {
+        "majorPush": 1,
+        "majorPull": 1,
+        "majorLegs": 1,
+        "lightStrength": 1,
+        "primaryConditioning": 2,
+        "recovery": 1,
+        "genericHeavy": 0
+      },
+      "expected": {
+        "weeklyStatus": "GOOD"
+      }
+    },
+    {
+      "id": "TC-007-ZONE2-NOT-PRIMARY-CARDIO",
+      "purpose": "Zone 2 remains recovery cardio rather than satisfying the primary conditioning quota.",
+      "inputs": {
+        "weekContainsOnlyZone2ForCardio": true
+      },
+      "expected": {
+        "primaryConditioningCountFromZone2": 0
+      }
+    },
+    {
+      "id": "TC-008-CARRYOVER-DOES-NOT-AUTOMATICALLY-ADD-TOTAL-CARBS",
+      "purpose": "Carryover allocation is earmarked inside the target when the base workout target already covers it.",
+      "inputs": {
+        "baseWorkoutCarbsG": 190,
+        "baseRestCarbsG": 130,
+        "carryoverAllocationG": 10
+      },
+      "expected": {
+        "recommendedCarbsG": 190,
+        "preWorkoutCarryoverCanBe": 10
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-﻿@model WorkoutEntryViewModel
+@model WorkoutEntryViewModel
 <!-- V1006_GUIDED_WORKOUT_CLEAN -->
 @await Html.PartialAsync(
     "_GuidedDemoCalloutSections",
@@ -19,11 +19,24 @@
         ViewBag.ExistingWorkouts as System.Collections.Generic.List<WorkoutSessionSummaryViewModel>
         ?? new System.Collections.Generic.List<WorkoutSessionSummaryViewModel>();
     var isEdit = Model.WorkoutSessionId.HasValue;
+    var detailedWorkoutEnabled =
+        ViewBag.DetailedWorkoutEntryEnabled is bool enabled
+        && enabled;
+    var systemCategoryOrder =
+        WebRecomp.Web.Services.WorkoutIntelligence
+            .SystemWorkoutRecipeCatalog
+            .PresentationCategoryOrder;
+
+    string SystemWorkoutCategory(string engineWorkoutTypeCode) =>
+        WebRecomp.Web.Services.WorkoutIntelligence
+            .SystemWorkoutRecipeCatalog
+            .PresentationCategoryForEngineWorkoutType(
+                engineWorkoutTypeCode);
 }
 <div class="app-page app-page-workout">
     <header class="app-page-head">
         <div>
-            <div class="app-kicker">DAILY • WORKOUT ACTUAL</div>
+            <div class="app-kicker">DAILY â€¢ WORKOUT ACTUAL</div>
             <h1>Daily Workout</h1>
             <p class="lede">@Model.Date.ToString("dddd, MMMM d")</p>
         </div>
@@ -65,9 +78,48 @@
                 }
             </div>
 
+            <input asp-for="WorkoutTypeCode" type="hidden" />
             <label>
                 <span class="field-label-line">Workout type <span class="required-mark">*</span></span>
-                <select asp-for="WorkoutTypeCode" asp-items="Model.WorkoutTypes"></select>
+                <select asp-for="SystemWorkoutCode"
+                        id="system-workout-code"
+                        data-collapsible-workout-picker
+                        required>
+                    <option value="">(Select workout)</option>
+                    @foreach (var categoryName in systemCategoryOrder)
+                    {
+                        var groupedWorkouts =
+                            Model.SystemWorkouts
+                                .Where(
+                                    x => SystemWorkoutCategory(
+                                                x.EngineWorkoutTypeCode).Equals(
+                                                categoryName,
+                                                StringComparison.OrdinalIgnoreCase))
+                                .OrderBy(
+                                    x => x.DisplayName,
+                                    StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+
+                        if (groupedWorkouts.Count == 0)
+                        {
+                            continue;
+                        }
+
+                        <optgroup label="@categoryName">
+                            @foreach (var option in groupedWorkouts)
+                            {
+                                <option value="@option.SystemCode"
+                                        data-workout-type-code="@option.EngineWorkoutTypeCode"
+                                        data-default-minutes="@option.DefaultMinutes"
+                                        data-default-rpe="@option.DefaultRpe"
+                                        selected="@(string.Equals(Model.SystemWorkoutCode, option.SystemCode, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">
+                                    @option.DisplayName
+                                </option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+                <small>Grouped by training category. Easy, Standard, and Hard stay in the workout name; workouts are alphabetical inside each category.</small>
             </label>
 
             <div class="grid-2">
@@ -101,11 +153,30 @@
                 <h2>Additional / saved workouts</h2>
                 <p class="small">Edit or delete a saved session, or add another workout when you train more than once in a day.</p>
             </div>
-            <a class="button"
-               asp-action="New"
-               asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
-               asp-route-addAnother="true">+ Add another workout</a>
+            <div class="workout-saved-actions">
+                @if (detailedWorkoutEnabled)
+                {
+                    <a class="button"
+                       asp-controller="DetailedWorkout"
+                       asp-action="Index"
+                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Workout Builder</a>
+                }
+
+                <a class="button"
+                   asp-action="New"
+                   asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                   asp-route-addAnother="true">+ Add another workout</a>
+            </div>
         </div>
+
+        @if (detailedWorkoutEnabled)
+        {
+            <p class="small">
+                Workout Builder is enabled. Choose <strong>Workout Builder</strong>
+                on a saved session to add exercises and enter sets, reps,
+                and optional max weight.
+            </p>
+        }
 
         @if (existingWorkouts.Count == 0)
         {
@@ -124,6 +195,16 @@
                             <span class="app-pill @(saved.CompletedFlag ? "good" : "neutral")">@(saved.CompletedFlag ? "Completed" : "Not completed")</span>
                         </div>
                         <div class="workout-saved-actions">
+                            @if (detailedWorkoutEnabled)
+                            {
+                                <a class="button workout-compact"
+                                   asp-controller="DetailedWorkout"
+                                   asp-action="Index"
+                                   asp-route-workoutSessionId="@saved.WorkoutSessionId"
+                                   asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                   asp-route-editCompleted="@(saved.CompletedFlag ? "true" : null)">@(saved.CompletedFlag ? "Edit exercises" : "Workout Builder")</a>
+                            }
+
                             <a class="button workout-compact"
                                asp-action="New"
                                asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
@@ -145,15 +226,38 @@
     </section>
 </div>
 
+<script src="~/js/system-workout-picker.js"
+        asp-append-version="true"></script>
+
 <script>
 (() => {
     const form = document.getElementById("workout-autosave-form");
+    const systemSelect = document.getElementById("system-workout-code");
+    const engineCode = document.getElementById("WorkoutTypeCode");
+    const duration = document.getElementById("DurationMin");
+    const rpe = document.getElementById("SessionRpe");
+
+    systemSelect?.addEventListener("change", () => {
+        const option = systemSelect.options[systemSelect.selectedIndex];
+
+        if (engineCode) {
+            engineCode.value = option?.dataset.workoutTypeCode || "";
+        }
+
+        if (duration && option?.dataset.defaultMinutes) {
+            duration.value = option.dataset.defaultMinutes;
+        }
+
+        if (rpe && option?.dataset.defaultRpe) {
+            rpe.value = option.dataset.defaultRpe;
+        }
+    });
+
     window.RecompAutosave?.bind(form, {
         statusSelector: "#workout-autosave-status",
         delay: 650
     });
 })();
 </script>
-
 
 

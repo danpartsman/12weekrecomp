@@ -1,0 +1,129 @@
+﻿@using System.Reflection
+@{
+    var assembly = Assembly.GetExecutingAssembly();
+
+    var appVersion =
+        assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
+        ?? "unknown";
+
+    var engineVersion =
+        assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(x => x.Key == "RecompEngineVersion")
+            ?.Value
+        ?? "unknown";
+}
+@{
+    var title = ViewData["Title"]?.ToString() ?? "Administration";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@title - 12 Week Recomp</title>
+
+    <script>
+        (() => {
+            const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+            const applyTheme = () => {
+                const preference =
+                    localStorage.getItem('recomp-theme') || 'system';
+
+                const effective =
+                    preference === 'system'
+                        ? (media.matches ? 'dark' : 'light')
+                        : preference;
+
+                document.documentElement.dataset.theme = effective;
+            };
+
+            applyTheme();
+        })();
+    </script>
+
+    <link rel="stylesheet"
+          href="~/css/site.css"
+          asp-append-version="true" />
+</head>
+
+<body class="app-shell admin-shell">
+
+<header class="topbar">
+
+    <div class="brand brand-logo-wrap">
+        <a asp-controller="Admin"
+           asp-action="Index"
+           aria-label="12 Week Recomp Administration">
+
+            <img class="brand-logo brand-logo-light"
+                 src="~/images/recomp/recomp-logo-light.png"
+                 alt="12 Week Recomp" />
+
+            <img class="brand-logo brand-logo-dark"
+                 src="~/images/recomp/recomp-logo-dark.png"
+                 alt="12 Week Recomp" />
+        </a>
+    </div>
+
+    <nav class="public-nav admin-nav"
+         aria-label="Administration navigation">
+
+        <a asp-controller="Admin"
+           asp-action="Index">
+            Admin Home
+        </a>
+
+        <a asp-controller="AdminEngine"
+           asp-action="Index">
+            Recomp Engine
+        </a>
+
+        <a asp-controller="AdminWorkoutTypes"
+           asp-action="Index">
+            Engine 3.0 Workouts
+        </a>
+
+        <a asp-controller="AdminCatalogSync"
+           asp-action="Index">
+            Exercise Catalog
+        </a>
+
+                <a asp-controller="AdminEngine30EnergyPolicy"
+           asp-action="Index">
+            Engine 3.0 Energy Policy
+        </a>
+<a asp-controller="Home"
+           asp-action="Index">
+            My Recomp
+        </a>
+
+        <a class="nav-signout"
+           asp-controller="Account"
+           asp-action="Logout">
+            Sign Out
+        </a>
+
+    </nav>
+
+</header>
+
+<main class="container">
+    @RenderBody()
+</main>
+
+<footer class="footer recomp-footer">
+    <div>
+        <strong>12 Week Recomp Administration</strong>
+        <span>Web Recomp @appVersion &bull; Engine @engineVersion</span>
+    </div>
+</footer>
+
+</body>
+</html>
+
+
+
+
+

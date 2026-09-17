@@ -1,0 +1,132 @@
+@{
+    var isPublicPage = ViewData["PublicPage"] is bool publicPage && publicPage;
+    var isOnboardingPage = ViewData["OnboardingPage"] is bool onboardingPage && onboardingPage;
+    var shellClass = isPublicPage ? "public-shell" : (isOnboardingPage ? "onboarding-shell" : "app-shell");
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - 12 Week Recomp</title>
+    <script>
+        (() => {
+            const media = window.matchMedia('(prefers-color-scheme: dark)');
+            const applyTheme = () => {
+                const preference = localStorage.getItem('recomp-theme') || 'system';
+                const effective = preference === 'system' ? (media.matches ? 'dark' : 'light') : preference;
+                document.documentElement.dataset.theme = effective;
+            };
+            applyTheme();
+            if (media.addEventListener) {
+                media.addEventListener('change', () => {
+                    if ((localStorage.getItem('recomp-theme') || 'system') === 'system') applyTheme();
+                });
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="@shellClass">
+<header class="topbar">
+    <div class="brand brand-logo-wrap">
+        <a asp-controller="Home" asp-action="Index" aria-label="12 Week Recomp home">
+            <img class="brand-logo brand-logo-light" src="~/images/recomp/recomp-logo-light.png" alt="12 Week Recomp" />
+            <img class="brand-logo brand-logo-dark" src="~/images/recomp/recomp-logo-dark.png" alt="12 Week Recomp" />
+        </a>
+    </div>
+
+    @if (isPublicPage)
+    {
+        <nav class="public-nav" aria-label="Public navigation">
+            <a asp-controller="Home" asp-action="Index">Welcome</a>
+            <a asp-controller="Home" asp-action="Evidence">Evidence</a>
+            <a href="/.auth/login/aad?post_login_redirect_uri=/Home/AfterSignIn">Sign In</a>
+            <a class="public-nav-create" href="/.auth/login/aad?post_login_redirect_uri=/Home/AfterSignIn">Create Account</a>
+        </nav>
+    }
+    else if (isOnboardingPage)
+    {
+        <nav class="public-nav onboarding-nav" aria-label="Onboarding navigation">
+            <a asp-controller="Home" asp-action="Evidence">Evidence</a>
+            <a class="nav-signout" href="/.auth/logout?post_logout_redirect_uri=/">Sign Out</a>
+        </nav>
+    }
+    else
+    {
+        <button class="nav-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="app-nav"
+                aria-label="Open navigation menu">
+            <span class="nav-toggle-line"></span>
+            <span class="nav-toggle-line"></span>
+            <span class="nav-toggle-line"></span>
+        </button>
+
+        <nav id="app-nav" class="app-nav" aria-label="Application navigation">
+            <a asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+            <a asp-controller="Schedule" asp-action="Index">Workout Plan</a>
+            <a asp-controller="Daily" asp-action="Index">Weigh In Stats</a>
+            <a asp-controller="Workouts" asp-action="New">Workout Actual</a>
+            <a asp-controller="Nutrition" asp-action="Index">Nutrition</a>
+            <a asp-controller="Progress" asp-action="Index">Progress</a>
+            <a asp-controller="Onboarding" asp-action="Index">How It Works</a>
+            <a asp-controller="Profile" asp-action="Index">Profile</a>
+            <a class="nav-signout" href="/.auth/logout?post_logout_redirect_uri=/">Sign Out</a>
+        </nav>
+    }
+</header>
+
+<main class="container">
+    @RenderBody()
+</main>
+
+<footer class="footer recomp-footer">
+    <div class="recomp-footer-brand">
+        <img class="footer-logo brand-logo-light" src="~/images/recomp/recomp-logo-light.png" alt="12 Week Recomp" />
+        <img class="footer-logo brand-logo-dark" src="~/images/recomp/recomp-logo-dark.png" alt="12 Week Recomp" />
+    </div>
+    <div>
+        <strong>Built on evidence. Simple enough for real life.</strong>
+        <span>Web Recomp v1004 • Plan • Train • Recover • Adapt</span>
+    </div>
+</footer>
+
+@if (!isPublicPage && !isOnboardingPage)
+{
+    <script>
+        (() => {
+            const toggle = document.querySelector('.nav-toggle');
+            const nav = document.getElementById('app-nav');
+            if (!toggle || !nav) return;
+
+            const closeMenu = () => {
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.setAttribute('aria-label', 'Open navigation menu');
+                nav.classList.remove('is-open');
+            };
+
+            toggle.addEventListener('click', () => {
+                const opening = toggle.getAttribute('aria-expanded') !== 'true';
+                toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+                toggle.setAttribute('aria-label', opening ? 'Close navigation menu' : 'Open navigation menu');
+                nav.classList.toggle('is-open', opening);
+            });
+
+            nav.addEventListener('click', event => {
+                if (event.target.closest('a')) closeMenu();
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') closeMenu();
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 820) closeMenu();
+            });
+        })();
+    </script>
+}
+</body>
+</html>

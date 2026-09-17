@@ -1,0 +1,87 @@
+﻿@{
+    ViewData["Title"] = "Scientific Evidence";
+    ViewData["PublicPage"] = true;
+}
+
+<div class="evidence-page">
+    <section class="evidence-hero">
+        <div class="welcome-kicker">THE SCIENCE BEHIND RECOMPOSITION</div>
+        <h1>Claims should be earned by evidence.</h1>
+        <p class="welcome-lede">
+            Recomp is built around modifiable factors that research repeatedly links to body composition and health: resistance training, aerobic conditioning, protein intake, energy balance, visceral fat, muscle mass, and recovery. This page separates what the evidence supports from what the program does not promise.
+        </p>
+        <div class="evidence-actions">
+            <a class="welcome-primary" href="/.auth/login/aad?post_login_redirect_uri=/Home/AfterSignIn">Sign In</a>
+            <a class="welcome-secondary" asp-controller="Home" asp-action="Index">Back to Welcome</a>
+        </div>
+    </section>
+
+    <section class="evidence-principle">
+        <h2>Recomp is not a replacement for medical care.</h2>
+        <p>
+            Medication can be necessary and lifesaving. At the same time, many cardiometabolic diagnoses are influenced by modifiable factors such as physical activity, muscle strength, fat distribution, diet, and fitness. Recomp is designed to work on those modifiable levers. Anyone taking medication or managing a diagnosed condition should make medication changes with their clinician—not because an app tells them to.
+        </p>
+    </section>
+
+    <div class="evidence-grid">
+        <article class="evidence-card">
+            <span class="evidence-tag">BODY RECOMPOSITION</span>
+            <h2>Fat loss and lean-mass gain can occur at the same time.</h2>
+            <p>A randomized trial in young men under a large energy deficit found that higher protein plus intense resistance/interval training produced greater fat loss while the higher-protein group also gained lean body mass. This is proof of biological possibility under the study conditions—not a guarantee of identical results for everyone.</p>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/26817506/" target="_blank" rel="noopener">Longland et al., 2016 — randomized trial →</a>
+        </article>
+
+        <article class="evidence-card">
+            <span class="evidence-tag">TYPE 2 DIABETES</span>
+            <h2>Resistance training can improve glycemic control.</h2>
+            <p>A systematic review and meta-analysis of randomized trials found resistance training significantly reduced HbA1c in adults with type 2 diabetes. More recent syntheses also report improvements in several cardiometabolic markers.</p>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/35273011/" target="_blank" rel="noopener">2022 systematic review/meta-analysis →</a>
+        </article>
+
+        <article class="evidence-card">
+            <span class="evidence-tag">BLOOD PRESSURE</span>
+            <h2>Exercise training lowers resting blood pressure.</h2>
+            <p>A large network meta-analysis of 270 randomized controlled trials found significant reductions in resting systolic and diastolic blood pressure across aerobic, dynamic resistance, combined, HIIT, and isometric exercise categories.</p>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/37491419/" target="_blank" rel="noopener">2023 network meta-analysis →</a>
+        </article>
+
+        <article class="evidence-card">
+            <span class="evidence-tag">CHOLESTEROL & TRIGLYCERIDES</span>
+            <h2>Exercise can improve the blood-lipid profile.</h2>
+            <p>A 2024 systematic review/meta-analysis of 148 randomized trials found modest favorable changes in total cholesterol, LDL, HDL, triglycerides, and VLDL after exercise training, with combined aerobic and resistance training performing well for dyslipidemia management.</p>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/39331324/" target="_blank" rel="noopener">2024 systematic review/meta-analysis →</a>
+        </article>
+
+        <article class="evidence-card">
+            <span class="evidence-tag">VISCERAL FAT</span>
+            <h2>Exercise can reduce metabolically important visceral fat.</h2>
+            <p>A network meta-analysis of 84 randomized trials in people with overweight or obesity found aerobic, resistance, combined, and interval training approaches can reduce visceral adipose tissue. The exact response varies with population and training method.</p>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/38031812/" target="_blank" rel="noopener">2023 systematic review/network meta-analysis →</a>
+        </article>
+
+        <article class="evidence-card">
+            <span class="evidence-tag">HEALTHY AGING</span>
+            <h2>Older adults can still build strength and muscle.</h2>
+            <p>Randomized-trial meta-analyses show resistance training improves muscle strength and can increase muscle mass in older adults, including people with sarcopenia and even adults over age 75.</p>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/39191151/" target="_blank" rel="noopener">2024 meta-analysis in sarcopenic older adults →</a>
+        </article>
+
+        <article class="evidence-card">
+            <span class="evidence-tag">MOOD</span>
+            <h2>Resistance exercise is associated with lower depressive symptoms.</h2>
+            <p>A meta-analysis of 33 randomized clinical trials involving 1,877 adults found resistance exercise training was associated with a significant reduction in depressive symptoms. Exercise can support mental health, but this is not a claim that Recomp treats or cures depression.</p>
+            <a href="https://pubmed.ncbi.nlm.nih.gov/29800984/" target="_blank" rel="noopener">Gordon et al., JAMA Psychiatry, 2018 →</a>
+        </article>
+
+        <article class="evidence-card evidence-card-callout">
+            <span class="evidence-tag">THE PRACTICAL IDEA</span>
+            <h2>Don't just chase a lower scale number.</h2>
+            <p>The evidence supports treating muscle, fat mass, visceral fat, fitness, strength, and metabolic markers as distinct outcomes. Recomp is designed around improving that broader picture while keeping the program practical enough to become a repeatable habit.</p>
+            <a asp-controller="Home" asp-action="Index">See how the Recomp system works →</a>
+        </article>
+    </div>
+
+    <section class="evidence-footnote">
+        <strong>Evidence standard:</strong> Study results describe groups, not guaranteed individual outcomes. Effects depend on age, starting body composition, training history, diet, health conditions, medication, adherence, sleep, and many other factors. This site is educational and is not individualized medical diagnosis or treatment.
+    </section>
+</div>

@@ -1,0 +1,2002 @@
+@model NutritionIntelligencePageViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Food Log";
+    var manual = Model.Manual;
+    var mealOrder = new[] { "BREAKFAST", "LUNCH", "DINNER", "SNACK" };
+
+    var dailyCalories = Model.LoggedTotals?.EnergyKcal ?? 0m;
+    var dailyProtein = Model.LoggedTotals?.ProteinG ?? 0m;
+    var dailyCarbs = Model.LoggedTotals?.CarbohydrateG ?? 0m;
+    var dailyFat = Model.LoggedTotals?.FatG ?? 0m;
+
+    var actualProteinCalories = dailyProtein * 4m;
+    var actualCarbCalories = dailyCarbs * 4m;
+    var actualFatCalories = dailyFat * 9m;
+    var actualMacroCalories =
+        actualProteinCalories
+        + actualCarbCalories
+        + actualFatCalories;
+
+    var actualProteinShare =
+        actualMacroCalories > 0m
+            ? actualProteinCalories / actualMacroCalories * 100m
+            : 0m;
+    var actualCarbShare =
+        actualMacroCalories > 0m
+            ? actualCarbCalories / actualMacroCalories * 100m
+            : 0m;
+    var actualFatShare =
+        actualMacroCalories > 0m
+            ? actualFatCalories / actualMacroCalories * 100m
+            : 0m;
+
+    var plan = Model.PlanTargets;
+    var planCalories = plan?.EnergyKcal ?? 0m;
+    var planProtein = plan?.ProteinG ?? 0m;
+    var planCarbs = plan?.CarbohydrateG ?? 0m;
+    var planFat = plan?.FatG ?? 0m;
+
+    var planProteinCalories = planProtein * 4m;
+    var planCarbCalories = planCarbs * 4m;
+    var planFatCalories = planFat * 9m;
+    var planMacroCalories =
+        planProteinCalories
+        + planCarbCalories
+        + planFatCalories;
+
+    var planProteinShare =
+        planMacroCalories > 0m
+            ? planProteinCalories / planMacroCalories * 100m
+            : 0m;
+    var planCarbShare =
+        planMacroCalories > 0m
+            ? planCarbCalories / planMacroCalories * 100m
+            : 0m;
+    var planFatShare =
+        planMacroCalories > 0m
+            ? planFatCalories / planMacroCalories * 100m
+            : 0m;
+
+    var actualToPlanPercent =
+        planCalories > 0m
+            ? dailyCalories / planCalories * 100m
+            : (dailyCalories > 0m ? 100m : 0m);
+    var actualBarPercent = Math.Min(actualToPlanPercent, 100m);
+    var actualOverPlan = planCalories > 0m && dailyCalories > planCalories;
+
+    string Pct(decimal value) =>
+        value.ToString("0.##", CultureInfo.InvariantCulture) + "%";
+}
+<link rel="stylesheet" href="~/css/nutrition-intelligence.css" asp-append-version="true" />
+<style>
+    .nutrition-macro-graph-head {
+        justify-content: flex-start;
+        gap: .85rem;
+    }
+
+    .nutrition-macro-graph-title {
+        display: flex;
+        align-items: baseline;
+        gap: .8rem;
+        flex-wrap: wrap;
+    }
+
+    .nutrition-macro-graph-actual .nutrition-macro-graph-label {
+        color: #06202a;
+    }
+
+    .nutrition-macro-line.actual-progress-track {
+        overflow: hidden;
+        background: rgba(125, 147, 176, .18);
+    }
+
+    .nutrition-actual-fill {
+        display: flex;
+        height: 100%;
+        min-width: 0;
+        overflow: hidden;
+        border-radius: inherit;
+        transition: width .2s ease;
+    }
+
+    .nutrition-actual-fill.over-plan {
+        box-shadow: inset 0 0 0 2px rgba(250, 204, 21, .9);
+    }
+
+    .nutrition-meal-summary-head {
+        justify-content: flex-start;
+        gap: .35rem;
+        align-items: baseline;
+    }
+</style>
+
+<!-- V1011_NUTRITION_INTELLIGENCE_HANDOFF_SERVINGS -->
+@await Html.PartialAsync(
+    "_GuidedDemoCalloutSections",
+    new[]
+    {
+        "Detailed foods feed one Daily Entry summary",
+        Model.FoodLogEnabled
+            ? "Use the compact daily summary to see calories and macros by meal. Select Breakfast, Lunch, Dinner, or Snack to add foods or reuse a past meal; detailed manual calorie/macro editing stays on Daily Entry."
+            : "Detailed food logging is off. Daily Entry continues to accept manual calorie and macro totals.",
+
+        "Daily Entry remains the Engine boundary",
+        "Nutrition Intelligence calculates the totals. The Web layer synchronizes eligible Food Log totals into the existing Daily Entry nutrition record that Engine 3.0 already consumes."
+    })
+
+<div class="app-page app-page-nutrition">
+    <header class="app-page-head">
+        <div>
+            <div class="app-kicker">DAILY • NUTRITION INTELLIGENCE</div>
+            <h1>Food Log</h1>
+            <p class="lede">@manual.Date.ToString("dddd, MMMM d")</p>
+        </div>
+
+        <div class="nutrition-intel-header-actions">
+            <a asp-controller="DailyEntry"
+               asp-action="Index"
+               asp-route-date="@manual.Date.ToString("yyyy-MM-dd")"
+               class="secondary">
+                Daily Entry
+            </a>
+
+            <form asp-action="Index" method="get" class="app-date-picker">
+                <label>Date
+                    <input
+                        name="date"
+                        value="@manual.Date.ToString("yyyy-MM-dd")"
+                        type="date"
+                        onchange="this.form.submit()" />
+                </label>
+            </form>
+        </div>
+    </header>
+
+    @if (TempData["NutritionError"] is string nutritionError)
+    {
+        <div class="app-message error">@nutritionError</div>
+    }
+
+    @if (Model.FoodLogEnabled)
+    {
+        <section class="card app-section app-section-green nutrition-dashboard-card">
+            <div class="app-section-label">
+                <span class="app-number">1</span>
+                <span>FOOD LOG</span>
+            </div>
+
+            <div class="nutrition-dashboard-head">
+                <div>
+                    <h2>Today</h2>
+                    <p class="small">
+                        Food Log totals feed Daily Entry automatically unless
+                        Manual Override is active there.
+                    </p>
+                </div>
+
+                <a asp-controller="DailyEntry"
+                   asp-action="Index"
+                   asp-route-date="@manual.Date.ToString("yyyy-MM-dd")"
+                   class="secondary">
+                    Daily Entry
+                </a>
+            </div>
+
+            @if (Model.NutritionManualOverride)
+            {
+                <div class="nutrition-dashboard-status warning">
+                    <strong>Manual Override is active in Daily Entry.</strong>
+                    <span>
+                        Food Log calculations are still shown here, but the manual
+                        Daily Entry values remain the Engine-facing numbers until
+                        override is turned off.
+                    </span>
+                </div>
+            }
+
+            <div class="nutrition-dashboard-overview">
+                <div class="nutrition-dashboard-macros">
+                    <article class="nutrition-macro-graph nutrition-macro-graph-plan">
+                        <div class="nutrition-macro-graph-head">
+                            <div class="nutrition-macro-graph-title">
+                                <span class="nutrition-macro-graph-label">PLAN</span>
+                                <div class="nutrition-dashboard-calories">
+                                    <strong>@planCalories.ToString("0")</strong>
+                                    <span>calories</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (plan is not null)
+                        {
+                            <div class="nutrition-macro-line"
+                                 role="img"
+                                 aria-label="Planned macro distribution">
+                                @if (planMacroCalories > 0m)
+                                {
+                                    <span class="nutrition-macro-segment protein"
+                                          style="width:@Pct(planProteinShare)"></span>
+                                    <span class="nutrition-macro-segment carbs"
+                                          style="width:@Pct(planCarbShare)"></span>
+                                    <span class="nutrition-macro-segment fat"
+                                          style="width:@Pct(planFatShare)"></span>
+                                }
+                                else
+                                {
+                                    <span class="nutrition-macro-segment empty"
+                                          style="width:100%"></span>
+                                }
+                            </div>
+
+                            <div class="nutrition-macro-legend">
+                                <div>
+                                    <span class="nutrition-macro-dot protein"></span>
+                                    <span>Protein</span>
+                                    <strong>@planProtein.ToString("0.#") g</strong>
+                                </div>
+                                <div>
+                                    <span class="nutrition-macro-dot carbs"></span>
+                                    <span>Carbs</span>
+                                    <strong>@planCarbs.ToString("0.#") g</strong>
+                                </div>
+                                <div>
+                                    <span class="nutrition-macro-dot fat"></span>
+                                    <span>Fat</span>
+                                    <strong>@planFat.ToString("0.#") g</strong>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="nutrition-macro-unavailable">
+                                Plan targets unavailable for this date.
+                            </div>
+                        }
+                    </article>
+
+                    <article class="nutrition-macro-graph nutrition-macro-graph-actual">
+                        <div class="nutrition-macro-graph-head">
+                            <div class="nutrition-macro-graph-title">
+                                <span class="nutrition-macro-graph-label">ACTUAL</span>
+                                <div class="nutrition-dashboard-calories">
+                                    <strong>@dailyCalories.ToString("0")</strong>
+                                    <span>calories</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="nutrition-macro-line actual-progress-track"
+                             role="img"
+                             aria-label='Actual intake is @actualToPlanPercent.ToString("0.#") percent of plan'>
+                            <div class="nutrition-actual-fill @(actualOverPlan ? "over-plan" : string.Empty)"
+                                 style="width:@Pct(actualBarPercent)">
+                                @if (actualMacroCalories > 0m)
+                                {
+                                    <span class="nutrition-macro-segment protein"
+                                          style="width:@Pct(actualProteinShare)"></span>
+                                    <span class="nutrition-macro-segment carbs"
+                                          style="width:@Pct(actualCarbShare)"></span>
+                                    <span class="nutrition-macro-segment fat"
+                                          style="width:@Pct(actualFatShare)"></span>
+                                }
+                                else
+                                {
+                                    <span class="nutrition-macro-segment empty"
+                                          style="width:100%"></span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="nutrition-macro-legend">
+                            <div>
+                                <span class="nutrition-macro-dot protein"></span>
+                                <span>Protein</span>
+                                <strong>@dailyProtein.ToString("0.#") g</strong>
+                            </div>
+                            <div>
+                                <span class="nutrition-macro-dot carbs"></span>
+                                <span>Carbs</span>
+                                <strong>@dailyCarbs.ToString("0.#") g</strong>
+                            </div>
+                            <div>
+                                <span class="nutrition-macro-dot fat"></span>
+                                <span>Fat</span>
+                                <strong>@dailyFat.ToString("0.#") g</strong>
+                            </div>
+                        </div>
+                    </article>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.PlanTargetWarning))
+                    {
+                        <div class="small nutrition-plan-warning">
+                            @Model.PlanTargetWarning
+                        </div>
+                    }
+                </div>
+
+                <div class="nutrition-meal-summary-grid">
+                    @foreach (var mealSlot in mealOrder)
+                    {
+                        var mealItems =
+                            Model.LoggedItems
+                                .Where(x => x.MealSlotCode == mealSlot)
+                                .OrderBy(x => x.ItemOrder)
+                                .ToList();
+
+                        var mealLabel =
+                            mealSlot switch
+                            {
+                                "BREAKFAST" => "Breakfast",
+                                "LUNCH" => "Lunch",
+                                "DINNER" => "Dinner",
+                                _ => "Snack"
+                            };
+
+                        var mealCalories = mealItems.Sum(x => x.EnergyKcal ?? 0m);
+                        var mealProtein = mealItems.Sum(x => x.ProteinG ?? 0m);
+                        var mealCarbs = mealItems.Sum(x => x.CarbohydrateG ?? 0m);
+                        var mealFat = mealItems.Sum(x => x.FatG ?? 0m);
+
+                        <button type="button"
+                                class="nutrition-meal-summary nutrition-meal-summary-button"
+                                data-food-picker-open
+                                data-picker-mode="food"
+                                data-meal-slot="@mealSlot"
+                                data-meal-label="@mealLabel"
+                                aria-label="Add food to @mealLabel"
+                                aria-pressed="false">
+                            <div class="nutrition-meal-summary-head">
+                                <strong>@mealLabel</strong>
+                                <span>- @mealCalories.ToString("0") kcal</span>
+                            </div>
+                            <div class="nutrition-meal-summary-macros">
+                                <span>P @mealProtein.ToString("0.#")</span>
+                                <span>C @mealCarbs.ToString("0.#")</span>
+                                <span>F @mealFat.ToString("0.#")</span>
+                            </div>
+                        </button>
+                    }
+                </div>
+            </div>
+
+            @if (Model.LoggedItems.Count > 0)
+            {
+                <details class="nutrition-today-foods" open>
+                    <summary>Today's foods (@Model.LoggedItems.Count)</summary>
+
+                    <div class="nutrition-today-food-list">
+                        @foreach (var mealSlot in mealOrder)
+                        {
+                            var mealItems =
+                                Model.LoggedItems
+                                    .Where(x => x.MealSlotCode == mealSlot)
+                                    .OrderBy(x => x.ItemOrder)
+                                    .ToList();
+
+                            if (mealItems.Count == 0)
+                            {
+                                continue;
+                            }
+
+                            var mealLabel =
+                                mealSlot switch
+                                {
+                                    "BREAKFAST" => "Breakfast",
+                                    "LUNCH" => "Lunch",
+                                    "DINNER" => "Dinner",
+                                    _ => "Snack"
+                                };
+
+                            <div class="nutrition-today-meal-group">
+                                <strong>@mealLabel</strong>
+
+                                @foreach (var item in mealItems)
+                                {
+                                    <div class="nutrition-intel-log-row nutrition-today-food-row">
+                                        <div>
+                                            <strong>@item.Description</strong>
+                                            <div class="small">
+                                                @item.Quantity.ToString("0.##") @item.QuantityUnitCode
+                                                • @(item.EnergyKcal?.ToString("0") ?? "—") kcal
+                                                • P @(item.ProteinG?.ToString("0.#") ?? "—")
+                                                • C @(item.CarbohydrateG?.ToString("0.#") ?? "—")
+                                                • F @(item.FatG?.ToString("0.#") ?? "—")
+                                            </div>
+                                        </div>
+
+                                        <form asp-action="DeleteLogItem" method="post">
+                                            <input type="hidden" name="date" value="@manual.Date.ToString("yyyy-MM-dd")" />
+                                            <input type="hidden" name="dailyLogItemId" value="@item.DailyLogItemId" />
+                                            <button type="submit" class="secondary">Remove</button>
+                                        </form>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </details>
+            }
+        </section>
+
+        <dialog id="nutrition-food-picker-dialog"
+                class="nutrition-picker-dialog"
+                data-picker-data-url="@Url.Action("FoodPickerData", "Nutrition")"
+                data-picker-measures-url="@Url.Action("FoodMeasures", "Nutrition")"
+                data-picker-date="@manual.Date.ToString("yyyy-MM-dd")">
+
+            <div class="nutrition-picker-shell">
+                <header class="nutrition-picker-head">
+                    <h2 data-picker-title>Add food</h2>
+
+                    <button type="button"
+                            class="nutrition-picker-head-close"
+                            data-picker-close
+                            aria-label="Close food picker"
+                            title="Close">
+                        ×
+                    </button>
+                </header>
+
+                <div class="nutrition-picker-topbar">
+                    <label class="nutrition-picker-meal-field">
+                        <span>Meal</span>
+                        <select data-picker-meal>
+                            <option value="BREAKFAST">Breakfast</option>
+                            <option value="LUNCH">Lunch</option>
+                            <option value="DINNER">Dinner</option>
+                            <option value="SNACK">Snack</option>
+                        </select>
+                    </label>
+
+                    <label class="nutrition-picker-search"
+                           data-picker-search-field>
+                        <span>Search food</span>
+                        <input type="search"
+                               placeholder="Chicken, yogurt, rice…"
+                               autocomplete="off"
+                               data-picker-search />
+                    </label>
+                </div>
+
+                <div class="nutrition-picker-results"
+                     data-picker-results>
+                    <div class="nutrition-picker-scroll"
+                         aria-label="Food picker choices">
+                        <section class="nutrition-picker-results-section"
+                                 data-picker-past-section>
+                            <div class="nutrition-picker-results-heading">
+                                <strong>Past meals</strong>
+                                <span class="small">Earlier meals for the selected meal</span>
+                            </div>
+
+                            <div class="nutrition-picker-choice-list"
+                                 data-picker-past-meals>
+                                <p class="small">Loading past meals…</p>
+                            </div>
+                        </section>
+
+                        <section class="nutrition-picker-results-section"
+                                 data-picker-food-section>
+                            <div class="nutrition-picker-results-heading">
+                                <div>
+                                    <strong>Foods</strong>
+                                    <span class="small">Most-used matching foods appear first</span>
+                                </div>
+
+                                <button type="button"
+                                        class="nutrition-picker-custom-link"
+                                        data-picker-custom-open>
+                                    + Add custom food
+                                </button>
+                            </div>
+
+                            <div class="nutrition-picker-choice-list"
+                                 data-picker-foods>
+                                <p class="small">Loading foods…</p>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="nutrition-picker-warning small"
+                         data-picker-warning
+                         hidden></div>
+                </div>
+
+                <section class="nutrition-picker-selected"
+                         data-picker-selected
+                         hidden>
+                    <div class="nutrition-picker-selected-head">
+                        <div class="nutrition-picker-selection"
+                             data-picker-selection>
+                            <strong>Selected food</strong>
+                        </div>
+
+                        <button type="button"
+                                class="secondary nutrition-picker-change"
+                                data-picker-change>
+                            Change
+                        </button>
+                    </div>
+
+                    <div class="nutrition-picker-provider-controls"
+                         data-picker-provider-controls
+                         hidden>
+                        <label class="nutrition-picker-measure-field">
+                            <span>Serving / measure</span>
+                            <select data-picker-measure>
+                                <option value="">Choose a food first</option>
+                            </select>
+                        </label>
+
+                        <label class="nutrition-picker-amount-field">
+                            <span data-picker-amount-label>Amount</span>
+                            <input type="number"
+                                   min="0.01"
+                                   max="1000"
+                                   step="0.01"
+                                   value="1"
+                                   data-picker-amount />
+                        </label>
+
+                        <div class="nutrition-picker-quick-amounts"
+                             data-picker-amount-presets
+                             hidden
+                             aria-label="Quick amount choices"></div>
+
+                        <span class="small nutrition-picker-amount-hint"
+                              data-picker-amount-hint
+                              hidden></span>
+                    </div>
+                </section>
+
+                <footer class="nutrition-picker-actions">
+                    <button type="button"
+                            class="primary"
+                            data-picker-add
+                            disabled>
+                        Add
+                    </button>
+
+                    <button type="button"
+                            class="secondary"
+                            data-picker-close>
+                        Close
+                    </button>
+                </footer>
+            </div>
+
+            <form asp-action="AddPastFood"
+                  method="post"
+                  data-picker-past-food-form
+                  hidden>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="date" value="@manual.Date.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="sourceDailyLogItemId" />
+                <input type="hidden" name="mealSlotCode" />
+            </form>
+
+            <form asp-action="CopyPastMeal"
+                  method="post"
+                  data-picker-past-meal-form
+                  hidden>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="date" value="@manual.Date.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="sourceDailyLogId" />
+                <input type="hidden" name="sourceMealSlotCode" />
+                <input type="hidden" name="targetMealSlotCode" />
+            </form>
+
+            <form asp-action="AddExternalFood"
+                  method="post"
+                  data-picker-provider-form
+                  hidden>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="date" value="@manual.Date.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="providerCode" />
+                <input type="hidden" name="sourceFoodId" />
+                <input type="hidden" name="amount" />
+                <input type="hidden" name="measureCode" />
+                <input type="hidden" name="mealSlotCode" />
+            </form>
+
+            <form asp-action="AddCustomFood"
+                  method="post"
+                  data-picker-custom-food-form
+                  hidden>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="date" value="@manual.Date.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="customFoodId" />
+                <input type="hidden" name="servings" />
+                <input type="hidden" name="mealSlotCode" />
+            </form>
+        </dialog>
+
+        <dialog id="nutrition-custom-food-dialog"
+                class="nutrition-picker-dialog nutrition-custom-food-dialog">
+            <form asp-action="CreateCustomFood"
+                  method="post"
+                  class="nutrition-picker-shell nutrition-custom-food-shell"
+                  data-custom-food-form>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="date" value="@manual.Date.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="addToToday" value="true" />
+
+                <header class="nutrition-picker-head">
+                    <div>
+                        <div class="nutrition-custom-food-kicker">12WR CUSTOM FOOD</div>
+                        <h2>Add custom food</h2>
+                    </div>
+
+                    <button type="button"
+                            class="nutrition-picker-head-close"
+                            data-custom-food-close
+                            aria-label="Close custom food"
+                            title="Close">
+                        ×
+                    </button>
+                </header>
+
+                <div class="nutrition-custom-food-grid">
+                    <label class="nutrition-custom-food-name">
+                        <span>Name</span>
+                        <input name="foodName"
+                               required
+                               maxlength="200"
+                               autocomplete="off" />
+                    </label>
+
+                    <label>
+                        <span>Brand <small>(optional)</small></span>
+                        <input name="brandName"
+                               maxlength="160"
+                               autocomplete="off" />
+                    </label>
+
+                    <label>
+                        <span>Serving size</span>
+                        <input name="servingSize"
+                               type="number"
+                               min="0.01"
+                               step="0.01"
+                               value="1"
+                               required />
+                    </label>
+
+                    <label>
+                        <span>Unit</span>
+                        <select name="servingUnitCode">
+                            <option value="serving">serving</option>
+                            <option value="g">g</option>
+                            <option value="oz">oz</option>
+                            <option value="cup">cup</option>
+                            <option value="ml">ml</option>
+                            <option value="fl oz">fl oz</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Calories</span>
+                        <input name="energyKcal"
+                               type="number"
+                               min="0"
+                               step="0.1"
+                               required />
+                    </label>
+
+                    <label>
+                        <span>Protein (g)</span>
+                        <input name="proteinG"
+                               type="number"
+                               min="0"
+                               step="0.1"
+                               required />
+                    </label>
+
+                    <label>
+                        <span>Carbs (g)</span>
+                        <input name="carbohydrateG"
+                               type="number"
+                               min="0"
+                               step="0.1"
+                               required />
+                    </label>
+
+                    <label>
+                        <span>Fat (g)</span>
+                        <input name="fatG"
+                               type="number"
+                               min="0"
+                               step="0.1"
+                               required />
+                    </label>
+
+                    <label>
+                        <span>Fiber (g) <small>(optional)</small></span>
+                        <input name="fiberG"
+                               type="number"
+                               min="0"
+                               step="0.1" />
+                    </label>
+
+                    <label>
+                        <span>Meal</span>
+                        <select name="mealSlotCode"
+                                data-custom-food-meal>
+                            <option value="BREAKFAST">Breakfast</option>
+                            <option value="LUNCH">Lunch</option>
+                            <option value="DINNER">Dinner</option>
+                            <option value="SNACK">Snack</option>
+                        </select>
+                    </label>
+                </div>
+
+                <footer class="nutrition-picker-actions">
+                    <button type="submit"
+                            class="primary">
+                        Create &amp; add
+                    </button>
+
+                    <button type="button"
+                            class="secondary"
+                            data-custom-food-close>
+                        Cancel
+                    </button>
+                </footer>
+            </form>
+        </dialog>
+    }
+    else
+    {
+        <section class="card app-section">
+            <div class="app-section-label">
+                <span class="app-number">1</span>
+                <span>OPTIONAL FOOD LOG</span>
+            </div>
+            <h2>Detailed food logging is off</h2>
+            <p class="small">
+                Daily Entry remains available for direct calorie and macro
+                entry. Enable <strong>Nutrition Food Log</strong> in Settings
+                when you want food search, serving measures, custom foods, and
+                calculated totals.
+            </p>
+
+            <a asp-controller="Profile"
+               asp-action="Settings"
+               class="primary">
+                Open Settings
+            </a>
+        </section>
+    }
+</div>
+
+<script>
+(() => {
+    const dialog =
+        document.getElementById(
+            "nutrition-food-picker-dialog");
+
+    const customDialog =
+        document.getElementById(
+            "nutrition-custom-food-dialog");
+
+    if (!(dialog instanceof HTMLDialogElement)) {
+        return;
+    }
+
+    const openers =
+        Array.from(
+            document.querySelectorAll(
+                "[data-food-picker-open]"));
+
+    const closeButtons =
+        Array.from(
+            dialog.querySelectorAll(
+                "[data-picker-close]"));
+
+    const addButton =
+        dialog.querySelector(
+            "[data-picker-add]");
+
+    const mealSelect =
+        dialog.querySelector(
+            "[data-picker-meal]");
+
+    const title =
+        dialog.querySelector(
+            "[data-picker-title]");
+
+    const searchInput =
+        dialog.querySelector(
+            "[data-picker-search]");
+
+    const searchField =
+        dialog.querySelector(
+            "[data-picker-search-field]");
+
+    const pastSection =
+        dialog.querySelector(
+            "[data-picker-past-section]");
+
+    const foodSection =
+        dialog.querySelector(
+            "[data-picker-food-section]");
+
+    const pastMealsHost =
+        dialog.querySelector(
+            "[data-picker-past-meals]");
+
+    const foodsHost =
+        dialog.querySelector(
+            "[data-picker-foods]");
+
+    const warning =
+        dialog.querySelector(
+            "[data-picker-warning]");
+
+    const resultsPanel =
+        dialog.querySelector(
+            "[data-picker-results]");
+
+    const selectedPanel =
+        dialog.querySelector(
+            "[data-picker-selected]");
+
+    const changeButton =
+        dialog.querySelector(
+            "[data-picker-change]");
+
+    const selectionHost =
+        dialog.querySelector(
+            "[data-picker-selection]");
+
+    const providerControls =
+        dialog.querySelector(
+            "[data-picker-provider-controls]");
+
+    const measureField =
+        dialog.querySelector(
+            ".nutrition-picker-measure-field");
+
+    const amountLabel =
+        dialog.querySelector(
+            "[data-picker-amount-label]");
+
+    const amountInput =
+        dialog.querySelector(
+            "[data-picker-amount]");
+
+    const amountPresets =
+        dialog.querySelector(
+            "[data-picker-amount-presets]");
+
+    const amountHint =
+        dialog.querySelector(
+            "[data-picker-amount-hint]");
+
+    const measureSelect =
+        dialog.querySelector(
+            "[data-picker-measure]");
+
+    const pastFoodForm =
+        dialog.querySelector(
+            "[data-picker-past-food-form]");
+
+    const pastMealForm =
+        dialog.querySelector(
+            "[data-picker-past-meal-form]");
+
+    const providerForm =
+        dialog.querySelector(
+            "[data-picker-provider-form]");
+
+    const customFoodForm =
+        dialog.querySelector(
+            "[data-picker-custom-food-form]");
+
+    const customFoodOpen =
+        dialog.querySelector(
+            "[data-picker-custom-open]");
+
+    const customFoodMeal =
+        customDialog?.querySelector(
+            "[data-custom-food-meal]");
+
+    const customFoodName =
+        customDialog?.querySelector(
+            "input[name='foodName']");
+
+    const customFoodCloseButtons =
+        customDialog instanceof HTMLDialogElement
+            ? Array.from(
+                customDialog.querySelectorAll(
+                    "[data-custom-food-close]"))
+            : [];
+
+    const dataUrl =
+        dialog.dataset.pickerDataUrl;
+
+    const measuresUrl =
+        dialog.dataset.pickerMeasuresUrl;
+
+    const pickerDate =
+        dialog.dataset.pickerDate;
+
+    if (!mealSelect
+        || !searchInput
+        || !pastMealsHost
+        || !foodsHost
+        || !addButton
+        || !selectionHost
+        || !resultsPanel
+        || !selectedPanel
+        || !dataUrl
+        || !measuresUrl
+        || !pickerDate) {
+        return;
+    }
+
+    let selected = null;
+    let pickerMode = "food";
+    let requestVersion = 0;
+    let searchTimer = null;
+    let activeMealOpener = null;
+    const measureCache = new Map();
+
+    const setActiveMealOpener = opener => {
+        if (activeMealOpener) {
+            activeMealOpener.classList.remove(
+                "is-active");
+            activeMealOpener.setAttribute(
+                "aria-pressed",
+                "false");
+        }
+
+        activeMealOpener =
+            opener?.classList?.contains(
+                "nutrition-meal-summary-button")
+                ? opener
+                : null;
+
+        if (activeMealOpener) {
+            activeMealOpener.classList.add(
+                "is-active");
+            activeMealOpener.setAttribute(
+                "aria-pressed",
+                "true");
+        }
+    };
+
+    const mealLabel = code =>
+        code === "BREAKFAST"
+            ? "Breakfast"
+            : code === "LUNCH"
+                ? "Lunch"
+                : code === "DINNER"
+                    ? "Dinner"
+                    : "Snack";
+
+    const cupAmounts = [
+        ["0.125", "1/8 cup"],
+        ["0.25", "1/4 cup"],
+        ["0.3333", "1/3 cup"],
+        ["0.5", "1/2 cup"],
+        ["0.6667", "2/3 cup"],
+        ["0.75", "3/4 cup"],
+        ["1", "1 cup"],
+        ["1.5", "1 1/2 cups"],
+        ["2", "2 cups"]
+    ];
+
+    const servingAmounts = [
+        ["0.125", "1/8 serving"],
+        ["0.25", "1/4 serving"],
+        ["0.3333", "1/3 serving"],
+        ["0.5", "1/2 serving"],
+        ["0.6667", "2/3 serving"],
+        ["0.75", "3/4 serving"],
+        ["1", "1 serving"],
+        ["1.5", "1 1/2 servings"],
+        ["2", "2 servings"]
+    ];
+
+    const ounceAmounts = [
+        ["2", "2 oz"],
+        ["3", "3 oz"],
+        ["4", "4 oz"],
+        ["5", "5 oz"],
+        ["6", "6 oz"],
+        ["8", "8 oz"],
+        ["12", "12 oz"],
+        ["16", "16 oz"]
+    ];
+
+    const fluidOunceAmounts = [
+        ["2", "2 fl oz"],
+        ["4", "4 fl oz"],
+        ["6", "6 fl oz"],
+        ["8", "8 fl oz"],
+        ["10", "10 fl oz"],
+        ["12", "12 fl oz"],
+        ["14", "14 fl oz"],
+        ["16", "16 fl oz"]
+    ];
+
+    const teaspoonAmounts = [
+        ["0.25", "1/4 tsp"],
+        ["0.5", "1/2 tsp"],
+        ["1", "1 tsp"],
+        ["2", "2 tsp"],
+        ["3", "3 tsp"]
+    ];
+
+    const tablespoonAmounts = [
+        ["0.5", "1/2 tbsp"],
+        ["1", "1 tbsp"],
+        ["2", "2 tbsp"],
+        ["3", "3 tbsp"],
+        ["4", "4 tbsp"]
+    ];
+
+    const syncAmountPresetSelection = () => {
+        if (!amountPresets || !amountInput) {
+            return;
+        }
+
+        const current =
+            Number.parseFloat(
+                amountInput.value);
+
+        for (
+            const button of
+            amountPresets.querySelectorAll(
+                "[data-amount-value]")
+        ) {
+            const value =
+                Number.parseFloat(
+                    button.dataset.amountValue || "");
+
+            button.classList.toggle(
+                "is-selected",
+                Number.isFinite(current)
+                && Number.isFinite(value)
+                && Math.abs(current - value) < 0.0002);
+        }
+    };
+
+    const refreshAmountPresets = () => {
+        if (!amountPresets) {
+            return;
+        }
+
+        amountPresets.replaceChildren();
+
+        const unit =
+            (
+                measureSelect
+                    ?.selectedOptions?.[0]
+                    ?.dataset.unitCode
+                || ""
+            ).trim().toLowerCase();
+
+        const presets =
+            unit === "cup"
+                ? cupAmounts
+                : unit === "serving"
+                    ? servingAmounts
+                    : unit === "oz"
+                        ? ounceAmounts
+                        : unit === "fl oz"
+                            ? fluidOunceAmounts
+                            : unit === "tsp"
+                                ? teaspoonAmounts
+                                : unit === "tbsp"
+                                    ? tablespoonAmounts
+                                    : [];
+
+        for (const [value, label] of presets) {
+            const button =
+                document.createElement(
+                    "button");
+
+            button.type = "button";
+            button.className =
+                "nutrition-picker-amount-chip";
+            button.dataset.amountValue =
+                value;
+            button.textContent =
+                label;
+
+            button.addEventListener(
+                "click",
+                () => {
+                    if (amountInput) {
+                        amountInput.value =
+                            value;
+                        syncAmountPresetSelection();
+                    }
+                });
+
+            amountPresets.appendChild(
+                button);
+        }
+
+        const hasPresets =
+            presets.length > 0;
+
+        amountPresets.hidden =
+            !hasPresets;
+
+        if (amountHint) {
+            amountHint.hidden =
+                !hasPresets;
+
+            amountHint.textContent =
+                unit === "cup"
+                    ? "Choose a cup amount or type another value."
+                    : unit === "serving"
+                        ? "Choose a serving amount or type another value."
+                        : unit === "oz"
+                            ? "Choose a weight-ounce amount or type another value."
+                        : unit === "fl oz"
+                            ? "Choose a fluid-ounce amount or type another value."
+                            : unit === "tsp"
+                                ? "Choose a teaspoon amount or type another value."
+                                : unit === "tbsp"
+                                    ? "Choose a tablespoon amount or type another value."
+                                    : "";
+        }
+
+        syncAmountPresetSelection();
+    };
+
+    const syncPickerMode = () => {
+        const pastMealMode =
+            pickerMode === "pastMeal";
+
+        dialog.dataset.pickerMode =
+            pickerMode;
+
+        if (searchField) {
+            searchField.hidden =
+                pastMealMode;
+        }
+
+        if (pastSection) {
+            pastSection.hidden =
+                !pastMealMode;
+        }
+
+        if (foodSection) {
+            foodSection.hidden =
+                pastMealMode;
+        }
+
+        if (title) {
+            title.textContent =
+                pastMealMode
+                    ? `Add previous meal to ${mealLabel(mealSelect.value)}`
+                    : `Add food to ${mealLabel(mealSelect.value)}`;
+        }
+    };
+
+    const clearSelection = () => {
+        selected = null;
+        addButton.disabled = true;
+
+        resultsPanel.hidden = false;
+        selectedPanel.hidden = true;
+
+        if (providerControls) {
+            providerControls.hidden = true;
+        }
+
+        if (measureField) {
+            measureField.hidden = false;
+        }
+
+        if (amountLabel) {
+            amountLabel.textContent = "Amount";
+        }
+
+        if (amountInput) {
+            amountInput.value = "1";
+        }
+
+        if (amountPresets) {
+            amountPresets.hidden = true;
+            amountPresets.replaceChildren();
+        }
+
+        if (amountHint) {
+            amountHint.hidden = true;
+            amountHint.textContent = "";
+        }
+
+        selectionHost.innerHTML =
+            "<strong>Selected food</strong>";
+
+        for (
+            const choice of
+            dialog.querySelectorAll(
+                ".nutrition-picker-choice.is-selected")
+        ) {
+            choice.classList.remove(
+                "is-selected");
+        }
+    };
+
+    const showSelection = () => {
+        resultsPanel.hidden = true;
+        selectedPanel.hidden = false;
+    };
+
+    const selectChoice = async (
+        button,
+        choice) => {
+        clearSelection();
+        selected = choice;
+        button.classList.add(
+            "is-selected");
+        showSelection();
+
+        if (choice.kind === "pastMeal") {
+            selectionHost.innerHTML =
+                `<strong>Copy ${choice.label}</strong>` +
+                `<span class="small">${choice.summary}</span>`;
+
+            addButton.disabled = false;
+            return;
+        }
+
+        if (choice.kind === "pastFood") {
+            selectionHost.innerHTML =
+                `<strong>${choice.description}</strong>` +
+                `<span class="small">Repeat ${choice.quantity} ${choice.quantityUnitCode} • used ${choice.usageCount} time${choice.usageCount === 1 ? "" : "s"}</span>`;
+
+            addButton.disabled = false;
+            return;
+        }
+
+        if (choice.kind === "customFood") {
+            selectionHost.innerHTML =
+                `<strong>${choice.description}</strong>` +
+                `<span class="small">1 serving = ${choice.servingSize} ${choice.servingUnitCode} • ${choice.energyKcal ?? "—"} kcal • P ${choice.proteinG ?? "—"} • C ${choice.carbohydrateG ?? "—"} • F ${choice.fatG ?? "—"}</span>`;
+
+            if (providerControls) {
+                providerControls.hidden = false;
+            }
+
+            if (measureField) {
+                measureField.hidden = true;
+            }
+
+            if (amountLabel) {
+                amountLabel.textContent = "Servings";
+            }
+
+            if (amountInput) {
+                amountInput.value = "1";
+            }
+
+            if (amountPresets) {
+                amountPresets.hidden = false;
+                amountPresets.replaceChildren();
+
+                for (const [value, label] of servingAmounts) {
+                    const presetButton =
+                        document.createElement(
+                            "button");
+
+                    presetButton.type = "button";
+                    presetButton.className =
+                        "nutrition-picker-amount-chip";
+                    presetButton.dataset.amountValue =
+                        value;
+                    presetButton.textContent =
+                        label;
+
+                    presetButton.addEventListener(
+                        "click",
+                        () => {
+                            if (amountInput) {
+                                amountInput.value =
+                                    value;
+                                syncAmountPresetSelection();
+                            }
+                        });
+
+                    amountPresets.appendChild(
+                        presetButton);
+                }
+
+                syncAmountPresetSelection();
+            }
+
+            if (amountHint) {
+                amountHint.hidden = false;
+                amountHint.textContent =
+                    "Choose a serving amount or type another value.";
+            }
+
+            addButton.disabled = false;
+            return;
+        }
+
+        if (measureField) {
+            measureField.hidden = false;
+        }
+
+        if (amountLabel) {
+            amountLabel.textContent = "Amount";
+        }
+
+        selectionHost.innerHTML =
+            `<strong>${choice.description}</strong>` +
+            `<span class="small">Loading serving choices…</span>`;
+
+        if (providerControls) {
+            providerControls.hidden = false;
+        }
+
+        addButton.disabled = true;
+
+        if (amountInput) {
+            amountInput.value = "1";
+        }
+
+        if (!measureSelect) {
+            return;
+        }
+
+        measureSelect.replaceChildren();
+
+        const loading =
+            document.createElement("option");
+
+        loading.value = "";
+        loading.textContent =
+            "Loading serving choices…";
+
+        measureSelect.appendChild(
+            loading);
+
+        const key =
+            `${choice.providerCode}|${choice.sourceFoodId}`;
+
+        try {
+            let payload =
+                measureCache.get(key);
+
+            if (!payload) {
+                const url =
+                    new URL(
+                        measuresUrl,
+                        window.location.origin);
+
+                url.searchParams.set(
+                    "providerCode",
+                    choice.providerCode);
+
+                url.searchParams.set(
+                    "sourceFoodId",
+                    choice.sourceFoodId);
+
+                const response =
+                    await fetch(
+                        url,
+                        {
+                            credentials: "same-origin",
+                            cache: "no-store",
+                            headers: {
+                                "Accept": "application/json"
+                            }
+                        });
+
+                payload =
+                    await response.json();
+
+                if (!response.ok
+                    || payload?.success !== true) {
+                    throw new Error(
+                        payload?.message
+                        || "Unable to load serving choices.");
+                }
+
+                measureCache.set(
+                    key,
+                    payload);
+            }
+
+            if (selected !== choice) {
+                return;
+            }
+
+            measureSelect.replaceChildren();
+
+            for (
+                const measure of
+                payload.measures ?? []
+            ) {
+                const option =
+                    document.createElement(
+                        "option");
+
+                option.value =
+                    measure.code;
+
+                option.dataset.unitCode =
+                    measure.unitCode || "";
+
+                option.textContent =
+                    `${measure.description} • ${measure.energyKcal ?? "—"} kcal • ` +
+                    `P ${measure.proteinG ?? "—"} • C ${measure.carbohydrateG ?? "—"} • F ${measure.fatG ?? "—"}`;
+
+                if (
+                    measure.code
+                    === payload.defaultMeasureCode
+                ) {
+                    option.selected = true;
+                }
+
+                measureSelect.appendChild(
+                    option);
+            }
+
+            if (
+                measureSelect.options.length
+                === 0
+            ) {
+                throw new Error(
+                    "No compatible serving choices were returned.");
+            }
+
+            refreshAmountPresets();
+
+            selectionHost.innerHTML =
+                `<strong>${choice.description}</strong>` +
+                `<span class="small">Choose the amount and serving, then Add.</span>`;
+
+            addButton.disabled = false;
+        }
+        catch (error) {
+            if (selected !== choice) {
+                return;
+            }
+
+            selectionHost.innerHTML =
+                `<strong>${choice.description}</strong>` +
+                `<span class="small">${error instanceof Error ? error.message : "Unable to load serving choices."}</span>`;
+
+            addButton.disabled = true;
+        }
+    };
+
+    const choiceButton = (
+        html,
+        choice) => {
+        const button =
+            document.createElement(
+                "button");
+
+        button.type = "button";
+        button.className =
+            "nutrition-picker-choice";
+
+        button.innerHTML = html;
+
+        button.addEventListener(
+            "click",
+            () => selectChoice(
+                button,
+                choice));
+
+        return button;
+    };
+
+    const renderPastMeals = meals => {
+        pastMealsHost.replaceChildren();
+
+        if (!meals?.length) {
+            const empty =
+                document.createElement("p");
+
+            empty.className = "small";
+            empty.textContent =
+                "No earlier complete meals for this meal slot yet.";
+
+            pastMealsHost.appendChild(
+                empty);
+
+            return;
+        }
+
+        for (const meal of meals) {
+            const date =
+                new Date(
+                    `${meal.logDate}T12:00:00`);
+
+            const label =
+                date.toLocaleDateString(
+                    undefined,
+                    {
+                        month: "short",
+                        day: "numeric"
+                    });
+
+            const choice = {
+                kind: "pastMeal",
+                dailyLogId:
+                    meal.dailyLogId,
+                sourceMealSlotCode:
+                    meal.mealSlotCode,
+                label,
+                summary:
+                    meal.summary
+            };
+
+            const button =
+                choiceButton(
+                    `<strong>${label}</strong>` +
+                    `<span>${meal.summary}</span>` +
+                    `<small>${meal.itemCount} item${meal.itemCount === 1 ? "" : "s"} • ${meal.energyKcal ?? "—"} kcal</small>`,
+                    choice);
+
+            pastMealsHost.appendChild(
+                button);
+        }
+    };
+
+    const renderFoods = foods => {
+        foodsHost.replaceChildren();
+
+        if (!foods?.length) {
+            const empty =
+                document.createElement("p");
+
+            empty.className = "small";
+            empty.textContent =
+                searchInput.value.trim().length >= 2
+                    ? "No matching foods found."
+                    : "Your frequent foods and saved custom foods appear here. Type at least 2 characters to search USDA.";
+
+            foodsHost.appendChild(
+                empty);
+
+            return;
+        }
+
+        for (const food of foods) {
+            const isPast =
+                food.kind === "pastFood";
+
+            const isCustom =
+                food.kind === "customFood";
+
+            let choice;
+            let badge;
+            let details;
+
+            if (isPast) {
+                choice = {
+                    kind: "pastFood",
+                    sourceDailyLogItemId:
+                        food.sourceDailyLogItemId,
+                    description:
+                        food.description,
+                    usageCount:
+                        food.usageCount,
+                    quantity:
+                        food.quantity,
+                    quantityUnitCode:
+                        food.quantityUnitCode
+                };
+
+                badge =
+                    `Past food • used ${food.usageCount}x`;
+
+                details =
+                    `${food.quantity} ${food.quantityUnitCode}`;
+            }
+            else if (isCustom) {
+                choice = {
+                    kind: "customFood",
+                    customFoodId:
+                        food.customFoodId,
+                    description:
+                        food.description,
+                    servingSize:
+                        food.servingSize,
+                    servingUnitCode:
+                        food.servingUnitCode,
+                    energyKcal:
+                        food.energyKcal,
+                    proteinG:
+                        food.proteinG,
+                    carbohydrateG:
+                        food.carbohydrateG,
+                    fatG:
+                        food.fatG
+                };
+
+                badge = "My custom food";
+
+                details =
+                    `${food.brandName || ""}` +
+                    `${food.brandName ? " • " : ""}` +
+                    `1 serving = ${food.servingSize} ${food.servingUnitCode}`;
+            }
+            else {
+                choice = {
+                    kind: "provider",
+                    providerCode:
+                        food.providerCode,
+                    sourceFoodId:
+                        food.sourceFoodId,
+                    description:
+                        food.description
+                };
+
+                badge =
+                    `${food.providerCode ?? "Food"}${food.dataType ? ` • ${food.dataType}` : ""}`;
+
+                details =
+                    food.brandName || "";
+            }
+
+            const button =
+                choiceButton(
+                    `<strong>${food.description}</strong>` +
+                    `<span>${details}</span>` +
+                    `<small>${badge} • ${food.energyKcal ?? "—"} kcal • P ${food.proteinG ?? "—"} • C ${food.carbohydrateG ?? "—"} • F ${food.fatG ?? "—"}</small>`,
+                    choice);
+
+            foodsHost.appendChild(
+                button);
+        }
+    };
+
+    const loadPickerData = async () => {
+        const version =
+            ++requestVersion;
+
+        clearSelection();
+
+        pastMealsHost.innerHTML =
+            "<p class=\"small\">Loading past meals…</p>";
+
+        foodsHost.innerHTML =
+            "<p class=\"small\">Loading foods…</p>";
+
+        if (warning) {
+            warning.hidden = true;
+            warning.textContent = "";
+        }
+
+        try {
+            const url =
+                new URL(
+                    dataUrl,
+                    window.location.origin);
+
+            url.searchParams.set(
+                "date",
+                pickerDate);
+
+            url.searchParams.set(
+                "mealSlotCode",
+                mealSelect.value);
+
+            const query =
+                searchInput.value.trim();
+
+            if (query) {
+                url.searchParams.set(
+                    "query",
+                    query);
+            }
+
+            const response =
+                await fetch(
+                    url,
+                    {
+                        credentials:
+                            "same-origin",
+                        cache:
+                            "no-store",
+                        headers: {
+                            "Accept":
+                                "application/json"
+                        }
+                    });
+
+            const payload =
+                await response.json();
+
+            if (version !== requestVersion) {
+                return;
+            }
+
+            if (!response.ok
+                || payload?.success !== true) {
+                throw new Error(
+                    payload?.message
+                    || "Unable to load the food picker.");
+            }
+
+            renderPastMeals(
+                payload.pastMeals);
+
+            renderFoods(
+                payload.foods);
+
+            if (
+                warning
+                && payload.warning
+            ) {
+                warning.textContent =
+                    payload.warning;
+
+                warning.hidden = false;
+            }
+        }
+        catch (error) {
+            if (version !== requestVersion) {
+                return;
+            }
+
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Unable to load the food picker.";
+
+            pastMealsHost.innerHTML =
+                `<p class="small">${message}</p>`;
+
+            foodsHost.innerHTML =
+                `<p class="small">${message}</p>`;
+        }
+    };
+
+    const openPicker = opener => {
+        const slot =
+            opener.dataset.mealSlot
+            || "BREAKFAST";
+
+        pickerMode =
+            opener.dataset.pickerMode
+            || "food";
+
+        setActiveMealOpener(
+            opener);
+
+        mealSelect.value = slot;
+        searchInput.value = "";
+
+        clearSelection();
+        syncPickerMode();
+
+        dialog.showModal();
+        loadPickerData();
+
+        window.setTimeout(
+            () => {
+                if (pickerMode === "food") {
+                    searchInput.focus();
+                }
+                else {
+                    mealSelect.focus();
+                }
+            },
+            50);
+    };
+
+    for (const opener of openers) {
+        opener.addEventListener(
+            "click",
+            () => openPicker(
+                opener));
+    }
+
+    for (const closeButton of closeButtons) {
+        closeButton.addEventListener(
+            "click",
+            () => dialog.close());
+    }
+
+    dialog.addEventListener(
+        "close",
+        () => setActiveMealOpener(
+            null));
+
+    customFoodOpen?.addEventListener(
+        "click",
+        () => {
+            if (!(customDialog instanceof HTMLDialogElement)) {
+                return;
+            }
+
+            if (customFoodMeal) {
+                customFoodMeal.value =
+                    mealSelect.value;
+            }
+
+            dialog.close();
+            customDialog.showModal();
+
+            window.setTimeout(
+                () => customFoodName?.focus(),
+                40);
+        });
+
+    for (const closeButton of customFoodCloseButtons) {
+        closeButton.addEventListener(
+            "click",
+            () => customDialog?.close());
+    }
+
+    customDialog?.addEventListener(
+        "click",
+        event => {
+            if (event.target === customDialog) {
+                customDialog.close();
+            }
+        });
+
+    measureSelect?.addEventListener(
+        "change",
+        refreshAmountPresets);
+
+    amountInput?.addEventListener(
+        "input",
+        syncAmountPresetSelection);
+
+    changeButton?.addEventListener(
+        "click",
+        () => {
+            clearSelection();
+            syncPickerMode();
+
+            window.setTimeout(
+                () => {
+                    if (pickerMode === "food") {
+                        searchInput.focus();
+                    }
+                    else {
+                        mealSelect.focus();
+                    }
+                },
+                25);
+        });
+
+    mealSelect.addEventListener(
+        "change",
+        () => {
+            syncPickerMode();
+            loadPickerData();
+        });
+
+    searchInput.addEventListener(
+        "input",
+        () => {
+            if (pickerMode !== "food") {
+                return;
+            }
+
+            if (searchTimer) {
+                window.clearTimeout(
+                    searchTimer);
+            }
+
+            searchTimer =
+                window.setTimeout(
+                    loadPickerData,
+                    350);
+        });
+
+    addButton.addEventListener(
+        "click",
+        () => {
+            if (!selected) {
+                return;
+            }
+
+            const meal =
+                mealSelect.value;
+
+            if (
+                selected.kind
+                === "pastMeal"
+            ) {
+                pastMealForm.elements
+                    .sourceDailyLogId.value =
+                        selected.dailyLogId;
+
+                pastMealForm.elements
+                    .sourceMealSlotCode.value =
+                        selected.sourceMealSlotCode;
+
+                pastMealForm.elements
+                    .targetMealSlotCode.value =
+                        meal;
+
+                pastMealForm.requestSubmit();
+                return;
+            }
+
+            if (
+                selected.kind
+                === "pastFood"
+            ) {
+                pastFoodForm.elements
+                    .sourceDailyLogItemId.value =
+                        selected.sourceDailyLogItemId;
+
+                pastFoodForm.elements
+                    .mealSlotCode.value =
+                        meal;
+
+                pastFoodForm.requestSubmit();
+                return;
+            }
+
+            if (
+                selected.kind
+                === "customFood"
+            ) {
+                if (!customFoodForm) {
+                    return;
+                }
+
+                customFoodForm.elements
+                    .customFoodId.value =
+                        selected.customFoodId;
+
+                customFoodForm.elements
+                    .servings.value =
+                        amountInput?.value || "1";
+
+                customFoodForm.elements
+                    .mealSlotCode.value =
+                        meal;
+
+                customFoodForm.requestSubmit();
+                return;
+            }
+
+            if (!measureSelect?.value) {
+                return;
+            }
+
+            providerForm.elements
+                .providerCode.value =
+                    selected.providerCode;
+
+            providerForm.elements
+                .sourceFoodId.value =
+                    selected.sourceFoodId;
+
+            providerForm.elements
+                .amount.value =
+                    amountInput?.value || "1";
+
+            providerForm.elements
+                .measureCode.value =
+                    measureSelect.value;
+
+            providerForm.elements
+                .mealSlotCode.value =
+                    meal;
+
+            providerForm.requestSubmit();
+        });
+
+    dialog.addEventListener(
+        "click",
+        event => {
+            if (event.target === dialog) {
+                dialog.close();
+            }
+        });
+})();
+</script>

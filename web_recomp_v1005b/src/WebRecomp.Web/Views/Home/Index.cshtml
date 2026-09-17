@@ -1,0 +1,86 @@
+@{
+    ViewData["Title"] = "Welcome";
+    ViewData["PublicPage"] = true;
+}
+
+<div class="marketing-page welcome-v2">
+    <section class="marketing-hero welcome-v2-hero">
+        <div class="marketing-hero-copy">
+            <div class="marketing-kicker">SCIENCE-BACKED. SIMPLE TO LIVE.</div>
+            <h1>Live <span>Stronger</span> <strong>Longer!</strong></h1>
+            <h2>It’s Easy When You Find What Motivates You!</h2>
+            <p>
+                Stay active. Keep protein high. Train your muscles with meaningful resistance, then
+                use carbohydrate to help refill the glycogen that training used. Recover and relax.
+                Recomp does the math behind those simple habits so you can lose fat, preserve or build
+                muscle, and keep living strong without making food or training miserable.
+            </p>
+            <a class="marketing-cta" asp-controller="Home" asp-action="Evidence">
+                Recomp Works! Explore the Evidence.
+            </a>
+        </div>
+
+        <a class="marketing-feature-image welcome-poster-link"
+           asp-controller="Home"
+           asp-action="Evidence"
+           aria-label="Explore the scientific evidence for Recomp">
+            <img class="theme-image theme-image-light"
+                 src="~/images/recomp/welcome-poster-light.webp"
+                 alt="12 Week Recomp: Take 12 weeks to change your life. Lose fat. Build muscle. Eat." />
+            <img class="theme-image theme-image-dark"
+                 src="~/images/recomp/welcome-poster-dark.webp"
+                 alt="12 Week Recomp: Take 12 weeks to change your life. Lose fat. Build muscle. Eat." />
+        </a>
+    </section>
+
+    <section class="marketing-section">
+        <div class="marketing-section-head">
+            <div class="marketing-kicker">HOW IT WORKS</div>
+            <h2>Five simple things. Repeated.</h2>
+        </div>
+
+        <div class="simple-step-grid">
+            <article class="simple-step step-blue">
+                <div class="simple-step-icon">↗</div>
+                <h3>MOVE</h3>
+                <p>Find training or activity you actually want to keep doing.</p>
+            </article>
+            <article class="simple-step step-green">
+                <div class="simple-step-icon">◉</div>
+                <h3>EAT WELL</h3>
+                <p>Make real, nourishing food the default without turning food into punishment.</p>
+            </article>
+            <article class="simple-step step-gold">
+                <div class="simple-step-icon">⚡</div>
+                <h3>FUEL SMART</h3>
+                <p>Keep protein high every day. Harder training earns more carbohydrate for glycogen refill.</p>
+            </article>
+            <article class="simple-step step-purple">
+                <div class="simple-step-icon">☾</div>
+                <h3>RECOVER</h3>
+                <p>Sleep, rest, de-stress, and give your body time to adapt.</p>
+            </article>
+            <article class="simple-step step-blue">
+                <div class="simple-step-icon">↻</div>
+                <h3>REPEAT</h3>
+                <p>Consistency beats extremes. Small wins compound into a different body.</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="science-simple-panel">
+        <div class="science-simple-mark" aria-hidden="true">◎</div>
+        <div>
+            <div class="marketing-kicker">BUILT ON SCIENCE</div>
+            <h2>Simple enough for real life.</h2>
+            <p>
+                Training, protein, carbohydrate availability, energy balance, and recovery all matter.
+                Protein stays high; additional carbohydrate rises with training demand. If your protein,
+                calories, and fat still fit the day, some of those carbs can come from foods you genuinely
+                enjoy—a slice of pie, a donut, cereal, bread, or dessert. Motivation and adherence matter too.
+                Recomp does the math in the background so your day-to-day job can stay simple.
+            </p>
+        </div>
+        <a class="marketing-text-link" asp-controller="Home" asp-action="Evidence">See the research →</a>
+    </section>
+</div>

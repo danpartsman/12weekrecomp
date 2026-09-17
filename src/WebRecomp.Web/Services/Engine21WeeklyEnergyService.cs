@@ -1,4 +1,4 @@
-﻿namespace WebRecomp.Web.Services;
+namespace WebRecomp.Web.Services;
 
 /// <summary>
 /// One planned day supplied to the Engine 2.1 weekly energy allocator.
@@ -140,8 +140,12 @@ public sealed class Engine21WeeklyEnergyService
                             day.PlannedWorkoutCalories
                             - restingEnergyDuringWorkout);
 
+                    // The non-workout reference covers the full 24-hour day,
+                    // so add only workout energy above the resting cost that
+                    // would already have occurred during the workout minutes.
                     var maintenanceEnergy =
-                        provisionalNonWorkoutEnergyKcal;
+                        provisionalNonWorkoutEnergyKcal
+                        + netWorkoutEnergy;
 
                     // Category weight is NOT multiplied directly into TDEE
                     // as the final calorie prescription.

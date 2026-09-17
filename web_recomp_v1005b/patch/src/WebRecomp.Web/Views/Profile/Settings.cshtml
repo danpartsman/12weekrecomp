@@ -1,0 +1,76 @@
+﻿@model SettingsViewModel
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">ACCOUNT</div>
+        <h1>Settings</h1>
+        <p class="lede">App preferences are separate from the identity provider that authenticates your sign-in.</p>
+    </div>
+    <a class="button" asp-action="Index">Back to profile</a>
+</div>
+
+@if (TempData["StatusMessage"] is string statusMessage)
+{
+    <div class="status-card good">@statusMessage</div>
+}
+
+<form asp-action="Settings" method="post" class="stack narrow" id="settings-form">
+    <div asp-validation-summary="All" class="validation"></div>
+
+    <section class="card stack">
+        <div>
+            <div class="profile-panel-label">RECOMP PROFILE</div>
+            <h2>Display & contact</h2>
+        </div>
+        <label>Preferred display name<input asp-for="PreferredDisplayName" /></label>
+        <label>Contact email<input asp-for="ContactEmail" type="email" /></label>
+        <p class="small">The contact email is for Recomp communication and can differ from the account used to sign in.</p>
+    </section>
+
+    <section class="card stack">
+        <div>
+            <div class="profile-panel-label">APPEARANCE</div>
+            <h2>Theme</h2>
+        </div>
+        <label>Color theme
+            <select asp-for="ThemeCode" id="theme-select">
+                <option value="SYSTEM">System</option>
+                <option value="LIGHT">Light</option>
+                <option value="DARK">Dark</option>
+            </select>
+        </label>
+        <p class="small">System follows the light/dark preference of the device. This preference is saved to your Recomp account and to this browser.</p>
+    </section>
+
+    <section class="card stack">
+        <div>
+            <div class="profile-panel-label">SIGN-IN & SECURITY</div>
+            <h2>Identity provider</h2>
+        </div>
+        <label>Current sign-in identity<input value="@(Model.SignInEmail ?? "Identity provider account")" readonly /></label>
+        <p class="small">
+            Recomp does not store your password. Passwords, security methods, and the actual sign-in identity are managed by Microsoft Entra or the identity provider used during sign-in. Email one-time-passcode users may not have a Recomp password to change.
+        </p>
+        <a class="button" href="https://myaccount.microsoft.com/" target="_blank" rel="noopener">Manage Microsoft / Entra account</a>
+    </section>
+
+    <button class="primary" type="submit">Save settings</button>
+</form>
+
+<script>
+    (() => {
+        const form = document.getElementById('settings-form');
+        const select = document.getElementById('theme-select');
+        if (!form || !select) return;
+
+        const serverPreference = '@Model.ThemeCode.ToLowerInvariant()';
+        localStorage.setItem('recomp-theme', serverPreference || 'system');
+
+        form.addEventListener('submit', () => {
+            localStorage.setItem('recomp-theme', (select.value || 'SYSTEM').toLowerCase());
+        });
+    })();
+</script>

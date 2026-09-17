@@ -100,11 +100,16 @@
     var otherCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "other");
     var unplannedCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "unplanned");
 
-    var majorOptions = Model.WorkoutTypes.Where(x => CategoryFromCode(x.Value) == "major").ToList();
-    var accessoryOptions = Model.WorkoutTypes.Where(x => CategoryFromCode(x.Value) == "accessory").ToList();
-    var cardioOptions = Model.WorkoutTypes.Where(x => CategoryFromCode(x.Value) == "cardio").ToList();
-    var recoveryOptions = Model.WorkoutTypes.Where(x => CategoryFromCode(x.Value) == "recovery").ToList();
-    var otherOptions = Model.WorkoutTypes.Where(x => CategoryFromCode(x.Value) == "other").ToList();
+    var systemCategoryOrder =
+        WebRecomp.Web.Services.WorkoutIntelligence
+            .SystemWorkoutRecipeCatalog
+            .PresentationCategoryOrder;
+
+    string SystemWorkoutCategory(string engineWorkoutTypeCode) =>
+        WebRecomp.Web.Services.WorkoutIntelligence
+            .SystemWorkoutRecipeCatalog
+            .PresentationCategoryForEngineWorkoutType(
+                engineWorkoutTypeCode);
     var statusMessage = TempData["ScheduleStatus"] as string ?? TempData["StatusMessage"] as string;
 }
 <div class="app-page app-page-workout">
@@ -248,8 +253,46 @@
             {
                 var day = Model.Days[i];
                 var category = CategoryFromDay(day.WorkoutTypeCode, day.WeeklyRole);
+                var selectedTemplate =
+                    day.WorkoutTemplateId.HasValue
+                        ? Model.MyWorkouts.SingleOrDefault(
+                            x =>
+                                x.WorkoutTemplateId
+                                    == day.WorkoutTemplateId.Value)
+                        : null;
+                var selectedSystemWorkout =
+                    selectedTemplate is null
+                    && !string.IsNullOrWhiteSpace(
+                        day.SystemWorkoutCode)
+                        ? Model.SystemWorkouts
+                            .SingleOrDefault(
+                                x => x.SystemCode.Equals(
+                                    day.SystemWorkoutCode,
+                                    StringComparison.OrdinalIgnoreCase))
+                        : null;
 
-                <section class="card plan-day-row plan-cat-@category" data-plan-day data-category="@category">
+                var pickerValue =
+                    selectedTemplate is not null
+                        ? $"TEMPLATE:{selectedTemplate.WorkoutTemplateId}"
+                        : selectedSystemWorkout is not null
+                            ? $"SYSTEM:{selectedSystemWorkout.SystemCode}"
+                            : day.WorkoutTypeCode ?? "";
+                var createCustomUrl =
+                    Url.Action(
+                        "Index",
+                        "DetailedWorkout",
+                        new
+                        {
+                            mode = "new",
+                            date = day.Date.ToString("yyyy-MM-dd"),
+                            returnContext = "schedule",
+                            weekStart = Model.WeekStart.ToString("yyyy-MM-dd")
+                        });
+
+                <section class="card plan-day-row plan-cat-@category"
+                         data-plan-day
+                         data-category="@category"
+                         data-create-custom-url="@createCustomUrl">
                     <input type="hidden" name="Days[@i].Date" value="@day.Date.ToString("yyyy-MM-dd")" />
 
                     <div class="plan-day-heading">
@@ -261,75 +304,102 @@
                     </div>
 
                     <div class="plan-day-workout">
-                        <label for="workout-@i">Planned workout <button type="button" class="help-tip small-tip" aria-label="Planned workout help" data-tooltip="Choose what you realistically expect to do on this day. If the workout changes later, update the Weekly Plan or simply log what you actually did in Daily Workout.">?</button></label>
+                        <label for="workout-@i">
+                            Planned workout
+                            <button type="button"
+                                    class="help-tip small-tip"
+                                    aria-label="Planned workout help"
+                                    data-tooltip="Choose a system workout, open My Workouts, or create a reusable custom workout for this day.">
+                                ?
+                            </button>
+                        </label>
+
                         <select id="workout-@i"
                                 class="plan-workout-select"
-                                name="Days[@i].WorkoutTypeCode"
-                                data-original-value="@(day.WorkoutTypeCode ?? "")">
-                            <option value="" data-category="unplanned" selected="@(string.IsNullOrWhiteSpace(day.WorkoutTypeCode) ? "selected" : null)">
+                                data-collapsible-workout-picker
+                                data-no-autosave
+                                data-original-value="@pickerValue">
+                            <option value=""
+                                    data-category="unplanned"
+                                    selected="@(string.IsNullOrWhiteSpace(pickerValue) ? "selected" : null)">
                                 Not planned
                             </option>
 
-                            @if (majorOptions.Count > 0)
+                            @if (selectedTemplate is not null)
                             {
-                                <optgroup label="Major strength">
-                                    @foreach (var option in majorOptions)
+                                <option value="@pickerValue"
+                                        data-category="@category"
+                                        data-template-option
+                                        data-template-id="@selectedTemplate.WorkoutTemplateId"
+                                        data-workout-type-code="@selectedTemplate.WorkoutTypeCode"
+                                        selected="selected">
+                                    My Workout: @selectedTemplate.TemplateName
+                                </option>
+                            }
+
+                            @foreach (var categoryName in systemCategoryOrder)
+                            {
+                                var groupedWorkouts =
+                                    Model.SystemWorkouts
+                                        .Where(
+                                            x => SystemWorkoutCategory(
+                                                x.EngineWorkoutTypeCode).Equals(
+                                                categoryName,
+                                                StringComparison.OrdinalIgnoreCase))
+                                        .OrderBy(
+                                            x => x.DisplayName,
+                                            StringComparer.OrdinalIgnoreCase)
+                                        .ToList();
+
+                                if (groupedWorkouts.Count == 0)
+                                {
+                                    continue;
+                                }
+
+                                <optgroup label="@categoryName">
+                                    @foreach (var option in groupedWorkouts)
                                     {
-                                        <option value="@option.Value"
-                                                data-category="major"
-                                                selected="@(option.Value == day.WorkoutTypeCode ? "selected" : null)">@option.Text</option>
+                                        var optionCategory =
+                                            CategoryFromCode(
+                                                option.EngineWorkoutTypeCode);
+
+                                        <option value="@($"SYSTEM:{option.SystemCode}")"
+                                                data-system-code="@option.SystemCode"
+                                                data-workout-type-code="@option.EngineWorkoutTypeCode"
+                                                data-category="@optionCategory"
+                                                data-default-minutes="@option.DefaultMinutes"
+                                                data-default-rpe="@option.DefaultRpe"
+                                                selected="@(selectedTemplate is null && selectedSystemWorkout?.SystemCode == option.SystemCode ? "selected" : null)">
+                                            @option.DisplayName
+                                        </option>
                                     }
                                 </optgroup>
                             }
 
-                            @if (accessoryOptions.Count > 0)
-                            {
-                                <optgroup label="Accessory strength">
-                                    @foreach (var option in accessoryOptions)
-                                    {
-                                        <option value="@option.Value"
-                                                data-category="accessory"
-                                                selected="@(option.Value == day.WorkoutTypeCode ? "selected" : null)">@option.Text</option>
-                                    }
-                                </optgroup>
-                            }
-
-                            @if (cardioOptions.Count > 0)
-                            {
-                                <optgroup label="Conditioning & cardio">
-                                    @foreach (var option in cardioOptions)
-                                    {
-                                        <option value="@option.Value"
-                                                data-category="cardio"
-                                                selected="@(option.Value == day.WorkoutTypeCode ? "selected" : null)">@option.Text</option>
-                                    }
-                                </optgroup>
-                            }
-
-                            @if (recoveryOptions.Count > 0)
-                            {
-                                <optgroup label="Recovery & mobility">
-                                    @foreach (var option in recoveryOptions)
-                                    {
-                                        <option value="@option.Value"
-                                                data-category="recovery"
-                                                selected="@(option.Value == day.WorkoutTypeCode ? "selected" : null)">@option.Text</option>
-                                    }
-                                </optgroup>
-                            }
-
-                            @if (otherOptions.Count > 0)
-                            {
-                                <optgroup label="Other activity">
-                                    @foreach (var option in otherOptions)
-                                    {
-                                        <option value="@option.Value"
-                                                data-category="other"
-                                                selected="@(option.Value == day.WorkoutTypeCode ? "selected" : null)">@option.Text</option>
-                                    }
-                                </optgroup>
-                            }
+                            <option value="__MY_WORKOUTS__"
+                                    data-special="my-workouts">
+                                ▶ My Workouts
+                            </option>
+                            <option value="__CREATE_CUSTOM__"
+                                    data-special="create-custom">
+                                + Create Custom Workout
+                            </option>
                         </select>
+
+                        <input type="hidden"
+                               name="Days[@i].WorkoutTypeCode"
+                               value="@(day.WorkoutTypeCode ?? "")"
+                               data-plan-workout-type />
+
+                        <input type="hidden"
+                               name="Days[@i].WorkoutTemplateId"
+                               value="@(day.WorkoutTemplateId?.ToString() ?? "")"
+                               data-plan-template-id />
+
+                        <input type="hidden"
+                               name="Days[@i].SystemWorkoutCode"
+                               value="@(day.SystemWorkoutCode ?? "")"
+                               data-plan-system-code />
                     </div>
 
                     <div class="plan-day-details" data-plan-details>
@@ -378,7 +448,59 @@
             </noscript>
         </div>
     </form>
+
+    <dialog id="plan-my-workouts-dialog"
+            class="workout-template-dialog">
+        <div class="workout-template-dialog-head">
+            <div>
+                <div class="app-kicker">MY WORKOUTS</div>
+                <h2>Choose a custom workout</h2>
+            </div>
+            <button type="button"
+                    class="workout-template-dialog-close"
+                    data-template-dialog-close
+                    aria-label="Close">
+                ×
+            </button>
+        </div>
+
+        @if (Model.MyWorkouts.Count == 0)
+        {
+            <p class="workout-template-empty">
+                No custom workouts saved yet.
+            </p>
+        }
+        else
+        {
+            <div class="workout-template-choice-list">
+                @foreach (var template in Model.MyWorkouts)
+                {
+                    <button type="button"
+                            class="workout-template-choice"
+                            data-plan-template-choice
+                            data-template-id="@template.WorkoutTemplateId"
+                            data-template-name="@template.TemplateName"
+                            data-workout-type-code="@template.WorkoutTypeCode">
+                        <strong>@template.TemplateName</strong>
+                        <span>
+                            @template.ExerciseCount exercises
+                            • @template.DefaultDurationMin.ToString("0") min
+                        </span>
+                    </button>
+                }
+            </div>
+        }
+
+        <button type="button"
+                class="primary workout-template-create"
+                data-plan-create-custom>
+            + Create Custom Workout
+        </button>
+    </dialog>
 </div>
+
+<script src="~/js/system-workout-picker.js"
+        asp-append-version="true"></script>
 
 <script>
 (() => {
@@ -392,62 +514,393 @@
     };
 
     const categories = Object.keys(labels);
-    const selects = Array.from(document.querySelectorAll(".plan-workout-select"));
+    const selects = Array.from(
+        document.querySelectorAll(".plan-workout-select"));
+
+    const dialog =
+        document.getElementById(
+            "plan-my-workouts-dialog");
+
+    let activeSelect = null;
+
+    function selectedCategory(select) {
+        const option =
+            select.options[select.selectedIndex];
+
+        return option?.dataset.category
+            || "unplanned";
+    }
+
+    function updateRow(select) {
+        const row =
+            select.closest("[data-plan-day]");
+
+        if (!row) return;
+
+        const category =
+            selectedCategory(select);
+
+        categories.forEach(
+            value =>
+                row.classList.remove(
+                    `plan-cat-${value}`));
+
+        row.classList.add(
+            `plan-cat-${category}`);
+
+        row.dataset.category =
+            category;
+
+        const badge =
+            row.querySelector(
+                "[data-category-label]");
+
+        if (badge) {
+            badge.textContent =
+                labels[category]
+                || labels.unplanned;
+        }
+
+        const recalc =
+            row.querySelector(
+                "[data-recalc-note]");
+
+        if (recalc) {
+            recalc.hidden =
+                select.value
+                    === select.dataset.originalValue;
+        }
+    }
+
+    function syncHiddenSelection(select) {
+        const row =
+            select.closest("[data-plan-day]");
+
+        if (!row) return;
+
+        const option =
+            select.options[select.selectedIndex];
+
+        const typeInput =
+            row.querySelector(
+                "[data-plan-workout-type]");
+
+        const templateInput =
+            row.querySelector(
+                "[data-plan-template-id]");
+
+        const systemInput =
+            row.querySelector(
+                "[data-plan-system-code]");
+
+        if (!typeInput
+            || !templateInput
+            || !systemInput) {
+            return;
+        }
+
+        if (option?.dataset.templateId) {
+            typeInput.value =
+                option.dataset.workoutTypeCode
+                || "";
+
+            templateInput.value =
+                option.dataset.templateId;
+
+            systemInput.value = "";
+        }
+        else if (option?.dataset.systemCode) {
+            typeInput.value =
+                option.dataset.workoutTypeCode
+                || "";
+
+            templateInput.value = "";
+            systemInput.value =
+                option.dataset.systemCode;
+        }
+        else {
+            typeInput.value =
+                select.value || "";
+
+            templateInput.value = "";
+            systemInput.value = "";
+        }
+    }
 
     function refreshCounts() {
-        const counts = Object.fromEntries(categories.map(x => [x, 0]));
+        const counts =
+            Object.fromEntries(
+                categories.map(
+                    value => [value, 0]));
 
         selects.forEach(select => {
-            const option = select.options[select.selectedIndex];
-            const category = option?.dataset.category || "unplanned";
-            counts[category] = (counts[category] || 0) + 1;
+            const category =
+                selectedCategory(select);
+
+            counts[category] =
+                (counts[category] || 0) + 1;
         });
 
-        document.querySelectorAll("[data-count-category]").forEach(item => {
-            const category = item.dataset.countCategory;
-            const target = item.querySelector("[data-count-value]");
-            if (target) target.textContent = counts[category] || 0;
+        document.querySelectorAll(
+            "[data-count-category]"
+        ).forEach(item => {
+            const category =
+                item.dataset.countCategory;
+
+            const target =
+                item.querySelector(
+                    "[data-count-value]");
+
+            if (target) {
+                target.textContent =
+                    counts[category] || 0;
+            }
         });
     }
 
-    selects.forEach(select => {
-        select.addEventListener("change", () => {
-            const row = select.closest("[data-plan-day]");
-            const option = select.options[select.selectedIndex];
-            const category = option?.dataset.category || "unplanned";
+    function restoreSelection(select) {
+        const previous =
+            select.dataset.previousValue
+            || select.dataset.originalValue
+            || "";
 
-            categories.forEach(x => row.classList.remove(`plan-cat-${x}`));
-            row.classList.add(`plan-cat-${category}`);
-            row.dataset.category = category;
+        select.value = previous;
 
-            const badge = row.querySelector("[data-category-label]");
-            if (badge) badge.textContent = labels[category];
-
-            const recalc = row.querySelector("[data-recalc-note]");
-            if (recalc) {
-                recalc.hidden = select.value === select.dataset.originalValue;
-            }
-
-            refreshCounts();
-        });
-    });
-
-    const form = document.getElementById("weekly-autosave-form");
-    window.RecompAutosave?.bind(form, {
-        statusSelector: "#weekly-autosave-status",
-        delay: 800,
-        reloadAfterSaveMs: 1200,
-        afterSave: () => {
-            selects.forEach(select => {
-                select.dataset.originalValue = select.value;
-                const row = select.closest("[data-plan-day]");
-                const recalc = row?.querySelector("[data-recalc-note]");
-                if (recalc && !recalc.hidden) {
-                    recalc.textContent = "Saved. Recalculating targets…";
-                }
-            });
+        if (select.value !== previous) {
+            select.value = "";
         }
+    }
+
+    function openMyWorkouts(select) {
+        activeSelect = select;
+
+        if (dialog?.showModal) {
+            dialog.showModal();
+        }
+        else if (dialog) {
+            dialog.setAttribute(
+                "open",
+                "open");
+        }
+    }
+
+    function closeMyWorkouts() {
+        if (dialog?.close) {
+            dialog.close();
+        }
+        else {
+            dialog?.removeAttribute(
+                "open");
+        }
+    }
+
+    selects.forEach(select => {
+        select.dataset.previousValue =
+            select.value;
+
+        select.addEventListener(
+            "change",
+            event => {
+                const selected =
+                    select.value;
+
+                if (selected === "__MY_WORKOUTS__") {
+                    event.stopImmediatePropagation();
+                    restoreSelection(select);
+                    openMyWorkouts(select);
+                    return;
+                }
+
+                if (selected === "__CREATE_CUSTOM__") {
+                    event.stopImmediatePropagation();
+
+                    const row =
+                        select.closest(
+                            "[data-plan-day]");
+
+                    const url =
+                        row?.dataset
+                            .createCustomUrl;
+
+                    restoreSelection(select);
+
+                    if (url) {
+                        window.location.href = url;
+                    }
+
+                    return;
+                }
+
+                syncHiddenSelection(select);
+                updateRow(select);
+                refreshCounts();
+
+                select.dataset.previousValue =
+                    select.value;
+
+                // The visible picker is data-no-autosave so special
+                // My Workouts choices can open without a pending page reload.
+                // Real plan changes submit only after hidden Engine/template
+                // fields have been synchronized above.
+                form?.requestSubmit();
+            });
     });
+
+    dialog?.querySelectorAll(
+        "[data-template-dialog-close]"
+    ).forEach(button => {
+        button.addEventListener(
+            "click",
+            closeMyWorkouts);
+    });
+
+    dialog?.addEventListener(
+        "click",
+        event => {
+            if (event.target === dialog) {
+                closeMyWorkouts();
+            }
+        });
+
+    dialog?.querySelectorAll(
+        "[data-plan-template-choice]"
+    ).forEach(button => {
+        button.addEventListener(
+            "click",
+            () => {
+                if (!activeSelect) {
+                    return;
+                }
+
+                const templateId =
+                    button.dataset.templateId;
+
+                const templateName =
+                    button.dataset.templateName;
+
+                const workoutTypeCode =
+                    button.dataset.workoutTypeCode;
+
+                if (!templateId
+                    || !templateName
+                    || !workoutTypeCode) {
+                    return;
+                }
+
+                const systemOption =
+                    Array.from(
+                        activeSelect.options)
+                        .find(
+                            option =>
+                                option.dataset
+                                    .workoutTypeCode
+                                    === workoutTypeCode
+                                && !option.dataset
+                                    .templateId);
+
+                const category =
+                    systemOption?.dataset.category
+                    || "other";
+
+                activeSelect
+                    .querySelectorAll(
+                        "[data-template-option]")
+                    .forEach(option =>
+                        option.remove());
+
+                const option =
+                    document.createElement(
+                        "option");
+
+                option.value =
+                    `TEMPLATE:${templateId}`;
+
+                option.textContent =
+                    `My Workout: ${templateName}`;
+
+                option.dataset.templateOption =
+                    "";
+
+                option.dataset.templateId =
+                    templateId;
+
+                option.dataset.workoutTypeCode =
+                    workoutTypeCode;
+
+                option.dataset.category =
+                    category;
+
+                activeSelect.insertBefore(
+                    option,
+                    activeSelect.firstChild);
+
+                activeSelect.value =
+                    option.value;
+
+                closeMyWorkouts();
+
+                activeSelect.dispatchEvent(
+                    new Event(
+                        "change",
+                        {
+                            bubbles: true
+                        }));
+            });
+    });
+
+    dialog?.querySelector(
+        "[data-plan-create-custom]"
+    )?.addEventListener(
+        "click",
+        () => {
+            const row =
+                activeSelect?.closest(
+                    "[data-plan-day]");
+
+            const url =
+                row?.dataset
+                    .createCustomUrl;
+
+            if (url) {
+                window.location.href = url;
+            }
+        });
+
+    const form =
+        document.getElementById(
+            "weekly-autosave-form");
+
+    window.RecompAutosave?.bind(
+        form,
+        {
+            statusSelector:
+                "#weekly-autosave-status",
+            delay: 800,
+            reloadAfterSaveMs: 1200,
+            afterSave: () => {
+                selects.forEach(select => {
+                    select.dataset.originalValue =
+                        select.value;
+
+                    select.dataset.previousValue =
+                        select.value;
+
+                    const row =
+                        select.closest(
+                            "[data-plan-day]");
+
+                    const recalc =
+                        row?.querySelector(
+                            "[data-recalc-note]");
+
+                    if (recalc
+                        && !recalc.hidden) {
+                        recalc.textContent =
+                            "Saved. Recalculating targets…";
+                    }
+                });
+            }
+        });
 
     refreshCounts();
 })();

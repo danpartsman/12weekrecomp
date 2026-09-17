@@ -1,0 +1,47 @@
+﻿12WR TEST v1010 - Migration 030 Audit
+Applied: 2026-09-12 00:09:44 -07:00
+
+Server: sql-recomp-test-dan.database.windows.net
+Database: sqldb-recomp
+Entra: dlandon@lockedontech.com
+Migration: C:\RecompAzure\web_recomp_v1010\database\030_v1010_workout_intelligence_persistence.sql
+Migration SHA-256: 37578A3E81B36AA434A34712C1265E1AC261763815A37F0ED83D1CD3F100AC98
+
+Preflight: PASS
+Migration execution: PASS
+Post-verification: PASS
+
+ 
+-
+ExerciseCatalogImports=READY
+ 
+-
+ExerciseCatalogItems=READY
+ 
+-
+ExerciseMuscleTargets=READY
+ 
+-
+ExerciseEquipmentRequirements=READY
+ 
+-
+DetailedWorkoutExercises=READY
+ 
+-
+DetailedWorkoutSets=READY
+ 
+-
+WorkoutSessionLink=READY
+ 
+-
+CatalogItemCount=0
+ 
+-
+DetailedWorkoutExerciseCount=0
+ 
+-
+DetailedWorkoutSetCount=0
+
+Azure deployment: NONE
+Kinetic catalog import: NOT YET RUN
+LIVE / PRODUCTION: NOT TOUCHED

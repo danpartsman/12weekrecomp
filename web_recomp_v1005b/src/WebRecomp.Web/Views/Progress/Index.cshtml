@@ -1,0 +1,114 @@
+﻿@model ProgressViewModel
+@{
+    ViewData["Title"] = "Progress";
+}
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">BODY COMPOSITION HISTORY</div>
+        <h1>Progress</h1>
+        <p class="lede">Track what is changing over time—not just the number on the scale.</p>
+    </div>
+    <div class="profile-actions">
+        <a class="button" asp-controller="Daily" asp-action="Index" asp-route-date="@Model.Today.ToString("yyyy-MM-dd")">Add today's stats</a>
+        <a class="button" asp-controller="Profile" asp-action="Index">Profile</a>
+    </div>
+</div>
+
+<div class="progress-summary-grid">
+    <section class="card progress-summary"><span>Measurement days</span><strong>@Model.MeasurementDays</strong></section>
+    <section class="card progress-summary"><span>Weight change</span><strong>@(Model.WeightChangeLb.HasValue ? $"{Model.WeightChangeLb:+0.0;-0.0;0.0} lb" : "—")</strong></section>
+    <section class="card progress-summary"><span>Body-fat change</span><strong>@(Model.BodyFatChangePoints.HasValue ? $"{Model.BodyFatChangePoints:+0.0;-0.0;0.0} pts" : "—")</strong></section>
+    <section class="card progress-summary"><span>Waist change</span><strong>@(Model.WaistChangeIn.HasValue ? $"{Model.WaistChangeIn:+0.0;-0.0;0.0} in" : "—")</strong></section>
+</div>
+
+<section class="card progress-chart-shell">
+    <div class="progress-section-head">
+        <div>
+            <div class="profile-panel-label">TREND VISUALIZATION</div>
+            <h2>Graph-ready history</h2>
+        </div>
+        @if (Model.FirstMeasurementDate.HasValue && Model.LatestMeasurementDate.HasValue)
+        {
+            <span class="progress-range">@Model.FirstMeasurementDate.Value.ToString("MMM d, yyyy") → @Model.LatestMeasurementDate.Value.ToString("MMM d, yyyy")</span>
+        }
+    </div>
+    <div class="progress-chart-placeholder">
+        <strong>Charts plug in here next.</strong>
+        <span>The data structure now supports weight, body fat, calculated fat/lean mass, waist, muscle mass, visceral-fat rating, and other measurements by date.</span>
+    </div>
+</section>
+
+<section class="card progress-photo-shell">
+    <div class="progress-section-head">
+        <div>
+            <div class="profile-panel-label">PROGRESS PHOTOS</div>
+            <h2>Dated photo history</h2>
+        </div>
+        <span class="progress-coming">Storage not enabled</span>
+    </div>
+    <p>
+        The Progress page is reserved for private dated photos and later AI-assisted physique analysis, including comparisons over time and muscle-group emphasis recommendations.
+    </p>
+    <div class="photo-upload-disabled">
+        <input type="file" accept="image/*" disabled />
+        <button class="button" type="button" disabled>Attach progress photo</button>
+    </div>
+    <p class="small">
+        Actual uploads are intentionally disabled in this build. Production-quality photos should use private Azure Blob Storage rather than App Service local disk. Blob Storage can create Azure charges, so it will not be enabled until explicitly approved.
+    </p>
+</section>
+
+<section class="card progress-history">
+    <div class="progress-section-head">
+        <div>
+            <div class="profile-panel-label">HISTORY</div>
+            <h2>Dated measurements</h2>
+        </div>
+    </div>
+
+    @if (Model.Measurements.Count == 0)
+    {
+        <div class="dash-empty">No body-composition measurements have been recorded yet.</div>
+    }
+    else
+    {
+        <div class="progress-table-wrap">
+            <table class="progress-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Weight</th>
+                        <th>Body fat</th>
+                        <th>Fat mass</th>
+                        <th>Lean mass</th>
+                        <th>Scale muscle</th>
+                        <th>Visceral</th>
+                        <th>Waist</th>
+                        <th>Hips</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var row in Model.Measurements)
+                {
+                    <tr>
+                        <td><strong>@row.Date.ToString("MMM d, yyyy")</strong></td>
+                        <td>@(row.WeightLb.HasValue ? $"{row.WeightLb:0.0} lb" : "—")</td>
+                        <td>@(row.BodyFatPercent.HasValue ? $"{row.BodyFatPercent:0.0}%" : "—")</td>
+                        <td>@(row.FatMassLb.HasValue ? $"{row.FatMassLb:0.0} lb" : "—")</td>
+                        <td>@(row.LeanMassLb.HasValue ? $"{row.LeanMassLb:0.0} lb" : "—")</td>
+                        <td>@(row.MuscleMassLb.HasValue ? $"{row.MuscleMassLb:0.0} lb" : "—")</td>
+                        <td>@(row.VisceralFatRating.HasValue ? $"{row.VisceralFatRating:0.#}" : "—")</td>
+                        <td>@(row.WaistIn.HasValue ? $"{row.WaistIn:0.0} in" : "—")</td>
+                        <td>@(row.HipsIn.HasValue ? $"{row.HipsIn:0.0} in" : "—")</td>
+                    </tr>
+                    @if (!string.IsNullOrWhiteSpace(row.Notes))
+                    {
+                        <tr class="progress-note-row"><td colspan="9">@row.Notes</td></tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

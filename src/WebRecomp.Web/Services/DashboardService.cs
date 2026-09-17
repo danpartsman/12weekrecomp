@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.ViewModels;
@@ -12,7 +12,9 @@ public sealed class DashboardService(
     ConfigurationService configuration,
     WorkoutMathService math,
     ProgramPlanService planSelection,
-    Engine30DashboardProjectionService engine30Dashboard)
+    Engine30DashboardProjectionService engine30Dashboard,
+    Engine30DashboardAnalysisService dashboardAnalysis,
+    Engine30AdaptiveRecommendationService adaptiveRecommendations)
 {
     public async Task<DashboardViewModel> BuildAsync(
         AppClientContext context,
@@ -107,6 +109,335 @@ public sealed class DashboardService(
             }
         }
 
+        // ------------------------------------------------------------
+        // v1009 Dashboard analysis evidence.
+        //
+        // Yesterday's behavior is compared with an EXACT measurement
+        // dated today. If today's scale is not entered, the Dashboard
+        // asks for it rather than reusing an older weight as if it were
+        // this morning's response.
+        // ------------------------------------------------------------
+
+        var analysisWindowStart =
+            actionDate.AddDays(-4);
+
+        var analysisWindowEnd =
+            actionDate.AddDays(-1);
+
+        var recentNutrition =
+            await db.NutritionDays
+                .AsNoTracking()
+                .Where(x =>
+                    x.ClientId == client.ClientId
+                    && x.ProgramId == program.ProgramId
+                    && x.NutritionDate >= analysisWindowStart
+                    && x.NutritionDate <= analysisWindowEnd)
+                .OrderBy(x => x.NutritionDate)
+                .ToListAsync(cancellationToken);
+
+        var recentPlans =
+            await db.PlannedWorkouts
+                .AsNoTracking()
+                .Where(x =>
+                    x.ProgramId == program.ProgramId
+                    && x.PlannedDate >= analysisWindowStart
+                    && x.PlannedDate <= analysisWindowEnd)
+                .OrderBy(x => x.PlannedDate)
+                .ToListAsync(cancellationToken);
+
+        var recentSessions =
+            await db.WorkoutSessions
+                .AsNoTracking()
+                .Where(x =>
+                    x.ClientId == client.ClientId
+                    && x.ProgramId == program.ProgramId
+                    && x.WorkoutDate >= analysisWindowStart
+                    && x.WorkoutDate <= analysisWindowEnd
+                    && x.CompletedFlag)
+                .OrderBy(x => x.WorkoutDate)
+                .ThenBy(x => x.CreatedAtUtc)
+                .ToListAsync(cancellationToken);
+
+        var recentMeasurements =
+            await db.Measurements
+                .AsNoTracking()
+                .Where(x =>
+                    x.ClientId == client.ClientId
+                    && !x.IsDeleted
+                    && x.LocalMeasurementDate >= analysisWindowStart
+                    && x.LocalMeasurementDate <= actionDate
+                    && x.WeightLb != null)
+                .OrderBy(x => x.LocalMeasurementDate)
+                .ThenBy(x => x.MeasurementAtUtc)
+                .ToListAsync(cancellationToken);
+
+        var scaleByDate =
+            recentMeasurements
+                .GroupBy(x => x.LocalMeasurementDate)
+                .Select(x =>
+                    x.OrderByDescending(y => y.MeasurementAtUtc)
+                        .First())
+                .OrderBy(x => x.LocalMeasurementDate)
+                .ToList();
+
+        var exactTodayMeasurement =
+            scaleByDate.FirstOrDefault(
+                x => x.LocalMeasurementDate == actionDate);
+
+        var priorMorningMeasurement =
+            scaleByDate
+                .Where(x => x.LocalMeasurementDate < actionDate)
+                .OrderByDescending(x => x.LocalMeasurementDate)
+                .FirstOrDefault();
+
+        var firstTrendMeasurement =
+            scaleByDate.FirstOrDefault();
+
+        var lastTrendMeasurement =
+            scaleByDate.LastOrDefault();
+
+        var previousDateForAnalysis =
+            actionDate.AddDays(-1);
+
+        var previousPlanForAnalysis =
+            recentPlans.FirstOrDefault(
+                x => x.PlannedDate == previousDateForAnalysis);
+
+        var previousSessionsForAnalysis =
+            recentSessions
+                .Where(x => x.WorkoutDate == previousDateForAnalysis)
+                .ToList();
+
+        var previousActualCodes =
+            previousSessionsForAnalysis.Count == 0
+                ? null
+                : string.Join(
+                    "|",
+                    previousSessionsForAnalysis
+                        .Select(x =>
+                            Engine30DashboardProjectionService.NormalizeWorkoutCode(
+                                x.WorkoutTypeCode)));
+
+        var completeNutritionDays =
+            recentNutrition.Count(x =>
+                x.ActualCalories.HasValue
+                && x.ActualProteinG.HasValue
+                && x.ActualCarbsG.HasValue
+                && x.ActualFatG.HasValue);
+
+        var proteinValues =
+            recentNutrition
+                .Where(x => x.ActualProteinG.HasValue)
+                .Select(x => x.ActualProteinG!.Value)
+                .ToList();
+
+        decimal? averageProtein =
+            proteinValues.Count > 0
+                ? proteinValues.Average()
+                : null;
+
+        var fatValues =
+            recentNutrition
+                .Where(x => x.ActualFatG.HasValue)
+                .Select(x => x.ActualFatG!.Value)
+                .ToList();
+
+        decimal? averageFat =
+            fatValues.Count > 0
+                ? fatValues.Average()
+                : null;
+
+        var plannedTrainingDays =
+            recentPlans
+                .Where(x =>
+                    Engine30DashboardAnalysisService.IsTrainingWorkoutCode(
+                        Engine30DashboardProjectionService.NormalizeWorkoutCode(
+                            x.WorkoutTypeCode)))
+                .Select(x => x.PlannedDate)
+                .Distinct()
+                .Count();
+
+        var completedTrainingDays =
+            recentSessions
+                .Where(x =>
+                    Engine30DashboardAnalysisService.IsTrainingWorkoutCode(
+                        Engine30DashboardProjectionService.NormalizeWorkoutCode(
+                            x.WorkoutTypeCode)))
+                .Select(x => x.WorkoutDate)
+                .Distinct()
+                .Count();
+
+        var engine30Analysis =
+            dashboardAnalysis.Analyze(
+                new Engine30DashboardAnalysisInput(
+                    ActionDate:
+                        actionDate,
+
+                    PlanCode:
+                        actionPlanCode,
+
+                    PlannedWorkoutCode:
+                        previousPlanForAnalysis?.WorkoutTypeCode is string previousPlanCode
+                            ? Engine30DashboardProjectionService.NormalizeWorkoutCode(
+                                previousPlanCode)
+                            : null,
+
+                    ActualWorkoutCodes:
+                        previousActualCodes,
+
+                    ActualWorkoutSummary:
+                        engine30Impact.PreviousWorkoutActual,
+
+                    TargetCalories:
+                        engine30Impact.PreviousTargetCalories,
+
+                    ActualCalories:
+                        engine30Impact.PreviousActualCalories,
+
+                    TargetProteinG:
+                        engine30Impact.PreviousTargetProteinG,
+
+                    ActualProteinG:
+                        engine30Impact.PreviousActualProteinG,
+
+                    TargetCarbsG:
+                        engine30Impact.PreviousTargetCarbsG,
+
+                    ActualCarbsG:
+                        engine30Impact.PreviousActualCarbsG,
+
+                    TargetFatG:
+                        engine30Impact.PreviousTargetFatG,
+
+                    ActualFatG:
+                        engine30Impact.PreviousActualFatG,
+
+                    GlycogenDemandG:
+                        engine30Impact.PreviousGlycogenDemandG,
+
+                    RestorationRatio:
+                        engine30Impact.PreviousRestorationRatio,
+
+                    FourDayRestorationRatio:
+                        engine30Impact.AbsoluteRestorationRatio,
+
+                    FourDayHardDays:
+                        engine30Impact.FourDayHardDays,
+
+                    FourDayModerateHardDays:
+                        engine30Impact.FourDayModerateHardDays,
+
+                    FourDayCarbohydrateEvidenceDays:
+                        engine30Impact.FourDayCarbohydrateEvidenceDays,
+
+                    FourDayNutritionCompleteDays:
+                        completeNutritionDays,
+
+                    FourDayPlannedTrainingDays:
+                        plannedTrainingDays,
+
+                    FourDayCompletedTrainingDays:
+                        completedTrainingDays,
+
+                    FourDayAverageProteinG:
+                        averageProtein,
+
+                    FourDayAverageFatG:
+                        averageFat,
+
+                    WeekEnergyOverageKcal:
+                        engine30Impact.WeekEnergyOverageKcal,
+
+                    WeekEligibleEnergyCarryoverKcal:
+                        engine30Impact.WeekEligibleEnergyCarryoverKcal,
+
+                    CurrentMorningWeightLb:
+                        exactTodayMeasurement?.WeightLb,
+
+                    PriorMorningWeightLb:
+                        priorMorningMeasurement?.WeightLb,
+
+                    CurrentMorningBodyFatFraction:
+                        exactTodayMeasurement?.BodyFatPct,
+
+                    PriorMorningBodyFatFraction:
+                        priorMorningMeasurement?.BodyFatPct,
+
+                    CurrentMorningMuscleMassLb:
+                        exactTodayMeasurement?.MuscleMassLb,
+
+                    PriorMorningMuscleMassLb:
+                        priorMorningMeasurement?.MuscleMassLb,
+
+                    FourDayScaleDays:
+                        scaleByDate.Count,
+
+                    TrendStartWeightLb:
+                        firstTrendMeasurement?.WeightLb,
+
+                    TrendEndWeightLb:
+                        lastTrendMeasurement?.WeightLb,
+
+                    TrendStartBodyFatFraction:
+                        firstTrendMeasurement?.BodyFatPct,
+
+                    TrendEndBodyFatFraction:
+                        lastTrendMeasurement?.BodyFatPct,
+
+                    TrendStartMuscleMassLb:
+                        firstTrendMeasurement?.MuscleMassLb,
+
+                    TrendEndMuscleMassLb:
+                        lastTrendMeasurement?.MuscleMassLb));
+        // ------------------------------------------------------------
+        // v1009 adaptive decision layer.
+        //
+        // This interprets Engine 3.0 evidence; it does not rewrite the
+        // Weekly Plan and it never creates exercise calorie eat-back.
+        // ------------------------------------------------------------
+        var engine30Adaptive =
+            adaptiveRecommendations.Evaluate(
+                new Engine30AdaptiveRecommendationInput(
+                    HasPlannedWorkout:
+                        engine30Projection.Today.HasPlannedWorkout,
+                    PlannedWorkoutTypeCode:
+                        engine30Projection.Today.WorkoutTypeCode,
+                    PlannedWorkoutDisplayName:
+                        engine30Projection.Today.WorkoutDisplayName,
+                    PlannedWorkoutCategoryCode:
+                        engine30Projection.Today.WorkoutCategoryCode,
+                    PlannedGlycogenDemandG:
+                        engine30Impact.TodayPlannedGlycogenDemandG,
+
+                    PreWorkoutRescueG:
+                        engine30Impact.PreWorkoutRescueG,
+                    IncomingReadinessBandCode:
+                        engine30Impact.IncomingReadinessBandCode,
+                    ProjectedReadinessBandCode:
+                        engine30Impact.ProjectedReadinessBandCode,
+
+                    PreviousTargetCalories:
+                        engine30Impact.PreviousTargetCalories,
+                    PreviousEnergyVarianceKcal:
+                        engine30Impact.PreviousEnergyVarianceKcal,
+                    PreviousEligibleEnergyCarryoverKcal:
+                        engine30Impact.PreviousEligibleEnergyCarryoverKcal,
+
+                    FourDayHardDays:
+                        engine30Impact.FourDayHardDays,
+                    FourDayModerateHardDays:
+                        engine30Impact.FourDayModerateHardDays,
+
+                    SleepHours:
+                        todayCheckin?.SleepHours,
+                    EnergyScore:
+                        todayCheckin?.EnergyScore,
+                    SorenessScore:
+                        todayCheckin?.SorenessScore,
+                    PainFlag:
+                        todayCheckin?.PainFlag ?? false,
+                    IllnessFlag:
+                        todayCheckin?.IllnessFlag ?? false));
         var coach = BuildCoachRecommendation(result, todayCheckin);
 
         return new DashboardViewModel
@@ -201,6 +532,8 @@ public sealed class DashboardService(
             ProjectedGlycogenReadiness = Engine30DashboardProjectionService.HumanizeReadiness(engine30Impact.ProjectedReadinessBandCode),
             FuelActionLabel = engine30Impact.FuelActionLabel,
             FuelReasonCodes = string.Join(", ", engine30Impact.ReasonCodes),
+            Engine30Analysis = engine30Analysis,
+            Engine30AdaptiveRecommendation = engine30Adaptive,
             PreviousEnergyVarianceKcal = engine30Impact.PreviousEnergyVarianceKcal,
             PreviousEligibleEnergyCarryoverKcal = engine30Impact.PreviousEligibleEnergyCarryoverKcal,
             WeekEnergyOverageKcal = engine30Impact.WeekEnergyOverageKcal,

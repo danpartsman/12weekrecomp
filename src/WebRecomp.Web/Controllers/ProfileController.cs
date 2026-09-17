@@ -135,7 +135,12 @@ public sealed class ProfileController(
             ContactEmail = context.User.ContactEmail ?? context.User.EmailNormalized,
             ThemeCode = string.IsNullOrWhiteSpace(context.User.ThemeCode)
                 ? "SYSTEM"
-                : context.User.ThemeCode.ToUpperInvariant()
+                : context.User.ThemeCode.ToUpperInvariant(),
+            HasActiveProgram = context.Program is not null,
+            DetailedWorkoutEntryEnabled =
+                context.Program?.DetailedWorkoutEntryEnabled ?? false,
+            NutritionFoodLogEnabled =
+                context.Program?.NutritionFoodLogEnabled ?? false
         });
     }
 
@@ -152,6 +157,7 @@ public sealed class ProfileController(
         if (!ModelState.IsValid)
         {
             model.SignInEmail = context.User.EmailNormalized;
+            model.HasActiveProgram = context.Program is not null;
             return View(model);
         }
 
@@ -163,6 +169,15 @@ public sealed class ProfileController(
             : model.ContactEmail.Trim();
         context.User.ThemeCode = model.ThemeCode;
         context.User.UpdatedAtUtc = DateTime.UtcNow;
+
+        if (context.Program is not null)
+        {
+            context.Program.DetailedWorkoutEntryEnabled =
+                model.DetailedWorkoutEntryEnabled;
+            context.Program.NutritionFoodLogEnabled =
+                model.NutritionFoodLogEnabled;
+            context.Program.UpdatedAtUtc = DateTime.UtcNow;
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         TempData["StatusMessage"] = "Settings saved.";

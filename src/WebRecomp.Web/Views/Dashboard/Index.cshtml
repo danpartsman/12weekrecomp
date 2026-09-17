@@ -1,4 +1,4 @@
-﻿@model DashboardViewModel
+@model DashboardViewModel
 @using WebRecomp.Web.Services.Coaching
 <!-- V1006_GUIDED_SHELL -->
 @await Html.PartialAsync("_GuidedDemoShell")
@@ -67,6 +67,523 @@
     </aside>
 }
 
+<style>
+/* B2.35.32_DASHBOARD_BOLD_ENERGY */
+
+.dash-planactual-panel {
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    position:relative;
+    overflow:hidden;
+    background:
+        radial-gradient(circle at 20% 0%, rgba(37,99,235,.11), transparent 42%),
+        linear-gradient(180deg, rgba(11,31,55,.97), rgba(9,25,45,.97));
+    border-color:#24486d;
+    box-shadow:
+        0 18px 44px rgba(0,0,0,.24),
+        inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+.dash-planactual-panel.dash-workout {
+    border-top:4px solid #168CFF;
+}
+
+.dash-planactual-panel.dash-nutrition {
+    border-top:4px solid #24D96B;
+}
+
+.dash-planactual-panel > .dash-panel-label {
+    margin-bottom:14px;
+    font-size:.82rem;
+    letter-spacing:.10em;
+    color:#dbeafe;
+}
+
+.dash-planactual-panel > .dash-panel-label .dash-number {
+    width:29px;
+    height:29px;
+    border-radius:8px;
+    box-shadow:0 0 22px rgba(22,140,255,.34);
+}
+
+.dash-planactual-panel.dash-nutrition > .dash-panel-label .dash-number {
+    box-shadow:0 0 22px rgba(36,217,107,.28);
+}
+
+.dash-pa-stack {
+    display:grid;
+    grid-template-rows:repeat(2,minmax(265px,1fr));
+    gap:14px;
+    flex:1 1 auto;
+}
+
+.dash-pa-card {
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    min-height:265px;
+    position:relative;
+    overflow:hidden;
+    padding:18px;
+    border:1px solid #294a6d;
+    border-radius:14px;
+    color:#f8fbff;
+    background:
+        linear-gradient(145deg, rgba(22,47,77,.98), rgba(13,33,57,.98));
+    box-shadow:
+        0 12px 30px rgba(0,0,0,.22),
+        inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+.dash-pa-card::after {
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:linear-gradient(115deg, rgba(255,255,255,.025), transparent 30%, transparent 70%, rgba(255,255,255,.018));
+}
+
+.dash-pa-planned {
+    border-top:4px solid #168CFF;
+    box-shadow:
+        0 12px 30px rgba(0,0,0,.22),
+        0 0 0 1px rgba(22,140,255,.07),
+        0 0 28px rgba(22,140,255,.08);
+}
+
+.dash-pa-actual {
+    border-top:4px solid #24D96B;
+    box-shadow:
+        0 12px 30px rgba(0,0,0,.22),
+        0 0 0 1px rgba(36,217,107,.07),
+        0 0 28px rgba(36,217,107,.07);
+}
+
+.dash-pa-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:14px;
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-label {
+    font-size:.78rem;
+    font-weight:950;
+    letter-spacing:.13em;
+    color:#ffffff;
+}
+
+.dash-pa-planned .dash-pa-label {
+    color:#75bbff;
+}
+
+.dash-pa-actual .dash-pa-label {
+    color:#68f0a2;
+}
+
+.dash-pa-badge {
+    display:inline-flex;
+    align-items:center;
+    padding:5px 9px;
+    border-radius:999px;
+    font-size:.63rem;
+    font-weight:950;
+    letter-spacing:.055em;
+    white-space:nowrap;
+    backdrop-filter:blur(4px);
+}
+
+.dash-pa-badge.plan {
+    color:#d9edff;
+    background:rgba(22,140,255,.16);
+    border:1px solid rgba(93,176,255,.58);
+    box-shadow:0 0 18px rgba(22,140,255,.10);
+}
+
+.dash-pa-badge.actual {
+    color:#d8ffe7;
+    background:rgba(36,217,107,.13);
+    border:1px solid rgba(91,239,151,.48);
+    box-shadow:0 0 18px rgba(36,217,107,.08);
+}
+
+.dash-pa-badge.waiting {
+    color:#c9d6e5;
+    background:rgba(148,163,184,.10);
+    border:1px solid rgba(148,163,184,.30);
+}
+
+.dash-pa-badge.review {
+    color:#ffe6b0;
+    background:rgba(245,158,11,.13);
+    border:1px solid rgba(245,158,11,.48);
+}
+
+.dash-pa-title {
+    margin:0!important;
+    color:#ffffff!important;
+    font-size:1.48rem!important;
+    line-height:1.16;
+    font-weight:900!important;
+    letter-spacing:-.015em;
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-meta,
+.dash-pa-card .dash-workout-meta {
+    margin-top:8px;
+    color:#d7e2ef!important;
+    font-size:.88rem;
+    font-weight:800;
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-card .dash-workout-meta span {
+    color:#b9cbe0;
+}
+
+.dash-pa-burn {
+    margin-top:15px;
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-card .dash-workout-burn-grid {
+    gap:9px;
+}
+
+.dash-pa-card .dash-workout-burn-grid > div {
+    padding:11px 10px;
+    border:1px solid rgba(148,163,184,.16);
+    border-radius:10px;
+    background:rgba(5,18,33,.40);
+}
+
+.dash-pa-card .dash-workout-burn-grid strong {
+    color:#ffffff!important;
+    font-size:1.05rem;
+}
+
+.dash-pa-card .dash-workout-burn-grid span {
+    color:#95aac2!important;
+}
+
+.dash-pa-recommendation {
+    margin-top:auto;
+    padding:12px 13px;
+    border-radius:10px;
+    background:
+        linear-gradient(135deg, rgba(124,58,237,.20), rgba(37,99,235,.10));
+    border:1px solid rgba(167,139,250,.34);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-recommendation.review {
+    background:
+        linear-gradient(135deg, rgba(245,158,11,.18), rgba(180,83,9,.09));
+    border-color:rgba(245,158,11,.38);
+}
+
+.dash-pa-recommendation strong,
+.dash-pa-recommendation span,
+.dash-pa-recommendation small {
+    display:block;
+}
+
+.dash-pa-recommendation strong {
+    color:#c4b5fd;
+    font-size:.7rem;
+    font-weight:950;
+    text-transform:uppercase;
+    letter-spacing:.075em;
+}
+
+.dash-pa-recommendation.review strong {
+    color:#fbbf24;
+}
+
+.dash-pa-recommendation span {
+    margin-top:4px;
+    color:#ffffff;
+    font-size:1rem;
+    font-weight:900;
+}
+
+.dash-pa-recommendation small {
+    margin-top:5px;
+    color:#aebed0;
+    line-height:1.35;
+}
+
+.dash-pa-empty {
+    margin:auto 0;
+    padding:21px 16px;
+    border:1px dashed rgba(125,211,252,.34);
+    border-radius:12px;
+    background:
+        linear-gradient(135deg, rgba(30,64,175,.12), rgba(15,23,42,.20));
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-actual .dash-pa-empty {
+    border-color:rgba(74,222,128,.30);
+    background:
+        linear-gradient(135deg, rgba(22,163,74,.10), rgba(15,23,42,.20));
+}
+
+.dash-pa-empty strong,
+.dash-pa-empty span {
+    display:block;
+}
+
+.dash-pa-empty strong {
+    color:#ffffff;
+    font-size:1.03rem;
+    font-weight:900;
+}
+
+.dash-pa-empty span {
+    margin-top:7px;
+    color:#aebfd1;
+    font-size:.86rem;
+    line-height:1.45;
+}
+
+.dash-pa-note {
+    margin:auto 0 0;
+    color:#98abc0;
+    font-size:.79rem;
+    line-height:1.4;
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-calories {
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    margin:3px 0 16px;
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-calories strong {
+    color:#ffffff;
+    font-size:2.15rem;
+    line-height:1;
+    font-weight:950;
+    letter-spacing:-.03em;
+    text-shadow:0 0 20px rgba(255,255,255,.04);
+}
+
+.dash-pa-planned .dash-pa-calories strong {
+    color:#8ec8ff;
+}
+
+.dash-pa-actual .dash-pa-calories strong {
+    color:#78f0a7;
+}
+
+.dash-pa-calories span {
+    color:#aec0d4;
+    font-size:.82rem;
+    font-weight:800;
+}
+
+.dash-pa-macro-track {
+    display:flex;
+    width:100%;
+    height:18px;
+    overflow:hidden;
+    border-radius:999px;
+    background:#071523;
+    border:1px solid #29455f;
+    box-shadow:
+        inset 0 2px 6px rgba(0,0,0,.45),
+        0 0 18px rgba(22,140,255,.04);
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-macro-segment {
+    display:block;
+    height:100%;
+    flex:0 0 auto;
+}
+
+.dash-pa-macro-segment.protein,
+.dash-pa-dot.protein {
+    background:#168CFF;
+}
+
+.dash-pa-macro-segment.carbs,
+.dash-pa-dot.carbs {
+    background:#FFD400;
+}
+
+.dash-pa-macro-segment.fat,
+.dash-pa-dot.fat {
+    background:#24D96B;
+}
+
+.dash-pa-macro-track.actual-track {
+    background:#0a1724;
+    border-color:#314b63;
+}
+
+.dash-pa-actual-fill {
+    display:flex;
+    height:100%;
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
+    border-radius:inherit;
+    flex-grow:0!important;
+    flex-shrink:0!important;
+    box-shadow:0 0 14px rgba(36,217,107,.10);
+}
+
+.dash-pa-actual-fill.over-plan {
+    box-shadow:
+        inset 0 0 0 2px #FFD400,
+        0 0 16px rgba(255,212,0,.18);
+}
+
+.dash-pa-progress-copy {
+    display:flex;
+    align-items:baseline;
+    gap:6px;
+    margin-top:8px;
+    color:#9fb2c7;
+    font-size:.76rem;
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-progress-copy strong {
+    color:#ffffff;
+    font-size:.95rem;
+    font-weight:950;
+}
+
+.dash-pa-macro-legend {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:9px;
+    margin-top:15px;
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-macro-legend > div {
+    display:grid;
+    grid-template-columns:9px 1fr;
+    align-items:center;
+    column-gap:6px;
+    min-width:0;
+}
+
+.dash-pa-macro-legend strong {
+    grid-column:2;
+    color:#ffffff;
+    font-size:.9rem;
+    font-weight:900;
+}
+
+.dash-pa-macro-legend span:not(.dash-pa-dot) {
+    color:#9fb2c7;
+    font-size:.71rem;
+    font-weight:750;
+}
+
+.dash-pa-dot {
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    box-shadow:0 0 9px currentColor;
+}
+
+.dash-pa-nutrition-foot {
+    margin-top:auto;
+    padding-top:14px;
+    position:relative;
+    z-index:1;
+}
+
+.dash-pa-nutrition-foot strong,
+.dash-pa-nutrition-foot span {
+    display:block;
+}
+
+.dash-pa-nutrition-foot strong {
+    color:#68f0a2;
+    font-size:.83rem;
+    font-weight:950;
+    letter-spacing:.02em;
+}
+
+.dash-pa-nutrition-foot span {
+    margin-top:4px;
+    color:#9fb2c7;
+    font-size:.77rem;
+    line-height:1.38;
+}
+
+/* Make the three main Dashboard columns feel intentional together. */
+.dash-primary-grid > .dash-coach {
+    background:
+        radial-gradient(circle at 50% 0%, rgba(124,58,237,.10), transparent 44%),
+        linear-gradient(180deg, rgba(11,31,55,.98), rgba(9,25,45,.98));
+    border-color:#29486c;
+    box-shadow:
+        0 18px 44px rgba(0,0,0,.22),
+        inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+.dash-primary-grid > .dash-coach h2 {
+    color:#ffffff;
+    font-weight:900;
+}
+
+.dash-primary-grid > .dash-coach p {
+    color:#d8e3ef;
+}
+
+@@media(max-width:900px) {
+    .dash-pa-stack {
+        grid-template-rows:auto;
+    }
+
+    .dash-pa-card {
+        min-height:245px;
+    }
+}
+
+@@media(max-width:560px) {
+    .dash-pa-card {
+        min-height:0;
+        padding:15px;
+    }
+
+    .dash-pa-macro-legend {
+        grid-template-columns:1fr;
+    }
+
+    .dash-pa-head {
+        align-items:flex-start;
+        flex-direction:column;
+    }
+}
+</style>
 <div class="recomp-dashboard">
     <header class="dash-title-row">
         <div>
@@ -103,58 +620,92 @@
         })
 
 <div class="dash-primary-grid">
-        <section class="dash-panel dash-workout">
-            <div class="dash-panel-label"><span class="dash-number">1</span><span>WORKOUT</span></div>
+        <section class="dash-panel dash-workout dash-planactual-panel">
+            <!-- B2.35.31_DASHBOARD_PLAN_ACTUAL_CARDS -->
+            <div class="dash-panel-label">
+                <span class="dash-number">1</span><span>TRAINING</span>
+            </div>
 
-            <div class="dash-workout-stack">
-                <div class="dash-workout-block planned">
-                    <span class="dash-workout-step-label">PLANNED</span>
-                    <h2 class="dash-workout-title">@Model.PlannedWorkout</h2>
-                    <div class="dash-workout-meta">
-                        @Model.WorkoutDurationMin.ToString("0") min <span> &bull; </span> @Model.WorkoutEffort
+            <div class="dash-pa-stack">
+                <article class="dash-pa-card dash-pa-planned">
+                    <div class="dash-pa-head">
+                        <span class="dash-pa-label">PLANNED</span>
+                        @if (Model.ScheduleChangeRecommended)
+                        {
+                            <span class="dash-pa-badge review">RECOMP ADJUSTMENT</span>
+                        }
+                        else
+                        {
+                            <span class="dash-pa-badge plan">ON PLAN</span>
+                        }
                     </div>
-                    <div class="dash-workout-burn-grid">
+
+                    <h2 class="dash-pa-title">@Model.PlannedWorkout</h2>
+
+                    <div class="dash-workout-meta dash-pa-meta">
+                        @Model.WorkoutDurationMin.ToString("0") min
+                        <span>&bull;</span>
+                        @Model.WorkoutEffort
+                    </div>
+
+                    <div class="dash-workout-burn-grid dash-pa-burn">
                         <div>
                             <strong>~@(Model.PlannedWorkoutCaloriesKcal?.ToString("0") ?? "-") kcal</strong>
-                            <span>Estimated calorie burn</span>
+                            <span>Estimated burn</span>
                         </div>
                         <div>
                             <strong>~@(Model.PlannedWorkoutGlycogenG?.ToString("0") ?? "-") g</strong>
-                            <span>Estimated glycogen burn</span>
+                            <span>Estimated glycogen</span>
                         </div>
                     </div>
-                    <p class="dash-workout-description">@Model.WorkoutDescription</p>
-                </div>
 
-                <div class="dash-workout-block recomp">
-                    <span class="dash-workout-step-label">RECOMP RECOMMENDATION</span>
                     @if (Model.ScheduleChangeRecommended)
                     {
-                        <h3>Change to @Model.RecommendedWorkout</h3>
-                        <p class="dash-recomp-why"><strong>Why:</strong> @Model.WorkoutRecommendationRationale</p>
+                        <div class="dash-pa-recommendation review">
+                            <strong>Recomp recommendation</strong>
+                            <span>Change to @Model.RecommendedWorkout</span>
+                            @if (!string.IsNullOrWhiteSpace(Model.WorkoutRecommendationRationale))
+                            {
+                                <small>@Model.WorkoutRecommendationRationale</small>
+                            }
+                        </div>
                     }
                     else
                     {
-                        <h3>Keep Plan</h3>
+                        <div class="dash-pa-recommendation">
+                            <strong>Recomp recommendation</strong>
+                            <span>Keep the planned session.</span>
+                        </div>
                     }
-                </div>
+                </article>
 
-                <div class="dash-workout-block actual">
-                    <span class="dash-workout-step-label">ACTUAL</span>
+                <article class="dash-pa-card dash-pa-actual">
+                    <div class="dash-pa-head">
+                        <span class="dash-pa-label">ACTUAL</span>
+                        @if (!string.IsNullOrWhiteSpace(Model.WorkoutActual))
+                        {
+                            <span class="dash-pa-badge actual">COMPLETED ENTRY</span>
+                        }
+                        else
+                        {
+                            <span class="dash-pa-badge waiting">WAITING FOR ENTRY</span>
+                        }
+                    </div>
+
                     @if (!string.IsNullOrWhiteSpace(Model.WorkoutActual))
                     {
-                        <h2 class="dash-workout-title dash-workout-title-actual">@Model.WorkoutActual</h2>
+                        <h2 class="dash-pa-title">@Model.WorkoutActual</h2>
 
                         @if (Model.ActualWorkoutDurationMin.HasValue || Model.ActualWorkoutRpe.HasValue)
                         {
-                            <div class="dash-workout-meta">
+                            <div class="dash-workout-meta dash-pa-meta">
                                 @if (Model.ActualWorkoutDurationMin.HasValue)
                                 {
                                     <span>@Model.ActualWorkoutDurationMin.Value.ToString("0") min</span>
                                 }
                                 @if (Model.ActualWorkoutDurationMin.HasValue && Model.ActualWorkoutRpe.HasValue)
                                 {
-                                    <span> &bull; </span>
+                                    <span>&bull;</span>
                                 }
                                 @if (Model.ActualWorkoutRpe.HasValue)
                                 {
@@ -163,88 +714,195 @@
                             </div>
                         }
 
-                        <div class="dash-workout-burn-grid">
+                        <div class="dash-workout-burn-grid dash-pa-burn">
                             <div>
                                 <strong>~@(Model.ActualWorkoutCaloriesKcal?.ToString("0") ?? "-") kcal</strong>
-                                <span>Actual-session calorie estimate</span>
+                                <span>Actual-session estimate</span>
                             </div>
                             <div>
                                 <strong>~@(Model.ActualWorkoutGlycogenG?.ToString("0") ?? "-") g</strong>
-                                <span>Actual-session glycogen estimate</span>
+                                <span>Actual-session glycogen</span>
                             </div>
                         </div>
 
-                        <p class="muted">Modeled by Engine 3.0 from the completed session; glycogen is estimated, not directly measured.</p>
+                        <p class="dash-pa-note">
+                            Engine 3.0 is using the completed actual session for today's training analysis.
+                        </p>
                     }
                     else
                     {
-                        <h2 class="dash-workout-title dash-workout-title-actual dash-not-logged">Not logged yet</h2>
+                        <div class="dash-pa-empty">
+                            <strong>Complete your training entry and it will appear here.</strong>
+                            <span>
+                                Once the workout is completed in Workout Builder or Daily Entry,
+                                this card shows what you actually did.
+                            </span>
+                        </div>
                     }
-                </div>
+                </article>
             </div>
+
             @if (isGuidedDemo)
             {
-                <aside class="guided-demo-callout" role="note" aria-label="Workout decision explanation">
-                    <strong>What am I supposed to do today?</strong>
-                    <span>Your workout week is planned in advance. Recomp checks today's plan against training balance, recovery, readiness, and safety signals, then confirms the workout or explains the adjustment here.</span>
+                <aside class="guided-demo-callout" role="note">
+                    <strong>Plan versus actual</strong>
+                    <span>Planned is the prescription. Actual is the completed training Recomp analyzes.</span>
                 </aside>
             }
         </section>
 
-        <section class="dash-panel dash-nutrition">
-            <div class="dash-panel-label"><span class="dash-number">2</span><span>NUTRITION</span></div>
-            <h2>@Model.Calories.ToString("0") <span class="dash-unit">calories</span></h2>
-            <div class="dash-macro-grid">
-                <div><strong>@Model.ProteinG.ToString("0")</strong><span>Protein</span></div>
-                <div><strong>@Model.CarbsG.ToString("0")</strong><span>Carbs</span></div>
-                <div><strong>@Model.FatG.ToString("0")</strong><span>Fat</span></div>
+<section class="dash-panel dash-nutrition dash-planactual-panel">
+            <div class="dash-panel-label">
+                <span class="dash-number">2</span><span>NUTRITION</span>
             </div>
-            <p class="muted">
-                Engine @Model.Engine30VersionCode &bull; @Model.Engine30ConfigVersionCode
-                @if (!string.IsNullOrWhiteSpace(Model.Engine30WorkoutProfileVersionCode))
-                {
-                    <span> &bull; @Model.Engine30WorkoutProfileVersionCode</span>
-                }
-            </p>
-            <div class="dash-nutrition-class">@Model.NutritionDayLabel</div>
 
-            @if (
-                Model.WeekEligibleEnergyCarryoverKcal > 0m
-                && Model.Engine30WorkoutCategoryCode == "MAJOR_STRENGTH"
-                && Model.TodayEnergyCarryoverCorrectionKcal <= 0m)
-            {
-                <p class="muted">
-                    <strong>Major Strength calories are protected today.</strong>
-                    Prior calorie overage is being assigned to eligible lower-priority days instead of reducing today's hard-training prescription.
-                </p>
-            }
-            else if (Model.TodayEnergyCarryoverCorrectionKcal > 0m)
-            {
-                <p class="muted">
-                    Energy carryover reduced today's prescription by
-                    @Model.TodayEnergyCarryoverCorrectionKcal.ToString("0") kcal,
-                    within the Admin category cap and physiological floors.
-                </p>
-            }
-            <p>@Model.NutritionTip</p>
+            @{
+                var dPlanCal = Model.Calories;
+                var dPlanP = Model.ProteinG;
+                var dPlanC = Model.CarbsG;
+                var dPlanF = Model.FatG;
 
-            @if (Model.NutritionActualLogged)
-            {
-                <div class="dash-actual-line">
-                    <strong>Actual so far:</strong>
-                    @(Model.ActualCalories?.ToString("0") ?? "-") cal &bull; @(Model.ActualProteinG?.ToString("0") ?? "-") P &bull; @(Model.ActualCarbsG?.ToString("0") ?? "-") C &bull; @(Model.ActualFatG?.ToString("0") ?? "-") F
-                </div>
+                var dPlanPk = dPlanP * 4m;
+                var dPlanCk = dPlanC * 4m;
+                var dPlanFk = dPlanF * 9m;
+                var dPlanMk = dPlanPk + dPlanCk + dPlanFk;
+
+                var dPlanPs = dPlanMk > 0m ? dPlanPk / dPlanMk * 100m : 0m;
+                var dPlanCs = dPlanMk > 0m ? dPlanCk / dPlanMk * 100m : 0m;
+                var dPlanFs = dPlanMk > 0m ? dPlanFk / dPlanMk * 100m : 0m;
+
+                var dActualCal = Model.ActualCalories ?? 0m;
+                var dActualP = Model.ActualProteinG ?? 0m;
+                var dActualC = Model.ActualCarbsG ?? 0m;
+                var dActualF = Model.ActualFatG ?? 0m;
+
+                var dActualPk = dActualP * 4m;
+                var dActualCk = dActualC * 4m;
+                var dActualFk = dActualF * 9m;
+                var dActualMk = dActualPk + dActualCk + dActualFk;
+
+                var dActualPs = dActualMk > 0m ? dActualPk / dActualMk * 100m : 0m;
+                var dActualCs = dActualMk > 0m ? dActualCk / dActualMk * 100m : 0m;
+                var dActualFs = dActualMk > 0m ? dActualFk / dActualMk * 100m : 0m;
+
+                var dActualPct = dPlanCal > 0m ? dActualCal / dPlanCal * 100m : 0m;
+                var dActualBar = Math.Min(Math.Max(dActualPct, 0m), 100m);
+                var dOver = dPlanCal > 0m && dActualCal > dPlanCal;
+
+                var dPlanPw = dPlanPs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+                var dPlanCw = dPlanCs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+                var dPlanFw = dPlanFs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+                var dActualPw = dActualPs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+                var dActualCw = dActualCs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+                var dActualFw = dActualFs.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
+                var dActualBarW = dActualBar.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%";
             }
+
+            <div class="dash-pa-stack">
+                <article class="dash-pa-card dash-pa-planned">
+                    <div class="dash-pa-head">
+                        <span class="dash-pa-label">PLANNED</span>
+                        <span class="dash-pa-badge plan">ENGINE TARGET</span>
+                    </div>
+
+                    <div class="dash-pa-calories">
+                        <strong>@dPlanCal.ToString("0")</strong>
+                        <span>calories</span>
+                    </div>
+
+                    <div class="dash-pa-macro-track" role="img" aria-label="Planned macro distribution">
+                        @if (dPlanMk > 0m)
+                        {
+                            <span class="dash-pa-macro-segment protein" style="width:@dPlanPw"></span>
+                            <span class="dash-pa-macro-segment carbs" style="width:@dPlanCw"></span>
+                            <span class="dash-pa-macro-segment fat" style="width:@dPlanFw"></span>
+                        }
+                    </div>
+
+                    <div class="dash-pa-macro-legend">
+                        <div><span class="dash-pa-dot protein"></span><span>Protein</span><strong>@dPlanP.ToString("0") g</strong></div>
+                        <div><span class="dash-pa-dot carbs"></span><span>Carbs</span><strong>@dPlanC.ToString("0") g</strong></div>
+                        <div><span class="dash-pa-dot fat"></span><span>Fat</span><strong>@dPlanF.ToString("0") g</strong></div>
+                    </div>
+
+                    <div class="dash-pa-nutrition-foot">
+                        <strong>@Model.NutritionDayLabel</strong>
+                        <span>@Model.NutritionTip</span>
+                    </div>
+                </article>
+
+                <article class="dash-pa-card dash-pa-actual">
+                    <div class="dash-pa-head">
+                        <span class="dash-pa-label">ACTUAL</span>
+                        @if (Model.NutritionActualLogged)
+                        {
+                            <span class="dash-pa-badge actual">PARTIAL DAY</span>
+                        }
+                        else
+                        {
+                            <span class="dash-pa-badge waiting">WAITING FOR ENTRY</span>
+                        }
+                    </div>
+
+                    @if (Model.NutritionActualLogged)
+                    {
+                        <div class="dash-pa-calories">
+                            <strong>@dActualCal.ToString("0")</strong>
+                            <span>calories so far</span>
+                        </div>
+
+                        <div class="dash-pa-macro-track actual-track"
+                             role="img"
+                             aria-label='Actual intake is @dActualPct.ToString("0.#") percent of plan'>
+                            <div class="dash-pa-actual-fill @(dOver ? "over-plan" : string.Empty)"
+                                 style="width:@dActualBarW;flex-basis:@dActualBarW">
+                                @if (dActualMk > 0m)
+                                {
+                                    <span class="dash-pa-macro-segment protein" style="width:@dActualPw"></span>
+                                    <span class="dash-pa-macro-segment carbs" style="width:@dActualCw"></span>
+                                    <span class="dash-pa-macro-segment fat" style="width:@dActualFw"></span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="dash-pa-progress-copy">
+                            <strong>@dActualPct.ToString("0")%</strong>
+                            <span>of calorie target logged</span>
+                        </div>
+
+                        <div class="dash-pa-macro-legend">
+                            <div><span class="dash-pa-dot protein"></span><span>Protein</span><strong>@dActualP.ToString("0") g</strong></div>
+                            <div><span class="dash-pa-dot carbs"></span><span>Carbs</span><strong>@dActualC.ToString("0") g</strong></div>
+                            <div><span class="dash-pa-dot fat"></span><span>Fat</span><strong>@dActualF.ToString("0") g</strong></div>
+                        </div>
+
+                        <p class="dash-pa-note">
+                            Partial day &mdash; this updates as food or Daily Entry nutrition is logged.
+                        </p>
+                    }
+                    else
+                    {
+                        <div class="dash-pa-empty">
+                            <strong>Actual nutrition will appear here.</strong>
+                            <span>
+                                Log food during the day or complete Nutrition in Daily Entry.
+                                Until then, the planned target remains your guide.
+                            </span>
+                        </div>
+                    }
+                </article>
+            </div>
+
             @if (isGuidedDemo)
             {
-                <aside class="guided-demo-callout" role="note" aria-label="Nutrition target explanation">
-                    <strong>Why these macros?</strong>
-                    <span>Protein stays high to protect muscle while you lose fat. Harder training days use more muscle glycogen, so Recomp gives you more carbs to restore that fuel and keep energy, strength, and recovery high.</span>
+                <aside class="guided-demo-callout" role="note">
+                    <strong>Plan versus actual</strong>
+                    <span>Planned is today's Engine target. Actual shows intake logged so far.</span>
                 </aside>
             }
         </section>
 
-        <section class="dash-panel dash-coach">
+<section class="dash-panel dash-coach">
             <div class="dash-panel-label"><span class="dash-number">3</span><span>COACH</span></div>
             <h2>@Model.CoachTitle</h2>
             <p class="dash-coach-copy">@Model.CoachRecommendation</p>
@@ -388,7 +1046,7 @@
                             aria-haspopup="dialog"
                             aria-controls="coachTodayDetail">
                             <img
-                                src="@Url.Content(todayCoachGuide.AvatarPath)"
+                                src="@Url.Content(tomorrowCoachGuide.AvatarPath)"
             alt=""
             class="dash-coach-guide-card__portrait" />
                             <span class="dash-coach-guide-card__copy">
@@ -414,211 +1072,500 @@
         }
     </section>
 
-    <section class="dash-section dash-fuel-detail">
-        <div class="dash-section-heading">
-            <div>
-                <div class="dash-kicker">ENGINE 3.0 &bull; FUEL / RECOVERY / ENERGY</div>
-                <h2>How yesterday affects today</h2>
+    @if (Model.Engine30AdaptiveRecommendation is { ShowOnDashboard: true } adaptive)
+    {
+        <section class="dash-section dash-adaptive-recommendation">
+            <div class="dash-section-heading">
+                <div>
+                    <div class="dash-kicker">ENGINE 3.0 &bull; ADAPTIVE RECOMMENDATION</div>
+                    <h2>@adaptive.Title</h2>
+                </div>
             </div>
-            <span class="dash-detail-date">@Model.PreviousDate.ToString("MMM d") &rarr; @Model.ActionDate.ToString("MMM d")</span>
-        </div>
 
-        @if (isGuidedDemo)
-        {
-            <aside class="guided-demo-callout" role="note" aria-label="Engine 3.0 yesterday to today explanation">
-                <strong>What changed because of yesterday?</strong>
-                <span>Engine 3.0 recalculates recent completed workouts from the raw workout details, compares those demands with actual carbohydrate evidence, carries the last four days forward, then shows what that means for today's fuel and prescription.</span>
-            </aside>
-        }
-
-        <div class="dash-fuel-flow">
-            <div class="dash-fuel-card">
-                <span class="dash-cell-label">1 &bull; YESTERDAY &mdash; WHAT ACTUALLY HAPPENED</span>
-
-                @if (!string.IsNullOrWhiteSpace(Model.PreviousWorkoutActual))
+            <div class="dash-adaptive-card">
+                @if (adaptive.WorkoutChangeRecommended)
                 {
-                    <p><strong>Workout:</strong> @Model.PreviousWorkoutActual</p>
+                    <div class="dash-adaptive-workout">
+                        <strong>@adaptive.PlannedWorkoutDisplayName</strong>
+                        <span aria-hidden="true">&rarr;</span>
+                        <strong>@adaptive.RecommendedWorkoutDisplayName</strong>
+                        @if (adaptive.RecommendedDurationMinutes.HasValue)
+                        {
+                            <span>(about @adaptive.RecommendedDurationMinutes.Value.ToString("0") min)</span>
+                        }
+                    </div>
                 }
                 else
                 {
-                    <p><strong>Workout:</strong> No completed workout logged.</p>
-                }
-
-                <div class="dash-big-metric">@Model.PreviousGlycogenDemandG.ToString("0") g</div>
-                <span class="muted">Engine 3.0 modeled glycogen demand from completed workout data</span>
-
-                <div class="dash-compare-head"><span>Target</span><span>Actual</span></div>
-                <div class="dash-compare-row"><strong>Calories</strong><span>@(Model.PreviousTargetCalories?.ToString("0") ?? "-")</span><span>@(Model.PreviousActualCalories?.ToString("0") ?? "-")</span></div>
-                <div class="dash-compare-row"><strong>Protein</strong><span>@(Model.PreviousTargetProteinG?.ToString("0") ?? "-") g</span><span>@(Model.PreviousActualProteinG?.ToString("0") ?? "-") g</span></div>
-                <div class="dash-compare-row dash-carb-row"><strong>Carbs</strong><span>@(Model.PreviousTargetCarbsG?.ToString("0") ?? "-") g</span><span>@(Model.PreviousActualCarbsG?.ToString("0") ?? "-") g</span></div>
-                <div class="dash-compare-row"><strong>Fat</strong><span>@(Model.PreviousTargetFatG?.ToString("0") ?? "-") g</span><span>@(Model.PreviousActualFatG?.ToString("0") ?? "-") g</span></div>
-
-                @if (Model.PreviousCarbDifferenceG.HasValue)
-                {
-                    <div class="dash-difference @(Model.PreviousCarbDifferenceG.Value < 0 ? "short" : "met")">
-                        Carb difference: @Model.PreviousCarbDifferenceG.Value.ToString("+0;-0;0") g
+                    <div class="dash-adaptive-workout">
+                        <strong>@adaptive.RecommendedWorkoutDisplayName</strong>
                     </div>
                 }
 
-                <div class="dash-refill-line">
-                    <div>
-                        <strong>@(Model.PreviousRestorationCreditG?.ToString("0") ?? "-") g</strong>
-                        <span>Restoration credit</span>
-                    </div>
-                    <div>
-                        <strong>@(Model.PreviousRestorationRatio?.ToString("P0") ?? "-")</strong>
-                        <span>Yesterday refill</span>
-                    </div>
+                <p>@adaptive.Summary</p>
+
+                <div class="dash-adaptive-nutrition">
+                    <strong>Nutrition</strong>
+                    <span>@adaptive.NutritionSummary</span>
                 </div>
 
-                <p>@Model.PreviousFuelSummary</p>
-
-                @if (Model.PreviousEnergyVarianceKcal.HasValue)
-                {
-                    <div class="dash-refill-line">
-                        <div>
-                            <strong>@Model.PreviousEnergyVarianceKcal.Value.ToString("+0;-0;0") kcal</strong>
-                            <span>Energy vs target</span>
-                        </div>
-                        <div>
-                            <strong>@(Model.PreviousEligibleEnergyCarryoverKcal?.ToString("0") ?? "-") kcal</strong>
-                            <span>Eligible energy correction</span>
-                        </div>
-                    </div>
-                }
-                <p class="muted">Target source: Engine 3.0 weekly prescription. Missing intake remains missing evidence - not zero intake.</p>
+                <small>
+                    Recommendation only - your Weekly Plan remains unchanged unless you choose to edit it.
+                </small>
             </div>
+        </section>
+    }
+    <section class="dash-section dash-fuel-detail dash-analysis-section">
+        @{
+            var analysis = Model.Engine30Analysis;
 
-            <div class="dash-flow-arrow" aria-hidden="true">&rarr;</div>
+            // V1009_DASHBOARD_TODAY_SWITCH_V2
+            var showTodayAnalysis = Model.ShowTodayAnalysis;
+            var hasActualWorkout = Model.ActualWorkoutDurationMin.HasValue;
 
-            <div class="dash-fuel-card">
-                <span class="dash-cell-label">2 &bull; CARRYOVER &mdash; THE PRIOR FOUR DAYS</span>
+            decimal? todayCaloriesRatio =
+                Model.ActualCalories.HasValue && Model.Calories > 0m
+                    ? Model.ActualCalories.Value / Model.Calories
+                    : null;
 
-                <div class="dash-recovery-meter">
-                    <div class="dash-meter-value">@Model.AbsoluteRestorationRatio.ToString("P0")</div>
-                    <div>
-                        <strong>Absolute restoration</strong>
-                        <span>@Model.FourDayRestorationCreditG.ToString("0") g credit / @Model.FourDayGlycogenDemandG.ToString("0") g demand</span>
-                    </div>
-                </div>
+            decimal? todayCarbsRatio =
+                Model.ActualCarbsG.HasValue && Model.CarbsG > 0m
+                    ? Model.ActualCarbsG.Value / Model.CarbsG
+                    : null;
 
-                <dl class="dash-detail-list">
-                    <dt>Carbohydrate evidence</dt>
-                    <dd>@Model.FourDayCarbohydrateEvidenceDays / 4 days</dd>
+            decimal? todayProteinRatio =
+                Model.ActualProteinG.HasValue && Model.ProteinG > 0m
+                    ? Model.ActualProteinG.Value / Model.ProteinG
+                    : null;
 
-                    <dt>Moderate / hard demand days</dt>
-                    <dd>@Model.FourDayModerateHardDays</dd>
+            decimal? todayFatRatio =
+                Model.ActualFatG.HasValue && Model.FatG > 0m
+                    ? Model.ActualFatG.Value / Model.FatG
+                    : null;
 
-                    <dt>Hard demand days</dt>
-                    <dd>@Model.FourDayHardDays</dd>
+            var todayCaloriesCss =
+                !todayCaloriesRatio.HasValue ? "gray" :
+                todayCaloriesRatio.Value < 0.88m ? "gray" :
+                todayCaloriesRatio.Value <= 1.08m ? "green" :
+                todayCaloriesRatio.Value <= 1.15m ? "yellow" :
+                todayCaloriesRatio.Value <= 1.25m ? "orange" :
+                "red";
 
-                    <dt>Functional target</dt>
-                    <dd>@Model.FunctionalTargetRatio.ToString("P0")</dd>
+            var todayCarbsCss =
+                !todayCarbsRatio.HasValue ? "gray" :
+                todayCarbsRatio.Value < 0.80m ? "gray" :
+                todayCarbsRatio.Value <= 1.20m ? "green" :
+                todayCarbsRatio.Value <= 1.35m ? "yellow" :
+                todayCarbsRatio.Value <= 1.55m ? "orange" :
+                "red";
 
-                    <dt>Incoming target achievement</dt>
-                    <dd>@Model.IncomingTargetAchievementRatio.ToString("P0")</dd>
+            var todayProteinCss =
+                !todayProteinRatio.HasValue ? "gray" :
+                todayProteinRatio.Value < 0.90m ? "gray" :
+                todayProteinRatio.Value <= 1.50m ? "green" :
+                "yellow";
 
-                    <dt>Starting readiness</dt>
-                    <dd>@Model.GlycogenReadiness</dd>
+            var todayFatCss =
+                !todayFatRatio.HasValue ? "gray" :
+                todayFatRatio.Value < 0.70m ? "gray" :
+                todayFatRatio.Value <= 1.30m ? "green" :
+                todayFatRatio.Value <= 1.60m ? "yellow" :
+                todayFatRatio.Value < 2.00m ? "orange" :
+                "red";
 
-                    <dt>Historical shortfall</dt>
-                    <dd>@Model.HistoricalFuelShortfallG.ToString("0") g</dd>
+            var todayWorkoutValue =
+                hasActualWorkout && !string.IsNullOrWhiteSpace(Model.WorkoutActual)
+                    ? Model.WorkoutActual
+                    : Model.PlannedWorkout;
 
-                    <dt>Energy over target this week</dt>
-                    <dd>@Model.WeekEnergyOverageKcal.ToString("0") kcal</dd>
+            var todayWorkoutCss =
+                hasActualWorkout ? "green" : "gray";
 
-                    <dt>Energy correction eligible this week</dt>
-                    <dd>@Model.WeekEligibleEnergyCarryoverKcal.ToString("0") kcal</dd>
+            decimal? todayGlycogenDemand =
+                Model.ActualWorkoutGlycogenG
+                ?? Model.PlannedWorkoutGlycogenG;
+        }
 
-                    <dt>Already assigned before today</dt>
-                    <dd>@Model.EnergyCorrectionAppliedBeforeTodayKcal.ToString("0") kcal</dd>
-
-                    <dt>Assigned to future days</dt>
-                    <dd>@Model.EnergyCorrectionAppliedFutureKcal.ToString("0") kcal</dd>
-
-                    <dt>Unallocated / accepted variance</dt>
-                    <dd>@Model.EnergyCorrectionUnallocatedKcal.ToString("0") kcal</dd>
-                </dl>
+        <div class="dash-section-heading">
+            <div>
+                <div class="dash-kicker">ENGINE 3.0 â€¢ DAILY ANALYSIS</div>
+                <h2>What the recent data says</h2>
             </div>
-
-            <div class="dash-flow-arrow" aria-hidden="true">&rarr;</div>
-
-            <div class="dash-fuel-card dash-today-impact">
-                <span class="dash-cell-label">3 &bull; TODAY &mdash; WHAT ENGINE 3.0 DOES ABOUT IT</span>
-
-                <div class="dash-big-metric">@Model.TodayPlannedGlycogenDemandG.ToString("0") g</div>
-                <span class="muted">Modeled demand for today's planned workout</span>
-
-                <dl class="dash-detail-list">
-                    <dt>Base-rest carbohydrate</dt>
-                    <dd>@Model.BaseCarbsG.ToString("0") g</dd>
-
-                    <dt>Recovery allocation</dt>
-                    <dd>@Model.CarryoverCarbsG.ToString("0") g</dd>
-
-                    <dt>Suggested before training</dt>
-                    <dd>@Model.PreWorkoutCarbsG.ToString("0") g</dd>
-
-                    <dt>Projected target achievement</dt>
-                    <dd>@Model.ProjectedTargetAchievementRatio.ToString("P0")</dd>
-
-                    <dt>Projected readiness</dt>
-                    <dd>@Model.ProjectedGlycogenReadiness</dd>
-
-                    <dt>Protected baseline calories</dt>
-                    <dd>@Model.TodayBaselinePrescribedEnergyKcal.ToString("0") kcal</dd>
-
-                    <dt>Energy correction applied today</dt>
-                    <dd>@Model.TodayEnergyCarryoverCorrectionKcal.ToString("0") kcal</dd>
-
-                    <dt>Today's adjusted prescription</dt>
-                    <dd>@Model.Calories.ToString("0") kcal</dd>
-                </dl>
-
-                <div class="dash-difference met">
-                    @Model.FuelActionLabel
-                </div>
-            </div>
-        </div>
-
-        <div class="dash-physiology-note">
-            <strong>Energy carryover</strong>
-            @Model.EnergyCarryoverSummary
-        </div>
-
-        <div class="dash-physiology-note">
-            <strong>Today's Engine 3.0 energy model</strong>
-            Base Living @Model.Engine30BaseLivingKcal.ToString("0") +
-            Habitual Activity @Model.Engine30HabitualActivityKcal.ToString("0") +
-            Net Workout @Model.Engine30NetWorkoutKcal.ToString("0") =
-            Maintenance @Model.Engine30MaintenanceKcal.ToString("0") kcal.
-            Today's prescription is @Model.Calories.ToString("0") kcal with an effective goal deficit of @Model.Engine30EffectiveDeficitPct.ToString("P1").
-        </div>
-
-        <div class="dash-physiology-note">
-            <strong>Protein and dietary fat stay protected. Carbohydrate is the primary day-to-day variable.</strong>
-            Engine 3.0 uses carbohydrate to support training and glycogen recovery inside the weekly energy budget. Recovery allocation and pre-workout rescue are timing decisions inside prescribed carbohydrate; they are not extra exercise calories that get eaten back 1-for-1.
-        </div>
-
-        <details class="dash-why">
-            <summary>Engine 3.0 details / provenance</summary>
-            <p>
-                Engine @Model.Engine30VersionCode &bull; @Model.Engine30ConfigVersionCode
-                @if (!string.IsNullOrWhiteSpace(Model.Engine30WorkoutProfileVersionCode))
-                {
-                    <span> &bull; Workout profile @Model.Engine30WorkoutProfileVersionCode</span>
-                }
-                @if (!string.IsNullOrWhiteSpace(Model.Engine30WorkoutProfileSourceCode))
-                {
-                    <span> &bull; @Model.Engine30WorkoutProfileSourceCode</span>
-                }
-            </p>
-            <p>Workout category: @Model.Engine30WorkoutCategoryCode &bull; Carb rule: @Model.Engine30CarbGoverningRuleCode</p>
-            @if (!string.IsNullOrWhiteSpace(Model.FuelReasonCodes))
+            @if (showTodayAnalysis)
             {
-                <p>Fuel reason codes: @Model.FuelReasonCodes</p>
+                <span class="dash-detail-date">@Model.ActionDate.ToString("MMM d") live</span>
             }
-        </details>
+            else
+            {
+                <span class="dash-detail-date">@Model.PreviousDate.ToString("MMM d") analysis</span>
+            }
+        </div>
+
+        @if (analysis is null)
+        {
+            <div class="dash-empty">
+                Dashboard analysis is temporarily unavailable. Today's Engine 3.0 prescription is unchanged.
+            </div>
+        }
+        else
+        {
+            <div class="dash-analysis-grid">
+                @if (showTodayAnalysis)
+                {
+                    <article class="dash-analysis-card">
+                        <div class="dash-analysis-card-head">
+                            <div>
+                                <span class="dash-cell-label">TODAY</span>
+                                <h3>Today so far</h3>
+                            </div>
+                            <span class="dash-analysis-workout">@todayWorkoutValue</span>
+                        </div>
+
+                        <div class="dash-analysis-signal-list">
+                            <div class="dash-analysis-signal">
+                                <span class="dash-analysis-dot @todayWorkoutCss"></span>
+                                <div>
+                                    <strong>Workout</strong>
+                                    <span>
+                                        @(hasActualWorkout
+                                            ? "Today's completed workout is logged."
+                                            : "Today's workout is still in progress or has not been logged yet.")
+                                    </span>
+                                </div>
+                                <b>@todayWorkoutValue</b>
+                            </div>
+
+                            <div class="dash-analysis-signal">
+                                <span class="dash-analysis-dot gray"></span>
+                                <div>
+                                    <strong>Workout glycogen demand</strong>
+                                    <span>Current-day glycogen demand is informational until the day is complete.</span>
+                                </div>
+                                <b>@(todayGlycogenDemand?.ToString("0") ?? "â€”") g</b>
+                            </div>
+
+                            <div class="dash-analysis-signal">
+                                <span class="dash-analysis-dot @todayCaloriesCss"></span>
+                                <div>
+                                    <strong>Calories</strong>
+                                    <span>
+                                        @(todayCaloriesRatio.HasValue && todayCaloriesRatio.Value < 0.88m
+                                            ? "In progress â€” being below target during the day is not a failure."
+                                            : "Current intake versus today's Engine 3.0 prescription.")
+                                    </span>
+                                </div>
+                                <b>@(Model.ActualCalories?.ToString("0") ?? "â€”") / @Model.Calories.ToString("0") kcal</b>
+                            </div>
+
+                            <div class="dash-analysis-signal">
+                                <span class="dash-analysis-dot @todayCarbsCss"></span>
+                                <div>
+                                    <strong>Carbohydrate</strong>
+                                    <span>
+                                        @(todayCarbsRatio.HasValue && todayCarbsRatio.Value < 0.80m
+                                            ? "In progress â€” unfinished carbohydrate intake is not graded as a completed-day shortfall."
+                                            : "Current carbohydrate intake versus today's prescription.")
+                                    </span>
+                                </div>
+                                <b>@(Model.ActualCarbsG?.ToString("0") ?? "â€”") / @Model.CarbsG.ToString("0") g</b>
+                            </div>
+
+                            <div class="dash-analysis-signal">
+                                <span class="dash-analysis-dot @todayProteinCss"></span>
+                                <div>
+                                    <strong>Protein</strong>
+                                    <span>
+                                        @(todayProteinRatio.HasValue && todayProteinRatio.Value < 0.90m
+                                            ? "In progress â€” protein is not called low simply because the day is unfinished."
+                                            : "Current protein intake versus today's prescription.")
+                                    </span>
+                                </div>
+                                <b>@(Model.ActualProteinG?.ToString("0") ?? "â€”") / @Model.ProteinG.ToString("0") g</b>
+                            </div>
+
+                            <div class="dash-analysis-signal">
+                                <span class="dash-analysis-dot @todayFatCss"></span>
+                                <div>
+                                    <strong>Fat</strong>
+                                    <span>
+                                        @(todayFatRatio.HasValue && todayFatRatio.Value < 0.70m
+                                            ? "In progress â€” being below the fat target during the day is not a failure."
+                                            : todayFatRatio.HasValue && todayFatRatio.Value >= 1.60m
+                                                ? "Fat is already materially above today's target."
+                                                : "Current fat intake versus today's prescription.")
+                                    </span>
+                                </div>
+                                <b>@(Model.ActualFatG?.ToString("0") ?? "â€”") / @Model.FatG.ToString("0") g</b>
+                            </div>
+
+                            <div class="dash-analysis-signal">
+                                <span class="dash-analysis-dot @analysis.ScaleConsistency.CssClass"></span>
+                                <div>
+                                    <strong>Morning scale response</strong>
+                                    <span>@analysis.ScaleConsistency.Detail</span>
+                                </div>
+                                <b>@analysis.ScaleConsistency.Value</b>
+                            </div>
+                        </div>
+
+                        <div class="dash-analysis-narrative">
+                            <strong>Today is still in progress</strong>
+                            <p>
+                                Current-day shortfalls stay neutral while the day is unfinished.
+                                This morning's scale response still belongs to yesterday's training and nutrition.
+                            </p>
+                        </div>
+                    </article>
+                }
+                else
+                {                <article class="dash-analysis-card">
+                    <div class="dash-analysis-card-head">
+                        <div>
+                            <span class="dash-cell-label">YESTERDAY</span>
+                            <h3>@analysis.DayContextLabel</h3>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(Model.PreviousWorkoutActual))
+                        {
+                            <span class="dash-analysis-workout">@Model.PreviousWorkoutActual</span>
+                        }
+                    </div>
+
+                    <div class="dash-analysis-signal-list">
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.Workout.CssClass"></span>
+                            <div>
+                                <strong>@analysis.Workout.Label</strong>
+                                <span>@analysis.Workout.Detail</span>
+                            </div>
+                            <b>@analysis.Workout.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.Glycogen.CssClass"></span>
+                            <div>
+                                <strong>@analysis.Glycogen.Label</strong>
+                                <span>@analysis.Glycogen.Detail</span>
+                            </div>
+                            <b>@analysis.Glycogen.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.Calories.CssClass"></span>
+                            <div>
+                                <strong>@analysis.Calories.Label</strong>
+                                <span>@analysis.Calories.Detail</span>
+                            </div>
+                            <b>@analysis.Calories.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.Carbohydrate.CssClass"></span>
+                            <div>
+                                <strong>@analysis.Carbohydrate.Label</strong>
+                                <span>@analysis.Carbohydrate.Detail</span>
+                            </div>
+                            <b>@analysis.Carbohydrate.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.Protein.CssClass"></span>
+                            <div>
+                                <strong>@analysis.Protein.Label</strong>
+                                <span>@analysis.Protein.Detail</span>
+                            </div>
+                            <b>@analysis.Protein.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.Fat.CssClass"></span>
+                            <div>
+                                <strong>@analysis.Fat.Label</strong>
+                                <span>@analysis.Fat.Detail</span>
+                            </div>
+                            <b>@analysis.Fat.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.ScaleConsistency.CssClass"></span>
+                            <div>
+                                <strong>@analysis.ScaleConsistency.Label</strong>
+                                <span>@analysis.ScaleConsistency.Detail</span>
+                            </div>
+                            <b class="@(!analysis.HasCurrentMorningScale ? "dash-analysis-missing-scale-text" : "")">@analysis.ScaleConsistency.Value</b>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(analysis.Kudos))
+                    {
+                        <div class="dash-analysis-kudos">
+                            <strong>Good execution</strong>
+                            <span>@analysis.Kudos</span>
+                        </div>
+                    }
+
+                    <div class="dash-analysis-narrative">
+                        <strong>What yesterday likely did</strong>
+                        <p>@analysis.YesterdayNarrative</p>
+                    </div>
+
+                    @if (!analysis.HasCurrentMorningScale)
+                    {
+                        <div class="dash-analysis-scale-prompt">
+                            <span class="dash-analysis-dot gray"></span>
+                            <div>
+                                <strong class="dash-analysis-missing-scale-text">Please enter this morning's scale readings</strong>
+                                <span>That measurement lets Recomp compare yesterday's workout and nutrition with the next-morning response. The Dashboard itself remains usable without it.</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="dash-analysis-scale-strip">
+                            <div>
+                                <strong>@(analysis.WeightChangeLb?.ToString("+0.0;-0.0;0.0") ?? "â€”") lb</strong>
+                                <span>Weight</span>
+                            </div>
+                            <div>
+                                <strong>@(analysis.BodyFatChangePercentagePoints?.ToString("+0.0;-0.0;0.0") ?? "â€”") pp</strong>
+                                <span>BIA body fat</span>
+                            </div>
+                            <div>
+                                <strong>@(analysis.MuscleMassChangeLb?.ToString("+0.0;-0.0;0.0") ?? "â€”") lb</strong>
+                                <span>BIA muscle / lean estimate</span>
+                            </div>
+                        </div>
+
+                        <div class="dash-analysis-scale-explanation">
+                            <strong>About the morning weight change</strong>
+                            <p>@analysis.ScaleExplanation</p>
+                        </div>
+                    }
+
+                    <div class="dash-analysis-quality">
+                        <span class="dash-analysis-dot @analysis.TrackingConfidence.CssClass"></span>
+                        <div>
+                            <strong>Data-quality check &middot; @analysis.TrackingConfidence.Value confidence</strong>
+                            <p>@analysis.DataQualityNarrative</p>
+                        </div>
+                    </div>
+                </article>
+
+                }
+                <article class="dash-analysis-card">
+                    <div class="dash-analysis-card-head">
+                        <div>
+                            <span class="dash-cell-label">TREND</span>
+                            <h3>Recent four-day pattern</h3>
+                        </div>
+                        @if (analysis.FourDayWeightChangeLb.HasValue)
+                        {
+                            <span class="dash-analysis-workout">
+                                @analysis.FourDayWeightChangeLb.Value.ToString("+0.0;-0.0;0.0") lb
+                            </span>
+                        }
+                    </div>
+
+                    <div class="dash-analysis-signal-list">
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.TrendTraining.CssClass"></span>
+                            <div>
+                                <strong>@analysis.TrendTraining.Label</strong>
+                                <span>@analysis.TrendTraining.Detail</span>
+                            </div>
+                            <b>@analysis.TrendTraining.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.TrendFueling.CssClass"></span>
+                            <div>
+                                <strong>@analysis.TrendFueling.Label</strong>
+                                <span>@analysis.TrendFueling.Detail</span>
+                            </div>
+                            <b>@analysis.TrendFueling.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.TrendEnergy.CssClass"></span>
+                            <div>
+                                <strong>@analysis.TrendEnergy.Label</strong>
+                                <span>@analysis.TrendEnergy.Detail</span>
+                            </div>
+                            <b>@analysis.TrendEnergy.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.TrendProtein.CssClass"></span>
+                            <div>
+                                <strong>@analysis.TrendProtein.Label</strong>
+                                <span>@analysis.TrendProtein.Detail</span>
+                            </div>
+                            <b>@analysis.TrendProtein.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.TrendFat.CssClass"></span>
+                            <div>
+                                <strong>@analysis.TrendFat.Label</strong>
+                                <span>@analysis.TrendFat.Detail</span>
+                            </div>
+                            <b>@analysis.TrendFat.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.TrendScale.CssClass"></span>
+                            <div>
+                                <strong>@analysis.TrendScale.Label</strong>
+                                <span>@analysis.TrendScale.Detail</span>
+                            </div>
+                            <b>@analysis.TrendScale.Value</b>
+                        </div>
+
+                        <div class="dash-analysis-signal">
+                            <span class="dash-analysis-dot @analysis.TrendTracking.CssClass"></span>
+                            <div>
+                                <strong>@analysis.TrendTracking.Label</strong>
+                                <span>@analysis.TrendTracking.Detail</span>
+                            </div>
+                            <b>@analysis.TrendTracking.Value</b>
+                        </div>
+                    </div>
+
+                    <div class="dash-analysis-narrative">
+                        <strong>What the pattern says</strong>
+                        <p>@analysis.TrendNarrative</p>
+                    </div>
+
+                    <div class="dash-analysis-take">
+                        <strong>Current coaching take</strong>
+                        <span>@analysis.CoachingTake</span>
+                    </div>
+
+                    <details class="dash-why dash-analysis-details">
+                        <summary>How Recomp is judging this</summary>
+                        <p class="dash-analysis-legend">
+                            <span><i class="dash-analysis-dot green"></i> Green = good / functionally supported</span>
+                            <span><i class="dash-analysis-dot yellow"></i> Yellow = acceptable but worth watching</span>
+                            <span><i class="dash-analysis-dot orange"></i> Orange = materially off / investigate</span>
+                            <span><i class="dash-analysis-dot red"></i> Red = poor support / likely problem</span>
+                            <span><i class="dash-analysis-dot gray"></i> Gray = missing / insufficient evidence</span>
+                        </p>
+                        <p>
+                            Hard resistance / hard conditioning gives priority to glycogen restoration:
+                            green â‰¥80%, yellow 60â€“79%, orange 50â€“59%, red &lt;50%.
+                            Easy cardio / Zone 2 / recovery gives more weight to energy control and does not penalize lower carbohydrate automatically.
+                        </p>
+                        <p>@analysis.TrackingCaveat</p>
+                        <p>
+                            Engine @Model.Engine30VersionCode â€¢ @Model.Engine30ConfigVersionCode
+                            @if (!string.IsNullOrWhiteSpace(Model.Engine30WorkoutProfileVersionCode))
+                            {
+                                <span> â€¢ Workout profile @Model.Engine30WorkoutProfileVersionCode</span>
+                            }
+                        </p>
+                    </details>
+                </article>
+            </div>
+        }
     </section>
     }
 </div>
@@ -793,6 +1740,26 @@
     </div>
 </div>
 
+
+<style>
+/* B2.32.2 DASHBOARD PLAN DECISION STATUS */
+.dash-plan-decision-status {
+    margin: 0 0 1rem;
+    padding: .75rem .9rem;
+    border: 1px solid #86b7a2;
+    border-radius: .65rem;
+    background: #ecfdf5;
+    color: #166534;
+    font-weight: 750;
+}
+
+body.test-live-preview
+.dash-plan-decision-status {
+    border-color: #2f7d58;
+    background: #0b3025;
+    color: #9af8b1;
+}
+</style>
 <script>
 (function () {
     var modal = document.getElementById('coachDailyBriefModal');

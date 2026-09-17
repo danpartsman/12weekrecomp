@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using WebRecomp.NutritionIntelligence.Persistence;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Engine30;
+using WebRecomp.Web.Services.WorkoutIntelligence;
 using WebRecomp.Web.ViewModels;
 
 namespace WebRecomp.Web.Controllers;
@@ -14,7 +16,8 @@ public sealed class DailyEntryController(
     ConfigurationService configuration,
     WorkoutMathService workoutMath,
     IConfiguration appConfiguration,
-    Engine30WorkoutUiCatalogService engine30WorkoutCatalog) : Controller
+    Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
+    INutritionFoodLogStore nutritionStore) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(
@@ -33,6 +36,20 @@ public sealed class DailyEntryController(
         var model =
             await BuildAsync(context, targetDate, cancellationToken);
 
+                // B2.35.30 REV2 DAILY ENTRY FRESH GET
+        // This page is a dated editor over authoritative database records.
+        // Never allow a previously visited blank form to be reused by browser/proxy cache.
+        Response.Headers["Cache-Control"] =
+            "no-store, no-cache, must-revalidate";
+        Response.Headers["Pragma"] =
+            "no-cache";
+        Response.Headers["Expires"] =
+            "0";
+
+        // Razor input tag helpers prefer ModelState values over Model values.
+        // A GET must show the freshly rebuilt DB-backed model.
+        ModelState.Clear();
+
         return View(model);
     }
 
@@ -40,6 +57,7 @@ public sealed class DailyEntryController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(
         DailyEntryViewModel model,
+        bool nutritionManualOverride,
         CancellationToken cancellationToken)
     {
         var context =
@@ -199,7 +217,27 @@ public sealed class DailyEntryController(
                     && x.NutritionDate == model.Date,
                 cancellationToken);
 
-        if (nutritionEntered || nutrition is not null)
+        NutritionDailyLogReadModel? detailedNutrition = null;
+
+        if (program.NutritionFoodLogEnabled)
+        {
+            detailedNutrition =
+                await nutritionStore.GetDailyLogAsync(
+                    client.ClientId,
+                    model.Date,
+                    cancellationToken);
+        }
+
+        var foodLogAvailable =
+            detailedNutrition?.Totals is not null
+            && detailedNutrition.Items.Count > 0;
+
+        var useFoodLog =
+            program.NutritionFoodLogEnabled
+            && foodLogAvailable
+            && !nutritionManualOverride;
+
+        if (useFoodLog)
         {
             if (nutrition is null)
             {
@@ -209,7 +247,47 @@ public sealed class DailyEntryController(
                     ClientId = client.ClientId,
                     ProgramId = program.ProgramId,
                     NutritionDate = model.Date,
-                    EntrySourceCode = "MANUAL",
+                    EntrySourceCode = RecompInputSourceCodes.FoodLog,
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                };
+
+                db.NutritionDays.Add(nutrition);
+            }
+
+            nutrition.ActualCalories =
+                detailedNutrition!.Totals!.EnergyKcal;
+            nutrition.ActualProteinG =
+                detailedNutrition.Totals.ProteinG;
+            nutrition.ActualCarbsG =
+                detailedNutrition.Totals.CarbohydrateG;
+            nutrition.ActualFatG =
+                detailedNutrition.Totals.FatG;
+            nutrition.FiberG =
+                detailedNutrition.Totals.FiberG;
+            nutrition.WaterOz = model.WaterOz;
+            nutrition.Notes = Clean(model.NutritionNotes);
+            nutrition.EntrySourceCode =
+                RecompInputSourceCodes.FoodLog;
+            nutrition.SourceRecordId =
+                detailedNutrition.DailyLogId?.ToString("D");
+            nutrition.UpdatedAtUtc = now;
+        }
+        else if (nutritionEntered || nutrition is not null)
+        {
+            if (nutrition is null)
+            {
+                nutrition = new NutritionDay
+                {
+                    NutritionDayId = Guid.NewGuid(),
+                    ClientId = client.ClientId,
+                    ProgramId = program.ProgramId,
+                    NutritionDate = model.Date,
+                    EntrySourceCode =
+                        program.NutritionFoodLogEnabled
+                        && foodLogAvailable
+                            ? "MANUAL_OVERRIDE"
+                            : RecompInputSourceCodes.Manual,
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now
                 };
@@ -224,10 +302,13 @@ public sealed class DailyEntryController(
             nutrition.FiberG = model.FiberG;
             nutrition.WaterOz = model.WaterOz;
             nutrition.Notes = Clean(model.NutritionNotes);
+            nutrition.EntrySourceCode =
+                program.NutritionFoodLogEnabled
+                && foodLogAvailable
+                    ? "MANUAL_OVERRIDE"
+                    : RecompInputSourceCodes.Manual;
+            nutrition.SourceRecordId = null;
             nutrition.UpdatedAtUtc = now;
-
-            if (string.IsNullOrWhiteSpace(nutrition.EntrySourceCode))
-                nutrition.EntrySourceCode = "MANUAL";
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -263,6 +344,54 @@ public sealed class DailyEntryController(
 
         foreach (var input in model.Workouts.Where(x => x.HasAnyEntry))
         {
+            SystemWorkoutRecipe? selectedSystemWorkout = null;
+
+            if (!string.IsNullOrWhiteSpace(
+                    input.SystemWorkoutCode)
+                && SystemWorkoutRecipeCatalog.TryGet(
+                    input.SystemWorkoutCode,
+                    out selectedSystemWorkout)
+                && selectedSystemWorkout is not null)
+            {
+                input.WorkoutTypeCode =
+                    selectedSystemWorkout
+                        .EngineWorkoutTypeCode;
+
+                input.WorkoutName =
+                    selectedSystemWorkout.DisplayName;
+
+                if (workoutTypes.TryGetValue(
+                        selectedSystemWorkout.EngineWorkoutTypeCode,
+                        out var systemType))
+                {
+                    input.DurationMin ??=
+                        SystemWorkoutRecipeCatalog
+                            .ResolveDefaultMinutes(
+                                selectedSystemWorkout,
+                                systemType.DefaultMinutes);
+
+                    if (!input.SessionRpe.HasValue)
+                    {
+                        var engineCatalog =
+                            new Engine30WorkoutTypeCatalog();
+
+                        var baseRpe =
+                            engineCatalog.TryGet(
+                                selectedSystemWorkout.EngineWorkoutTypeCode,
+                                out var engineDefinition)
+                            && engineDefinition is not null
+                                ? engineDefinition.DefaultRpe
+                                : 5m;
+
+                        input.SessionRpe =
+                            SystemWorkoutRecipeCatalog
+                                .ResolveDefaultRpe(
+                                    selectedSystemWorkout,
+                                    baseRpe);
+                    }
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(input.WorkoutTypeCode)
                 || !input.DurationMin.HasValue
                 || input.DurationMin.Value <= 0)
@@ -306,8 +435,11 @@ public sealed class DailyEntryController(
                     ClientId = client.ClientId,
                     ProgramId = program.ProgramId,
                     WorkoutDate = model.Date,
+                    WorkoutName = input.WorkoutName,
+                    SystemWorkoutCode =
+                        input.SystemWorkoutCode,
                     WorkoutTypeCode = input.WorkoutTypeCode!,
-                    EntrySourceCode = "MANUAL",
+                    EntrySourceCode = RecompInputSourceCodes.Manual,
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now
                 };
@@ -316,6 +448,15 @@ public sealed class DailyEntryController(
             }
 
             session.WorkoutDate = model.Date;
+            session.WorkoutName =
+                string.IsNullOrWhiteSpace(input.WorkoutName)
+                    ? session.WorkoutName
+                    : input.WorkoutName.Trim();
+            session.SystemWorkoutCode =
+                string.IsNullOrWhiteSpace(
+                    input.SystemWorkoutCode)
+                    ? null
+                    : input.SystemWorkoutCode.Trim();
             session.WorkoutTypeCode = input.WorkoutTypeCode;
             session.DurationMin = input.DurationMin.Value;
             session.TypicalRestSec = input.TypicalRestSec;
@@ -326,7 +467,7 @@ public sealed class DailyEntryController(
             session.UpdatedAtUtc = now;
 
             if (string.IsNullOrWhiteSpace(session.EntrySourceCode))
-                session.EntrySourceCode = "MANUAL";
+                session.EntrySourceCode = RecompInputSourceCodes.Manual;
 
             input.WorkoutSessionId =
                 session.WorkoutSessionId;
@@ -404,7 +545,18 @@ public sealed class DailyEntryController(
                     model.Workouts
                         .Select(x =>
                             x.WorkoutSessionId?.ToString())
-                        .ToArray()
+                        .ToArray(),
+                nutrition = new
+                {
+                    calories = nutrition?.ActualCalories,
+                    proteinG = nutrition?.ActualProteinG,
+                    carbsG = nutrition?.ActualCarbsG,
+                    fatG = nutrition?.ActualFatG,
+                    fiberG = nutrition?.FiberG,
+                    source =
+                        SourceLabel(
+                            nutrition?.EntrySourceCode)
+                }
             });
         }
 
@@ -419,6 +571,87 @@ public sealed class DailyEntryController(
             });
     }
 
+    // B2.35.26 DAILY ENTRY ENGINE ACTUALS LEDGER
+    // Daily Entry is the human-readable ledger of completed actual WorkoutSessions
+    // used by Engine 3.0. Deleting here deletes only the selected ACTUAL session.
+    //
+    // Existing EF relationships cascade WorkoutSession -> DetailedWorkoutExercises
+    // -> DetailedWorkoutSets. Client WorkoutTemplates and System Workout definitions
+    // are separate records and are intentionally left untouched.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteWorkoutActual(
+        Guid workoutSessionId,
+        DateOnly date,
+        CancellationToken cancellationToken)
+    {
+        var context =
+            await userContext.GetAsync(
+                HttpContext,
+                cancellationToken);
+
+        if (context.Client is null || context.Program is null)
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message = "Active client/program required."
+            });
+        }
+
+        var session =
+            await db.WorkoutSessions
+                .SingleOrDefaultAsync(
+                    x =>
+                        x.WorkoutSessionId == workoutSessionId
+                        && x.ClientId == context.Client.ClientId
+                        && x.ProgramId == context.Program.ProgramId,
+                    cancellationToken);
+
+        if (session is null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Workout was not found."
+            });
+        }
+
+        if (session.WorkoutDate != date)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Workout date does not match the Daily Entry date."
+            });
+        }
+
+        if (!session.CompletedFlag)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Only completed actual workouts can be deleted from Daily Entry."
+            });
+        }
+
+        // The WorkoutSession is the authoritative completed actual. Removing it
+        // immediately removes this workout from subsequent Engine 3.0 input reads.
+        // Do NOT remove WorkoutTemplate or System Workout definitions.
+        db.WorkoutSessions.Remove(session);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+                TempData["StatusMessage"] =
+            "Workout deleted. Daily Entry now reflects the remaining Engine 3.0 actual workouts.";
+
+        return RedirectToAction(
+            nameof(Index),
+            new
+            {
+                date = date.ToString("yyyy-MM-dd")
+            });
+    }
     private async Task<DailyEntryViewModel> BuildAsync(
         AppClientContext context,
         DateOnly date,
@@ -454,13 +687,33 @@ public sealed class DailyEntryController(
             .Where(x =>
                 x.ClientId == client.ClientId
                 && x.ProgramId == program.ProgramId
-                && x.WorkoutDate == date)
+                && x.WorkoutDate == date
+                && x.CompletedFlag)
             .OrderBy(x => x.CreatedAtUtc)
             .ToListAsync(cancellationToken);
+        // B2.35.27 ENGINE ACTUAL WORKOUT CARDS
+        // Use the exact same date-level source precedence as Engine 3.0:
+        //   completed Detailed Workout / Builder session(s) if any exist;
+        //   otherwise completed Daily Entry/manual session(s).
+        //
+        // The view already renders one FULL workout card per Model.Workouts item,
+        // so every session left in this canonical collection becomes its own card.
+        sessions =
+            (await WebRecomp.Web.Services.WorkoutIntelligence
+                .DetailedWorkoutEngine30Adapter
+                .PreferBuilderSessionsAsync(
+                    db,
+                    sessions,
+                    cancellationToken))
+            .ToList();
 
         var model = new DailyEntryViewModel
         {
             Date = date,
+            DetailedWorkoutEntryEnabled =
+                program.DetailedWorkoutEntryEnabled,
+            NutritionFoodLogEnabled =
+                program.NutritionFoodLogEnabled,
 
             WeightLb = measurement?.WeightLb,
 
@@ -540,10 +793,13 @@ public sealed class DailyEntryController(
             .Select(x => new DailyEntryWorkoutInput
             {
                 WorkoutSessionId = x.WorkoutSessionId,
+                WorkoutTemplateId = x.WorkoutTemplateId,
+                SystemWorkoutCode = x.SystemWorkoutCode,
+                WorkoutName = x.WorkoutName,
                 WorkoutTypeCode =
                     Engine30WorkoutUiCatalogService.NormalizeCode(
                         x.WorkoutTypeCode),
-                DurationMin = x.DurationMin,
+                DurationMin = EffectiveWorkoutDurationMinutes(x),
                 TypicalRestSec = x.TypicalRestSec,
                 SessionRpe = x.SessionRpe,
                 DeviceCalories = x.DeviceCalories,
@@ -576,6 +832,55 @@ public sealed class DailyEntryController(
                 x => x.WorkoutTypeCode,
                 StringComparer.OrdinalIgnoreCase);
 
+        var engineTypeCatalog =
+            new Engine30WorkoutTypeCatalog();
+
+        model.SystemWorkouts =
+            SystemWorkoutRecipeCatalog
+                .PresentationRecipes
+                .Where(
+                    recipe =>
+                        workoutTypes.ContainsKey(
+                            recipe.EngineWorkoutTypeCode))
+                .Select(
+                    recipe =>
+                    {
+                        var configured =
+                            workoutTypes[
+                                recipe.EngineWorkoutTypeCode];
+
+                        var baseRpe = 5m;
+
+                        if (engineTypeCatalog.TryGet(
+                                recipe.EngineWorkoutTypeCode,
+                                out var engineDefinition)
+                            && engineDefinition is not null)
+                        {
+                            baseRpe =
+                                engineDefinition.DefaultRpe;
+                        }
+
+                        return new SystemWorkoutOptionViewModel
+                        {
+                            SystemCode = recipe.SystemCode,
+                            EngineWorkoutTypeCode =
+                                recipe.EngineWorkoutTypeCode,
+                            DisplayName = recipe.DisplayName,
+                            GroupName = recipe.GroupName,
+                            DefaultMinutes =
+                                SystemWorkoutRecipeCatalog
+                                    .ResolveDefaultMinutes(
+                                        recipe,
+                                        configured.DefaultMinutes),
+                            DefaultRpe =
+                                SystemWorkoutRecipeCatalog
+                                    .ResolveDefaultRpe(
+                                        recipe,
+                                        baseRpe)
+                        };
+                    })
+                .ToList();
+
         model.WorkoutTypeOptions = workoutTypeList
             .Where(x => x.IsSelectable)
             .Select(x =>
@@ -583,6 +888,31 @@ public sealed class DailyEntryController(
                     x.WorkoutTypeCode,
                     x.DisplayName))
             .ToList();
+
+        model.MyWorkouts =
+            await db.WorkoutTemplates
+                .AsNoTracking()
+                .Where(
+                    x =>
+                        x.ClientId
+                            == context.Client!.ClientId)
+                .OrderBy(x => x.TemplateName)
+                .Select(
+                    x =>
+                        new WorkoutTemplateOptionViewModel
+                        {
+                            WorkoutTemplateId =
+                                x.WorkoutTemplateId,
+                            TemplateName =
+                                x.TemplateName,
+                            WorkoutTypeCode =
+                                x.WorkoutTypeCode,
+                            DefaultDurationMin =
+                                x.DefaultDurationMin,
+                            ExerciseCount =
+                                x.Exercises.Count
+                        })
+                .ToListAsync(cancellationToken);
 
         var planned = await db.PlannedWorkouts
             .SingleOrDefaultAsync(
@@ -597,7 +927,57 @@ public sealed class DailyEntryController(
                 : Engine30WorkoutUiCatalogService.NormalizeCode(
                     planned.WorkoutTypeCode);
 
-        if (planned is not null
+        model.PlannedWorkoutTemplateId =
+            planned?.WorkoutTemplateId;
+
+        model.PlannedSystemWorkoutCode =
+            planned?.SystemWorkoutCode;
+
+        if (!model.PlannedWorkoutTemplateId.HasValue
+            && string.IsNullOrWhiteSpace(
+                model.PlannedSystemWorkoutCode)
+            && !string.IsNullOrWhiteSpace(
+                model.PlannedWorkoutTypeCode))
+        {
+            model.PlannedSystemWorkoutCode =
+                SystemWorkoutRecipeCatalog
+                    .GetDefaultPresentationForEngine(
+                        model.PlannedWorkoutTypeCode)
+                    ?.SystemCode;
+        }
+
+        WorkoutTemplateOptionViewModel? plannedTemplate = null;
+
+        if (model.PlannedWorkoutTemplateId.HasValue)
+        {
+            plannedTemplate =
+                model.MyWorkouts.SingleOrDefault(
+                    x =>
+                        x.WorkoutTemplateId
+                            == model.PlannedWorkoutTemplateId.Value);
+        }
+
+        var plannedSystemWorkout =
+            !string.IsNullOrWhiteSpace(
+                model.PlannedSystemWorkoutCode)
+                ? model.SystemWorkouts
+                    .SingleOrDefault(
+                        x => x.SystemCode.Equals(
+                            model.PlannedSystemWorkoutCode,
+                            StringComparison.OrdinalIgnoreCase))
+                : null;
+
+        if (plannedTemplate is not null)
+        {
+            model.PlannedWorkoutName =
+                plannedTemplate.TemplateName;
+        }
+        else if (plannedSystemWorkout is not null)
+        {
+            model.PlannedWorkoutName =
+                plannedSystemWorkout.DisplayName;
+        }
+        else if (planned is not null
             && !string.IsNullOrWhiteSpace(
                 model.PlannedWorkoutTypeCode)
             && workoutTypes.TryGetValue(
@@ -615,12 +995,11 @@ public sealed class DailyEntryController(
 
         if (model.Workouts.Count == 0)
         {
+            // Weekly Plan is presentation/prescription, not an actual workout.
+            // Daily Entry is the canonical ACTUAL summary. Leave its manual
+            // row blank until the user explicitly records training.
             model.Workouts.Add(
-                new DailyEntryWorkoutInput
-                {
-                    WorkoutTypeCode =
-                        model.PlannedWorkoutTypeCode
-                });
+                new DailyEntryWorkoutInput());
         }
     }
 
@@ -702,5 +1081,40 @@ public sealed class DailyEntryController(
                 char.ToUpperInvariant(x[0])
                 + x[1..])
             .Aggregate((a, b) => $"{a} {b}");
+    }
+
+    // B2.35.5.2 DAILY ENTRY DURATION FALLBACK
+    private static decimal EffectiveWorkoutDurationMinutes(
+        WorkoutSession session)
+    {
+        if (session.DurationMin > 0m)
+            return session.DurationMin;
+
+        if (session.CompletedFlag
+            && string.Equals(
+                session.EntrySourceCode,
+                RecompInputSourceCodes.DetailedWorkout,
+                StringComparison.OrdinalIgnoreCase)
+            && session.CreatedAtUtc != default
+            && session.UpdatedAtUtc > session.CreatedAtUtc)
+        {
+            var elapsed =
+                (decimal)(
+                    session.UpdatedAtUtc
+                    - session.CreatedAtUtc)
+                    .TotalMinutes;
+
+            if (elapsed > 0m)
+            {
+                return Math.Max(
+                    1m,
+                    Math.Round(
+                        elapsed,
+                        1,
+                        MidpointRounding.AwayFromZero));
+            }
+        }
+
+        return session.DurationMin;
     }
 }

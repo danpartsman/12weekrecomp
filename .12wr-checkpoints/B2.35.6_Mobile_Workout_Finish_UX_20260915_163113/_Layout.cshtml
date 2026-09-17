@@ -1,0 +1,515 @@
+@inject WebRecomp.Web.Services.AppUserContextService AppUserContextService
+@using System.Reflection
+@{
+    var assembly = Assembly.GetExecutingAssembly();
+
+    var appVersion =
+        assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
+        ?? "unknown";
+
+    var engineVersion =
+        assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(x => x.Key == "RecompEngineVersion")
+            ?.Value
+        ?? "unknown";
+}
+@{
+    var isPublicPage = ViewData["PublicPage"] is bool publicPage && publicPage;
+    var isOnboardingPage = ViewData["OnboardingPage"] is bool onboardingPage && onboardingPage;
+
+    var isGuidedDemo =
+        User.FindFirst("recomp_demo")?.Value == "true"
+        && User.FindFirst("recomp_demo_type")?.Value == "GUIDED";
+
+    var baseShellClass =
+        isPublicPage
+            ? "public-shell"
+            : (isOnboardingPage ? "onboarding-shell" : "app-shell");
+
+    var shellClass =
+        isGuidedDemo
+            ? $"{baseShellClass} guided-demo-dark-theme"
+            : baseShellClass;
+
+    var detailedWorkoutEntryEnabled = false;
+
+    if (!isPublicPage
+        && (!isOnboardingPage || isGuidedDemo))
+    {
+        var navContext =
+            await AppUserContextService.GetAsync(
+                Context,
+                Context.RequestAborted);
+
+        detailedWorkoutEntryEnabled =
+            navContext.Program?.DetailedWorkoutEntryEnabled
+            ?? false;
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - 12 Week Recomp</title>
+
+    <script>
+        (() => {
+            const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+            const applyTheme = () => {
+                const preference = localStorage.getItem('recomp-theme') || 'system';
+                const effective =
+                    preference === 'system'
+                        ? (media.matches ? 'dark' : 'light')
+                        : preference;
+
+                document.documentElement.dataset.theme = effective;
+            };
+
+            applyTheme();
+
+            if (media.addEventListener) {
+                media.addEventListener('change', () => {
+                    if ((localStorage.getItem('recomp-theme') || 'system') === 'system') {
+                        applyTheme();
+                    }
+                });
+            }
+        })();
+    </script>
+
+    <link rel="stylesheet"
+          href="~/css/site.css"
+          asp-append-version="true" />
+
+    <link rel="stylesheet"
+          href="~/css/workout-intelligence.css"
+          asp-append-version="true" />
+
+    @if (isGuidedDemo)
+    {
+        <link rel="stylesheet"
+              href="~/css/guided-demo.css"
+              asp-append-version="true" />
+
+        <link rel="stylesheet"
+              href="~/css/guided-demo-cleanup.css"
+              asp-append-version="true" />
+    }
+
+    @* TEST-wide production-look staging layer.
+       Loaded last so all TEST pages preview the intended LIVE design. *@
+    <link rel="stylesheet"
+          href="~/css/test-live-preview.css"
+          asp-append-version="true" />
+
+    <script src="~/js/recomp-autosave.js" asp-append-version="true"></script>
+    <script src="~/js/test-live-vibrance.js"
+            asp-append-version="true"
+            defer></script>
+</head>
+
+@{
+    var appThemeClass =
+        baseShellClass == "app-shell"
+            ? "test-live-preview"
+            : "";
+}
+<body class="@shellClass @appThemeClass">
+
+<header class="topbar">
+
+    <div class="brand brand-logo-wrap">
+
+        @if (isPublicPage || isOnboardingPage)
+        {
+            <a asp-controller="Home"
+               asp-action="Index"
+               aria-label="12 Week Recomp home">
+
+                <img class="brand-logo brand-logo-light"
+                     src="~/images/recomp/recomp-logo-light.png"
+                     alt="12 Week Recomp" />
+
+                <img class="brand-logo brand-logo-dark"
+                     src="~/images/recomp/recomp-logo-dark.png"
+                     alt="12 Week Recomp" />
+
+            </a>
+        }
+        else
+        {
+            <a asp-controller="Dashboard"
+               asp-action="Index"
+               aria-label="12 Week Recomp Dashboard">
+
+                <img class="brand-logo brand-logo-light"
+                     src="~/images/recomp/recomp-logo-light.png"
+                     alt="12 Week Recomp" />
+
+                <img class="brand-logo brand-logo-dark"
+                     src="~/images/recomp/recomp-logo-dark.png"
+                     alt="12 Week Recomp" />
+
+            </a>
+        }
+
+    </div>
+
+
+    @if (isPublicPage)
+    {
+        <nav class="public-nav"
+             aria-label="Public navigation">
+
+            <a asp-controller="Home"
+               asp-action="Index">
+                Welcome
+            </a>
+
+            <a asp-controller="Home"
+               asp-action="Evidence">
+                Evidence
+            </a>
+
+            <a asp-controller="GuidedDemo"
+               asp-action="Index"
+               class="guided-demo-nav-link">
+                Guided Demo
+            </a>
+
+            <a asp-controller="Access"
+               asp-action="Index">
+                 Redeem Code
+            </a>
+
+            <a asp-controller="Account"
+               asp-action="SignIn">
+                Sign In
+            </a>
+
+            <a class="public-nav-create" href="/trial/start">Start Free</a>
+
+        </nav>
+    }
+    else if (isOnboardingPage && !isGuidedDemo)
+    {
+        <nav class="public-nav onboarding-nav"
+             aria-label="Onboarding navigation">
+
+            <a asp-controller="Home"
+               asp-action="Evidence">
+                Evidence
+            </a>
+
+            <a class="nav-signout"
+               asp-controller="Account"
+               asp-action="Logout">
+                Sign Out
+            </a>
+
+        </nav>
+    }
+    else
+    {
+        <nav class="app-quick-nav"
+             aria-label="Quick application navigation">
+
+            <a class="quick-nav-dashboard"
+               asp-controller="Dashboard"
+               asp-action="Index">
+                Dashboard
+            </a>
+
+            <a asp-controller="Schedule"
+               asp-action="Index">
+                Weekly Plan
+            </a>
+
+            <a asp-controller="DailyEntry"
+               asp-action="Index">
+                Daily Entry
+            </a>
+            <a asp-controller="Nutrition"
+               asp-action="Index">
+                Nutrition
+            </a>
+
+            <a asp-controller="DetailedWorkout"
+               asp-action="Index">
+                Workout Builder
+            </a>
+
+            <a asp-controller="Progress"
+               asp-action="Index">
+                Progress
+            </a>
+
+            @if (isGuidedDemo)
+            {
+                <a class="guided-demo-nav-link is-active"
+                   asp-controller="GuidedDemo"
+                   asp-action="Index">
+                    Guided Demo
+                </a>
+            }
+
+        </nav>
+
+
+        <button class="nav-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="app-nav"
+                aria-label="Open navigation menu"
+                title="All pages">
+
+            <span class="nav-toggle-line"></span>
+            <span class="nav-toggle-line"></span>
+            <span class="nav-toggle-line"></span>
+
+        </button>
+
+
+        <nav id="app-nav"
+             class="app-nav app-menu"
+             aria-label="All application pages">
+
+            <a asp-controller="Dashboard"
+               asp-action="Index">
+                Dashboard
+            </a>
+
+            <a asp-controller="Schedule"
+               asp-action="Index">
+                Weekly Plan
+            </a>
+
+            <a asp-controller="DailyEntry"
+               asp-action="Index">
+                Daily Entry
+            </a>
+            <a asp-controller="Nutrition"
+               asp-action="Index">
+                Nutrition
+            </a>
+
+            <a asp-controller="DetailedWorkout"
+               asp-action="Index">
+                Workout Builder
+            </a>
+
+            @if (detailedWorkoutEntryEnabled)
+            {
+                <a asp-controller="DailyEntry"
+                   asp-action="Index">
+                    Daily Stats
+                </a>
+            }
+
+            <a asp-controller="Progress"
+               asp-action="Index">
+                Progress
+            </a>
+
+            @if (isGuidedDemo)
+            {
+                <a class="guided-demo-nav-link is-active"
+                   asp-controller="GuidedDemo"
+                   asp-action="Index">
+                    Guided Demo Home
+                </a>
+
+                <a asp-controller="Profile"
+                   asp-action="Index">
+                    Profile / Strategy
+                </a>
+
+                <form class="guided-demo-menu-exit"
+                      asp-controller="Demo"
+                      asp-action="Exit"
+                      method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit">
+                        End Guided Demo
+                    </button>
+                </form>
+            }
+            else
+            {
+                <a asp-controller="Onboarding"
+                   asp-action="Index">
+                    How It Works
+                </a>
+
+                <a asp-controller="Home"
+                   asp-action="Evidence">
+                    Evidence
+                </a>
+
+                <a asp-controller="Profile"
+                   asp-action="Index">
+                    Profile
+                </a>
+
+                <a asp-controller="Profile"
+                   asp-action="Settings">
+                    Settings
+                </a>
+
+                @if (User.IsInRole("Coach"))
+                {
+                    <a asp-controller="Coach"
+                       asp-action="Index">
+                        Coach Workspace
+                    </a>
+                }
+
+                @if (User.IsInRole("Administrator"))
+                {
+                    <a asp-controller="Admin"
+                       asp-action="Index">
+                        Administration
+                    </a>
+                }
+
+                <a class="nav-signout"
+                   asp-controller="Account"
+                   asp-action="Logout">
+                    Sign Out
+                </a>
+            }
+
+        </nav>
+    }
+
+</header>
+
+@if (isGuidedDemo)
+{
+    <section class="guided-demo-modebar"
+             aria-label="Guided Demo mode">
+
+        <div class="guided-demo-modebar-main">
+            <div class="guided-demo-modebar-copy">
+                <strong>GUIDED DEMO</strong>
+                <span>
+                    Explore the full program in this temporary demo workspace.
+                </span>
+            </div>
+
+            <div class="guided-demo-daily-guide"
+                 aria-label="Daily Entry">
+                <span class="guided-demo-daily-badge">DAILY INPUT</span>
+                <span class="guided-demo-daily-arrow">&rarr;</span>
+
+                <a asp-controller="DailyEntry"
+                   asp-action="Index">
+                    Daily Entry
+                </a>
+
+                <span class="guided-demo-daily-result">
+                    Body, recovery, training, and nutrition are entered in one
+                    place. Recomp's analytical engine turns those inputs into
+                    the program details on your Dashboard.
+                </span>
+            </div>
+        </div>
+
+        <form class="guided-demo-modebar-exit"
+              asp-controller="Demo"
+              asp-action="Exit"
+              method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit">
+                End Demo
+            </button>
+        </form>
+    </section>
+}
+
+
+<main class="container">
+    @RenderBody()
+</main>
+
+
+<footer class="footer recomp-footer">
+
+    <div>
+        <strong>Built on evidence. Simple enough for real life.</strong>
+        <span>
+            Web Recomp @appVersion TEST &bull; Engine @engineVersion &bull; Plan &bull; Train &bull; Recover &bull; Adapt
+            &bull;
+            <a asp-controller="Contact"
+               asp-action="Index">
+                Contact Us
+            </a>
+        </span>
+    </div>
+
+</footer>
+
+
+@if ((!isPublicPage && !isOnboardingPage) || isGuidedDemo)
+{
+    <script>
+        (() => {
+            const toggle = document.querySelector('.nav-toggle');
+            const nav = document.getElementById('app-nav');
+
+            if (!toggle || !nav) {
+                return;
+            }
+
+            const closeMenu = () => {
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.setAttribute('aria-label', 'Open navigation menu');
+                nav.classList.remove('is-open');
+            };
+
+            toggle.addEventListener('click', () => {
+                const opening =
+                    toggle.getAttribute('aria-expanded') !== 'true';
+
+                toggle.setAttribute(
+                    'aria-expanded',
+                    opening ? 'true' : 'false'
+                );
+
+                toggle.setAttribute(
+                    'aria-label',
+                    opening
+                        ? 'Close navigation menu'
+                        : 'Open navigation menu'
+                );
+
+                nav.classList.toggle('is-open', opening);
+            });
+
+            nav.addEventListener('click', event => {
+                if (event.target.closest('a')) {
+                    closeMenu();
+                }
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    closeMenu();
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 820) {
+                    closeMenu();
+                }
+            });
+        })();
+    </script>
+}
+
+    <script src="~/js/recent-workout-picker.js" asp-append-version="true"></script>
+</body>
+</html>

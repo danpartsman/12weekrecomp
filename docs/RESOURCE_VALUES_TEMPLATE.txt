@@ -1,0 +1,14 @@
+WEB RECOMP TEST ENVIRONMENT — NON-SECRET VALUES
+
+Subscription ID:
+Resource group:
+Web App name:
+Web App URL:
+SQL server name:
+SQL server FQDN:
+SQL database name:
+Microsoft Entra SQL admin UPN (optional for sqlcmd):
+External ID tenant ID:
+External ID tenant/domain:
+
+DO NOT WRITE PASSWORDS, CLIENT SECRETS, ACCESS TOKENS OR PUBLISH PROFILES IN THIS FILE.

@@ -22,6 +22,18 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
     public DbSet<DailyCheckin> DailyCheckins => Set<DailyCheckin>();
     public DbSet<PlannedWorkout> PlannedWorkouts => Set<PlannedWorkout>();
     public DbSet<WorkoutSession> WorkoutSessions => Set<WorkoutSession>();
+    public DbSet<ExerciseCatalogImportRecord> ExerciseCatalogImports => Set<ExerciseCatalogImportRecord>();
+    public DbSet<ExerciseCatalogItemRecord> ExerciseCatalogItems => Set<ExerciseCatalogItemRecord>();
+    public DbSet<ExerciseMuscleTargetRecord> ExerciseMuscleTargets => Set<ExerciseMuscleTargetRecord>();
+    public DbSet<ExerciseEquipmentRequirementRecord> ExerciseEquipmentRequirements => Set<ExerciseEquipmentRequirementRecord>();
+    public DbSet<DetailedWorkoutExerciseRecord> DetailedWorkoutExercises => Set<DetailedWorkoutExerciseRecord>();
+    public DbSet<DetailedWorkoutSetRecord> DetailedWorkoutSets => Set<DetailedWorkoutSetRecord>();
+    public DbSet<ClientExercisePreferenceRecord> ClientExercisePreferences => Set<ClientExercisePreferenceRecord>();
+    public DbSet<WorkoutTemplateRecord> WorkoutTemplates => Set<WorkoutTemplateRecord>();
+    public DbSet<WorkoutTemplateExerciseRecord> WorkoutTemplateExercises => Set<WorkoutTemplateExerciseRecord>();
+    public DbSet<ExerciseCatalogSyncSettingRecord> ExerciseCatalogSyncSettings => Set<ExerciseCatalogSyncSettingRecord>();
+    public DbSet<ExerciseCatalogSyncRunRecord> ExerciseCatalogSyncRuns => Set<ExerciseCatalogSyncRunRecord>();
+    public DbSet<ExerciseMediaAssetRecord> ExerciseMediaAssets => Set<ExerciseMediaAssetRecord>();
     public DbSet<NutritionDay> NutritionDays => Set<NutritionDay>();
     public DbSet<AnalysisRun> AnalysisRuns => Set<AnalysisRun>();
     public DbSet<WeeklyStrategySnapshot> WeeklyStrategySnapshots => Set<WeeklyStrategySnapshot>();
@@ -63,6 +75,18 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
         Map<DailyCheckin>(modelBuilder, "DailyCheckins", "app", nameof(DailyCheckin.CheckinId));
         Map<PlannedWorkout>(modelBuilder, "PlannedWorkouts", "app", nameof(PlannedWorkout.PlannedWorkoutId));
         Map<WorkoutSession>(modelBuilder, "WorkoutSessions", "app", nameof(WorkoutSession.WorkoutSessionId));
+        Map<ExerciseCatalogImportRecord>(modelBuilder, "ExerciseCatalogImports", "app", nameof(ExerciseCatalogImportRecord.ExerciseCatalogImportId));
+        Map<ExerciseCatalogItemRecord>(modelBuilder, "ExerciseCatalogItems", "app", nameof(ExerciseCatalogItemRecord.ExerciseCatalogItemId));
+        Map<ExerciseMuscleTargetRecord>(modelBuilder, "ExerciseMuscleTargets", "app", nameof(ExerciseMuscleTargetRecord.ExerciseMuscleTargetId));
+        Map<ExerciseEquipmentRequirementRecord>(modelBuilder, "ExerciseEquipmentRequirements", "app", nameof(ExerciseEquipmentRequirementRecord.ExerciseEquipmentRequirementId));
+        Map<DetailedWorkoutExerciseRecord>(modelBuilder, "DetailedWorkoutExercises", "app", nameof(DetailedWorkoutExerciseRecord.DetailedWorkoutExerciseId));
+        Map<DetailedWorkoutSetRecord>(modelBuilder, "DetailedWorkoutSets", "app", nameof(DetailedWorkoutSetRecord.DetailedWorkoutSetId));
+        Map<ClientExercisePreferenceRecord>(modelBuilder, "ClientExercisePreferences", "app", nameof(ClientExercisePreferenceRecord.ClientExercisePreferenceId));
+        Map<WorkoutTemplateRecord>(modelBuilder, "WorkoutTemplates", "app", nameof(WorkoutTemplateRecord.WorkoutTemplateId));
+        Map<WorkoutTemplateExerciseRecord>(modelBuilder, "WorkoutTemplateExercises", "app", nameof(WorkoutTemplateExerciseRecord.WorkoutTemplateExerciseId));
+        Map<ExerciseCatalogSyncSettingRecord>(modelBuilder, "ExerciseCatalogSyncSettings", "app", nameof(ExerciseCatalogSyncSettingRecord.ExerciseCatalogSyncSettingId));
+        Map<ExerciseCatalogSyncRunRecord>(modelBuilder, "ExerciseCatalogSyncRuns", "app", nameof(ExerciseCatalogSyncRunRecord.ExerciseCatalogSyncRunId));
+        Map<ExerciseMediaAssetRecord>(modelBuilder, "ExerciseMediaAssets", "app", nameof(ExerciseMediaAssetRecord.ExerciseMediaAssetId));
         Map<NutritionDay>(modelBuilder, "NutritionDays", "app", nameof(NutritionDay.NutritionDayId));
         Map<AnalysisRun>(modelBuilder, "AnalysisRuns", "app", nameof(AnalysisRun.AnalysisRunId));
         Map<WeeklyStrategySnapshot>(modelBuilder, "WeeklyStrategySnapshots", "app", nameof(WeeklyStrategySnapshot.WeeklyStrategySnapshotId));
@@ -138,7 +162,132 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
         modelBuilder.Entity<DailyCheckin>().Property(x => x.DailyActivityHours).HasPrecision(4, 1);
         modelBuilder.Entity<DailyCheckin>().Property(x => x.DailyActivityEffortCode).HasMaxLength(12).IsUnicode(false);
         modelBuilder.Entity<PlannedWorkout>().Property(x => x.RowVersion).IsRowVersion();
+        modelBuilder.Entity<PlannedWorkout>().Property(x => x.SystemWorkoutCode).HasMaxLength(80).IsUnicode(false);
+        modelBuilder.Entity<PlannedWorkout>().Property(x => x.PlannedDurationMin).HasPrecision(8, 2);
+        modelBuilder.Entity<PlannedWorkout>().Property(x => x.PlannedRpe).HasPrecision(3, 1);
+        modelBuilder.Entity<PlannedWorkout>()
+            .HasOne<WorkoutTemplateRecord>()
+            .WithMany()
+            .HasForeignKey(x => x.WorkoutTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<PlannedWorkout>()
+            .HasIndex(x => x.WorkoutTemplateId);
+
+        modelBuilder.Entity<WorkoutSession>().Property(x => x.WorkoutName).HasMaxLength(120);
+        modelBuilder.Entity<WorkoutSession>().Property(x => x.SystemWorkoutCode).HasMaxLength(80).IsUnicode(false);
         modelBuilder.Entity<WorkoutSession>().Property(x => x.RowVersion).IsRowVersion();
+        modelBuilder.Entity<ExerciseCatalogImportRecord>().Property(x => x.SourceCode).HasMaxLength(40).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogImportRecord>().Property(x => x.LicenseCode).HasMaxLength(40).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogImportRecord>().Property(x => x.SourceVersion).HasMaxLength(200);
+        modelBuilder.Entity<ExerciseCatalogImportRecord>().Property(x => x.ManifestSha256).HasMaxLength(64).IsUnicode(false);
+
+        modelBuilder.Entity<ExerciseCatalogItemRecord>().Property(x => x.SourceCode).HasMaxLength(40).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogItemRecord>().Property(x => x.SourceExternalId).HasMaxLength(100);
+        modelBuilder.Entity<ExerciseCatalogItemRecord>().Property(x => x.Name).HasMaxLength(200);
+        modelBuilder.Entity<ExerciseCatalogItemRecord>().Property(x => x.MeasurementType).HasMaxLength(30).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogItemRecord>().Property(x => x.DifficultyLevel).HasMaxLength(50).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogItemRecord>().Property(x => x.ForceType).HasMaxLength(30).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogItemRecord>().Property(x => x.Mechanics).HasMaxLength(30).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogItemRecord>().Property(x => x.Category).HasMaxLength(60).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogItemRecord>().HasIndex(x => new { x.SourceCode, x.SourceExternalId }).IsUnique();
+        modelBuilder.Entity<ExerciseCatalogItemRecord>().HasIndex(x => new { x.IsActive, x.Name });
+
+        modelBuilder.Entity<ExerciseMuscleTargetRecord>().Property(x => x.ExternalId).HasMaxLength(100);
+        modelBuilder.Entity<ExerciseMuscleTargetRecord>().Property(x => x.MuscleSlug).HasMaxLength(100).IsUnicode(false);
+        modelBuilder.Entity<ExerciseMuscleTargetRecord>().Property(x => x.MuscleName).HasMaxLength(150);
+        modelBuilder.Entity<ExerciseMuscleTargetRecord>().Property(x => x.RoleCode).HasMaxLength(30).IsUnicode(false);
+
+        modelBuilder.Entity<ExerciseEquipmentRequirementRecord>().Property(x => x.ExternalId).HasMaxLength(100);
+        modelBuilder.Entity<ExerciseEquipmentRequirementRecord>().Property(x => x.EquipmentName).HasMaxLength(150);
+        modelBuilder.Entity<ExerciseEquipmentRequirementRecord>().Property(x => x.EquipmentType).HasMaxLength(80).IsUnicode(false);
+        modelBuilder.Entity<ExerciseEquipmentRequirementRecord>().Property(x => x.UsageType).HasMaxLength(80).IsUnicode(false);
+
+        modelBuilder.Entity<DetailedWorkoutExerciseRecord>().Property(x => x.ExerciseNameSnapshot).HasMaxLength(200);
+        modelBuilder.Entity<DetailedWorkoutExerciseRecord>().Property(x => x.MechanicsSnapshot).HasMaxLength(30).IsUnicode(false);
+        modelBuilder.Entity<DetailedWorkoutExerciseRecord>().Property(x => x.Notes).HasMaxLength(1000);
+        modelBuilder.Entity<DetailedWorkoutExerciseRecord>().Property(x => x.MaxWeight).HasPrecision(10, 2);
+        modelBuilder.Entity<DetailedWorkoutExerciseRecord>().Property(x => x.LoadUnitCode).HasMaxLength(10).IsUnicode(false);
+
+        modelBuilder.Entity<WorkoutTemplateRecord>().Property(x => x.TemplateName).HasMaxLength(120);
+        modelBuilder.Entity<WorkoutTemplateRecord>().Property(x => x.WorkoutTypeCode).HasMaxLength(50).IsUnicode(false);
+        modelBuilder.Entity<WorkoutTemplateRecord>().Property(x => x.DefaultDurationMin).HasPrecision(8, 2);
+        modelBuilder.Entity<WorkoutTemplateRecord>().Property(x => x.Notes).HasMaxLength(1000);
+        modelBuilder.Entity<WorkoutTemplateRecord>()
+            .HasIndex(x => new { x.ClientId, x.TemplateName }).IsUnique();
+
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>().Property(x => x.ExerciseNameSnapshot).HasMaxLength(200);
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>().Property(x => x.MechanicsSnapshot).HasMaxLength(30).IsUnicode(false);
+        // B2.35.16 TEMPLATE PRESCRIPTION TEXT
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>().Property(x => x.SetsPrescription).HasMaxLength(100);
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>().Property(x => x.RepsPrescription).HasMaxLength(100);
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>().Property(x => x.WeightPrescription).HasMaxLength(100);
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>().Property(x => x.MaxWeight).HasPrecision(10, 2);
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>().Property(x => x.LoadUnitCode).HasMaxLength(10).IsUnicode(false);
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>().Property(x => x.Notes).HasMaxLength(1000);
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>()
+            .HasOne<WorkoutTemplateRecord>()
+            .WithMany(x => x.Exercises)
+            .HasForeignKey(x => x.WorkoutTemplateId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>()
+            .HasOne<ExerciseCatalogItemRecord>()
+            .WithMany()
+            .HasForeignKey(x => x.ExerciseCatalogItemId)
+            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<WorkoutTemplateExerciseRecord>()
+            .HasIndex(x => new { x.WorkoutTemplateId, x.ExerciseOrder }).IsUnique();
+
+        modelBuilder.Entity<WorkoutSession>()
+            .HasOne<WorkoutTemplateRecord>()
+            .WithMany()
+            .HasForeignKey(x => x.WorkoutTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ClientExercisePreferenceRecord>().Property(x => x.DefaultMaxWeight).HasPrecision(10, 2);
+        modelBuilder.Entity<ClientExercisePreferenceRecord>().Property(x => x.LoadUnitCode).HasMaxLength(10).IsUnicode(false);
+        modelBuilder.Entity<ClientExercisePreferenceRecord>()
+            .HasIndex(x => new { x.ClientId, x.ExerciseCatalogItemId }).IsUnique();
+        modelBuilder.Entity<ClientExercisePreferenceRecord>()
+            .HasIndex(x => new { x.ClientId, x.IsFavorite });
+        modelBuilder.Entity<ClientExercisePreferenceRecord>()
+            .HasOne<ExerciseCatalogItemRecord>().WithMany()
+            .HasForeignKey(x => x.ExerciseCatalogItemId).OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DetailedWorkoutSetRecord>().Property(x => x.Load).HasPrecision(10, 2);
+        modelBuilder.Entity<DetailedWorkoutSetRecord>().Property(x => x.LoadUnitCode).HasMaxLength(10).IsUnicode(false);
+        modelBuilder.Entity<DetailedWorkoutSetRecord>().Property(x => x.Rpe).HasPrecision(3, 1);
+        modelBuilder.Entity<DetailedWorkoutSetRecord>().Property(x => x.Rir).HasPrecision(3, 1);
+        modelBuilder.Entity<DetailedWorkoutSetRecord>().Property(x => x.Notes).HasMaxLength(500);
+
+        modelBuilder.Entity<ExerciseCatalogItemRecord>()
+            .HasOne<ExerciseCatalogImportRecord>().WithMany()
+            .HasForeignKey(x => x.LastImportId).OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<ExerciseMuscleTargetRecord>()
+            .HasOne(x => x.Exercise).WithMany(x => x.MuscleTargets)
+            .HasForeignKey(x => x.ExerciseCatalogItemId).OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ExerciseEquipmentRequirementRecord>()
+            .HasOne(x => x.Exercise).WithMany(x => x.Equipment)
+            .HasForeignKey(x => x.ExerciseCatalogItemId).OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DetailedWorkoutExerciseRecord>()
+            .HasOne<WorkoutSession>().WithMany()
+            .HasForeignKey(x => x.WorkoutSessionId).OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DetailedWorkoutExerciseRecord>()
+            .HasOne<ExerciseCatalogItemRecord>().WithMany()
+            .HasForeignKey(x => x.ExerciseCatalogItemId).OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<DetailedWorkoutExerciseRecord>()
+            .HasIndex(x => new { x.WorkoutSessionId, x.ExerciseOrder }).IsUnique();
+
+        modelBuilder.Entity<DetailedWorkoutSetRecord>()
+            .HasOne<DetailedWorkoutExerciseRecord>().WithMany(x => x.Sets)
+            .HasForeignKey(x => x.DetailedWorkoutExerciseId).OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DetailedWorkoutSetRecord>()
+            .HasIndex(x => new { x.DetailedWorkoutExerciseId, x.SetOrder }).IsUnique();
         modelBuilder.Entity<Engine30WorkoutProfileVersion>()
             .HasIndex(x => new
             {
@@ -171,6 +320,46 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
             .WithMany()
             .HasForeignKey(x => x.WorkoutTypeDefinitionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+
+        modelBuilder.Entity<ExerciseCatalogSyncSettingRecord>().Property(x => x.SettingsKey).HasMaxLength(32);
+        modelBuilder.Entity<ExerciseCatalogSyncSettingRecord>().Property(x => x.ActiveProviderCode).HasMaxLength(40).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogSyncSettingRecord>().Property(x => x.MediaProviderCode).HasMaxLength(40).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogSyncSettingRecord>().Property(x => x.LastDatasetSha256).HasMaxLength(64).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogSyncSettingRecord>().Property(x => x.LastProviderVersion).HasMaxLength(200);
+        modelBuilder.Entity<ExerciseCatalogSyncSettingRecord>().Property(x => x.LastProviderEtag).HasMaxLength(300);
+        modelBuilder.Entity<ExerciseCatalogSyncSettingRecord>().Property(x => x.LastError).HasMaxLength(4000);
+        modelBuilder.Entity<ExerciseCatalogSyncSettingRecord>().HasIndex(x => x.SettingsKey).IsUnique();
+
+        modelBuilder.Entity<ExerciseCatalogSyncRunRecord>().Property(x => x.ProviderCode).HasMaxLength(40).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogSyncRunRecord>().Property(x => x.TriggerCode).HasMaxLength(20).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogSyncRunRecord>().Property(x => x.StatusCode).HasMaxLength(20).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogSyncRunRecord>().Property(x => x.DatasetSha256).HasMaxLength(64).IsUnicode(false);
+        modelBuilder.Entity<ExerciseCatalogSyncRunRecord>().Property(x => x.SourceVersion).HasMaxLength(200);
+        modelBuilder.Entity<ExerciseCatalogSyncRunRecord>().Property(x => x.ErrorMessage).HasMaxLength(4000);
+        modelBuilder.Entity<ExerciseCatalogSyncRunRecord>().HasIndex(x => x.StartedAtUtc);
+
+        modelBuilder.Entity<ExerciseMediaAssetRecord>().Property(x => x.ProviderCode).HasMaxLength(40).IsUnicode(false);
+        modelBuilder.Entity<ExerciseMediaAssetRecord>().Property(x => x.SourceExternalId).HasMaxLength(200);
+        modelBuilder.Entity<ExerciseMediaAssetRecord>().Property(x => x.MediaTypeCode).HasMaxLength(30).IsUnicode(false);
+        modelBuilder.Entity<ExerciseMediaAssetRecord>().Property(x => x.MediaUrl).HasMaxLength(2000);
+        modelBuilder.Entity<ExerciseMediaAssetRecord>().Property(x => x.LocalPath).HasMaxLength(1000);
+        modelBuilder.Entity<ExerciseMediaAssetRecord>().Property(x => x.LicenseCode).HasMaxLength(80);
+        modelBuilder.Entity<ExerciseMediaAssetRecord>().Property(x => x.Attribution).HasMaxLength(1000);
+        modelBuilder.Entity<ExerciseMediaAssetRecord>()
+            .HasOne(x => x.Exercise)
+            .WithMany()
+            .HasForeignKey(x => x.ExerciseCatalogItemId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ExerciseMediaAssetRecord>()
+            .HasIndex(x => new { x.ExerciseCatalogItemId, x.ProviderCode, x.SourceExternalId })
+            .IsUnique();
+
+        modelBuilder.Entity<ExerciseCatalogSyncSettingRecord>()
+            .HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.UpdatedByUserId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         modelBuilder.Entity<NutritionDay>().Property(x => x.RowVersion).IsRowVersion();
         modelBuilder.Entity<DemoInvite>().Property(x => x.RowVersion).IsRowVersion();
@@ -528,6 +717,11 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
                 property.SetColumnName(ToSnakeCase(property.Name));
             }
         }
+        // Migration 030 uses manifest_sha256. Apply this override AFTER the
+        // global snake_case convention so EF does not generate manifest_sha_256.
+        modelBuilder.Entity<ExerciseCatalogImportRecord>()
+            .Property(x => x.ManifestSha256)
+            .HasColumnName("manifest_sha256");
     }
 
     private static string ToSnakeCase(string value)

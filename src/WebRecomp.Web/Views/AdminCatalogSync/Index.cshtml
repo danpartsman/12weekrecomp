@@ -1,0 +1,172 @@
+@model WebRecomp.Web.ViewModels.AdminCatalogSyncViewModel
+@using WebRecomp.CatalogSync
+@{
+    ViewData["Title"] = "Exercise Catalog Sync";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-heading">
+    <span class="admin-eyebrow">WORKOUT INTELLIGENCE</span>
+    <h1>Exercise Catalog Sync</h1>
+    <p>
+        Select the exercise-data provider, control automatic refresh, and review
+        catalog synchronization history. Provider data is normalized before it
+        enters the 12WR exercise catalog.
+    </p>
+</section>
+
+@if (TempData["CatalogSyncSuccess"] is string success)
+{
+    <div class="card"><strong>@success</strong></div>
+}
+
+@if (TempData["CatalogSyncError"] is string error)
+{
+    <div class="card"><strong>@error</strong></div>
+}
+
+<section class="card">
+    <h2>Provider &amp; Schedule</h2>
+
+    <form asp-controller="AdminCatalogSync"
+          asp-action="SaveSettings"
+          method="post">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly"></div>
+
+        <div class="form-grid">
+            <div class="field">
+                <label asp-for="Settings.ActiveProviderCode">Exercise catalog provider</label>
+                <select asp-for="Settings.ActiveProviderCode">
+                    @foreach (var provider in Model.CatalogProviders)
+                    {
+                        <option value="@provider.Code">
+                            @provider.DisplayName (@provider.LicenseCode)
+                        </option>
+                    }
+                </select>
+                <span asp-validation-for="Settings.ActiveProviderCode"></span>
+            </div>
+
+            <div class="field">
+                <label asp-for="Settings.MediaProviderCode">Exercise media provider</label>
+                <select asp-for="Settings.MediaProviderCode">
+                    @foreach (var provider in Model.MediaProviders)
+                    {
+                        <option value="@provider.Code">@provider.DisplayName</option>
+                    }
+                </select>
+                <small>
+                    Media is intentionally separated from exercise metadata so a future
+                    image/video provider can be changed independently.
+                </small>
+            </div>
+
+            <div class="field">
+                <label asp-for="Settings.RefreshIntervalDays">Refresh frequency</label>
+                <select asp-for="Settings.RefreshIntervalDays">
+                    @foreach (var days in CatalogSyncConstants.AllowedRefreshIntervalsDays)
+                    {
+                        <option value="@days">
+                            @(days == 1 ? "Every day" : $"Every {days} days")
+                        </option>
+                    }
+                </select>
+                <span asp-validation-for="Settings.RefreshIntervalDays"></span>
+            </div>
+
+            <div class="field">
+                <label>
+                    <input asp-for="Settings.AutoSyncEnabled" />
+                    Enable automatic catalog refresh
+                </label>
+                <small>
+                    The web app checks hourly whether the selected interval is due.
+                    Provider downloads and imports happen only when due.
+                </small>
+            </div>
+        </div>
+
+        <button type="submit" class="button primary">Save Catalog Settings</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Current Status</h2>
+    <dl>
+        <dt>Last checked</dt>
+        <dd>@(Model.LastCheckedAtUtc?.ToString("u") ?? "Never")</dd>
+
+        <dt>Last successful sync</dt>
+        <dd>@(Model.LastSuccessfulSyncAtUtc?.ToString("u") ?? "Never")</dd>
+
+        <dt>Provider version</dt>
+        <dd>@(Model.LastProviderVersion ?? "Not recorded")</dd>
+
+        <dt>Dataset SHA-256</dt>
+        <dd><code>@(Model.LastDatasetSha256 ?? "Not recorded")</code></dd>
+
+        @if (!string.IsNullOrWhiteSpace(Model.LastError))
+        {
+            <dt>Last error</dt>
+            <dd>@Model.LastError</dd>
+        }
+    </dl>
+
+    <form asp-controller="AdminCatalogSync"
+          asp-action="RefreshNow"
+          method="post">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="button primary">Check for Updates Now</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Recent Synchronizations</h2>
+
+    @if (Model.RecentRuns.Count == 0)
+    {
+        <p>No catalog synchronization has run yet.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Started</th>
+                    <th>Trigger</th>
+                    <th>Provider</th>
+                    <th>Status</th>
+                    <th>Added</th>
+                    <th>Updated</th>
+                    <th>Deactivated</th>
+                    <th>Active</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var run in Model.RecentRuns)
+                {
+                    <tr>
+                        <td>@run.StartedAtUtc.ToString("u")</td>
+                        <td>@run.TriggerCode</td>
+                        <td>@run.ProviderCode</td>
+                        <td>@run.StatusCode</td>
+                        <td>@(run.AddedCount?.ToString() ?? "-")</td>
+                        <td>@(run.UpdatedCount?.ToString() ?? "-")</td>
+                        <td>@(run.DeactivatedCount?.ToString() ?? "-")</td>
+                        <td>@(run.ActiveCount?.ToString() ?? "-")</td>
+                    </tr>
+                    @if (!string.IsNullOrWhiteSpace(run.ErrorMessage))
+                    {
+                        <tr>
+                            <td colspan="8"><small>@run.ErrorMessage</small></td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

@@ -1,0 +1,115 @@
+﻿@{
+    ViewData["Title"] = "Welcome";
+    ViewData["PublicPage"] = true;
+}
+
+<div class="welcome-page">
+    <section class="welcome-hero">
+        <div class="welcome-hero-copy">
+            <div class="welcome-kicker">SCIENCE-DRIVEN BODY RECOMPOSITION</div>
+
+            <h1>Lose fat. Build muscle. Make each day support both.</h1>
+
+            <p class="welcome-lede">
+                Recomp uses evidence-based training, nutrition, recovery, and body-composition
+                data to decide how hard to train, how much to fuel, and when to adjust.
+                The goal is simple: create the best practical conditions for muscle growth
+                and recovery while maintaining the energy balance needed to reduce body fat.
+            </p>
+
+            <div class="welcome-actions">
+                <a class="welcome-primary"
+                   href="/.auth/login/aad?post_login_redirect_uri=/Home/AfterSignIn">
+                    Sign In
+                </a>
+                <a class="welcome-secondary"
+                   href="/.auth/login/aad?post_login_redirect_uri=/Intake">
+                    Create Account
+                </a>
+                <a class="welcome-secondary" asp-controller="Home" asp-action="Evidence">
+                    Scientific Evidence
+                </a>
+            </div>
+
+            <p class="welcome-test-note">
+                Invited testers are not charged on this test site.
+            </p>
+        </div>
+
+        <div class="welcome-decision-card">
+            <div class="welcome-decision-title">The Recomp Logic</div>
+
+            <div class="welcome-decision-row planned">
+                <span>STIMULUS</span>
+                <strong>Give muscle a reason to grow</strong>
+            </div>
+
+            <div class="welcome-decision-row recomp">
+                <span>FUEL + RECOVERY</span>
+                <strong>Match protein, calories, carbohydrates, and recovery to the work</strong>
+            </div>
+
+            <div class="welcome-decision-row actual">
+                <span>ADAPT</span>
+                <strong>Use what actually happened to improve the next decision</strong>
+            </div>
+
+            <p>
+                Recomp combines resistance-training demand, protein intake, energy balance,
+                glycogen and carbohydrate needs, recovery, and body trends rather than
+                treating workouts and nutrition as separate systems.
+            </p>
+        </div>
+    </section>
+
+    <section class="welcome-feature-grid">
+        <article class="welcome-feature blue">
+            <div class="welcome-feature-label">TRAINING STIMULUS</div>
+            <h2>Train hard enough to matter</h2>
+            <p>
+                Structure major, accessory, conditioning, and recovery work so muscle receives
+                a productive stimulus without ignoring accumulated fatigue.
+            </p>
+        </article>
+
+        <article class="welcome-feature green">
+            <div class="welcome-feature-label">PROTEIN + ENERGY</div>
+            <h2>Support muscle while losing fat</h2>
+            <p>
+                Keep protein high enough to support muscle tissue while controlling total
+                energy intake so fat loss can continue.
+            </p>
+        </article>
+
+        <article class="welcome-feature amber">
+            <div class="welcome-feature-label">GLYCOGEN + FUEL</div>
+            <h2>Put fuel where it matters</h2>
+            <p>
+                Match carbohydrate and calorie targets to training demand so harder sessions
+                are fueled without treating every day as nutritionally identical.
+            </p>
+        </article>
+
+        <article class="welcome-feature purple">
+            <div class="welcome-feature-label">RECOVERY + ADAPTATION</div>
+            <h2>Adjust from real data</h2>
+            <p>
+                Compare planned versus actual training, nutrition, recovery, and body trends
+                so tomorrow's recommendation reflects the body's current state.
+            </p>
+        </article>
+    </section>
+
+    <section class="welcome-coach-strip">
+        <div>
+            <div class="welcome-kicker">WHAT MAKES RECOMP DIFFERENT</div>
+            <h2>One adaptive strategy instead of disconnected tracking.</h2>
+        </div>
+        <p>
+            Most apps record workouts, food, or weight. Recomp is designed to connect those
+            inputs into a daily strategy: training creates the stimulus, nutrition supplies
+            the building material and fuel, energy balance drives fat loss, and recovery
+            determines how aggressively the next session should be approached.
+        </p>
+    </section>
+</div>

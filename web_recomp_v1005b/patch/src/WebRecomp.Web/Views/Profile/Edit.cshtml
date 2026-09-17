@@ -1,0 +1,50 @@
+﻿@model ProfileEditViewModel
+@{
+    ViewData["Title"] = "Edit Profile";
+}
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">PROFILE</div>
+        <h1>Edit profile</h1>
+        <p class="lede">Update personal information used by Recomp. Program targets remain historical and are not changed here.</p>
+    </div>
+    <a class="button" asp-action="Index">Back to profile</a>
+</div>
+
+<form asp-action="Edit" method="post" class="stack narrow">
+    <div asp-validation-summary="All" class="validation"></div>
+    <section class="card stack">
+        <label>Name<input asp-for="ClientName" /></label>
+        <div class="grid-2">
+            <label>Date of birth<input asp-for="DateOfBirth" type="date" /></label>
+            <label>Sex
+                <select asp-for="SexCode">
+                    <option value="">Prefer not to specify</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                </select>
+            </label>
+        </div>
+        <div class="grid-2">
+            <label>Height (inches)<input asp-for="HeightIn" type="number" step="0.1" /></label>
+            <label>Units
+                <select asp-for="UnitSystemCode">
+                    <option value="US">US</option>
+                    <option value="METRIC">Metric</option>
+                </select>
+            </label>
+        </div>
+        <label>Training experience
+            <select asp-for="TrainingExperienceCode">
+                <option value="BEGINNER">Beginner</option>
+                <option value="INTERMEDIATE">Intermediate</option>
+                <option value="ADVANCED">Advanced</option>
+            </select>
+        </label>
+        <label>Time zone<input asp-for="TimeZone" /></label>
+        <p class="small">Current test default is <strong>America/Los_Angeles</strong>. Later we can replace this text box with a friendly time-zone selector.</p>
+    </section>
+    <button class="primary" type="submit">Save profile</button>
+</form>

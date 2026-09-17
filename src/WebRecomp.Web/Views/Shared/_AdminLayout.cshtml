@@ -1,4 +1,4 @@
-﻿@using System.Reflection
+@using System.Reflection
 @{
     var assembly = Assembly.GetExecutingAssembly();
 
@@ -84,6 +84,17 @@
            asp-action="Index">
             Engine 3.0 Workouts
         </a>
+
+        <a asp-controller="AdminCatalogSync"
+           asp-action="Index">
+            Exercise Catalog
+        </a>
+
+        <a asp-controller="AdminNutritionProviders"
+           asp-action="Index">
+            Nutrition Providers
+        </a>
+
 
                 <a asp-controller="AdminEngine30EnergyPolicy"
            asp-action="Index">

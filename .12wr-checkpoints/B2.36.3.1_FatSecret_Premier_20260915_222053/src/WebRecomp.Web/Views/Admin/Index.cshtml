@@ -1,0 +1,134 @@
+﻿@{
+    ViewData["Title"] = "Administration";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-home">
+
+    <header class="admin-heading">
+        <span class="admin-eyebrow">ADMINISTRATION</span>
+        <h1>12 Week Recomp Admin</h1>
+        <p>
+            Manage controlled access to 12 Week Recomp without affecting
+            customer training or nutrition data.
+        </p>
+    </header>
+
+    <div class="admin-grid">
+
+        <a asp-controller="AdminGiveawayCodes"
+           asp-action="Index"
+           class="admin-card admin-card-primary admin-card-link">
+            <span class="admin-card-status">ACTIVE</span>
+            <h2>Giveaway &amp; Promotion Codes</h2>
+            <p>
+                Generate individual access codes and reusable promotional
+                campaigns, then review redemption activity.
+            </p>
+        </a>
+
+        <a asp-controller="AdminDemoSessions"
+           asp-action="Index"
+           class="admin-card admin-card-link">
+
+            @{
+                var activeDemoSessions =
+                    ViewData["ActiveDemoSessionCount"] is int demoCount
+                        ? demoCount
+                        : 0;
+            }
+
+            <span class="admin-card-status">
+                @(activeDemoSessions > 0
+                    ? $"{activeDemoSessions} ACTIVE"
+                    : "SESSIONS")
+            </span>
+
+            <h2>Demo Sessions</h2>
+
+            <p>
+                Review guided demo workspaces, activity, status,
+                expiration, and terminate active sessions.
+            </p>
+
+        </a>
+
+        <article class="admin-card">
+            <span class="admin-card-status">FOUNDATION</span>
+            <h2>Users &amp; Roles</h2>
+            <p>
+                Administrative visibility for customers, administrators,
+                coaches, and future coach-client assignments.
+            </p>
+        </article>
+
+        <a asp-controller="AdminContact"
+           asp-action="Index"
+           class="admin-card admin-card-link">
+
+            <span class="admin-card-status">
+                @{
+                    var unread =
+                        ViewData["UnreadContactCount"] is int count
+                            ? count
+                            : 0;
+                }
+
+                @(unread > 0 ? $"{unread} NEW" : "INBOX")
+            </span>
+
+            <h2>Contact Messages</h2>
+
+            <p>
+                Configure the Contact Us destination and review messages
+                submitted through the website.
+            </p>
+
+        </a>
+        <a asp-controller="AdminCatalogSync"
+           asp-action="Index"
+           class="admin-card admin-card-link">
+
+            <span class="admin-card-status">WORKOUT INTELLIGENCE</span>
+
+            <h2>Exercise Catalog &amp; Sync</h2>
+
+            <p>
+                Select the exercise-data provider, configure automatic refresh,
+                run a manual update, and review catalog synchronization history.
+            </p>
+
+        </a>
+
+        <a asp-controller="AdminWorkoutTypes"
+           asp-action="Index"
+           class="admin-card admin-card-primary admin-card-link">
+
+            <span class="admin-card-status">ENGINE 3.0</span>
+
+            <h2>Workout Definitions &amp; Calibration</h2>
+
+            <p>
+                Manage Engine 3.0 workout presets, energy calibration,
+                glycogen modeling, composite segments, and version history.
+            </p>
+
+        </a>
+
+    </div>
+
+</section>
+
+<section class="card admin-engine30-energy-policy-link">
+    <span class="admin-eyebrow">ENGINE 3.0</span>
+    <h2>Goal Energy Prescription</h2>
+    <p>
+        Configure calorie protection and carryover behavior by recomp goal and
+        workout category.
+    </p>
+    <a asp-controller="AdminEngine30EnergyPolicy"
+       asp-action="Index"
+       class="button primary">
+        Open Engine 3.0 Energy Policy
+    </a>
+</section>

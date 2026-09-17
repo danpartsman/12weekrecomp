@@ -1,0 +1,114 @@
+@{
+    ViewData["Title"] = "Workout Complete";
+
+    var workoutName =
+        ViewData["WorkoutName"] as string
+        ?? "Workout";
+
+    var workoutDate =
+        ViewData["WorkoutDate"] as string
+        ?? "";
+
+    var duration =
+        ViewData["DurationMinutes"] as string
+        ?? "-";
+
+    var calories =
+        ViewData["NetCalories"] as string;
+
+    var glycogen =
+        ViewData["GlycogenDemand"] as string;
+
+    var exerciseCount =
+        ViewData["ExerciseCount"] is int exercises
+            ? exercises
+            : 0;
+
+    var recordedSets =
+        ViewData["RecordedSets"] is int sets
+            ? sets
+            : 0;
+
+    var analysisAvailable =
+        ViewData["AnalysisAvailable"] is bool available
+        && available;
+}
+
+<div class="app-page workout-intelligence-page wi-complete-page">
+    <section class="card wi-complete-card">
+        <div class="wi-complete-check" aria-hidden="true">
+            &#10003;
+        </div>
+
+        <div class="wi-complete-kicker">
+            WORKOUT COMPLETE
+        </div>
+
+        <h1>@workoutName</h1>
+
+        @if (!string.IsNullOrWhiteSpace(workoutDate))
+        {
+            <div class="wi-complete-date">
+                @workoutDate
+            </div>
+        }
+
+        <div class="wi-complete-stats">
+            <div class="wi-complete-stat">
+                <span>Duration</span>
+                <strong>@duration min</strong>
+            </div>
+
+            <div class="wi-complete-stat">
+                <span>Exercises</span>
+                <strong>@exerciseCount</strong>
+            </div>
+
+            <div class="wi-complete-stat">
+                <span>Recorded sets</span>
+                <strong>@recordedSets</strong>
+            </div>
+
+            @if (analysisAvailable)
+            {
+                <div class="wi-complete-stat">
+                    <span>Workout energy</span>
+                    <strong>@calories kcal</strong>
+                </div>
+
+                <div class="wi-complete-stat">
+                    <span>Glycogen demand</span>
+                    <strong>@glycogen g</strong>
+                </div>
+            }
+        </div>
+
+        @if (analysisAvailable)
+        {
+            <div class="app-message success wi-complete-engine">
+                <strong>12WR Analysis updated automatically.</strong>
+                <span>
+                    This completed workout is now incorporated into
+                    Engine 3.0 for today's workout energy, glycogen,
+                    recovery, and training analysis. No re-entry is needed.
+                </span>
+            </div>
+        }
+        else
+        {
+            <div class="app-message warning wi-complete-engine">
+                <strong>Your workout was recorded successfully.</strong>
+                <span>
+                    Automatic Engine 3.0 analysis is temporarily unavailable.
+                    The completed workout remains saved.
+                </span>
+            </div>
+        }
+
+        <a class="button primary wi-complete-dashboard"
+           asp-controller="Dashboard"
+           asp-action="Index">
+            Close Workout &amp; Return to Dashboard
+        </a>
+    </section>
+</div>

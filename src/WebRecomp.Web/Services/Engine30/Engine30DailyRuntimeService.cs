@@ -1,4 +1,4 @@
-﻿namespace WebRecomp.Web.Services.Engine30;
+namespace WebRecomp.Web.Services.Engine30;
 
 /// <summary>
 /// Centralized DRAFT physiological defaults used only where the daily runtime
@@ -124,12 +124,18 @@ public sealed class Engine30DailyRuntimeService(
                     WeightLb: request.WeightLb,
                     BodyFatFraction: request.BodyFatFraction));
 
+        var habitualWindow =
+            Engine30HabitualActivityWindowPolicy.Resolve(
+                baseLiving.AgeYears);
+
         var habitual =
             _habitual.Calculate(
                 baseLivingEnergyKcal: baseLiving.BaseLivingEnergyKcal,
                 roles: request.OccupationalRoles,
                 lifestyleActivityCode: request.LifestyleActivityCode,
-                homeActivityFactor: request.HomeActivityFactor);
+                homeActivityFactor: request.HomeActivityFactor,
+                habitualWindowHoursPerWeek:
+                    habitualWindow.HoursPerWeek);
 
         var (
             skeletalMuscleFraction,
@@ -214,7 +220,7 @@ public sealed class Engine30DailyRuntimeService(
                     bodyComposition.ConfidenceCode,
 
                 HabitualActivityModelCode:
-                    "40H_WORK_HOME_PLUS_LIFESTYLE_PREMIUM",
+                    Engine30HabitualActivityWindowPolicy.ModelCode,
 
                 SkeletalMuscleFractionSourceCode:
                     skeletalMuscleSource,

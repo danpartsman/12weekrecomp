@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Administration";
     Layout = "_AdminLayout";
 }
@@ -85,6 +85,36 @@
             </p>
 
         </a>
+        <a asp-controller="AdminNutritionProviders"
+           asp-action="Index"
+           class="admin-card admin-card-primary admin-card-link">
+
+            <span class="admin-card-status">NUTRITION INTELLIGENCE</span>
+
+            <h2>Nutrition Data Providers</h2>
+
+            <p>
+                Choose primary and secondary food databases, verify provider
+                connectivity, and review caching and attribution requirements.
+            </p>
+
+        </a>
+
+        <a asp-controller="AdminCatalogSync"
+           asp-action="Index"
+           class="admin-card admin-card-link">
+
+            <span class="admin-card-status">WORKOUT INTELLIGENCE</span>
+
+            <h2>Exercise Catalog &amp; Sync</h2>
+
+            <p>
+                Select the exercise-data provider, configure automatic refresh,
+                run a manual update, and review catalog synchronization history.
+            </p>
+
+        </a>
+
         <a asp-controller="AdminWorkoutTypes"
            asp-action="Index"
            class="admin-card admin-card-primary admin-card-link">

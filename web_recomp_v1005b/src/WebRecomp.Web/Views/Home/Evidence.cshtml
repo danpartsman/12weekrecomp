@@ -1,0 +1,112 @@
+@{
+    ViewData["Title"] = "Scientific Evidence";
+    ViewData["PublicPage"] = true;
+}
+
+<div class="marketing-page evidence-v2">
+    <section class="evidence-v2-intro">
+        <div class="marketing-kicker">SCIENCE-BACKED. SIMPLE TO LIVE.</div>
+        <h1>Feel Better Now. <span>Protect Your Tomorrows.</span></h1>
+        <p>Real science supports simple habits that improve how you look, feel, perform, and age.</p>
+        <strong>It&rsquo;s Easy When You Find What Motivates You!</strong>
+    </section>
+
+    <section class="evidence-comparison-shell">
+        <button class="evidence-image-button" type="button" data-evidence-enlarge aria-label="Enlarge the earlier versus later comparison">
+            <img class="theme-image theme-image-light"
+                 src="~/images/recomp/evidence-compare-light.webp"
+                 alt="Earlier proactive self-care compared with later reactive medical care" />
+            <img class="theme-image theme-image-dark"
+                 src="~/images/recomp/evidence-compare-dark.webp"
+                 alt="Earlier proactive self-care compared with later reactive medical care" />
+        </button>
+        <div class="evidence-enlarge-hint">&nearr; Tap or click to enlarge</div>
+        <p>
+            Movement, resistance training, nutrition, recovery, and energy balance influence many
+            modifiable health factors. Working on them earlier can improve the trajectory&mdash;and in many
+            cases reduce how much intervention is needed later.
+        </p>
+    </section>
+
+    <section class="marketing-section">
+        <div class="marketing-section-head compact">
+            <div class="marketing-kicker">THE EVIDENCE AT A GLANCE</div>
+            <h2>A lot of science. A pretty simple daily practice.</h2>
+        </div>
+
+        <div class="evidence-card-grid-v2">
+            <article class="evidence-mini-card">
+                <span>01</span>
+                <h3>What the evidence supports</h3>
+                <p>Training, nutrition, recovery, fitness, and energy balance can improve body-composition and health markers.</p>
+                <a href="https://pubmed.ncbi.nlm.nih.gov/38031812/" target="_blank" rel="noopener">Representative review &rarr;</a>
+            </article>
+            <article class="evidence-mini-card">
+                <span>02</span>
+                <h3>Body recomposition can occur</h3>
+                <p>Fat loss and lean-mass gain can happen together under the right training and nutrition conditions.</p>
+                <a href="https://pubmed.ncbi.nlm.nih.gov/26817506/" target="_blank" rel="noopener">Randomized trial &rarr;</a>
+            </article>
+            <article class="evidence-mini-card">
+                <span>03</span>
+                <h3>Resistance training & protein matter</h3>
+                <p>Lifting supplies the muscle-retention signal; adequate protein supplies the building material.</p>
+                <a href="https://pubmed.ncbi.nlm.nih.gov/39191151/" target="_blank" rel="noopener">Resistance-training evidence &rarr;</a>
+            </article>
+            <article class="evidence-mini-card">
+                <span>04</span>
+                <h3>Energy balance & recovery matter</h3>
+                <p>Fat loss requires an energy deficit, but recovery and adequate fueling help keep training productive.</p>
+                <a href="https://pubmed.ncbi.nlm.nih.gov/33095376/" target="_blank" rel="noopener">Energy-availability review &rarr;</a>
+            </article>
+            <article class="evidence-mini-card">
+                <span>05</span>
+                <h3>Simple habits work</h3>
+                <p>The best plan is one you can repeat: move, eat well, fuel the work, recover, and keep going.</p>
+                <a href="https://pubmed.ncbi.nlm.nih.gov/37491419/" target="_blank" rel="noopener">Exercise health evidence &rarr;</a>
+            </article>
+            <article class="evidence-mini-card">
+                <span>06</span>
+                <h3>What the program does not promise</h3>
+                <p>No program guarantees an outcome. Biology, consistency, medication, health status, and starting point matter.</p>
+                <a href="https://pubmed.ncbi.nlm.nih.gov/39331324/" target="_blank" rel="noopener">More evidence &rarr;</a>
+            </article>
+        </div>
+    </section>
+
+    <section class="evidence-bottom-cta">
+        <div>
+            <div class="marketing-kicker">BUILT ON EVIDENCE</div>
+            <h2>Focused on simple living.</h2>
+            <p>Move your body. Eat well. Fuel smart. Recover. Repeat.</p>
+        </div>
+        <a class="marketing-cta" asp-controller="Account" asp-action="CreateAccount">Get Started</a>
+    </section>
+
+    <p class="evidence-disclaimer">
+        Recomp is educational fitness and nutrition software, not medical diagnosis or treatment.
+        Medication or treatment decisions belong with a qualified clinician.
+    </p>
+</div>
+
+<div class="evidence-modal" data-evidence-modal hidden>
+    <button type="button" class="evidence-modal-close" data-evidence-close aria-label="Close enlarged comparison">&times;</button>
+    <img class="theme-image theme-image-light" src="~/images/recomp/evidence-compare-light.webp" alt="Enlarged proactive self-care versus reactive medical care comparison" />
+    <img class="theme-image theme-image-dark" src="~/images/recomp/evidence-compare-dark.webp" alt="Enlarged proactive self-care versus reactive medical care comparison" />
+</div>
+
+<script>
+    (() => {
+        const open = document.querySelector('[data-evidence-enlarge]');
+        const modal = document.querySelector('[data-evidence-modal]');
+        const close = document.querySelector('[data-evidence-close]');
+        if (!open || !modal || !close) return;
+
+        const hide = () => { modal.hidden = true; document.body.classList.remove('modal-open'); };
+        open.addEventListener('click', () => { modal.hidden = false; document.body.classList.add('modal-open'); });
+        close.addEventListener('click', hide);
+        modal.addEventListener('click', event => { if (event.target === modal) hide(); });
+        document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.hidden) hide(); });
+    })();
+</script>
+

@@ -1,4 +1,5 @@
-﻿@using System.Reflection
+@inject WebRecomp.Web.Services.AppUserContextService AppUserContextService
+@using System.Reflection
 @{
     var assembly = Assembly.GetExecutingAssembly();
 
@@ -30,6 +31,21 @@
         isGuidedDemo
             ? $"{baseShellClass} guided-demo-dark-theme"
             : baseShellClass;
+
+    var detailedWorkoutEntryEnabled = false;
+
+    if (!isPublicPage
+        && (!isOnboardingPage || isGuidedDemo))
+    {
+        var navContext =
+            await AppUserContextService.GetAsync(
+                Context,
+                Context.RequestAborted);
+
+        detailedWorkoutEntryEnabled =
+            navContext.Program?.DetailedWorkoutEntryEnabled
+            ?? false;
+    }
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -68,6 +84,10 @@
           href="~/css/site.css"
           asp-append-version="true" />
 
+    <link rel="stylesheet"
+          href="~/css/workout-intelligence.css"
+          asp-append-version="true" />
+
     @if (isGuidedDemo)
     {
         <link rel="stylesheet"
@@ -79,10 +99,25 @@
               asp-append-version="true" />
     }
 
+    @* TEST-wide production-look staging layer.
+       Loaded last so all TEST pages preview the intended LIVE design. *@
+    <link rel="stylesheet"
+          href="~/css/test-live-preview.css"
+          asp-append-version="true" />
+
     <script src="~/js/recomp-autosave.js" asp-append-version="true"></script>
+    <script src="~/js/test-live-vibrance.js"
+            asp-append-version="true"
+            defer></script>
 </head>
 
-<body class="@shellClass">
+@{
+    var appThemeClass =
+        baseShellClass == "app-shell"
+            ? "test-live-preview"
+            : "";
+}
+<body class="@shellClass @appThemeClass">
 
 <header class="topbar">
 
@@ -197,6 +232,15 @@
                asp-action="Index">
                 Daily Entry
             </a>
+            <a asp-controller="Nutrition"
+               asp-action="Index">
+                Nutrition
+            </a>
+
+            <a asp-controller="DetailedWorkout"
+               asp-action="Index">
+                Workouts
+            </a>
 
             <a asp-controller="Progress"
                asp-action="Index">
@@ -247,6 +291,23 @@
                asp-action="Index">
                 Daily Entry
             </a>
+            <a asp-controller="Nutrition"
+               asp-action="Index">
+                Nutrition
+            </a>
+
+            <a asp-controller="DetailedWorkout"
+               asp-action="Index">
+                Workouts
+            </a>
+
+            @if (detailedWorkoutEntryEnabled)
+            {
+                <a asp-controller="DailyEntry"
+                   asp-action="Index">
+                    Daily Stats
+                </a>
+            }
 
             <a asp-controller="Progress"
                asp-action="Index">
@@ -389,6 +450,21 @@
         </span>
     </div>
 
+    @if (isPublicPage)
+    {
+        <div style="margin-top:.75rem;">
+            <a href="https://platform.fatsecret.com"
+               target="_blank"
+               rel="noopener noreferrer">
+                <img alt="Nutrition information provided by fatsecret Platform API"
+                     src="https://platform.fatsecret.com/api/static/images/powered_by_fatsecret_horizontal_brand.png"
+                     srcset="https://platform.fatsecret.com/api/static/images/powered_by_fatsecret_horizontal_brand@2x.png 2x, https://platform.fatsecret.com/api/static/images/powered_by_fatsecret_horizontal_brand@3x.png 3x"
+                     style="max-width:190px;height:auto;"
+                     border="0" />
+            </a>
+        </div>
+    }
+
 </footer>
 
 
@@ -452,4 +528,3 @@
     <script src="~/js/recent-workout-picker.js" asp-append-version="true"></script>
 </body>
 </html>
-

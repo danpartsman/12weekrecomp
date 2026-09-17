@@ -1,0 +1,300 @@
+@model DetailedWorkoutEditorViewModel
+@{
+    ViewData["Title"] = "Detailed Workout";
+}
+
+<div class="app-page workout-intelligence-page">
+    <header class="app-page-head">
+        <div>
+            <div class="app-kicker">WORKOUT INTELLIGENCE</div>
+            <h1>Detailed Workout</h1>
+            <p class="lede">@Model.Date.ToString("dddd, MMMM d")</p>
+        </div>
+
+        @if (Model.FeatureEnabled)
+        {
+            <form asp-action="Index" method="get" class="app-date-picker">
+                <label>
+                    Date
+                    <input name="date"
+                           value="@Model.Date.ToString("yyyy-MM-dd")"
+                           type="date"
+                           onchange="this.form.submit()" />
+                </label>
+            </form>
+        }
+    </header>
+
+    @if (TempData["StatusMessage"] is string statusMessage)
+    {
+        <div class="app-message success">@statusMessage</div>
+    }
+
+    @if (!Model.FeatureEnabled)
+    {
+        <section class="card app-section app-section-blue">
+            <h2>Detailed workout entry is off</h2>
+            <p>
+                The standard workout workflow remains active.
+                Enable <strong>Detailed Workout Entry</strong> in Settings
+                when you want to log individual exercises and sets.
+            </p>
+            <a class="button primary"
+               asp-controller="Profile"
+               asp-action="Settings">Open Settings</a>
+        </section>
+    }
+    else
+    {
+        <section class="card app-section app-section-blue">
+            <div class="app-section-label">
+                <span class="app-number">1</span>
+                <span>WORKOUT SESSION</span>
+            </div>
+
+            <div class="wi-toolbar">
+                <div>
+                    <h2>Choose the saved workout to detail</h2>
+                    <p class="small">
+                        Sessions entered through Daily Entry or Workout Actual
+                        appear here. Detailed data attaches to that saved session;
+                        it does not create another workout.
+                    </p>
+                </div>
+
+                <a class="button"
+                   asp-controller="ExerciseLibrary"
+                   asp-action="Index">Exercise library</a>
+            </div>
+
+            @if (Model.Sessions.Count == 0)
+            {
+                <div class="app-empty-state">
+                    No saved workout sessions exist for this date.
+                    Save the workout first, then return here to add exercises and sets.
+                </div>
+
+                <div class="app-action-row">
+                    <a class="button primary"
+                       asp-controller="DailyEntry"
+                       asp-action="Index"
+                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">
+                        Open Daily Entry
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="wi-session-list">
+                    @foreach (var session in Model.Sessions)
+                    {
+                        var selected = Model.WorkoutSessionId == session.WorkoutSessionId;
+
+                        <a class="wi-session-choice @(selected ? "is-selected" : "")"
+                           asp-action="Index"
+                           asp-route-workoutSessionId="@session.WorkoutSessionId"
+                           asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">
+                            <strong>@session.WorkoutDisplayName</strong>
+                            <span>@session.DurationMin.ToString("0.#") min</span>
+                            <span>
+                                @(session.SessionRpe.HasValue
+                                    ? $"RPE {session.SessionRpe.Value:0.#}"
+                                    : "RPE not entered")
+                            </span>
+                            <span>@(session.CompletedFlag ? "Completed" : "Not completed")</span>
+                        </a>
+                    }
+                </div>
+            }
+        </section>
+
+        @if (Model.WorkoutSessionId.HasValue)
+        {
+            <section class="card app-section app-section-teal">
+                <div class="app-section-label">
+                    <span class="app-number">2</span>
+                    <span>EXERCISE SEARCH</span>
+                </div>
+
+                <h2>@Model.WorkoutDisplayName</h2>
+                <p class="small">Search the catalog, add exercises, then enter the sets you performed.</p>
+
+                <div id="wi-exercise-search"
+                     data-search-url="@Url.Action("SearchExercises", "DetailedWorkout")">
+                    <div class="wi-search-row">
+                        <input id="wi-search-input"
+                               type="search"
+                               placeholder="Search exercise name..." />
+                        <button id="wi-search-button"
+                                class="button"
+                                type="button">Search</button>
+                    </div>
+
+                    <div id="wi-search-status" class="small" aria-live="polite"></div>
+                    <div id="wi-search-results" class="wi-search-results"></div>
+                </div>
+            </section>
+
+            <form asp-action="Save" method="post" id="wi-detailed-workout-form">
+                <input asp-for="WorkoutSessionId" type="hidden" />
+                <input asp-for="Date" type="hidden" />
+
+                <section class="card app-section app-section-blue">
+                    <div class="app-section-label">
+                        <span class="app-number">3</span>
+                        <span>EXERCISES &amp; SETS</span>
+                    </div>
+
+                    <div id="wi-exercise-list"
+                         data-default-unit="@Model.DefaultLoadUnitCode">
+                        @for (var i = 0; i < Model.Exercises.Count; i++)
+                        {
+                            <article class="wi-exercise-card"
+                                     data-exercise-card
+                                     data-exercise-id="@Model.Exercises[i].ExerciseId">
+                                <input type="hidden"
+                                       name="Exercises[@i].ExerciseId"
+                                       value="@Model.Exercises[i].ExerciseId"
+                                       data-field="ExerciseId" />
+
+                                <div class="wi-exercise-head">
+                                    <div>
+                                        <h3>@Model.Exercises[i].ExerciseName</h3>
+                                        @if (!string.IsNullOrWhiteSpace(Model.Exercises[i].Mechanics))
+                                        {
+                                            <span class="app-pill neutral">@Model.Exercises[i].Mechanics</span>
+                                        }
+                                    </div>
+
+                                    <button type="button"
+                                            class="workout-delete-button"
+                                            data-remove-exercise>Remove exercise</button>
+                                </div>
+
+                                <label>
+                                    Exercise notes
+                                    <textarea name="Exercises[@i].Notes"
+                                              rows="2"
+                                              maxlength="1000"
+                                              data-field="Notes">@Model.Exercises[i].Notes</textarea>
+                                </label>
+
+                                <div class="wi-set-list" data-set-list>
+                                    @for (var j = 0; j < Model.Exercises[i].Sets.Count; j++)
+                                    {
+                                        var set = Model.Exercises[i].Sets[j];
+
+                                        <div class="wi-set-row" data-set-row>
+                                            <label>
+                                                Reps
+                                                <input type="number" min="0" max="2000"
+                                                       name="Exercises[@i].Sets[@j].Reps"
+                                                       value="@set.Reps"
+                                                       data-set-field="Reps" />
+                                            </label>
+
+                                            <label>
+                                                Load
+                                                <input type="number" min="0" max="10000" step="0.25"
+                                                       name="Exercises[@i].Sets[@j].Load"
+                                                       value="@set.Load"
+                                                       data-set-field="Load" />
+                                            </label>
+
+                                            <label>
+                                                Unit
+                                                <select name="Exercises[@i].Sets[@j].LoadUnitCode"
+                                                        data-set-field="LoadUnitCode">
+                                                    <option value="LB"
+                                                            selected="@(set.LoadUnitCode == "LB" ? "selected" : null)">lb</option>
+                                                    <option value="KG"
+                                                            selected="@(set.LoadUnitCode == "KG" ? "selected" : null)">kg</option>
+                                                </select>
+                                            </label>
+
+                                            <label>
+                                                RPE
+                                                <input type="number" min="0" max="10" step="0.5"
+                                                       name="Exercises[@i].Sets[@j].Rpe"
+                                                       value="@set.Rpe"
+                                                       data-set-field="Rpe" />
+                                            </label>
+
+                                            <label>
+                                                RIR
+                                                <input type="number" min="0" max="10" step="0.5"
+                                                       name="Exercises[@i].Sets[@j].Rir"
+                                                       value="@set.Rir"
+                                                       data-set-field="Rir" />
+                                            </label>
+
+                                            <label>
+                                                Rest sec
+                                                <input type="number" min="0" max="7200"
+                                                       name="Exercises[@i].Sets[@j].RestSeconds"
+                                                       value="@set.RestSeconds"
+                                                       data-set-field="RestSeconds" />
+                                            </label>
+
+                                            <label>
+                                                Duration sec
+                                                <input type="number" min="0" max="21600"
+                                                       name="Exercises[@i].Sets[@j].DurationSeconds"
+                                                       value="@set.DurationSeconds"
+                                                       data-set-field="DurationSeconds" />
+                                            </label>
+
+                                            <label class="wi-warmup-check">
+                                                <input type="checkbox"
+                                                       name="Exercises[@i].Sets[@j].IsWarmup"
+                                                       value="true"
+                                                       checked="@(set.IsWarmup ? "checked" : null)"
+                                                       data-set-field="IsWarmup" />
+                                                Warm-up
+                                            </label>
+
+                                            <label class="wi-set-notes">
+                                                Set notes
+                                                <input type="text" maxlength="500"
+                                                       name="Exercises[@i].Sets[@j].Notes"
+                                                       value="@set.Notes"
+                                                       data-set-field="Notes" />
+                                            </label>
+
+                                            <button type="button"
+                                                    class="workout-delete-button"
+                                                    data-remove-set>Remove set</button>
+                                        </div>
+                                    }
+                                </div>
+
+                                <button type="button"
+                                        class="button workout-compact"
+                                        data-add-set>+ Add set</button>
+                            </article>
+                        }
+                    </div>
+
+                    <div id="wi-empty-workout"
+                         class="app-empty-state"
+                         hidden="@(Model.Exercises.Count > 0)">
+                        No exercises have been added yet. Search above to start.
+                    </div>
+
+                    <div class="app-action-row">
+                        <button class="primary" type="submit">Save detailed workout</button>
+                    </div>
+
+                    <p class="small">
+                        This phase stores detailed workout data only.
+                        Engine 3.0 still uses the saved workout-session values
+                        until the normalized Workout Intelligence handoff is enabled.
+                    </p>
+                </section>
+            </form>
+        }
+    }
+</div>
+
+<script src="~/js/detailed-workout.js"
+        asp-append-version="true"></script>

@@ -1,0 +1,354 @@
+@model WebRecomp.Web.ViewComponents.DashboardPlanDecisionDisplayModel
+
+@if (Model.Show)
+{
+    <!-- B2.32.1 DASHBOARD PLAN AND NUTRITION DECISION -->
+    <section class="dash-plan-proposal"
+             aria-label="Original plan and Recomp suggested adjustment">
+
+        <div class="dash-plan-proposal-grid">
+
+            <article class="dash-plan-choice original">
+                <div class="dash-plan-choice-label">
+                    ORIGINAL PLAN
+                </div>
+
+                <h3>@Model.OriginalWorkout</h3>
+
+                <div class="dash-plan-choice-nutrition"
+                     aria-label="Original nutrition plan">
+                    <span>
+                        <strong>@Model.OriginalCalories.ToString("0")</strong>
+                        kcal
+                    </span>
+                    <span>
+                        <strong>P</strong>
+                        @Model.OriginalProteinG.ToString("0") g
+                    </span>
+                    <span>
+                        <strong>C</strong>
+                        @Model.OriginalCarbsG.ToString("0") g
+                    </span>
+                    <span>
+                        <strong>F</strong>
+                        @Model.OriginalFatG.ToString("0") g
+                    </span>
+                </div>
+            </article>
+
+            <div class="dash-plan-proposal-vs"
+                 aria-hidden="true">
+                VS
+            </div>
+
+            <article class="dash-plan-choice proposed">
+                <div class="dash-plan-choice-label">
+                    RECOMP SUGGESTED ADJUSTMENT
+                </div>
+
+                <h3>@Model.ProposedWorkout</h3>
+
+                <div class="dash-plan-choice-nutrition"
+                     aria-label="Suggested nutrition plan">
+                    <span>
+                        <strong>@Model.ProposedCalories.ToString("0")</strong>
+                        kcal
+                    </span>
+                    <span>
+                        <strong>P</strong>
+                        @Model.ProposedProteinG.ToString("0") g
+                    </span>
+                    <span>
+                        <strong>C</strong>
+                        @Model.ProposedCarbsG.ToString("0") g
+                    </span>
+                    <span>
+                        <strong>F</strong>
+                        @Model.ProposedFatG.ToString("0") g
+                    </span>
+                </div>
+
+                @if (Model.NutritionUnchanged)
+                {
+                    <p class="dash-plan-proposal-note">
+                        Nutrition target stays the same with this
+                        workout adjustment.
+                    </p>
+                }
+                else
+                {
+                    <p class="dash-plan-proposal-note">
+                        These nutrition targets are paired with the
+                        proposed workout.
+                    </p>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Model.TimingNote))
+                {
+                    <p class="dash-plan-proposal-timing">
+                        @Model.TimingNote
+                    </p>
+                }
+            </article>
+
+        </div>
+
+        <div class="dash-plan-decision-actions"
+             aria-label="Choose plan">
+
+            <form asp-controller="DashboardPlanDecision"
+                  asp-action="KeepPlan"
+                  method="post">
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       name="date"
+                       value="@Model.Date.ToString("yyyy-MM-dd")" />
+
+                <button type="submit"
+                        class="dash-plan-decision-button keep">
+                    Keep Plan
+                </button>
+            </form>
+
+            <form asp-controller="DashboardPlanDecision"
+                  asp-action="AcceptChange"
+                  method="post">
+                @Html.AntiForgeryToken()
+
+                <input type="hidden"
+                       name="date"
+                       value="@Model.Date.ToString("yyyy-MM-dd")" />
+
+                <input type="hidden"
+                       name="recommendedWorkoutName"
+                       value="@Model.ProposedWorkout" />
+
+                <button type="submit"
+                        class="dash-plan-decision-button accept">
+                    Accept Change
+                </button>
+            </form>
+
+        </div>
+
+        <p class="dash-plan-decision-explain">
+            Keep Plan leaves the Weekly Plan unchanged.
+            Accept Change updates this date's Weekly Planned workout.
+            Engine 3.0 then recalculates the plan from the accepted workout;
+            Daily Entry actual nutrition is not overwritten.
+        </p>
+
+    </section>
+
+    <style>
+        .dash-plan-proposal {
+            margin-top: 1rem;
+            padding: 1rem;
+            border: 1px solid #d8dee8;
+            border-radius: .85rem;
+            background: rgba(255, 255, 255, .45);
+        }
+
+        .dash-plan-proposal-grid {
+            display: grid;
+            grid-template-columns:
+                minmax(0, 1fr)
+                auto
+                minmax(0, 1fr);
+            gap: .85rem;
+            align-items: stretch;
+        }
+
+        .dash-plan-choice {
+            padding: .9rem;
+            border-radius: .7rem;
+            border: 1px solid #cbd5e1;
+        }
+
+        .dash-plan-choice.original {
+            background: rgba(37, 99, 235, .05);
+            border-color: rgba(37, 99, 235, .32);
+        }
+
+        .dash-plan-choice.proposed {
+            background: rgba(124, 58, 237, .07);
+            border-color: rgba(124, 58, 237, .42);
+        }
+
+        .dash-plan-choice-label {
+            margin-bottom: .35rem;
+            font-size: .68rem;
+            font-weight: 900;
+            letter-spacing: .075em;
+        }
+
+        .dash-plan-choice.original
+        .dash-plan-choice-label {
+            color: #2563eb;
+        }
+
+        .dash-plan-choice.proposed
+        .dash-plan-choice-label {
+            color: #7c3aed;
+        }
+
+        .dash-plan-choice h3 {
+            margin: 0;
+            font-size: 1.02rem;
+            line-height: 1.25;
+        }
+
+        .dash-plan-choice-nutrition {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .42rem .72rem;
+            margin-top: .7rem;
+            font-size: .86rem;
+        }
+
+        .dash-plan-choice-nutrition span {
+            white-space: nowrap;
+        }
+
+        .dash-plan-proposal-vs {
+            align-self: center;
+            color: #64748b;
+            font-size: .72rem;
+            font-weight: 900;
+            letter-spacing: .08em;
+        }
+
+        .dash-plan-proposal-note,
+        .dash-plan-proposal-timing {
+            margin: .55rem 0 0;
+            font-size: .78rem;
+            line-height: 1.35;
+        }
+
+        .dash-plan-proposal-note {
+            color: #475569;
+        }
+
+        .dash-plan-proposal-timing {
+            color: #6d28d9;
+            font-weight: 700;
+        }
+
+        .dash-plan-decision-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .65rem;
+            margin-top: .9rem;
+        }
+
+        .dash-plan-decision-actions form {
+            margin: 0;
+        }
+
+        .dash-plan-decision-button {
+            min-width: 9rem;
+            min-height: 2.55rem;
+            padding: .55rem 1rem;
+            border-radius: .65rem;
+            font: inherit;
+            font-weight: 800;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .dash-plan-decision-button.keep {
+            border: 1px solid #64748b;
+            background: transparent;
+            color: inherit;
+        }
+
+        .dash-plan-decision-button.accept {
+            border: 1px solid #7c3aed;
+            background: #7c3aed;
+            color: #ffffff;
+        }
+
+        .dash-plan-decision-explain {
+            margin: .5rem 0 0;
+            color: #64748b;
+            font-size: .76rem;
+            line-height: 1.4;
+        }
+
+        body.test-live-preview
+        .dash-plan-proposal {
+            border-color: #365a7d;
+            background: #10233b;
+        }
+
+        body.test-live-preview
+        .dash-plan-choice.original {
+            background: #102c4c;
+            border-color: #315f8d;
+        }
+
+        body.test-live-preview
+        .dash-plan-choice.proposed {
+            background: #211f4b;
+            border-color: #6555ad;
+        }
+
+        body.test-live-preview
+        .dash-plan-choice.original
+        .dash-plan-choice-label {
+            color: #88d3ff;
+        }
+
+        body.test-live-preview
+        .dash-plan-choice.proposed
+        .dash-plan-choice-label {
+            color: #c6b8ff;
+        }
+
+        body.test-live-preview
+        .dash-plan-proposal-note,
+        body.test-live-preview
+        .dash-plan-decision-explain {
+            color: #b6c6da;
+        }
+
+        body.test-live-preview
+        .dash-plan-proposal-timing {
+            color: #d3c8ff;
+        }
+
+        body.test-live-preview
+        .dash-plan-decision-button.keep {
+            border-color: #6c8dad;
+            color: #f5f8ff;
+        }
+
+        body.test-live-preview
+        .dash-plan-decision-button.accept {
+            border-color: #9b87f5;
+            background: #7658dc;
+            color: #ffffff;
+        }
+
+        @@media (max-width: 720px) {
+            .dash-plan-proposal-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .dash-plan-proposal-vs {
+                justify-self: center;
+            }
+
+            .dash-plan-decision-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .dash-plan-decision-button {
+                width: 100%;
+                min-width: 0;
+            }
+        }
+    </style>
+}
