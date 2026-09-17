@@ -17,6 +17,21 @@
         return;
     }
 
+    if (!document.querySelector('link[data-12wr-journey="v1012"]')) {
+        const journeyStyle = document.createElement("link");
+        journeyStyle.rel = "stylesheet";
+        journeyStyle.href = "/css/journey-v1012.css";
+        journeyStyle.dataset["12wrJourney"] = "v1012";
+        document.head.appendChild(journeyStyle);
+    }
+
+    if (!document.querySelector('script[data-12wr-journey="v1012"]')) {
+        const journeyScript = document.createElement("script");
+        journeyScript.src = "/js/journey-v1012.js";
+        journeyScript.dataset["12wrJourney"] = "v1012";
+        document.head.appendChild(journeyScript);
+    }
+
     const normalize = (value) =>
         (value || "")
             .toString()
