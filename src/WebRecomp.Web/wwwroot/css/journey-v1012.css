@@ -1,0 +1,419 @@
+/*
+========================================================================
+12WR TEST v1012 — B3.3 JOURNEY VISUAL LAYER
+========================================================================
+Visual storytelling for the authenticated product.  Image-first, minimal copy.
+Presentation only: no forms, bindings, actions, Engine logic, SQL, auth, or
+validation behavior are changed.
+========================================================================
+*/
+
+body.test-live-preview.journey-dashboard,
+body.test-live-preview.journey-daily-entry {
+    --journey-green: #a6ff4d;
+    --journey-cyan: #42dfff;
+    --journey-blue: #168cff;
+    --journey-purple: #a67cff;
+    --journey-amber: #ffc857;
+}
+
+.journey-hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(300px, .72fr);
+    min-height: 430px;
+    margin: 0 0 1.35rem;
+    overflow: hidden;
+    border: 1px solid #28384b;
+    border-radius: 1.35rem;
+    background:
+        radial-gradient(circle at 12% 18%, rgba(22, 140, 255, .18), transparent 31rem),
+        radial-gradient(circle at 66% 20%, rgba(166, 255, 77, .11), transparent 25rem),
+        linear-gradient(135deg, #05080c 5%, #0a1018 48%, #05080c 100%);
+    box-shadow: 0 28px 68px rgba(0, 0, 0, .38);
+    isolation: isolate;
+}
+
+.journey-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(90deg, rgba(5, 8, 12, .25), transparent 44%, rgba(5, 8, 12, .08)),
+        repeating-linear-gradient(120deg, transparent 0 54px, rgba(255,255,255,.012) 55px 56px);
+    z-index: 1;
+}
+
+.journey-hero-copy {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(1.5rem, 4vw, 4rem);
+}
+
+.journey-hero-kicker {
+    margin: 0 0 .6rem;
+    color: var(--journey-cyan);
+    font-family: var(--ds-font-display, "Bahnschrift Condensed", sans-serif);
+    font-size: .84rem;
+    font-weight: 900;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+}
+
+.journey-hero h1 {
+    max-width: 720px;
+    margin: 0;
+    color: #fff;
+    font-family: var(--ds-font-display, "Bahnschrift Condensed", sans-serif);
+    font-size: clamp(3rem, 6.7vw, 6.2rem);
+    line-height: .84;
+    letter-spacing: -.025em;
+    text-transform: uppercase;
+    text-shadow: 0 10px 34px rgba(0,0,0,.42);
+}
+
+.journey-hero h1 span {
+    display: block;
+    color: var(--journey-green);
+    text-shadow: 0 0 28px rgba(166, 255, 77, .14);
+}
+
+.journey-hero-line {
+    max-width: 650px;
+    margin: 1.05rem 0 0;
+    color: #d8e3ef;
+    font-size: clamp(1rem, 1.55vw, 1.2rem);
+    font-weight: 750;
+    letter-spacing: .01em;
+}
+
+.journey-keywords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .48rem;
+    margin-top: 1.35rem;
+}
+
+.journey-keywords span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: .4rem .7rem;
+    border: 1px solid #31465f;
+    border-radius: 999px;
+    background: rgba(14, 22, 32, .76);
+    color: #e8f1fb;
+    font-size: .73rem;
+    font-weight: 900;
+    letter-spacing: .085em;
+    text-transform: uppercase;
+    backdrop-filter: blur(8px);
+}
+
+.journey-keywords span:nth-child(1) { border-color: rgba(66, 223, 255, .45); color: #9eeeff; }
+.journey-keywords span:nth-child(2) { border-color: rgba(166, 255, 77, .45); color: #d1ffac; }
+.journey-keywords span:nth-child(3) { border-color: rgba(166, 124, 255, .45); color: #d9c4ff; }
+.journey-keywords span:nth-child(4) { border-color: rgba(255, 200, 87, .40); color: #ffe1a0; }
+
+.journey-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .65rem;
+    margin-top: 1.4rem;
+}
+
+.journey-hero-action {
+    min-height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: .68rem 1rem;
+    border-radius: .75rem;
+    font-weight: 900;
+    text-decoration: none !important;
+}
+
+.journey-hero-action.primary-action {
+    border: 1px solid rgba(166, 255, 77, .58);
+    background: linear-gradient(180deg, #b0ff61, #86ef2d);
+    color: #071006 !important;
+    box-shadow: 0 12px 30px rgba(87, 178, 30, .17);
+}
+
+.journey-hero-action.secondary-action {
+    border: 1px solid #354a61;
+    background: rgba(18, 27, 38, .86);
+    color: #e7f1fb !important;
+}
+
+.journey-hero-art {
+    position: relative;
+    z-index: 2;
+    min-height: 430px;
+    overflow: hidden;
+    background: #020304;
+}
+
+.journey-hero-art img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    filter: saturate(1.08) contrast(1.04);
+}
+
+.journey-hero-art::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, #080d14 0%, rgba(8, 13, 20, .58) 12%, transparent 42%),
+        linear-gradient(0deg, rgba(3,5,8,.72), transparent 30%, rgba(3,5,8,.15));
+}
+
+.journey-breakbar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    margin: -1px 0 1.5rem;
+    overflow: hidden;
+    border: 1px solid #25384c;
+    border-radius: .9rem;
+    background: #25384c;
+}
+
+.journey-breakbar div {
+    padding: .82rem .75rem;
+    text-align: center;
+    background: #0b121b;
+    color: #dce8f4;
+    font-family: var(--ds-font-display, "Bahnschrift Condensed", sans-serif);
+    font-size: clamp(.78rem, 1.25vw, 1rem);
+    font-weight: 900;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+}
+
+.journey-breakbar div:nth-child(1) { color: #8feaff; }
+.journey-breakbar div:nth-child(2) { color: #d2ffad; }
+.journey-breakbar div:nth-child(3) { color: #d9c4ff; }
+.journey-breakbar div:nth-child(4) { color: #ffe0a0; }
+
+/* Existing dashboard cards get stronger hierarchy without changing content. */
+body.journey-dashboard .dash-primary-grid,
+body.journey-dashboard .dash-main-grid,
+body.journey-dashboard .dash-grid {
+    gap: 1rem;
+}
+
+body.journey-dashboard .dash-panel,
+body.journey-dashboard .dash-section,
+body.journey-dashboard .dash-planactual-panel {
+    border-radius: 1rem;
+}
+
+body.journey-dashboard .dash-panel-label,
+body.journey-dashboard .dash-cell-label {
+    font-family: var(--ds-font-display, "Bahnschrift Condensed", sans-serif);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+/* Daily Entry: image-led but keeps the existing form untouched. */
+.journey-daily-hero {
+    position: relative;
+    min-height: 250px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(250px, .44fr);
+    margin: 0 0 1rem;
+    overflow: hidden;
+    border: 1px solid #293a4e;
+    border-radius: 1.15rem;
+    background:
+        radial-gradient(circle at 30% 40%, rgba(166, 255, 77, .09), transparent 25rem),
+        linear-gradient(135deg, #071019, #05080c 70%);
+    box-shadow: 0 20px 50px rgba(0,0,0,.28);
+}
+
+.journey-daily-copy {
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(1.25rem, 3vw, 2.35rem);
+}
+
+.journey-daily-copy small {
+    color: var(--journey-cyan);
+    font-family: var(--ds-font-display, "Bahnschrift Condensed", sans-serif);
+    font-size: .78rem;
+    font-weight: 900;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+}
+
+.journey-daily-copy strong {
+    display: block;
+    margin-top: .35rem;
+    color: #fff;
+    font-family: var(--ds-font-display, "Bahnschrift Condensed", sans-serif);
+    font-size: clamp(2.6rem, 5vw, 4.5rem);
+    line-height: .9;
+    letter-spacing: -.02em;
+    text-transform: uppercase;
+}
+
+.journey-daily-copy strong span {
+    color: var(--journey-green);
+}
+
+.journey-daily-copy p {
+    margin: .8rem 0 0;
+    color: #c9d6e3;
+    font-weight: 750;
+}
+
+.journey-daily-art {
+    position: relative;
+    overflow: hidden;
+    min-height: 250px;
+}
+
+.journey-daily-art img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 22%;
+    filter: saturate(1.05) contrast(1.05);
+}
+
+.journey-daily-art::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #071019 0%, rgba(7,16,25,.42) 22%, transparent 62%);
+}
+
+body.journey-daily-entry .daily-entry-header {
+    margin-top: 0;
+    padding: .8rem 0 1rem;
+}
+
+body.journey-daily-entry .daily-entry-header .daily-entry-kicker {
+    color: var(--journey-cyan);
+}
+
+body.journey-daily-entry .daily-entry-header .daily-entry-lede {
+    max-width: 760px;
+    font-size: .92rem;
+    color: #9fb0c2;
+}
+
+body.journey-daily-entry .daily-entry-section {
+    border-radius: 1rem;
+    border-color: #26394d;
+}
+
+body.journey-daily-entry .daily-entry-section-number {
+    border-color: rgba(166, 255, 77, .42);
+    background: rgba(166, 255, 77, .08);
+    color: var(--journey-green);
+}
+
+body.journey-daily-entry .daily-entry-progress {
+    gap: .45rem;
+}
+
+body.journey-daily-entry .daily-entry-status {
+    border-radius: .75rem;
+}
+
+@media (max-width: 900px) {
+    .journey-hero {
+        grid-template-columns: 1fr minmax(230px, .55fr);
+        min-height: 360px;
+    }
+
+    .journey-hero-art {
+        min-height: 360px;
+    }
+
+    .journey-hero h1 {
+        font-size: clamp(2.7rem, 7vw, 4.5rem);
+    }
+}
+
+@media (max-width: 720px) {
+    .journey-hero,
+    .journey-daily-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .journey-hero {
+        min-height: 0;
+    }
+
+    .journey-hero-copy {
+        order: 2;
+        padding: 1.25rem;
+    }
+
+    .journey-hero-art {
+        order: 1;
+        min-height: 330px;
+    }
+
+    .journey-hero-art::after {
+        background: linear-gradient(0deg, #080d14 0%, rgba(8, 13, 20, .18) 36%, transparent 68%);
+    }
+
+    .journey-breakbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .journey-daily-art {
+        min-height: 220px;
+        order: 1;
+    }
+
+    .journey-daily-copy {
+        order: 2;
+        padding: 1.2rem;
+    }
+}
+
+@media (max-width: 430px) {
+    .journey-hero-art {
+        min-height: 285px;
+    }
+
+    .journey-hero h1 {
+        font-size: 3.05rem;
+    }
+
+    .journey-hero-line {
+        font-size: .96rem;
+    }
+
+    .journey-keywords span {
+        font-size: .66rem;
+    }
+
+    .journey-hero-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .journey-breakbar div {
+        padding: .68rem .45rem;
+        font-size: .72rem;
+    }
+}
