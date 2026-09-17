@@ -2,6 +2,9 @@ name: Build and deploy ASP.NET Core app to Azure Web App - recomp-test
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - test
 
 jobs:
   build-and-test:
