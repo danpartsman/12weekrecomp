@@ -1,0 +1,797 @@
+/*
+========================================================================
+12WR TEST v1012 — B3.3 DASHBOARD ENERGY PASS 4
+========================================================================
+High-energy performance dashboard treatment inspired by the approved 12 Week
+Recomp visual sample. Presentation only. No application logic is changed.
+========================================================================
+*/
+
+body.journey-dashboard {
+    --e4-black:#030609;
+    --e4-ink:#071019;
+    --e4-panel:#0a131d;
+    --e4-panel-2:#0d1924;
+    --e4-line:#20384d;
+    --e4-line-hot:#2b5f7c;
+    --e4-white:#f8fbff;
+    --e4-muted:#9eb0c1;
+    --e4-cyan:#12dcff;
+    --e4-blue:#168cff;
+    --e4-green:#9cff35;
+    --e4-green-2:#5dff85;
+    --e4-purple:#a67cff;
+    --e4-amber:#ffc857;
+    background:
+        radial-gradient(circle at 78% 5%, rgba(18,220,255,.07), transparent 28rem),
+        radial-gradient(circle at 12% 28%, rgba(156,255,53,.035), transparent 30rem),
+        linear-gradient(180deg,#020406 0%,#05090d 38%,#020406 100%) !important;
+}
+
+body.journey-dashboard .app-main,
+body.journey-dashboard main {
+    position:relative;
+}
+
+body.journey-dashboard .recomp-dashboard {
+    position:relative;
+    z-index:1;
+    gap:1.15rem !important;
+}
+
+/* subtle horizon / energy texture behind the working data */
+body.journey-dashboard .recomp-dashboard::before {
+    content:"";
+    position:absolute;
+    z-index:-1;
+    inset:-1rem -1rem auto;
+    height:480px;
+    pointer-events:none;
+    background:
+        linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.65)),
+        radial-gradient(ellipse at 76% 26%,rgba(18,220,255,.08),transparent 35%),
+        radial-gradient(ellipse at 83% 25%,rgba(156,255,53,.05),transparent 23%);
+    opacity:.9;
+}
+
+/* ---------------------------------------------------------------------
+   Integrated header — visual identity without a separate hero
+   --------------------------------------------------------------------- */
+body.journey-dashboard .journey-dashboard-date {
+    min-height:156px !important;
+    grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr) !important;
+    border:1px solid #17435c !important;
+    border-radius:1.1rem !important;
+    background:
+        linear-gradient(100deg,rgba(3,8,12,.99) 0%,rgba(5,17,26,.96) 52%,rgba(4,8,12,.88) 100%) !important;
+    box-shadow:
+        0 22px 54px rgba(0,0,0,.38),
+        0 0 0 1px rgba(18,220,255,.035),
+        inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+
+body.journey-dashboard .journey-dashboard-date::before {
+    content:"";
+    position:absolute;
+    inset:0;
+    z-index:1;
+    pointer-events:none;
+    background:
+        linear-gradient(90deg,transparent 0 64%,rgba(18,220,255,.06) 64.2%,transparent 64.4%),
+        repeating-linear-gradient(115deg,transparent 0 66px,rgba(255,255,255,.012) 67px 68px);
+}
+
+body.journey-dashboard .journey-dashboard-date > div:first-child {
+    padding:1.1rem 1.45rem 1.1rem !important;
+}
+
+body.journey-dashboard .journey-dashboard-date .dash-kicker {
+    color:var(--e4-cyan)!important;
+    font-size:.7rem!important;
+}
+
+body.journey-dashboard .journey-dashboard-date h1 {
+    font-size:clamp(2.15rem,4vw,3.65rem)!important;
+    font-style:italic;
+    text-transform:uppercase;
+    text-shadow:0 0 24px rgba(18,220,255,.08);
+}
+
+body.journey-dashboard .journey-dashboard-date .lede {
+    color:#d1dde8!important;
+    margin-top:.35rem!important;
+}
+
+body.journey-dashboard .journey-integrated-brand {
+    min-height:156px!important;
+}
+
+body.journey-dashboard .journey-integrated-brand img {
+    transform:scale(1.04);
+    opacity:.97!important;
+    filter:saturate(1.24) contrast(1.11) brightness(.84)!important;
+}
+
+body.journey-dashboard .journey-integrated-brand::before {
+    background:
+        linear-gradient(90deg,#071019 0%,rgba(7,16,25,.28) 24%,transparent 55%),
+        linear-gradient(0deg,rgba(2,5,8,.84),transparent 62%)!important;
+}
+
+body.journey-dashboard .journey-integrated-brand-copy strong {
+    font-style:italic;
+    font-size:clamp(1.55rem,2.5vw,2.45rem)!important;
+    text-shadow:0 5px 18px rgba(0,0,0,.55);
+}
+
+body.journey-dashboard .journey-integrated-brand-copy strong span {
+    color:var(--e4-green)!important;
+}
+
+body.journey-dashboard .journey-integrated-pills {
+    bottom:.75rem!important;
+}
+
+body.journey-dashboard .journey-integrated-pills span {
+    background:rgba(2,7,10,.78)!important;
+    border-radius:.45rem!important;
+    min-height:26px!important;
+    padding:.25rem .55rem!important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+/* ---------------------------------------------------------------------
+   Mission cards — actual app data with sample-style visual energy
+   --------------------------------------------------------------------- */
+body.journey-dashboard .journey-mission-grid {
+    gap:1.1rem!important;
+}
+
+body.journey-dashboard .journey-mission-card {
+    padding:0!important;
+    border-radius:1rem!important;
+    isolation:isolate;
+    background:#071019!important;
+}
+
+body.journey-dashboard .journey-mission-card > *:not(.journey-energy-cap) {
+    position:relative;
+    z-index:3;
+}
+
+body.journey-dashboard .journey-mission-card::before {
+    content:"";
+    position:absolute;
+    z-index:0;
+    inset:0;
+    pointer-events:none;
+    background:
+        radial-gradient(circle at 92% 4%,rgba(255,255,255,.05),transparent 18rem),
+        linear-gradient(155deg,rgba(255,255,255,.018),transparent 40%);
+}
+
+body.journey-dashboard .journey-mission-train {
+    border-color:rgba(18,220,255,.42)!important;
+    box-shadow:
+        0 20px 42px rgba(0,0,0,.28),
+        0 0 28px rgba(18,220,255,.05),
+        inset 0 1px 0 rgba(255,255,255,.03)!important;
+}
+
+body.journey-dashboard .journey-mission-fuel {
+    border-color:rgba(156,255,53,.38)!important;
+    box-shadow:
+        0 20px 42px rgba(0,0,0,.28),
+        0 0 28px rgba(156,255,53,.045),
+        inset 0 1px 0 rgba(255,255,255,.03)!important;
+}
+
+body.journey-dashboard .journey-mission-coach {
+    border-color:rgba(166,124,255,.38)!important;
+    box-shadow:
+        0 20px 42px rgba(0,0,0,.28),
+        0 0 28px rgba(166,124,255,.045),
+        inset 0 1px 0 rgba(255,255,255,.03)!important;
+}
+
+/* replace plain panel heading with a compact cinematic cap */
+body.journey-dashboard .journey-mission-card > .journey-mission-label {
+    display:none!important;
+}
+
+.journey-energy-cap {
+    position:relative!important;
+    z-index:4!important;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 82px;
+    align-items:center;
+    min-height:116px;
+    overflow:hidden;
+    padding:1.05rem 1.15rem;
+    border-bottom:1px solid rgba(143,169,193,.16);
+    background:
+        linear-gradient(90deg,rgba(3,10,15,.92),rgba(4,16,24,.68) 60%,rgba(3,9,14,.86)),
+        url('/images/recomp/12wr-break-free-v1012.jpg') center 30%/cover no-repeat;
+}
+
+.journey-energy-cap::before {
+    content:"";
+    position:absolute;
+    inset:0;
+    z-index:-1;
+    background:
+        linear-gradient(90deg,rgba(2,6,10,.94) 0%,rgba(3,10,15,.82) 45%,rgba(3,9,13,.36) 100%),
+        linear-gradient(0deg,rgba(3,8,12,.82),transparent 70%);
+}
+
+.journey-mission-train .journey-energy-cap {
+    box-shadow:inset 0 3px 0 var(--e4-cyan);
+}
+
+.journey-mission-fuel .journey-energy-cap {
+    box-shadow:inset 0 3px 0 var(--e4-green);
+}
+
+.journey-mission-coach .journey-energy-cap {
+    min-height:104px;
+    box-shadow:inset 0 3px 0 var(--e4-purple);
+}
+
+.journey-energy-copy small,
+.journey-energy-copy strong,
+.journey-energy-copy span {
+    display:block;
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    text-transform:uppercase;
+}
+
+.journey-energy-copy small {
+    margin-bottom:.18rem;
+    color:#b8c9d7;
+    font-size:.62rem;
+    font-weight:900;
+    letter-spacing:.18em;
+}
+
+.journey-energy-copy strong {
+    color:#fff;
+    font-size:clamp(2.2rem,4vw,3.8rem);
+    font-style:italic;
+    font-weight:950;
+    line-height:.83;
+    letter-spacing:-.02em;
+    text-shadow:0 7px 22px rgba(0,0,0,.52);
+}
+
+.journey-energy-copy span {
+    margin-top:.4rem;
+    color:#d7e3ed;
+    font-size:.72rem;
+    font-weight:900;
+    letter-spacing:.12em;
+}
+
+.journey-mission-train .journey-energy-copy strong {color:var(--e4-cyan);}
+.journey-mission-fuel .journey-energy-copy strong {color:var(--e4-green);}
+.journey-mission-coach .journey-energy-copy strong {color:#d5c1ff;}
+
+.journey-energy-icon {
+    width:70px;
+    height:70px;
+    display:grid;
+    place-items:center;
+    justify-self:end;
+    border:1px solid rgba(255,255,255,.18);
+    border-radius:50%;
+    background:rgba(2,8,12,.72);
+    box-shadow:0 0 24px rgba(0,0,0,.4),inset 0 0 24px rgba(255,255,255,.02);
+}
+
+.journey-energy-icon svg {
+    width:40px;
+    height:40px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.8;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+}
+
+.journey-mission-train .journey-energy-icon {color:var(--e4-cyan);border-color:rgba(18,220,255,.4);}
+.journey-mission-fuel .journey-energy-icon {color:var(--e4-green);border-color:rgba(156,255,53,.4);}
+.journey-mission-coach .journey-energy-icon {color:#cbb2ff;border-color:rgba(166,124,255,.4);}
+
+/* live data deck */
+body.journey-dashboard .journey-mission-card .dash-pa-stack {
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-rows:1fr!important;
+    gap:.72rem!important;
+    padding:.85rem!important;
+}
+
+body.journey-dashboard .journey-mission-card .dash-pa-card {
+    position:relative;
+    min-width:0;
+    min-height:255px!important;
+    padding:1rem!important;
+    overflow:hidden;
+    border:1px solid rgba(126,153,177,.19)!important;
+    border-radius:.8rem!important;
+    background:
+        radial-gradient(circle at 88% 8%,rgba(255,255,255,.035),transparent 11rem),
+        linear-gradient(155deg,rgba(11,24,35,.98),rgba(5,13,20,.98))!important;
+}
+
+body.journey-dashboard .journey-mission-card .dash-pa-card::before {
+    content:attr(data-energy-label);
+    position:absolute;
+    right:-.1rem;
+    bottom:-.55rem;
+    color:rgba(255,255,255,.025);
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    font-size:4.8rem;
+    font-style:italic;
+    font-weight:950;
+    line-height:1;
+    letter-spacing:-.05em;
+    pointer-events:none;
+}
+
+body.journey-dashboard .dash-pa-planned {
+    border-top:2px solid var(--e4-blue)!important;
+    border-left:1px solid rgba(126,153,177,.19)!important;
+}
+
+body.journey-dashboard .dash-pa-actual {
+    border-top:2px solid var(--e4-green)!important;
+    border-left:1px solid rgba(126,153,177,.19)!important;
+}
+
+body.journey-dashboard .dash-pa-label {
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif)!important;
+    font-size:.72rem!important;
+    letter-spacing:.17em!important;
+}
+
+body.journey-dashboard .dash-pa-title {
+    max-width:90%;
+    color:#fff!important;
+    font-size:clamp(1.35rem,2.5vw,2rem)!important;
+    font-style:italic;
+    line-height:.98!important;
+    text-transform:uppercase;
+}
+
+body.journey-dashboard .dash-pa-calories strong {
+    color:#fff!important;
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    font-size:clamp(2.35rem,4vw,3.4rem)!important;
+    font-style:italic;
+}
+
+body.journey-dashboard .dash-pa-planned .dash-pa-calories strong {color:#a7d5ff!important;}
+body.journey-dashboard .dash-pa-actual .dash-pa-calories strong {color:#baff91!important;}
+
+body.journey-dashboard .dash-workout-burn-grid > div {
+    border:1px solid rgba(109,150,183,.16)!important;
+    background:rgba(1,8,13,.5)!important;
+}
+
+body.journey-dashboard .dash-workout-burn-grid strong,
+body.journey-dashboard .dash-pa-macro-legend strong {
+    color:#fff!important;
+    font-size:1.08rem!important;
+}
+
+body.journey-dashboard .dash-pa-macro-track {
+    height:14px!important;
+    border-color:#25465e!important;
+    background:#020a10!important;
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.5),0 0 18px rgba(18,220,255,.05)!important;
+}
+
+body.journey-dashboard .dash-pa-recommendation {
+    border:1px solid rgba(18,220,255,.18)!important;
+    background:linear-gradient(135deg,rgba(10,76,116,.26),rgba(3,15,23,.6))!important;
+}
+
+body.journey-dashboard .dash-pa-recommendation.review {
+    border-color:rgba(255,200,87,.28)!important;
+    background:linear-gradient(135deg,rgba(126,78,14,.26),rgba(25,14,3,.55))!important;
+}
+
+body.journey-dashboard .dash-pa-empty {
+    border-color:rgba(116,159,191,.24)!important;
+    background:rgba(3,12,18,.5)!important;
+}
+
+/* Coach: less admin card, more visual guidance strip */
+body.journey-dashboard .journey-mission-coach {
+    padding-bottom:.8rem!important;
+    grid-template-columns:minmax(0,1.3fr) minmax(290px,.7fr)!important;
+    column-gap:1rem!important;
+}
+
+body.journey-dashboard .journey-mission-coach > .journey-energy-cap {
+    grid-column:1/-1;
+}
+
+body.journey-dashboard .journey-mission-coach > h2,
+body.journey-dashboard .journey-mission-coach > .dash-coach-copy,
+body.journey-dashboard .journey-mission-coach > .dash-coach-brief-launch,
+body.journey-dashboard .journey-mission-coach > .dash-coach-factors,
+body.journey-dashboard .journey-mission-coach > .dash-why,
+body.journey-dashboard .journey-mission-coach > .guided-demo-callout {
+    margin-left:1rem!important;
+}
+
+body.journey-dashboard .journey-mission-coach > h2 {
+    margin-top:.95rem!important;
+    font-size:clamp(1.55rem,2.5vw,2.2rem)!important;
+    font-style:italic;
+    text-transform:uppercase;
+}
+
+body.journey-dashboard .journey-mission-coach > .dash-coach-copy {
+    color:#d9e3ec!important;
+    font-size:1rem!important;
+    line-height:1.45!important;
+}
+
+body.journey-dashboard .journey-mission-coach > .dash-coach-guide-card {
+    margin:.9rem .9rem .1rem 0!important;
+    min-height:175px!important;
+    border:1px solid rgba(166,124,255,.3)!important;
+    background:
+        radial-gradient(circle at 78% 12%,rgba(166,124,255,.13),transparent 16rem),
+        linear-gradient(145deg,rgba(18,17,33,.98),rgba(7,10,17,.98))!important;
+}
+
+body.journey-dashboard .dash-coach-guide-card__portrait {
+    width:96px!important;
+    height:96px!important;
+    box-shadow:0 0 0 3px rgba(166,124,255,.18),0 16px 28px rgba(0,0,0,.35)!important;
+}
+
+body.journey-dashboard .dash-coach-factors span {
+    border:1px solid rgba(166,124,255,.19)!important;
+    background:rgba(8,8,18,.55)!important;
+}
+
+/* ---------------------------------------------------------------------
+   Momentum strip — brief, image-led, not another hero
+   --------------------------------------------------------------------- */
+body.journey-dashboard .journey-momentum-banner {
+    min-height:150px!important;
+    grid-template-columns:minmax(250px,.58fr) minmax(0,1.42fr)!important;
+    border-color:#18516a!important;
+    border-radius:1rem!important;
+    box-shadow:0 18px 40px rgba(0,0,0,.28),0 0 26px rgba(18,220,255,.035)!important;
+}
+
+body.journey-dashboard .journey-momentum-art {
+    min-height:150px!important;
+}
+
+body.journey-dashboard .journey-momentum-art img {
+    filter:saturate(1.18) contrast(1.08) brightness(.8)!important;
+}
+
+body.journey-dashboard .journey-momentum-copy {
+    padding:1rem 1.35rem!important;
+}
+
+body.journey-dashboard .journey-momentum-copy > strong {
+    font-size:clamp(1.7rem,3.2vw,3.1rem)!important;
+    font-style:italic;
+    line-height:.86!important;
+}
+
+body.journey-dashboard .journey-momentum-copy > p {
+    margin:.45rem 0 0!important;
+}
+
+/* ---------------------------------------------------------------------
+   Tomorrow — three visual tiles like the approved sample
+   --------------------------------------------------------------------- */
+body.journey-dashboard .journey-tomorrow-section {
+    padding:1rem!important;
+    border:1px solid #173d55!important;
+    border-radius:1rem!important;
+    background:
+        radial-gradient(circle at 92% 0%,rgba(18,220,255,.055),transparent 22rem),
+        linear-gradient(180deg,rgba(6,14,21,.96),rgba(3,8,12,.96))!important;
+}
+
+body.journey-dashboard .dash-tomorrow-heading {
+    margin-bottom:.8rem!important;
+}
+
+body.journey-dashboard .dash-tomorrow-repeat-grid {
+    gap:.75rem!important;
+}
+
+body.journey-dashboard .dash-tomorrow-panel {
+    min-height:230px;
+    padding:0!important;
+    border-radius:.8rem!important;
+}
+
+.journey-tile-cap {
+    position:relative;
+    min-height:74px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:1rem;
+    padding:.7rem .85rem;
+    overflow:hidden;
+    border-bottom:1px solid rgba(144,170,193,.14);
+    background:linear-gradient(135deg,rgba(7,22,33,.95),rgba(4,10,15,.95));
+}
+
+.journey-tile-cap::after {
+    content:"";
+    position:absolute;
+    inset:auto -8% -50% auto;
+    width:160px;
+    height:120px;
+    border-radius:50%;
+    background:radial-gradient(circle,rgba(18,220,255,.11),transparent 66%);
+}
+
+.journey-tile-cap strong,
+.journey-tile-cap small {
+    position:relative;
+    z-index:2;
+    display:block;
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    text-transform:uppercase;
+}
+
+.journey-tile-cap strong {
+    color:#fff;
+    font-size:1.55rem;
+    font-style:italic;
+    line-height:1;
+}
+
+.journey-tile-cap small {
+    color:#9bb1c4;
+    font-size:.6rem;
+    font-weight:900;
+    letter-spacing:.15em;
+}
+
+body.journey-dashboard .dash-tomorrow-panel > *:not(.journey-tile-cap) {
+    margin-left:.85rem!important;
+    margin-right:.85rem!important;
+}
+
+body.journey-dashboard .dash-tomorrow-panel > .dash-panel-label {
+    display:none!important;
+}
+
+body.journey-dashboard .dash-tomorrow-panel > h2 {
+    margin-top:.85rem!important;
+    color:#fff!important;
+    font-size:1.45rem!important;
+    font-style:italic;
+}
+
+body.journey-dashboard .dash-tomorrow-panel:nth-child(1) .journey-tile-cap {box-shadow:inset 0 3px 0 var(--e4-cyan);}
+body.journey-dashboard .dash-tomorrow-panel:nth-child(2) .journey-tile-cap {box-shadow:inset 0 3px 0 var(--e4-green);}
+body.journey-dashboard .dash-tomorrow-panel:nth-child(3) .journey-tile-cap {box-shadow:inset 0 3px 0 var(--e4-purple);}
+
+/* ---------------------------------------------------------------------
+   Analysis — intelligence, not spreadsheet
+   --------------------------------------------------------------------- */
+body.journey-dashboard .journey-analysis-section {
+    position:relative;
+    padding:1rem!important;
+    border:1px solid #173e54!important;
+    border-radius:1rem!important;
+    background:
+        radial-gradient(circle at 50% -10%,rgba(18,220,255,.065),transparent 28rem),
+        linear-gradient(180deg,#07111a,#04090e)!important;
+}
+
+.journey-intel-cap {
+    display:flex;
+    align-items:end;
+    justify-content:space-between;
+    gap:1rem;
+    margin:0 0 .9rem;
+    padding-bottom:.72rem;
+    border-bottom:1px solid rgba(102,147,180,.18);
+}
+
+.journey-intel-cap small,
+.journey-intel-cap strong {
+    display:block;
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    text-transform:uppercase;
+}
+
+.journey-intel-cap small {
+    color:var(--e4-cyan);
+    font-size:.64rem;
+    font-weight:900;
+    letter-spacing:.18em;
+}
+
+.journey-intel-cap strong {
+    margin-top:.15rem;
+    color:#fff;
+    font-size:clamp(1.8rem,3vw,2.8rem);
+    font-style:italic;
+    line-height:.9;
+}
+
+.journey-intel-cap span {
+    color:#9eb2c3;
+    font-size:.76rem;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+}
+
+body.journey-dashboard .journey-analysis-section > .dash-section-heading {
+    display:none!important;
+}
+
+body.journey-dashboard .dash-analysis-grid {
+    gap:.8rem!important;
+}
+
+body.journey-dashboard .dash-analysis-card {
+    border-color:rgba(51,92,120,.72)!important;
+    background:
+        radial-gradient(circle at 95% 0%,rgba(18,220,255,.045),transparent 14rem),
+        linear-gradient(150deg,rgba(10,23,34,.98),rgba(4,11,17,.98))!important;
+}
+
+body.journey-dashboard .dash-analysis-card-head h3 {
+    color:#fff!important;
+    font-style:italic;
+    text-transform:uppercase;
+}
+
+body.journey-dashboard .dash-analysis-signal {
+    border-color:rgba(116,151,176,.14)!important;
+    background:rgba(2,10,15,.45)!important;
+}
+
+body.journey-dashboard .dash-analysis-dot.green {box-shadow:0 0 12px rgba(156,255,53,.45);}
+body.journey-dashboard .dash-analysis-dot.yellow {box-shadow:0 0 12px rgba(255,200,87,.38);}
+body.journey-dashboard .dash-analysis-dot.red {box-shadow:0 0 12px rgba(255,82,82,.38);}
+
+/* keep copy available but let the numbers and labels dominate */
+body.journey-dashboard .dash-pa-note,
+body.journey-dashboard .dash-description,
+body.journey-dashboard .dash-analysis-signal > div > span,
+body.journey-dashboard .dash-analysis-narrative p {
+    color:#91a5b7!important;
+}
+
+body.journey-dashboard .dash-analysis-signal > b {
+    color:#fff!important;
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    font-size:1rem!important;
+}
+
+/* responsive */
+@media (max-width:1180px) {
+    body.journey-dashboard .journey-mission-card .dash-pa-stack {
+        grid-template-columns:1fr!important;
+    }
+
+    body.journey-dashboard .journey-mission-card .dash-pa-card {
+        min-height:0!important;
+    }
+}
+
+@media (max-width:960px) {
+    body.journey-dashboard .journey-dashboard-date {
+        grid-template-columns:1fr minmax(250px,.7fr)!important;
+    }
+
+    body.journey-dashboard .journey-mission-grid > .dash-workout,
+    body.journey-dashboard .journey-mission-grid > .dash-nutrition {
+        grid-column:1/-1!important;
+    }
+
+    body.journey-dashboard .journey-mission-coach {
+        grid-template-columns:1fr!important;
+    }
+
+    body.journey-dashboard .journey-mission-coach > .dash-coach-guide-card {
+        grid-column:1!important;
+        grid-row:auto!important;
+        margin:.8rem 1rem!important;
+    }
+}
+
+@media (max-width:720px) {
+    body.journey-dashboard .journey-dashboard-date {
+        grid-template-columns:1fr!important;
+    }
+
+    body.journey-dashboard .journey-integrated-brand {
+        min-height:185px!important;
+        order:-1;
+    }
+
+    body.journey-dashboard .journey-integrated-pills {
+        left:1rem!important;
+        right:1rem;
+        bottom:.7rem!important;
+        max-width:none!important;
+    }
+
+    .journey-energy-cap {
+        min-height:98px;
+        grid-template-columns:1fr 62px;
+        padding:.85rem .95rem;
+    }
+
+    .journey-energy-icon {
+        width:56px;
+        height:56px;
+    }
+
+    .journey-energy-icon svg {
+        width:32px;
+        height:32px;
+    }
+
+    .journey-energy-copy strong {
+        font-size:2.35rem;
+    }
+
+    body.journey-dashboard .journey-momentum-banner {
+        grid-template-columns:1fr!important;
+    }
+
+    body.journey-dashboard .journey-momentum-art {
+        min-height:120px!important;
+    }
+}
+
+@media (max-width:460px) {
+    body.journey-dashboard .journey-dashboard-date h1 {
+        font-size:2.2rem!important;
+    }
+
+    body.journey-dashboard .journey-integrated-brand-copy strong {
+        font-size:1.5rem!important;
+    }
+
+    .journey-energy-copy strong {
+        font-size:2rem;
+    }
+
+    body.journey-dashboard .journey-mission-card .dash-pa-stack {
+        padding:.65rem!important;
+    }
+
+    body.journey-dashboard .dash-workout-burn-grid {
+        grid-template-columns:1fr!important;
+    }
+
+    .journey-intel-cap {
+        align-items:flex-start;
+        flex-direction:column;
+    }
+}
+
+@media (prefers-reduced-motion:reduce) {
+    body.journey-dashboard *,
+    body.journey-dashboard *::before,
+    body.journey-dashboard *::after {
+        scroll-behavior:auto!important;
+        transition:none!important;
+        animation:none!important;
+    }
+}
