@@ -54,6 +54,21 @@
         document.head.appendChild(pass4Script);
     }
 
+    if (!document.querySelector('link[data-12wr-journey-pass5="v1012"]')) {
+        const pass5Style = document.createElement("link");
+        pass5Style.rel = "stylesheet";
+        pass5Style.href = "/css/journey-v1012-pass5.css";
+        pass5Style.dataset["12wrJourneyPass5"] = "v1012";
+        document.head.appendChild(pass5Style);
+    }
+
+    if (!document.querySelector('script[data-12wr-journey-pass5="v1012"]')) {
+        const pass5Script = document.createElement("script");
+        pass5Script.src = "/js/journey-v1012-pass5.js";
+        pass5Script.dataset["12wrJourneyPass5"] = "v1012";
+        document.head.appendChild(pass5Script);
+    }
+
     const makeDashboardHero = () => {
         if (!path.startsWith("/dashboard")) {
             return;
