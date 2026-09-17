@@ -1,6 +1,16 @@
 (() => {
     "use strict";
 
+    const designSystemHref = "/css/design-system-v1012.css";
+
+    if (!document.querySelector('link[data-12wr-design-system="v1012"]')) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = designSystemHref;
+        link.dataset["12wrDesignSystem"] = "v1012";
+        document.head.appendChild(link);
+    }
+
     const body = document.body;
 
     if (!body || !body.classList.contains("test-live-preview")) {
