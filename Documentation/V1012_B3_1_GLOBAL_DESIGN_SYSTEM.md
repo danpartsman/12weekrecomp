@@ -80,6 +80,10 @@ Public and onboarding pages are not deliberately converted in B3.1; their redesi
 
 B3.1 must remain visual-only. Any later phase that requires markup restructuring should preserve existing form names, inputs, action URLs, POST boundaries, antiforgery tokens, model binding, validation hooks, IDs/classes used by JavaScript, and Engine/data integration unless a separate functional change is explicitly approved.
 
+## TEST deployment checkpoint
+
+B3.1 was fast-forwarded from `design/b3-1-global-system` into `test`. This documentation-only follow-up commit exists to trigger the normal TEST build/test/deploy workflow so the design foundation is validated through the same deployment path as other TEST changes.
+
 ## Next phase
 
 B3.2: public experience redesign, followed by B3.3 dashboard/daily application surfaces.
