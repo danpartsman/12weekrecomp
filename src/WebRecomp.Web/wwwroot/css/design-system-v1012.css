@@ -1,0 +1,778 @@
+/*
+========================================================================
+12WR TEST v1012 — B3.1 GLOBAL DESIGN SYSTEM
+========================================================================
+Foundation layer for the v1012 redesign.
+
+This stylesheet is intentionally additive and loads after existing TEST styles.
+It changes presentation only. No controller actions, Razor bindings, Engine 3.0
+logic, SQL behavior, authorization, validation, or antiforgery behavior is
+changed here.
+
+Public/onboarding redesign remains a later phase. The active application shell
+uses body.test-live-preview as the staging scope while reusable ds-* component
+classes are introduced for later page-by-page conversion.
+========================================================================
+*/
+
+:root {
+    --ds-bg-950: #05070a;
+    --ds-bg-925: #070a0f;
+    --ds-bg-900: #090d13;
+    --ds-surface-1: #0d131b;
+    --ds-surface-2: #121a25;
+    --ds-surface-3: #182331;
+    --ds-surface-4: #1d2a3b;
+    --ds-border: #253344;
+    --ds-border-strong: #354b63;
+    --ds-text: #f4f7fb;
+    --ds-text-soft: #d6e0eb;
+    --ds-muted: #9cadbf;
+    --ds-muted-2: #74869a;
+
+    --ds-green: #a6ff4d;
+    --ds-green-strong: #86ef2d;
+    --ds-green-soft: #d5ffad;
+    --ds-cyan: #4fd8ff;
+    --ds-cyan-soft: #9aeaff;
+    --ds-blue: #658fff;
+    --ds-purple: #b17cff;
+    --ds-magenta: #ef76ff;
+    --ds-amber: #ffc857;
+    --ds-red: #ff6373;
+
+    --ds-shadow-sm: 0 8px 22px rgba(0, 0, 0, .18);
+    --ds-shadow-md: 0 18px 46px rgba(0, 0, 0, .28);
+    --ds-shadow-glow-green: 0 0 0 1px rgba(166, 255, 77, .08), 0 14px 38px rgba(94, 184, 38, .10);
+    --ds-shadow-glow-cyan: 0 0 0 1px rgba(79, 216, 255, .08), 0 14px 38px rgba(44, 153, 190, .10);
+
+    --ds-radius-sm: .55rem;
+    --ds-radius-md: .8rem;
+    --ds-radius-lg: 1rem;
+    --ds-radius-xl: 1.25rem;
+    --ds-radius-pill: 999px;
+
+    --ds-space-1: .25rem;
+    --ds-space-2: .5rem;
+    --ds-space-3: .75rem;
+    --ds-space-4: 1rem;
+    --ds-space-5: 1.25rem;
+    --ds-space-6: 1.5rem;
+    --ds-space-8: 2rem;
+    --ds-space-10: 2.5rem;
+    --ds-space-12: 3rem;
+
+    --ds-font-sans: "Segoe UI Variable", "Segoe UI", Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --ds-font-display: "Bahnschrift Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+}
+
+/* ---------------------------------------------------------------------
+   APP SHELL / TOKEN BRIDGE
+   --------------------------------------------------------------------- */
+
+body.test-live-preview {
+    --ink: var(--ds-text);
+    --muted: var(--ds-muted);
+    --line: var(--ds-border);
+    --blue: var(--ds-cyan);
+    --navy: var(--ds-bg-950);
+    --teal: var(--ds-cyan);
+    --green: var(--ds-green);
+    --amber: var(--ds-amber);
+    --red: var(--ds-red);
+    --surface: var(--ds-surface-1);
+    --background: var(--ds-bg-950);
+
+    --live-bg: var(--ds-bg-950);
+    --live-bg-deep: #030508;
+    --live-panel: var(--ds-surface-1);
+    --live-panel-raised: var(--ds-surface-2);
+    --live-panel-soft: var(--ds-surface-3);
+    --live-border: var(--ds-border);
+    --live-border-bright: var(--ds-border-strong);
+    --live-text: var(--ds-text);
+    --live-muted: var(--ds-muted);
+    --live-blue: var(--ds-cyan);
+    --live-blue-soft: var(--ds-cyan-soft);
+    --live-green: var(--ds-green);
+    --live-green-soft: var(--ds-green-soft);
+    --live-amber: var(--ds-amber);
+    --live-red: var(--ds-red);
+    --live-shadow: var(--ds-shadow-md);
+
+    min-height: 100vh;
+    font-family: var(--ds-font-sans);
+    color: var(--ds-text);
+    background:
+        radial-gradient(circle at 82% -8%, rgba(79, 216, 255, .08), transparent 31rem),
+        radial-gradient(circle at 12% 12%, rgba(166, 255, 77, .045), transparent 28rem),
+        linear-gradient(180deg, var(--ds-bg-925), var(--ds-bg-950) 32rem);
+}
+
+body.test-live-preview .container {
+    width: min(100%, 1440px);
+    max-width: 1440px;
+    margin-inline: auto;
+    padding: clamp(1rem, 2vw, 1.75rem) clamp(1rem, 2.2vw, 2rem) 4rem;
+}
+
+/* ---------------------------------------------------------------------
+   TYPOGRAPHY
+   --------------------------------------------------------------------- */
+
+body.test-live-preview h1,
+body.test-live-preview h2,
+body.test-live-preview h3,
+body.test-live-preview h4 {
+    color: var(--ds-text);
+    text-wrap: balance;
+}
+
+body.test-live-preview h1 {
+    font-family: var(--ds-font-display);
+    font-size: clamp(2rem, 4vw, 3.15rem);
+    font-weight: 800;
+    line-height: .98;
+    letter-spacing: .012em;
+}
+
+body.test-live-preview h2 {
+    font-size: clamp(1.3rem, 2vw, 1.75rem);
+    line-height: 1.14;
+}
+
+body.test-live-preview h3 {
+    font-size: 1.05rem;
+    line-height: 1.25;
+}
+
+body.test-live-preview p,
+body.test-live-preview li,
+body.test-live-preview td,
+body.test-live-preview dd {
+    line-height: 1.55;
+}
+
+body.test-live-preview .lede,
+body.test-live-preview .muted,
+body.test-live-preview .small,
+body.test-live-preview .hint,
+body.test-live-preview .help-text,
+body.test-live-preview .dash-small-line,
+body.test-live-preview .dash-focus {
+    color: var(--ds-muted);
+}
+
+body.test-live-preview .eyebrow,
+body.test-live-preview .app-kicker,
+body.test-live-preview .app-section-label,
+body.test-live-preview .dash-panel-label,
+.ds-kicker {
+    font-family: var(--ds-font-display);
+    color: var(--ds-cyan-soft);
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------------------
+   TOPBAR / NAVIGATION
+   --------------------------------------------------------------------- */
+
+body.test-live-preview .topbar,
+body.test-live-preview.app-shell .topbar {
+    min-height: 74px;
+    padding: .75rem clamp(1rem, 2vw, 2rem);
+    gap: 1rem;
+    background: rgba(5, 7, 10, .96);
+    border-bottom: 1px solid var(--ds-border);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, .24);
+    backdrop-filter: blur(14px);
+}
+
+body.test-live-preview .brand-logo {
+    width: auto;
+    max-width: min(230px, 36vw);
+    max-height: 48px;
+}
+
+body.test-live-preview .app-quick-nav {
+    align-items: center;
+    gap: .25rem;
+}
+
+body.test-live-preview .app-quick-nav a,
+body.test-live-preview .public-nav a {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    padding: .56rem .8rem;
+    border: 1px solid transparent;
+    border-radius: var(--ds-radius-pill);
+    color: var(--ds-text-soft);
+    font-size: .9rem;
+    font-weight: 750;
+    transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
+}
+
+body.test-live-preview .app-quick-nav a:hover,
+body.test-live-preview .app-quick-nav a:focus-visible,
+body.test-live-preview .public-nav a:hover,
+body.test-live-preview .public-nav a:focus-visible {
+    color: var(--ds-text);
+    background: var(--ds-surface-3);
+    border-color: var(--ds-border-strong);
+    transform: translateY(-1px);
+}
+
+body.test-live-preview .app-quick-nav .quick-nav-dashboard {
+    color: var(--ds-green-soft);
+}
+
+body.test-live-preview .nav-toggle,
+body.test-live-preview.app-shell .nav-toggle {
+    width: 46px;
+    min-width: 46px;
+    height: 44px;
+    border: 1px solid var(--ds-border-strong);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-surface-2);
+}
+
+body.test-live-preview .app-nav,
+body.test-live-preview.app-shell .app-nav.app-menu {
+    background: rgba(9, 13, 19, .985);
+    border: 1px solid var(--ds-border-strong);
+    border-radius: var(--ds-radius-lg);
+    box-shadow: var(--ds-shadow-md);
+}
+
+body.test-live-preview .app-nav a {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    border-radius: var(--ds-radius-sm);
+    color: var(--ds-text-soft);
+}
+
+body.test-live-preview .app-nav a:hover,
+body.test-live-preview .app-nav a:focus-visible {
+    color: var(--ds-green-soft);
+    background: var(--ds-surface-3);
+}
+
+/* ---------------------------------------------------------------------
+   PAGE HERO / HEADERS
+   --------------------------------------------------------------------- */
+
+body.test-live-preview .app-page-head,
+body.test-live-preview .page-head,
+.ds-page-hero {
+    position: relative;
+    overflow: hidden;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: clamp(1.15rem, 2.2vw, 1.65rem);
+    border: 1px solid var(--ds-border);
+    border-radius: var(--ds-radius-xl);
+    background:
+        linear-gradient(135deg, rgba(24, 35, 49, .98), rgba(10, 15, 22, .98));
+    box-shadow: var(--ds-shadow-md);
+}
+
+body.test-live-preview .app-page-head::before,
+body.test-live-preview .page-head::before,
+.ds-page-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: linear-gradient(180deg, var(--ds-green), var(--ds-cyan));
+}
+
+body.test-live-preview .app-page-head::after,
+body.test-live-preview .page-head::after,
+.ds-page-hero::after {
+    width: 22rem;
+    height: 22rem;
+    top: -15rem;
+    right: -7rem;
+    background: radial-gradient(circle, rgba(79, 216, 255, .12), rgba(166, 255, 77, .05) 38%, transparent 70%);
+}
+
+/* ---------------------------------------------------------------------
+   SURFACES / CARDS
+   --------------------------------------------------------------------- */
+
+body.test-live-preview .card,
+body.test-live-preview .kpi,
+body.test-live-preview .recommendation,
+body.test-live-preview .dash-panel,
+body.test-live-preview .dash-section,
+body.test-live-preview .dash-fuel-card,
+body.test-live-preview .dash-coach-card,
+body.test-live-preview .dash-analysis-card,
+body.test-live-preview .dash-marisol-card,
+body.test-live-preview .dash-coach-guide-card,
+body.test-live-preview .onboarding-section,
+body.test-live-preview .setup-intro-card,
+body.test-live-preview .weekly-plan-guide,
+body.test-live-preview .resistance-anchor-panel,
+body.test-live-preview .recommended-day,
+body.test-live-preview .recommended-week-review,
+body.test-live-preview .profile-note,
+body.test-live-preview .profile-metric-grid > div,
+body.test-live-preview .progress-range,
+body.test-live-preview .progress-chart-placeholder,
+.ds-card,
+.ds-metric-card,
+.ds-chart-panel {
+    border: 1px solid var(--ds-border);
+    border-radius: var(--ds-radius-lg);
+    background:
+        linear-gradient(145deg, rgba(18, 26, 37, .98), rgba(13, 19, 27, .98));
+    color: var(--ds-text);
+    box-shadow: var(--ds-shadow-sm);
+}
+
+body.test-live-preview .card:hover,
+body.test-live-preview .kpi:hover,
+body.test-live-preview .dash-panel:hover,
+.ds-card:hover,
+.ds-metric-card:hover {
+    border-color: var(--ds-border-strong);
+}
+
+.ds-metric-card {
+    padding: 1rem;
+    min-width: 0;
+}
+
+.ds-metric-card__label {
+    color: var(--ds-muted);
+    font-size: .78rem;
+    font-weight: 750;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.ds-metric-card__value {
+    margin-top: .2rem;
+    color: var(--ds-text);
+    font-size: clamp(1.65rem, 3vw, 2.35rem);
+    font-weight: 850;
+    line-height: 1;
+}
+
+.ds-metric-card--training { box-shadow: var(--ds-shadow-glow-cyan); }
+.ds-metric-card--success { box-shadow: var(--ds-shadow-glow-green); }
+
+/* ---------------------------------------------------------------------
+   BUTTONS / ACTIONS
+   --------------------------------------------------------------------- */
+
+body.test-live-preview .primary,
+body.test-live-preview a.primary,
+body.test-live-preview button.primary,
+body.test-live-preview .admin-primary-button,
+body.test-live-preview .learn12wr-primary-button,
+.ds-button-primary {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .45rem;
+    padding: .68rem 1rem;
+    border: 1px solid rgba(166, 255, 77, .58);
+    border-radius: var(--ds-radius-md);
+    background: linear-gradient(180deg, var(--ds-green), var(--ds-green-strong));
+    color: #071006 !important;
+    font-weight: 900;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 10px 28px rgba(94, 184, 38, .16);
+    transition: transform .14s ease, filter .14s ease, box-shadow .14s ease;
+}
+
+body.test-live-preview .primary:hover,
+body.test-live-preview a.primary:hover,
+body.test-live-preview button.primary:hover,
+body.test-live-preview .admin-primary-button:hover,
+body.test-live-preview .learn12wr-primary-button:hover,
+.ds-button-primary:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.035);
+    box-shadow: 0 14px 34px rgba(94, 184, 38, .22);
+}
+
+body.test-live-preview .button,
+body.test-live-preview a.button,
+body.test-live-preview button.button,
+body.test-live-preview .admin-secondary-button,
+body.test-live-preview .learn12wr-secondary-button,
+body.test-live-preview .copy-week-button,
+body.test-live-preview .dash-coach-brief-button,
+.ds-button-secondary {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .45rem;
+    padding: .66rem .95rem;
+    border: 1px solid var(--ds-border-strong);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-surface-2);
+    color: var(--ds-text) !important;
+    font-weight: 800;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+
+body.test-live-preview .button:hover,
+body.test-live-preview a.button:hover,
+body.test-live-preview button.button:hover,
+body.test-live-preview .admin-secondary-button:hover,
+body.test-live-preview .learn12wr-secondary-button:hover,
+.ds-button-secondary:hover {
+    border-color: rgba(79, 216, 255, .62);
+    background: var(--ds-surface-3);
+    color: var(--ds-cyan-soft) !important;
+}
+
+body.test-live-preview .workout-delete-button,
+body.test-live-preview .admin-code-action-danger,
+.ds-button-danger {
+    min-height: 44px;
+    border: 1px solid rgba(255, 99, 115, .54);
+    border-radius: var(--ds-radius-md);
+    background: rgba(112, 24, 35, .24);
+    color: #ffb8c0;
+    font-weight: 850;
+}
+
+/* ---------------------------------------------------------------------
+   FORMS
+   --------------------------------------------------------------------- */
+
+body.test-live-preview input,
+body.test-live-preview select,
+body.test-live-preview textarea,
+html[data-theme="light"] body.test-live-preview input,
+html[data-theme="light"] body.test-live-preview select,
+html[data-theme="light"] body.test-live-preview textarea,
+html[data-theme="dark"] body.test-live-preview input,
+html[data-theme="dark"] body.test-live-preview select,
+html[data-theme="dark"] body.test-live-preview textarea,
+.ds-field {
+    min-height: 44px;
+    border: 1px solid var(--ds-border-strong);
+    border-radius: var(--ds-radius-md);
+    background: #0a0f16;
+    color: var(--ds-text);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025);
+}
+
+body.test-live-preview textarea {
+    min-height: 7rem;
+}
+
+body.test-live-preview input::placeholder,
+body.test-live-preview textarea::placeholder {
+    color: var(--ds-muted-2);
+}
+
+body.test-live-preview input:focus,
+body.test-live-preview select:focus,
+body.test-live-preview textarea:focus,
+.ds-field:focus {
+    outline: none;
+    border-color: var(--ds-cyan);
+    box-shadow: 0 0 0 3px rgba(79, 216, 255, .13);
+}
+
+body.test-live-preview label,
+.ds-field-label {
+    color: var(--ds-text-soft);
+    font-weight: 700;
+}
+
+body.test-live-preview .validation,
+body.test-live-preview .field-validation-error,
+body.test-live-preview .validation-summary-errors {
+    color: #ff9aa5;
+}
+
+/* ---------------------------------------------------------------------
+   TABLES
+   --------------------------------------------------------------------- */
+
+body.test-live-preview table,
+.ds-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--ds-text);
+}
+
+body.test-live-preview th,
+.ds-table th {
+    color: var(--ds-text-soft);
+    background: #121b27;
+    border-color: var(--ds-border);
+    font-size: .78rem;
+    font-weight: 850;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+
+body.test-live-preview td,
+.ds-table td {
+    color: var(--ds-text-soft);
+    background: #0d141d;
+    border-color: var(--ds-border);
+}
+
+body.test-live-preview tbody tr:nth-child(even) td,
+.ds-table tbody tr:nth-child(even) td {
+    background: #101822;
+}
+
+body.test-live-preview tbody tr:hover td,
+.ds-table tbody tr:hover td {
+    background: #162130;
+}
+
+/* ---------------------------------------------------------------------
+   STATUS / CHIPS
+   --------------------------------------------------------------------- */
+
+body.test-live-preview .pill,
+body.test-live-preview .app-status,
+body.test-live-preview .dash-status,
+.ds-status-chip,
+.ds-filter-chip {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .3rem .62rem;
+    border: 1px solid var(--ds-border-strong);
+    border-radius: var(--ds-radius-pill);
+    background: var(--ds-surface-2);
+    color: var(--ds-text-soft);
+    font-size: .78rem;
+    font-weight: 800;
+}
+
+body.test-live-preview .pill.good,
+body.test-live-preview .app-status.good,
+body.test-live-preview .dash-status.good,
+.ds-status-chip--good {
+    color: var(--ds-green-soft);
+    background: rgba(72, 125, 35, .20);
+    border-color: rgba(166, 255, 77, .36);
+}
+
+body.test-live-preview .pill.warn,
+body.test-live-preview .app-status.review,
+body.test-live-preview .dash-status.warning,
+.ds-status-chip--warning {
+    color: #ffe1a1;
+    background: rgba(130, 88, 20, .22);
+    border-color: rgba(255, 200, 87, .38);
+}
+
+body.test-live-preview .dash-status.danger,
+.ds-status-chip--danger {
+    color: #ffb8c0;
+    background: rgba(112, 24, 35, .22);
+    border-color: rgba(255, 99, 115, .40);
+}
+
+.ds-filter-chip[aria-pressed="true"],
+.ds-filter-chip.is-active {
+    color: #061006;
+    background: var(--ds-green);
+    border-color: var(--ds-green);
+}
+
+/* ---------------------------------------------------------------------
+   REUSABLE V1012 COMPONENT PRIMITIVES
+   --------------------------------------------------------------------- */
+
+.ds-section-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.ds-section-heading h2,
+.ds-section-heading h3 {
+    margin: 0;
+}
+
+.ds-chart-panel {
+    min-height: 220px;
+    padding: 1rem;
+}
+
+.ds-image-rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(220px, 1fr);
+    gap: .9rem;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline proximity;
+    padding-bottom: .35rem;
+}
+
+.ds-image-rail > * {
+    scroll-snap-align: start;
+}
+
+.ds-sticky-mobile-action {
+    display: none;
+}
+
+/* ---------------------------------------------------------------------
+   LINKS / FOCUS / MOTION
+   --------------------------------------------------------------------- */
+
+body.test-live-preview main a:not(.button):not(.primary) {
+    color: var(--ds-cyan-soft);
+    text-underline-offset: .17em;
+}
+
+body.test-live-preview main a:not(.button):not(.primary):hover {
+    color: var(--ds-green-soft);
+}
+
+body.test-live-preview :focus-visible {
+    outline: 2px solid var(--ds-cyan);
+    outline-offset: 3px;
+}
+
+body.test-live-preview button:disabled,
+body.test-live-preview input:disabled,
+body.test-live-preview select:disabled,
+body.test-live-preview textarea:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------------
+   RESPONSIVE
+   --------------------------------------------------------------------- */
+
+@media (max-width: 1024px) {
+    body.test-live-preview .container {
+        padding-inline: 1rem;
+    }
+
+    body.test-live-preview .app-quick-nav {
+        gap: .1rem;
+    }
+
+    body.test-live-preview .app-quick-nav a {
+        padding-inline: .62rem;
+        font-size: .84rem;
+    }
+}
+
+@media (max-width: 820px) {
+    body.test-live-preview .topbar,
+    body.test-live-preview.app-shell .topbar {
+        min-height: 64px;
+        padding: .65rem .9rem;
+    }
+
+    body.test-live-preview .brand-logo {
+        max-width: 180px;
+        max-height: 42px;
+    }
+
+    body.test-live-preview .app-quick-nav {
+        display: none;
+    }
+
+    body.test-live-preview .app-page-head,
+    body.test-live-preview .page-head,
+    .ds-page-hero,
+    .ds-section-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    body.test-live-preview input,
+    body.test-live-preview select,
+    body.test-live-preview textarea {
+        font-size: 16px;
+    }
+
+    .ds-sticky-mobile-action {
+        position: sticky;
+        bottom: .75rem;
+        z-index: 20;
+        display: flex;
+        padding: .65rem;
+        border: 1px solid var(--ds-border);
+        border-radius: var(--ds-radius-lg);
+        background: rgba(9, 13, 19, .94);
+        box-shadow: var(--ds-shadow-md);
+        backdrop-filter: blur(12px);
+    }
+
+    .ds-sticky-mobile-action > * {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    body.test-live-preview .container {
+        padding: .8rem .75rem 3.25rem;
+    }
+
+    body.test-live-preview .app-page-head,
+    body.test-live-preview .page-head,
+    .ds-page-hero {
+        padding: 1rem;
+        border-radius: .9rem;
+    }
+
+    body.test-live-preview .card,
+    body.test-live-preview .kpi,
+    body.test-live-preview .dash-panel,
+    body.test-live-preview .dash-section,
+    .ds-card,
+    .ds-metric-card,
+    .ds-chart-panel {
+        border-radius: .85rem;
+    }
+
+    body.test-live-preview .primary,
+    body.test-live-preview a.primary,
+    body.test-live-preview button.primary,
+    body.test-live-preview .button,
+    body.test-live-preview a.button,
+    body.test-live-preview button.button,
+    .ds-button-primary,
+    .ds-button-secondary {
+        min-height: 46px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.test-live-preview *,
+    body.test-live-preview *::before,
+    body.test-live-preview *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
