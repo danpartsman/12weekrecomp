@@ -1,0 +1,570 @@
+/*
+========================================================================
+12WR TEST v1012 — B3.3 DASHBOARD INTEGRATION PASS 3
+========================================================================
+Presentation-only refinement.  The large standalone Dashboard hero is retired
+and the brand / motivation layer is folded into the working dashboard itself.
+No forms, actions, bindings, Engine logic, SQL, auth, or validation are changed.
+========================================================================
+*/
+
+body.journey-dashboard {
+    --p3-bg: #06090d;
+    --p3-surface: #0b1118;
+    --p3-surface-2: #101923;
+    --p3-line: #26384b;
+    --p3-text: #f5f8fb;
+    --p3-muted: #91a4b8;
+    --p3-green: #a6ff4d;
+    --p3-cyan: #42dfff;
+    --p3-blue: #168cff;
+    --p3-purple: #a67cff;
+    --p3-amber: #ffc857;
+}
+
+/* The Dashboard is an app, not a landing page. */
+body.journey-dashboard > .journey-hero,
+body.journey-dashboard > .journey-breakbar,
+body.journey-dashboard .journey-hero,
+body.journey-dashboard .journey-breakbar {
+    display: none !important;
+}
+
+body.journey-dashboard .recomp-dashboard {
+    display: grid;
+    gap: 1.05rem;
+}
+
+/* ---------------------------------------------------------------------
+   Compact integrated identity / date header
+   --------------------------------------------------------------------- */
+body.journey-dashboard .journey-dashboard-date {
+    position: relative;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+    align-items: stretch;
+    min-height: 176px;
+    margin: 0 !important;
+    overflow: hidden;
+    border: 1px solid var(--p3-line);
+    border-radius: 1.25rem;
+    background:
+        radial-gradient(circle at 18% 20%, rgba(22,140,255,.14), transparent 30rem),
+        linear-gradient(125deg, #0a1119 0%, #0b121b 54%, #06090d 100%);
+    box-shadow: 0 20px 48px rgba(0,0,0,.28);
+}
+
+body.journey-dashboard .journey-dashboard-date > div:first-child {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1.35rem 1.55rem;
+}
+
+body.journey-dashboard .journey-dashboard-date .dash-kicker {
+    margin: 0 0 .28rem;
+    color: var(--p3-cyan) !important;
+    font-family: var(--ds-font-display, "Bahnschrift Condensed", sans-serif);
+    font-size: .72rem;
+    font-weight: 950;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+}
+
+body.journey-dashboard .journey-dashboard-date h1 {
+    margin: 0 !important;
+    color: var(--p3-text) !important;
+    font-family: var(--ds-font-display, "Bahnschrift Condensed", sans-serif);
+    font-size: clamp(2rem, 4vw, 3.45rem) !important;
+    line-height: .95 !important;
+    letter-spacing: -.02em;
+}
+
+body.journey-dashboard .journey-dashboard-date .lede {
+    margin: .55rem 0 0 !important;
+    color: #b7c5d3 !important;
+    font-weight: 800;
+}
+
+body.journey-dashboard .journey-dashboard-date > .dash-status {
+    position: absolute;
+    z-index: 5;
+    top: 1rem;
+    left: 1.55rem;
+    transform: translateY(-150%);
+}
+
+.journey-integrated-brand {
+    position: relative;
+    z-index: 2;
+    min-height: 176px;
+    overflow: hidden;
+    background: #020304;
+}
+
+.journey-integrated-brand img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+    opacity: .9;
+    filter: saturate(1.08) contrast(1.06);
+}
+
+.journey-integrated-brand::before {
+    content: "";
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    background:
+        linear-gradient(90deg, #0b121b 0%, rgba(11,18,27,.48) 20%, transparent 56%),
+        linear-gradient(0deg, rgba(4,7,10,.72), transparent 62%);
+}
+
+.journey-integrated-brand-copy {
+    position: absolute;
+    z-index: 3;
+    right: 1rem;
+    bottom: .85rem;
+    left: 1rem;
+    text-align: right;
+}
+
+.journey-integrated-brand-copy small,
+.journey-integrated-brand-copy strong {
+    display: block;
+    font-family: var(--ds-font-display, "Bahnschrift Condensed", sans-serif);
+    text-transform: uppercase;
+}
+
+.journey-integrated-brand-copy small {
+    color: #d7e6f3;
+    font-size: .65rem;
+    font-weight: 900;
+    letter-spacing: .16em;
+}
+
+.journey-integrated-brand-copy strong {
+    margin-top: .08rem;
+    color: #fff;
+    font-size: clamp(1.35rem, 2.35vw, 2.2rem);
+    line-height: .92;
+    letter-spacing: -.01em;
+}
+
+.journey-integrated-brand-copy strong span {
+    color: var(--p3-green);
+}
+
+.journey-integrated-pills {
+    position: absolute;
+    z-index: 4;
+    left: 1.55rem;
+    bottom: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .42rem;
+    max-width: 54%;
+}
+
+.journey-integrated-pills span {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    padding: .28rem .56rem;
+    border: 1px solid #31465b;
+    border-radius: 999px;
+    background: rgba(6,10,15,.72);
+    color: #dce7f1;
+    font-size: .62rem;
+    font-weight: 900;
+    letter-spacing: .075em;
+    text-transform: uppercase;
+    backdrop-filter: blur(7px);
+}
+
+.journey-integrated-pills span:nth-child(1) { color: #a6efff; border-color: rgba(66,223,255,.38); }
+.journey-integrated-pills span:nth-child(2) { color: #d3ffae; border-color: rgba(166,255,77,.38); }
+.journey-integrated-pills span:nth-child(3) { color: #dcc8ff; border-color: rgba(166,124,255,.38); }
+
+/* Pass 2 heading is now redundant; the cards themselves carry the mission. */
+body.journey-dashboard .journey-command-heading {
+    display: none !important;
+}
+
+/* ---------------------------------------------------------------------
+   Core Dashboard modules
+   --------------------------------------------------------------------- */
+body.journey-dashboard .journey-mission-grid,
+body.journey-dashboard .dash-primary-grid:first-of-type {
+    display: grid !important;
+    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+    gap: 1rem !important;
+    align-items: stretch;
+}
+
+body.journey-dashboard .journey-mission-grid > .dash-workout {
+    grid-column: span 6;
+}
+
+body.journey-dashboard .journey-mission-grid > .dash-nutrition {
+    grid-column: span 6;
+}
+
+body.journey-dashboard .journey-mission-grid > .dash-coach {
+    grid-column: 1 / -1;
+}
+
+body.journey-dashboard .journey-mission-card,
+body.journey-dashboard .dash-tomorrow-panel,
+body.journey-dashboard .dash-analysis-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--p3-line) !important;
+    border-radius: 1.15rem !important;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(255,255,255,.035), transparent 18rem),
+        linear-gradient(150deg, #101923 0%, #0a1119 72%) !important;
+    box-shadow:
+        0 16px 34px rgba(0,0,0,.22),
+        inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+
+body.journey-dashboard .journey-mission-card::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    inset: 0;
+    background: linear-gradient(120deg, rgba(255,255,255,.018), transparent 24%, transparent 72%, rgba(255,255,255,.012));
+}
+
+body.journey-dashboard .journey-mission-train {
+    border-top: 3px solid var(--p3-cyan) !important;
+    background:
+        radial-gradient(circle at 92% 4%, rgba(22,140,255,.13), transparent 20rem),
+        linear-gradient(150deg, #101b27, #0a1119 72%) !important;
+}
+
+body.journey-dashboard .journey-mission-fuel {
+    border-top: 3px solid var(--p3-green) !important;
+    background:
+        radial-gradient(circle at 92% 4%, rgba(166,255,77,.09), transparent 20rem),
+        linear-gradient(150deg, #101c1a, #0a1119 72%) !important;
+}
+
+body.journey-dashboard .journey-mission-coach {
+    border-top: 3px solid var(--p3-purple) !important;
+    background:
+        radial-gradient(circle at 92% 4%, rgba(166,124,255,.11), transparent 22rem),
+        linear-gradient(150deg, #151527, #0a1119 72%) !important;
+}
+
+body.journey-dashboard .journey-mission-label {
+    position: relative;
+    z-index: 3;
+    display: flex !important;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: -.15rem 0 .85rem;
+    padding-bottom: .65rem;
+    border-bottom: 1px solid rgba(148,163,184,.13);
+}
+
+body.journey-dashboard .journey-mission-label strong {
+    color: #fff !important;
+    font-family: var(--ds-font-display, "Bahnschrift Condensed", sans-serif);
+    font-size: 1.65rem !important;
+    font-weight: 950 !important;
+    line-height: 1;
+    letter-spacing: .02em;
+}
+
+body.journey-dashboard .journey-mission-label small {
+    color: var(--p3-muted) !important;
+    font-size: .66rem !important;
+    font-weight: 900 !important;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+}
+
+body.journey-dashboard .journey-mission-train .journey-mission-label strong { color: #9eeeff !important; }
+body.journey-dashboard .journey-mission-fuel .journey-mission-label strong { color: #d1ffac !important; }
+body.journey-dashboard .journey-mission-coach .journey-mission-label strong { color: #dac8ff !important; }
+
+/* Old 1/2/3 panel labels are duplicate chrome now. */
+body.journey-dashboard .journey-mission-card > .dash-panel-label {
+    display: none !important;
+}
+
+/* Planned / actual become polished submodules inside TRAIN and FUEL. */
+body.journey-dashboard .journey-mission-card .dash-pa-stack {
+    position: relative;
+    z-index: 2;
+    gap: .72rem !important;
+    grid-template-rows: repeat(2, minmax(0, auto)) !important;
+}
+
+body.journey-dashboard .journey-mission-card .dash-pa-card {
+    min-height: 0 !important;
+    padding: 1rem !important;
+    border: 1px solid rgba(116,140,164,.20) !important;
+    border-radius: .95rem !important;
+    background: rgba(5,12,18,.58) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.022) !important;
+}
+
+body.journey-dashboard .journey-mission-card .dash-pa-planned {
+    border-left: 3px solid var(--p3-blue) !important;
+    border-top: 1px solid rgba(116,140,164,.20) !important;
+}
+
+body.journey-dashboard .journey-mission-card .dash-pa-actual {
+    border-left: 3px solid var(--p3-green) !important;
+    border-top: 1px solid rgba(116,140,164,.20) !important;
+}
+
+body.journey-dashboard .dash-pa-head {
+    margin-bottom: .72rem !important;
+}
+
+body.journey-dashboard .dash-pa-title {
+    font-size: clamp(1.25rem, 2vw, 1.65rem) !important;
+}
+
+body.journey-dashboard .dash-pa-calories strong {
+    font-size: clamp(2rem, 3.4vw, 2.8rem) !important;
+}
+
+body.journey-dashboard .dash-workout-burn-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+}
+
+body.journey-dashboard .dash-workout-burn-grid > div,
+body.journey-dashboard .dash-pa-recommendation,
+body.journey-dashboard .dash-pa-empty {
+    border-radius: .72rem !important;
+}
+
+body.journey-dashboard .dash-pa-recommendation {
+    margin-top: .8rem !important;
+}
+
+body.journey-dashboard .dash-pa-macro-track {
+    height: 13px !important;
+}
+
+/* Coach becomes a wide guidance module instead of a third skinny column. */
+body.journey-dashboard .journey-mission-coach {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+    column-gap: 1.15rem;
+}
+
+body.journey-dashboard .journey-mission-coach > .journey-mission-label {
+    grid-column: 1 / -1;
+}
+
+body.journey-dashboard .journey-mission-coach > h2,
+body.journey-dashboard .journey-mission-coach > .dash-coach-copy,
+body.journey-dashboard .journey-mission-coach > .dash-coach-brief-launch,
+body.journey-dashboard .journey-mission-coach > .dash-coach-factors,
+body.journey-dashboard .journey-mission-coach > .dash-why,
+body.journey-dashboard .journey-mission-coach > .guided-demo-callout {
+    grid-column: 1;
+}
+
+body.journey-dashboard .journey-mission-coach > .dash-coach-guide-card {
+    grid-column: 2;
+    grid-row: 2 / span 5;
+    align-self: stretch;
+    min-height: 170px;
+    margin: 0 !important;
+    border: 1px solid rgba(166,124,255,.30) !important;
+    border-radius: .95rem !important;
+    background: rgba(12,13,24,.62) !important;
+}
+
+body.journey-dashboard .dash-coach-guide-card__portrait {
+    width: 88px !important;
+    height: 88px !important;
+    border-radius: 50% !important;
+    object-fit: cover;
+    box-shadow: 0 0 0 3px rgba(166,124,255,.16), 0 12px 25px rgba(0,0,0,.3);
+}
+
+body.journey-dashboard .journey-mission-coach > h2 {
+    margin: 0 !important;
+    color: #fff !important;
+    font-size: clamp(1.35rem, 2.2vw, 2rem) !important;
+}
+
+body.journey-dashboard .dash-coach-factors {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: .42rem !important;
+}
+
+body.journey-dashboard .dash-coach-factors span {
+    padding: .42rem .62rem !important;
+    border: 1px solid rgba(166,124,255,.18);
+    border-radius: 999px;
+    background: rgba(8,11,18,.55);
+}
+
+/* ---------------------------------------------------------------------
+   Momentum becomes a slim visual seam, not a second hero.
+   --------------------------------------------------------------------- */
+body.journey-dashboard .journey-momentum-banner {
+    min-height: 210px !important;
+    grid-template-columns: minmax(260px,.72fr) minmax(0,1.28fr) !important;
+    border-radius: 1.05rem !important;
+    margin: .15rem 0 !important;
+}
+
+body.journey-dashboard .journey-momentum-art {
+    min-height: 210px !important;
+}
+
+body.journey-dashboard .journey-momentum-copy {
+    padding: 1.35rem 1.6rem !important;
+}
+
+body.journey-dashboard .journey-momentum-copy strong {
+    font-size: clamp(2rem, 4.2vw, 3.8rem) !important;
+}
+
+/* ---------------------------------------------------------------------
+   Tomorrow and analysis: same visual language, less box soup.
+   --------------------------------------------------------------------- */
+body.journey-dashboard .journey-tomorrow-section,
+body.journey-dashboard .journey-analysis-section {
+    padding: 1rem !important;
+    border: 1px solid #1f3042;
+    border-radius: 1.15rem;
+    background: linear-gradient(145deg, rgba(12,19,28,.82), rgba(7,11,16,.72));
+}
+
+body.journey-dashboard .dash-tomorrow-repeat-grid {
+    gap: .75rem !important;
+}
+
+body.journey-dashboard .dash-tomorrow-panel {
+    min-height: 0 !important;
+    padding: 1rem !important;
+}
+
+body.journey-dashboard .dash-tomorrow-panel .dash-panel-label {
+    color: var(--p3-cyan) !important;
+    font-size: .68rem !important;
+}
+
+body.journey-dashboard .dash-analysis-grid {
+    gap: .78rem !important;
+}
+
+body.journey-dashboard .dash-analysis-card {
+    padding: 1rem !important;
+}
+
+body.journey-dashboard .dash-analysis-card-head {
+    padding-bottom: .72rem;
+    border-bottom: 1px solid rgba(148,163,184,.12);
+}
+
+body.journey-dashboard .dash-analysis-signal {
+    padding: .62rem .1rem !important;
+    border-bottom-color: rgba(148,163,184,.10) !important;
+}
+
+/* ---------------------------------------------------------------------
+   Responsive
+   --------------------------------------------------------------------- */
+@media (max-width: 980px) {
+    body.journey-dashboard .journey-dashboard-date {
+        grid-template-columns: minmax(0,1fr) minmax(220px,320px);
+    }
+
+    body.journey-dashboard .journey-mission-grid > .dash-workout,
+    body.journey-dashboard .journey-mission-grid > .dash-nutrition,
+    body.journey-dashboard .journey-mission-grid > .dash-coach {
+        grid-column: 1 / -1;
+    }
+
+    body.journey-dashboard .journey-mission-coach {
+        grid-template-columns: 1fr;
+    }
+
+    body.journey-dashboard .journey-mission-coach > .dash-coach-guide-card,
+    body.journey-dashboard .journey-mission-coach > h2,
+    body.journey-dashboard .journey-mission-coach > .dash-coach-copy,
+    body.journey-dashboard .journey-mission-coach > .dash-coach-brief-launch,
+    body.journey-dashboard .journey-mission-coach > .dash-coach-factors,
+    body.journey-dashboard .journey-mission-coach > .dash-why,
+    body.journey-dashboard .journey-mission-coach > .guided-demo-callout {
+        grid-column: 1;
+        grid-row: auto;
+    }
+}
+
+@media (max-width: 720px) {
+    body.journey-dashboard .journey-dashboard-date {
+        grid-template-columns: 1fr;
+        min-height: 0;
+    }
+
+    body.journey-dashboard .journey-dashboard-date > div:first-child {
+        padding: 1.15rem;
+    }
+
+    .journey-integrated-brand {
+        min-height: 148px;
+        order: -1;
+    }
+
+    .journey-integrated-pills {
+        position: static;
+        max-width: none;
+        padding: 0 1.15rem 1rem;
+        background: #0a1119;
+    }
+
+    body.journey-dashboard .journey-momentum-banner {
+        grid-template-columns: 1fr !important;
+    }
+
+    body.journey-dashboard .journey-momentum-art {
+        min-height: 165px !important;
+    }
+
+    body.journey-dashboard .dash-workout-burn-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 460px) {
+    body.journey-dashboard .recomp-dashboard {
+        gap: .82rem;
+    }
+
+    body.journey-dashboard .journey-dashboard-date h1 {
+        font-size: 2.15rem !important;
+    }
+
+    body.journey-dashboard .journey-mission-card,
+    body.journey-dashboard .dash-tomorrow-panel,
+    body.journey-dashboard .dash-analysis-card {
+        border-radius: .95rem !important;
+    }
+
+    body.journey-dashboard .journey-mission-label {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: .22rem;
+    }
+}
