@@ -1,0 +1,815 @@
+@charset "UTF-8";
+
+:root {
+    --wn-bg:#02060a;
+    --wn-panel:#071018;
+    --wn-panel-2:#0a1620;
+    --wn-line:rgba(104,157,188,.26);
+    --wn-text:#f4f7fb;
+    --wn-muted:#a6b6c3;
+    --wn-cyan:#08d9ff;
+    --wn-cyan-2:#26a8ff;
+    --wn-green:#93ff28;
+    --wn-green-2:#22f57a;
+    --wn-gold:#f4d64e;
+    --wn-max:1500px;
+    --wn-display:"Bahnschrift Condensed","Arial Narrow",Impact,sans-serif;
+    --wn-body:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; background:var(--wn-bg); }
+body.wn-page {
+    margin:0;
+    min-width:320px;
+    color:var(--wn-text);
+    background:
+        radial-gradient(circle at 50% -15%,rgba(0,201,255,.10),transparent 34rem),
+        #02060a;
+    font-family:var(--wn-body);
+    overflow-x:hidden;
+}
+
+body.wn-page a { color:inherit; text-decoration:none; }
+body.wn-page img { display:block; max-width:100%; }
+
+.wn-nav-shell {
+    position:sticky;
+    top:0;
+    z-index:1000;
+    border-bottom:1px solid rgba(44,115,152,.32);
+    background:rgba(2,7,11,.93);
+    backdrop-filter:blur(18px) saturate(1.2);
+}
+
+.wn-nav {
+    width:min(var(--wn-max),calc(100% - 48px));
+    min-height:76px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center;
+    gap:2rem;
+}
+
+.wn-brand {
+    display:flex;
+    align-items:baseline;
+    gap:.55rem;
+    font-family:var(--wn-display);
+    font-style:italic;
+    font-weight:950;
+    letter-spacing:-.03em;
+    text-transform:uppercase;
+    white-space:nowrap;
+}
+
+.wn-brand-main { font-size:1.65rem; color:#fff; }
+.wn-brand-accent {
+    font-size:1.85rem;
+    color:var(--wn-cyan);
+    text-shadow:0 0 18px rgba(8,217,255,.16);
+}
+
+.wn-nav-links {
+    justify-self:center;
+    display:flex;
+    gap:2rem;
+    color:#c8d4dd;
+    font-size:.87rem;
+    font-weight:760;
+}
+
+.wn-nav-links a,
+.wn-signin {
+    position:relative;
+    transition:.2s ease;
+}
+
+.wn-nav-links a:hover,
+.wn-signin:hover { color:#fff; }
+
+.wn-nav-links a::after {
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:-.55rem;
+    height:2px;
+    transform:scaleX(0);
+    background:linear-gradient(90deg,var(--wn-cyan),var(--wn-green));
+    transition:.2s ease;
+}
+
+.wn-nav-links a:hover::after { transform:scaleX(1); }
+
+.wn-nav-actions {
+    display:flex;
+    align-items:center;
+    gap:1rem;
+}
+
+.wn-signin {
+    color:#c6d3dc;
+    font-size:.8rem;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+}
+
+.wn-start-small {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:42px;
+    padding:.7rem 1.15rem;
+    border:1px solid var(--wn-green);
+    border-radius:.55rem;
+    color:#fff;
+    background:rgba(110,255,36,.05);
+    box-shadow:0 0 18px rgba(116,255,32,.09),inset 0 0 16px rgba(116,255,32,.035);
+    font-family:var(--wn-display);
+    font-size:.86rem;
+    font-weight:900;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+}
+
+.wn-hero {
+    position:relative;
+    min-height:780px;
+    display:flex;
+    align-items:center;
+    overflow:hidden;
+    border-bottom:1px solid rgba(68,143,180,.25);
+    background:#02070b;
+}
+
+.wn-hero-media {
+    position:absolute;
+    inset:0;
+    background:
+        linear-gradient(90deg,rgba(1,5,8,.99) 0%,rgba(1,6,10,.96) 31%,rgba(1,6,10,.68) 50%,rgba(1,6,10,.20) 72%,rgba(1,6,10,.16) 100%),
+        linear-gradient(0deg,rgba(1,5,8,.96) 0%,transparent 34%,rgba(1,5,8,.12) 100%),
+        url("/images/marketing-v4/welcome-d-adventure.jpg") center 48%/cover no-repeat;
+    filter:saturate(.92) contrast(1.06) brightness(.86);
+    transform:scale(1.015);
+}
+
+.wn-hero-grid {
+    position:absolute;
+    inset:0;
+    opacity:.15;
+    background-image:
+        linear-gradient(rgba(35,156,205,.15) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(35,156,205,.15) 1px,transparent 1px);
+    background-size:52px 52px;
+    mask-image:linear-gradient(90deg,#000 0%,transparent 72%);
+}
+
+.wn-hero-content {
+    position:relative;
+    z-index:2;
+    width:min(var(--wn-max),calc(100% - 48px));
+    margin:0 auto;
+    padding:6.5rem 0 6rem;
+}
+
+.wn-overline,
+.wn-kicker {
+    margin:0;
+    color:var(--wn-cyan);
+    font-family:var(--wn-display);
+    font-size:.76rem;
+    font-weight:950;
+    letter-spacing:.27em;
+    text-transform:uppercase;
+}
+
+.wn-hero h1 {
+    max-width:870px;
+    margin:.8rem 0 0;
+    font-family:var(--wn-display);
+    font-size:clamp(4.6rem,8.2vw,8.7rem);
+    font-style:italic;
+    font-weight:950;
+    line-height:.75;
+    letter-spacing:-.045em;
+    text-transform:uppercase;
+    text-shadow:0 18px 44px rgba(0,0,0,.55);
+}
+
+.wn-hero h1 span { display:block; }
+.wn-cyan {
+    color:var(--wn-cyan);
+    text-shadow:0 0 26px rgba(8,217,255,.12),0 18px 44px rgba(0,0,0,.55);
+}
+.wn-green {
+    color:var(--wn-green);
+    text-shadow:0 0 24px rgba(147,255,40,.10),0 18px 44px rgba(0,0,0,.55);
+}
+
+.wn-hero-copy {
+    max-width:720px;
+    margin:1.35rem 0 0;
+    color:#d9e4eb;
+    font-size:1.1rem;
+    line-height:1.55;
+    font-weight:570;
+}
+
+.wn-hero-actions {
+    display:flex;
+    flex-wrap:wrap;
+    gap:1rem;
+    margin-top:2rem;
+}
+
+.wn-btn {
+    min-height:58px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:2.3rem;
+    min-width:260px;
+    padding:.85rem 1.3rem .8rem 1.45rem;
+    border-radius:.62rem;
+    font-family:var(--wn-display);
+    font-size:1.02rem;
+    font-weight:950;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+}
+
+.wn-btn span { font-size:2rem; line-height:.6; }
+.wn-btn:hover { transform:translateY(-2px); }
+
+.wn-btn-primary {
+    color:#021116;
+    border:1px solid #55efff;
+    background:linear-gradient(135deg,#19e7ff,#20bfff);
+    box-shadow:0 14px 34px rgba(5,199,255,.18),inset 0 1px 0 rgba(255,255,255,.5);
+}
+
+.wn-btn-secondary {
+    color:#f6f8fa;
+    border:1px solid var(--wn-green);
+    background:rgba(3,9,13,.78);
+    box-shadow:0 14px 34px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+.wn-hero-proof {
+    display:flex;
+    flex-wrap:wrap;
+    gap:1.5rem;
+    margin-top:2.1rem;
+    color:#91a7b5;
+    font-family:var(--wn-display);
+    font-size:.67rem;
+    font-weight:900;
+    letter-spacing:.15em;
+}
+
+.wn-hero-proof span {
+    display:flex;
+    align-items:center;
+    gap:.55rem;
+}
+
+.wn-hero-proof span::before {
+    content:"";
+    width:18px;
+    height:2px;
+    background:var(--wn-green-2);
+}
+
+.wn-pillar-strip {
+    width:min(var(--wn-max),calc(100% - 48px));
+    margin:-58px auto 0;
+    position:relative;
+    z-index:5;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    overflow:hidden;
+    border:1px solid rgba(50,146,191,.42);
+    border-radius:1rem;
+    background:rgba(4,10,15,.95);
+    box-shadow:0 25px 56px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.wn-pillar-strip article {
+    min-height:118px;
+    display:flex;
+    align-items:center;
+    gap:1rem;
+    padding:1.1rem 1.2rem;
+    border-right:1px solid rgba(72,135,166,.24);
+}
+.wn-pillar-strip article:last-child { border-right:0; }
+
+.wn-pillar-icon,
+.wn-feature-icon,
+.wn-value-mark {
+    flex:0 0 auto;
+    display:grid;
+    place-items:center;
+    width:52px;
+    height:52px;
+    border:2px solid var(--wn-cyan);
+    border-radius:50%;
+    color:var(--wn-cyan);
+    font-family:var(--wn-display);
+    font-size:1.35rem;
+    font-weight:950;
+    box-shadow:0 0 16px rgba(8,217,255,.09),inset 0 0 18px rgba(8,217,255,.035);
+}
+
+.wn-pillar-icon-green,
+.wn-feature-icon-green,
+.wn-value-mark-green {
+    border-color:var(--wn-green);
+    color:var(--wn-green);
+    box-shadow:0 0 16px rgba(147,255,40,.08),inset 0 0 18px rgba(147,255,40,.035);
+}
+
+.wn-pillar-strip strong {
+    display:block;
+    font-family:var(--wn-display);
+    font-size:1.02rem;
+    letter-spacing:.05em;
+}
+.wn-pillar-strip span {
+    display:block;
+    margin-top:.22rem;
+    color:#92a5b2;
+    font-size:.78rem;
+    line-height:1.3;
+}
+
+.wn-method {
+    width:min(var(--wn-max),calc(100% - 48px));
+    margin:0 auto;
+    padding:8.5rem 0 7rem;
+}
+
+.wn-section-heading {
+    max-width:900px;
+}
+
+.wn-section-heading h2,
+.wn-coach-copy h2,
+.wn-equation h2,
+.wn-final-cta h2 {
+    margin:.55rem 0 0;
+    font-family:var(--wn-display);
+    font-size:clamp(3rem,5vw,5.7rem);
+    font-style:italic;
+    font-weight:950;
+    line-height:.9;
+    letter-spacing:-.03em;
+    text-transform:uppercase;
+}
+
+.wn-section-heading h2 span,
+.wn-coach-copy h2 span,
+.wn-equation h2 span,
+.wn-final-cta h2 span { color:var(--wn-green); }
+
+.wn-section-heading > p:last-child {
+    max-width:760px;
+    color:var(--wn-muted);
+    font-size:1rem;
+    line-height:1.55;
+}
+
+.wn-method-grid {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:1rem;
+    margin-top:2.4rem;
+}
+
+.wn-feature-card {
+    position:relative;
+    min-height:430px;
+    overflow:hidden;
+    border:1px solid rgba(26,179,232,.46);
+    border-radius:1rem;
+    background:#071018;
+    box-shadow:0 20px 46px rgba(0,0,0,.28);
+}
+.wn-feature-card:nth-child(2) { border-color:rgba(143,255,34,.56); }
+
+.wn-feature-image,
+.wn-feature-shade {
+    position:absolute;
+    inset:0;
+}
+
+.wn-feature-training .wn-feature-image {
+    background:url("/images/marketing-v4/welcome-b-strength.jpg") center 30%/cover no-repeat;
+}
+.wn-feature-nutrition .wn-feature-image {
+    background:url("/images/marketing-v4/welcome-c-food.jpg") center/cover no-repeat;
+}
+.wn-feature-recovery .wn-feature-image {
+    background:url("/images/marketing-v4/welcome-d-adventure.jpg") 65% center/cover no-repeat;
+}
+
+.wn-feature-shade {
+    background:linear-gradient(0deg,rgba(2,8,12,.98) 0%,rgba(2,8,12,.86) 38%,rgba(2,8,12,.14) 72%,rgba(2,8,12,.05) 100%);
+}
+
+.wn-feature-copy {
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:2;
+    padding:1.35rem 1.35rem 1.5rem;
+}
+
+.wn-feature-number {
+    position:absolute;
+    right:1.25rem;
+    bottom:1.15rem;
+    color:rgba(255,255,255,.06);
+    font-family:var(--wn-display);
+    font-size:5.7rem;
+    font-weight:950;
+    line-height:.7;
+}
+
+.wn-feature-icon { width:48px; height:48px; }
+.wn-feature-copy h3 {
+    margin:.8rem 0 .35rem;
+    font-family:var(--wn-display);
+    font-size:2rem;
+    font-style:italic;
+    font-weight:950;
+    letter-spacing:-.02em;
+}
+.wn-feature-copy p {
+    max-width:92%;
+    margin:0;
+    color:#c0ccd4;
+    font-size:.88rem;
+    line-height:1.45;
+}
+.wn-feature-copy > span {
+    display:inline-block;
+    margin-top:1rem;
+    color:var(--wn-green);
+    font-family:var(--wn-display);
+    font-size:.68rem;
+    font-weight:950;
+    letter-spacing:.12em;
+}
+
+.wn-equation {
+    position:relative;
+    min-height:670px;
+    display:flex;
+    align-items:center;
+    overflow:hidden;
+    border-top:1px solid rgba(50,134,173,.2);
+    border-bottom:1px solid rgba(50,134,173,.2);
+    background:#03080d;
+}
+
+.wn-equation-art {
+    position:absolute;
+    inset:0;
+    background:
+        linear-gradient(90deg,rgba(2,7,11,.97) 0%,rgba(2,7,11,.90) 38%,rgba(2,7,11,.40) 65%,rgba(2,7,11,.72) 100%),
+        url("/images/marketing-v4/welcome-a-community.jpg") center 42%/cover no-repeat;
+    filter:saturate(.8) contrast(1.05) brightness(.62);
+}
+
+.wn-equation-content {
+    position:relative;
+    z-index:2;
+    width:min(var(--wn-max),calc(100% - 48px));
+    margin:0 auto;
+    padding:5rem 0;
+}
+
+.wn-equation-content > * { max-width:920px; }
+.wn-equation-lede {
+    color:#c8d4dc;
+    font-size:1.05rem;
+    line-height:1.5;
+}
+
+.wn-equation-grid {
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:.65rem;
+    margin-top:2rem;
+    max-width:1100px;
+}
+
+.wn-equation-grid div {
+    min-height:115px;
+    padding:1rem;
+    border:1px solid rgba(84,141,168,.28);
+    border-radius:.72rem;
+    background:rgba(3,9,13,.78);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.wn-equation-grid strong {
+    display:block;
+    color:#fff;
+    font-family:var(--wn-display);
+    font-size:1rem;
+    letter-spacing:.06em;
+}
+.wn-equation-grid div:nth-child(2n) strong { color:var(--wn-green); }
+.wn-equation-grid div:nth-child(3) strong { color:var(--wn-cyan); }
+.wn-equation-grid span {
+    display:block;
+    margin-top:.38rem;
+    color:#92a5b3;
+    font-size:.76rem;
+    line-height:1.35;
+}
+
+.wn-coaching {
+    width:min(var(--wn-max),calc(100% - 48px));
+    margin:0 auto;
+    padding:7rem 0;
+    display:grid;
+    grid-template-columns:1.05fr .95fr;
+    gap:3.2rem;
+    align-items:center;
+}
+
+.wn-coach-image-wrap {
+    position:relative;
+    overflow:hidden;
+    min-height:560px;
+    border:1px solid rgba(9,207,255,.38);
+    border-radius:1.1rem;
+    background:#050b0f;
+    box-shadow:0 28px 70px rgba(0,0,0,.35);
+}
+
+.wn-coach-image-wrap img {
+    width:100%;
+    height:100%;
+    min-height:560px;
+    object-fit:cover;
+    object-position:center 26%;
+    filter:saturate(.92) contrast(1.06) brightness(.86);
+}
+
+.wn-coach-image-wrap::after {
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+        linear-gradient(0deg,rgba(2,7,10,.75),transparent 36%),
+        linear-gradient(90deg,transparent 62%,rgba(2,7,10,.5));
+    pointer-events:none;
+}
+
+.wn-coach-image-glow {
+    position:absolute;
+    inset:auto 12% 0 12%;
+    height:3px;
+    z-index:3;
+    background:linear-gradient(90deg,var(--wn-cyan),var(--wn-green));
+    box-shadow:0 0 22px rgba(30,236,170,.28);
+}
+
+.wn-coach-copy > p:not(.wn-kicker) {
+    color:#b3c2cc;
+    font-size:1rem;
+    line-height:1.58;
+}
+
+.wn-coach-points {
+    display:grid;
+    gap:.72rem;
+    margin-top:1.5rem;
+}
+.wn-coach-points div {
+    position:relative;
+    padding:1rem 1rem 1rem 1.25rem;
+    border:1px solid rgba(66,130,159,.26);
+    border-radius:.7rem;
+    background:linear-gradient(90deg,rgba(5,17,23,.9),rgba(5,11,16,.58));
+}
+.wn-coach-points div::before {
+    content:"";
+    position:absolute;
+    top:.9rem;
+    bottom:.9rem;
+    left:0;
+    width:3px;
+    background:var(--wn-green);
+    box-shadow:0 0 12px rgba(147,255,40,.18);
+}
+.wn-coach-points strong {
+    display:block;
+    color:#fff;
+    font-family:var(--wn-display);
+    font-size:.92rem;
+    letter-spacing:.06em;
+}
+.wn-coach-points span {
+    display:block;
+    margin-top:.2rem;
+    color:#91a5b2;
+    font-size:.78rem;
+}
+
+.wn-values {
+    padding:6.5rem max(24px,calc((100vw - var(--wn-max))/2));
+    border-top:1px solid rgba(57,129,164,.2);
+    border-bottom:1px solid rgba(57,129,164,.2);
+    background:
+        linear-gradient(180deg,rgba(6,18,25,.65),rgba(2,7,11,.92)),
+        radial-gradient(circle at 20% 0%,rgba(8,217,255,.07),transparent 20rem),
+        radial-gradient(circle at 80% 0%,rgba(147,255,40,.05),transparent 20rem);
+}
+.wn-section-heading-centered {
+    max-width:920px;
+    margin:0 auto;
+    text-align:center;
+}
+
+.wn-values-grid {
+    width:min(var(--wn-max),100%);
+    margin:2.6rem auto 0;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:1px;
+    background:rgba(73,136,166,.2);
+    border:1px solid rgba(73,136,166,.2);
+    border-radius:1rem;
+    overflow:hidden;
+}
+.wn-values-grid article {
+    min-height:230px;
+    padding:1.5rem;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    background:#040b10;
+}
+.wn-value-mark { margin-bottom:1rem; }
+.wn-values-grid strong {
+    font-family:var(--wn-display);
+    font-size:1rem;
+    letter-spacing:.06em;
+}
+.wn-values-grid span {
+    max-width:220px;
+    margin-top:.55rem;
+    color:#8fa2af;
+    font-size:.77rem;
+    line-height:1.42;
+}
+
+.wn-final-cta {
+    position:relative;
+    min-height:620px;
+    display:flex;
+    align-items:center;
+    overflow:hidden;
+}
+.wn-final-bg {
+    position:absolute;
+    inset:0;
+    background:
+        linear-gradient(90deg,rgba(2,6,10,.98),rgba(2,7,11,.78) 50%,rgba(2,7,11,.22)),
+        linear-gradient(0deg,rgba(2,6,10,.92),transparent 48%),
+        url("/images/marketing-v4/welcome-d-adventure.jpg") center 55%/cover no-repeat;
+    filter:saturate(.9) brightness(.72) contrast(1.05);
+}
+.wn-final-inner {
+    position:relative;
+    z-index:2;
+    width:min(var(--wn-max),calc(100% - 48px));
+    margin:0 auto;
+    padding:5rem 0;
+}
+.wn-final-inner > p:not(.wn-kicker) {
+    max-width:700px;
+    color:#c0ccd4;
+    line-height:1.55;
+}
+
+.wn-footer {
+    width:min(var(--wn-max),calc(100% - 48px));
+    min-height:120px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center;
+    gap:2rem;
+    color:#78909f;
+    font-size:.76rem;
+}
+.wn-brand-footer .wn-brand-main { font-size:1.25rem; }
+.wn-brand-footer .wn-brand-accent { font-size:1.4rem; }
+.wn-footer p { margin:0; }
+.wn-footer > div:last-child { display:flex; gap:1.2rem; }
+.wn-footer a:hover { color:#fff; }
+
+@media (max-width:1100px) {
+    .wn-nav-links { display:none; }
+    .wn-nav { grid-template-columns:auto 1fr auto; }
+    .wn-pillar-strip { grid-template-columns:repeat(2,1fr); }
+    .wn-pillar-strip article:nth-child(2) { border-right:0; }
+    .wn-pillar-strip article:nth-child(-n+2) { border-bottom:1px solid rgba(72,135,166,.24); }
+    .wn-method-grid { grid-template-columns:1fr; }
+    .wn-feature-card { min-height:380px; }
+    .wn-feature-copy { max-width:680px; }
+    .wn-equation-grid { grid-template-columns:repeat(3,1fr); }
+    .wn-coaching { grid-template-columns:1fr; }
+    .wn-coach-image-wrap { min-height:480px; }
+    .wn-values-grid { grid-template-columns:repeat(2,1fr); }
+}
+
+@media (max-width:760px) {
+    .wn-nav,
+    .wn-hero-content,
+    .wn-method,
+    .wn-equation-content,
+    .wn-coaching,
+    .wn-final-inner,
+    .wn-footer,
+    .wn-pillar-strip {
+        width:min(100% - 28px,var(--wn-max));
+    }
+
+    .wn-nav { min-height:66px; gap:1rem; }
+    .wn-brand-main { font-size:1.25rem; }
+    .wn-brand-accent { font-size:1.35rem; }
+    .wn-signin { display:none; }
+    .wn-start-small { min-height:38px; padding:.55rem .75rem; font-size:.7rem; }
+
+    .wn-hero { min-height:720px; align-items:flex-end; }
+    .wn-hero-media {
+        background:
+            linear-gradient(0deg,rgba(1,5,8,.99) 0%,rgba(1,5,8,.94) 42%,rgba(1,5,8,.18) 78%,rgba(1,5,8,.08) 100%),
+            url("/images/marketing-v4/welcome-d-adventure.jpg") 64% center/cover no-repeat;
+    }
+    .wn-hero-content { padding:16rem 0 4.5rem; }
+    .wn-hero h1 { font-size:clamp(3.55rem,16vw,5.6rem); line-height:.79; }
+    .wn-hero-copy { font-size:.95rem; }
+    .wn-hero-actions { flex-direction:column; }
+    .wn-btn { width:100%; min-width:0; }
+    .wn-hero-proof { gap:.8rem 1.2rem; }
+
+    .wn-pillar-strip { margin:-35px auto 0; grid-template-columns:1fr; }
+    .wn-pillar-strip article { border-right:0; border-bottom:1px solid rgba(72,135,166,.24); }
+    .wn-pillar-strip article:last-child { border-bottom:0; }
+
+    .wn-method { padding:6rem 0 5rem; }
+    .wn-section-heading h2,
+    .wn-coach-copy h2,
+    .wn-equation h2,
+    .wn-final-cta h2 { font-size:clamp(2.6rem,12vw,4rem); }
+
+    .wn-feature-card { min-height:420px; }
+    .wn-feature-copy p { max-width:100%; }
+
+    .wn-equation { min-height:0; }
+    .wn-equation-content { padding:4.5rem 0; }
+    .wn-equation-grid { grid-template-columns:1fr; }
+
+    .wn-coaching { padding:5rem 0; gap:2rem; }
+    .wn-coach-image-wrap,
+    .wn-coach-image-wrap img { min-height:390px; }
+
+    .wn-values { padding:5rem 14px; }
+    .wn-values-grid { grid-template-columns:1fr; }
+    .wn-values-grid article { min-height:190px; }
+
+    .wn-final-cta { min-height:540px; }
+    .wn-final-bg {
+        background:
+            linear-gradient(0deg,rgba(2,6,10,.98),rgba(2,6,10,.82) 52%,rgba(2,6,10,.25)),
+            url("/images/marketing-v4/welcome-d-adventure.jpg") 66% center/cover no-repeat;
+    }
+
+    .wn-footer {
+        grid-template-columns:1fr;
+        justify-items:center;
+        text-align:center;
+        padding:2rem 0;
+    }
+}
+
+@media (prefers-reduced-motion:reduce) {
+    html { scroll-behavior:auto; }
+    .wn-btn,
+    .wn-nav-links a::after { transition:none; }
+}
