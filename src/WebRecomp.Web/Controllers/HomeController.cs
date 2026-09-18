@@ -67,6 +67,15 @@ public sealed class HomeController(
 
         return View();
     }
+
+    [AllowAnonymous]
+    [HttpGet("/welcome-next")]
+    public IActionResult WelcomeNext()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
     [AllowAnonymous]
     [HttpGet]
     public IActionResult Evidence()
