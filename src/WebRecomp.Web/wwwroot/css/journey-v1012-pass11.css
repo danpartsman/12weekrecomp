@@ -1,0 +1,50 @@
+/*
+12WR TEST v1012 — B3.3 COACH PASS 11
+Use the user-approved Marisol landscape image as the actual full-card background.
+Presentation only.
+*/
+
+body.journey-dashboard .journey-coach-p8__bg {
+    position:absolute !important;
+    inset:0 !important;
+    z-index:0 !important;
+    width:100% !important;
+    height:100% !important;
+    display:block !important;
+    object-fit:cover !important;
+    object-position:left center !important;
+    filter:none !important;
+    background:#020405 !important;
+    pointer-events:none !important;
+}
+
+body.journey-dashboard .journey-coach-p8::before {
+    z-index:1 !important;
+    background:
+        linear-gradient(90deg,
+            rgba(1,3,5,.02) 0%,
+            rgba(1,3,5,.02) 18%,
+            rgba(1,3,5,.10) 27%,
+            rgba(1,3,5,.48) 34%,
+            rgba(1,3,5,.82) 42%,
+            rgba(1,3,5,.94) 100%) !important;
+}
+
+body.journey-dashboard .journey-coach-p8__panel {
+    left:31% !important;
+}
+
+@media (max-width:1280px) {
+    body.journey-dashboard .journey-coach-p8__panel {
+        left:29% !important;
+    }
+}
+
+@media (max-width:940px) {
+    body.journey-dashboard .journey-coach-p8__bg {
+        width:100% !important;
+        height:330px !important;
+        object-fit:cover !important;
+        object-position:left top !important;
+    }
+}
