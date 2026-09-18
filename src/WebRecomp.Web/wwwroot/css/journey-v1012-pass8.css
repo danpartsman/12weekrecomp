@@ -51,18 +51,18 @@ body.journey-dashboard .journey-mission-coach > .guided-demo-callout {
 .journey-coach-p8__bg {
     position:absolute;
     inset:0;
-    z-index:-4;
+    z-index:0;
     background-image:url("/images/coach/marisol-coach-band-v1012.webp");
     background-repeat:no-repeat;
     background-size:cover;
-    background-position:center center;
+    background-position:left center;
 }
 
 .journey-coach-p8::before {
     content:"";
     position:absolute;
     inset:0;
-    z-index:-3;
+    z-index:1;
     pointer-events:none;
     background:
         linear-gradient(90deg,
@@ -77,7 +77,7 @@ body.journey-dashboard .journey-mission-coach > .guided-demo-callout {
     content:"";
     position:absolute;
     inset:0;
-    z-index:-2;
+    z-index:2;
     pointer-events:none;
     background:
         radial-gradient(circle at 78% 16%,rgba(204,255,0,.07),transparent 22rem),
@@ -509,4 +509,15 @@ body.journey-dashboard .dash-pa-actual .dash-pa-label {
         height:36px;
         font-size:1rem;
     }
+}
+
+
+/* PASS 8B — keep the approved coach artwork visibly pinned to the left. */
+body.journey-dashboard .journey-coach-p8__bg {
+    background-position:left center !important;
+}
+
+body.journey-dashboard .journey-momentum-banner.journey-momentum-relocated {
+    margin-top:1.45rem !important;
+    margin-bottom:1.45rem !important;
 }
