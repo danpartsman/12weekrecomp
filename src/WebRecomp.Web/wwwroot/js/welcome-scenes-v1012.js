@@ -5,6 +5,14 @@
   const qsa = (s, r = document) => [...r.querySelectorAll(s)];
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  const linkStyle = document.createElement("style");
+  linkStyle.textContent = `
+    .ws-hotspot,.ws-card{color:#fff;text-decoration:none}
+    .ws-breakfree-zone a{padding:12px 14px;border-radius:999px;border:1px solid rgba(43,229,255,.35);background:rgba(0,9,14,.66);color:#fff;text-decoration:none;backdrop-filter:blur(12px);font-size:10px;font-weight:1000;letter-spacing:.12em;text-transform:uppercase}
+    .ws-breakfree-zone a:hover{border-color:#7dff24;color:#a5ff62}
+  `;
+  document.head.appendChild(linkStyle);
+
   const scene = qs(".ws-scene");
   if (!scene) return;
 
@@ -53,10 +61,11 @@
   qs(".ws-panel .close")?.addEventListener("click", () => panel?.classList.remove("on"));
 
   const makeDraggable = el => {
-    let dragging = false, ox = 0, oy = 0;
+    let dragging = false, moved = false, ox = 0, oy = 0;
     const down = e => {
       if (e.button !== undefined && e.button !== 0) return;
       dragging = true;
+      moved = false;
       el.setPointerCapture?.(e.pointerId);
       const r = el.getBoundingClientRect();
       ox = e.clientX - r.left;
@@ -65,6 +74,7 @@
     };
     const move = e => {
       if (!dragging) return;
+      moved = true;
       const sr = scene.getBoundingClientRect();
       const er = el.getBoundingClientRect();
       const left = Math.max(0, Math.min(sr.width - er.width, e.clientX - sr.left - ox));
@@ -79,7 +89,14 @@
       dragging = false;
       el.releasePointerCapture?.(e.pointerId);
       el.style.zIndex = "18";
+      if (moved && el.tagName === "A") {
+        el.dataset.wasDragged = "1";
+        setTimeout(() => delete el.dataset.wasDragged, 0);
+      }
     };
+    el.addEventListener("click", e => {
+      if (el.dataset.wasDragged === "1") e.preventDefault();
+    });
     el.addEventListener("pointerdown", down);
     el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", up);
