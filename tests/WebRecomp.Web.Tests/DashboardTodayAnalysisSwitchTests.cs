@@ -77,8 +77,13 @@ public sealed class DashboardTodayAnalysisSwitchTests
             source,
             StringComparison.Ordinal);
 
-        Assert.Contains(
-            "src=\"@Url.Content(tomorrowCoachGuide.AvatarPath)\"",
+        Assert.DoesNotContain(
+            "dash-coach-guide-card",
+            source,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "coach-today-detail.js",
             source,
             StringComparison.Ordinal);
     }
