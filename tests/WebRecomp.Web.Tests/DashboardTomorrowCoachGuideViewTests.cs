@@ -1,11 +1,9 @@
-using System.Text.RegularExpressions;
-
 namespace WebRecomp.Web.Tests;
 
 public sealed class DashboardTomorrowCoachGuideViewTests
 {
     [Fact]
-    public void TomorrowCoachGuideBlock_DoesNotDereferenceTodayCoachGuide()
+    public void DashboardCoachGuideAttachmentCards_AreRetired()
     {
         var repoRoot =
             FindRepoRoot();
@@ -22,29 +20,29 @@ public sealed class DashboardTomorrowCoachGuideViewTests
         var source =
             File.ReadAllText(viewPath);
 
-        Assert.Contains(
-            "@if (tomorrowCoachGuide is not null)",
+        Assert.DoesNotContain(
+            "todayCoachGuide",
             source,
             StringComparison.Ordinal);
-
-        Assert.Contains(
-            "src=\"@Url.Content(tomorrowCoachGuide.AvatarPath)\"",
-            source,
-            StringComparison.Ordinal);
-
-        var match =
-            Regex.Match(
-                source,
-                @"@if\s*\(tomorrowCoachGuide is not null\).*?Preview tomorrow's workout \+ nutrition guide",
-                RegexOptions.Singleline);
-
-        Assert.True(
-            match.Success,
-            "Could not isolate the tomorrow coach-guide card.");
 
         Assert.DoesNotContain(
-            "todayCoachGuide.",
-            match.Value,
+            "tomorrowCoachGuide",
+            source,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "dash-coach-guide-card",
+            source,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "_CoachTodayDetail",
+            source,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "coach-today-detail.js",
+            source,
             StringComparison.Ordinal);
     }
 
