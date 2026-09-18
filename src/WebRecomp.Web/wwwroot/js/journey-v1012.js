@@ -93,6 +93,14 @@
         document.head.appendChild(pass10Style);
     }
 
+    if (!document.querySelector('link[data-12wr-journey-pass10-opaque="v1012"]')) {
+        const pass10OpaqueStyle = document.createElement("link");
+        pass10OpaqueStyle.rel = "stylesheet";
+        pass10OpaqueStyle.href = "/css/journey-v1012-pass10-opaque.css?v=1012p10opaque1";
+        pass10OpaqueStyle.dataset["12wrJourneyPass10Opaque"] = "v1012";
+        document.head.appendChild(pass10OpaqueStyle);
+    }
+
     if (!document.querySelector('script[data-12wr-journey-pass10="v1012"]')) {
         const pass10Script = document.createElement("script");
         pass10Script.src = "/js/journey-v1012-pass10.js?v=1012p10";
