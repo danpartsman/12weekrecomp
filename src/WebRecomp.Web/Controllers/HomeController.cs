@@ -128,6 +128,39 @@ public sealed class HomeController(
         return View();
     }
 
+    // Simple public guide pages used by the experimental welcome concepts.
+    [AllowAnonymous]
+    [HttpGet("/recomp/what")]
+    public IActionResult RecompWhat()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
+    [AllowAnonymous]
+    [HttpGet("/recomp/how")]
+    public IActionResult RecompHow()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
+    [AllowAnonymous]
+    [HttpGet("/recomp/evidence")]
+    public IActionResult RecompEvidence()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
+    [AllowAnonymous]
+    [HttpGet("/recomp/start")]
+    public IActionResult RecompStart()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
     [AllowAnonymous]
     [HttpGet]
     public IActionResult Evidence()
