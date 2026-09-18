@@ -1,0 +1,512 @@
+/*
+========================================================================
+12WR TEST v1012 — B3.3 COACH PRESCRIPTION PASS 8
+========================================================================
+Matches the approved visual:
+- exact generated Marisol artwork as the full background
+- Marisol remains visible on the left
+- large dark translucent prescription card fills the right ~72%
+- white / electric yellow / bright green information hierarchy
+- content is populated from the live Dashboard training + nutrition prescription
+Presentation only. No Engine/controller/SQL/auth/form behavior changes.
+========================================================================
+*/
+
+body.journey-dashboard .journey-mission-coach {
+    display:block !important;
+    position:relative !important;
+    min-height:0 !important;
+    padding:0 !important;
+    overflow:hidden !important;
+    border:1px solid rgba(27,105,144,.58) !important;
+    border-radius:1rem !important;
+    background:#010204 !important;
+    box-shadow:
+        0 24px 58px rgba(0,0,0,.42),
+        0 0 36px rgba(18,220,255,.035),
+        inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+
+body.journey-dashboard .journey-mission-coach > .journey-energy-cap,
+body.journey-dashboard .journey-mission-coach > .journey-mission-label,
+body.journey-dashboard .journey-mission-coach > h2,
+body.journey-dashboard .journey-mission-coach > .dash-coach-copy,
+body.journey-dashboard .journey-mission-coach > .dash-coach-guide-card,
+body.journey-dashboard .journey-mission-coach > .dash-coach-brief-launch,
+body.journey-dashboard .journey-mission-coach > .dash-coach-factors,
+body.journey-dashboard .journey-mission-coach > .dash-why,
+body.journey-dashboard .journey-mission-coach > .guided-demo-callout {
+    display:none !important;
+}
+
+.journey-coach-p8 {
+    position:relative;
+    height:590px;
+    min-height:590px;
+    overflow:hidden;
+    isolation:isolate;
+    background:#010204;
+}
+
+.journey-coach-p8__bg {
+    position:absolute;
+    inset:0;
+    z-index:-4;
+    background-image:url("/images/coach/marisol-coach-band-v1012.webp");
+    background-repeat:no-repeat;
+    background-size:cover;
+    background-position:center center;
+}
+
+.journey-coach-p8::before {
+    content:"";
+    position:absolute;
+    inset:0;
+    z-index:-3;
+    pointer-events:none;
+    background:
+        linear-gradient(90deg,
+            rgba(0,1,2,.08) 0%,
+            rgba(0,1,2,.08) 22%,
+            rgba(0,1,2,.17) 28%,
+            rgba(0,1,2,.34) 38%,
+            rgba(0,1,2,.58) 100%);
+}
+
+.journey-coach-p8::after {
+    content:"";
+    position:absolute;
+    inset:0;
+    z-index:-2;
+    pointer-events:none;
+    background:
+        radial-gradient(circle at 78% 16%,rgba(204,255,0,.07),transparent 22rem),
+        radial-gradient(circle at 68% 82%,rgba(0,255,102,.08),transparent 28rem);
+}
+
+.journey-coach-p8__panel {
+    position:absolute;
+    z-index:3;
+    top:18px;
+    right:18px;
+    bottom:18px;
+    left:28%;
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    padding:1.2rem 1.35rem 1.05rem;
+    overflow:hidden;
+    border:1px solid rgba(188,217,205,.24);
+    border-radius:1.12rem;
+    background:
+        linear-gradient(145deg,rgba(5,10,13,.86),rgba(2,6,8,.78));
+    box-shadow:
+        0 18px 46px rgba(0,0,0,.44),
+        inset 0 1px 0 rgba(255,255,255,.06),
+        0 0 0 1px rgba(164,255,76,.025);
+    backdrop-filter:blur(11px) saturate(1.05);
+}
+
+.journey-coach-p8__panel::before {
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:
+        linear-gradient(90deg,rgba(68,255,106,.035),transparent 18%,transparent 82%,rgba(255,238,0,.025)),
+        radial-gradient(circle at 0% 0%,rgba(76,255,146,.055),transparent 22rem);
+}
+
+.journey-coach-p8__header,
+.journey-coach-p8__lead,
+.journey-coach-p8__grid,
+.journey-coach-p8__focus,
+.journey-coach-p8__footer {
+    position:relative;
+    z-index:1;
+}
+
+.journey-coach-p8__eyebrow {
+    display:flex;
+    align-items:center;
+    gap:.7rem;
+    margin:0 0 .3rem;
+    color:#f4f5f7;
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    font-size:.72rem;
+    font-weight:950;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+}
+
+.journey-coach-p8__eyebrow::before {
+    content:"";
+    width:44px;
+    height:4px;
+    border-radius:999px;
+    background:#eaff35;
+    box-shadow:0 0 16px rgba(234,255,53,.42);
+}
+
+.journey-coach-p8__title {
+    margin:0;
+    color:#fff;
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    font-size:clamp(2.85rem,4.5vw,5rem);
+    font-style:italic;
+    font-weight:950;
+    line-height:.82;
+    letter-spacing:-.035em;
+    text-transform:uppercase;
+    text-shadow:0 10px 28px rgba(0,0,0,.58);
+}
+
+.journey-coach-p8__title .journey-coach-p8__accent {
+    color:#f4ff3f;
+    text-shadow:
+        0 0 20px rgba(238,255,51,.15),
+        0 10px 28px rgba(0,0,0,.55);
+}
+
+.journey-coach-p8__lead {
+    max-width:980px;
+    margin:.52rem 0 0;
+    color:#f1f5f7;
+    font-size:clamp(.9rem,1.05vw,1.03rem);
+    font-weight:720;
+    line-height:1.4;
+}
+
+.journey-coach-p8__grid {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:.55rem;
+    margin-top:.75rem;
+}
+
+.journey-coach-p8__metric {
+    display:grid;
+    grid-template-columns:42px minmax(0,1fr);
+    align-items:start;
+    column-gap:.7rem;
+    min-width:0;
+    padding:.62rem .7rem;
+    border:1px solid rgba(151,181,193,.22);
+    border-radius:.78rem;
+    background:rgba(3,8,11,.52);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.journey-coach-p8__icon {
+    display:grid;
+    place-items:center;
+    width:42px;
+    height:42px;
+    border:2px solid #20f56a;
+    border-radius:50%;
+    color:#20f56a;
+    font-size:1.15rem;
+    font-weight:1000;
+    line-height:1;
+    box-shadow:
+        inset 0 0 18px rgba(32,245,106,.05),
+        0 0 16px rgba(32,245,106,.08);
+}
+
+.journey-coach-p8__metric--yellow .journey-coach-p8__icon {
+    border-color:#f4ff2e;
+    color:#f4ff2e;
+    box-shadow:
+        inset 0 0 18px rgba(244,255,46,.05),
+        0 0 16px rgba(244,255,46,.07);
+}
+
+.journey-coach-p8__metric small,
+.journey-coach-p8__metric strong,
+.journey-coach-p8__metric span {
+    display:block;
+}
+
+.journey-coach-p8__metric small {
+    color:#f1ff28;
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    font-size:.62rem;
+    font-weight:1000;
+    letter-spacing:.095em;
+    text-transform:uppercase;
+}
+
+.journey-coach-p8__metric strong {
+    margin-top:.12rem;
+    overflow:hidden;
+    color:#fff;
+    font-size:.96rem;
+    font-weight:900;
+    line-height:1.15;
+    text-overflow:ellipsis;
+}
+
+.journey-coach-p8__metric span {
+    margin-top:.18rem;
+    overflow:hidden;
+    color:#b8c4ca;
+    font-size:.72rem;
+    font-weight:690;
+    line-height:1.22;
+}
+
+.journey-coach-p8__metric--nutrition strong {
+    color:#d9ffc2;
+}
+
+.journey-coach-p8__macroline {
+    display:flex !important;
+    flex-wrap:wrap;
+    gap:.24rem .55rem;
+    margin-top:.24rem !important;
+    color:#d7e0e5 !important;
+}
+
+.journey-coach-p8__macroline b {
+    color:#fff;
+    font-weight:950;
+}
+
+.journey-coach-p8__macroline .p { color:#79c6ff; }
+.journey-coach-p8__macroline .c { color:#f6ff3a; }
+.journey-coach-p8__macroline .f { color:#5cff92; }
+
+.journey-coach-p8__focus {
+    display:grid;
+    grid-template-columns:42px minmax(0,1fr);
+    gap:.7rem;
+    align-items:center;
+    margin-top:.55rem;
+    padding:.62rem .72rem;
+    border:1px solid rgba(150,181,193,.20);
+    border-radius:.78rem;
+    background:rgba(3,9,11,.58);
+}
+
+.journey-coach-p8__focus .journey-coach-p8__icon {
+    width:42px;
+    height:42px;
+}
+
+.journey-coach-p8__focus small,
+.journey-coach-p8__focus strong {
+    display:block;
+}
+
+.journey-coach-p8__focus small {
+    color:#f3ff2f;
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    font-size:.6rem;
+    font-weight:1000;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+}
+
+.journey-coach-p8__focus strong {
+    margin-top:.1rem;
+    color:#f4f7f8;
+    font-size:.83rem;
+    font-weight:850;
+    line-height:1.28;
+}
+
+.journey-coach-p8__footer {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    margin-top:auto;
+    padding-top:.6rem;
+    border-top:1px solid rgba(151,181,193,.17);
+}
+
+.journey-coach-p8__mantra {
+    color:#fff;
+    font-family:var(--ds-font-display,"Bahnschrift Condensed",sans-serif);
+    font-size:.72rem;
+    font-weight:1000;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+}
+
+.journey-coach-p8__mantra span {
+    color:#16f26b;
+}
+
+.journey-coach-p8__actions {
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+}
+
+.journey-coach-p8__actions > .dash-coach-guide-card,
+.journey-coach-p8__actions > .dash-coach-brief-launch {
+    display:flex !important;
+    margin:0 !important;
+    padding:0 !important;
+}
+
+.journey-coach-p8__actions .dash-coach-guide-card {
+    min-height:38px !important;
+    max-width:220px;
+    padding:.36rem .48rem !important;
+    border:1px solid rgba(32,245,106,.24)!important;
+    border-radius:.55rem!important;
+    background:rgba(4,18,12,.70)!important;
+    box-shadow:none!important;
+}
+
+.journey-coach-p8__actions .dash-coach-guide-card__portrait {
+    width:30px!important;
+    height:30px!important;
+}
+
+.journey-coach-p8__actions .dash-coach-guide-card__copy strong {
+    font-size:.68rem!important;
+}
+
+.journey-coach-p8__actions .dash-coach-guide-card__copy span {
+    display:none!important;
+}
+
+.journey-coach-p8__actions .dash-coach-guide-card__arrow {
+    width:20px!important;
+}
+
+.journey-coach-p8__actions .dash-coach-brief-button {
+    min-height:38px!important;
+    padding:.42rem .62rem!important;
+    border:1px solid rgba(244,255,46,.22)!important;
+    border-radius:.55rem!important;
+    background:rgba(18,20,5,.72)!important;
+    color:#f4ff3d!important;
+    font-size:.68rem!important;
+}
+
+.journey-coach-p8__actions .dash-coach-brief-icon {
+    display:none!important;
+}
+
+/* Keep the user's earlier hierarchy request after Pass 7 is retired. */
+body.journey-dashboard .dash-pa-label {
+    font-size:.92rem!important;
+    font-weight:950!important;
+    letter-spacing:.17em!important;
+    line-height:1!important;
+}
+
+body.journey-dashboard .dash-pa-planned .dash-pa-label {
+    color:#7fc9ff!important;
+}
+
+body.journey-dashboard .dash-pa-actual .dash-pa-label {
+    color:#69f5a4!important;
+}
+
+@media (max-width:1180px) {
+    .journey-coach-p8__panel {
+        left:24%;
+    }
+
+    .journey-coach-p8 {
+        height:620px;
+        min-height:620px;
+    }
+}
+
+@media (max-width:900px) {
+    .journey-coach-p8 {
+        height:auto;
+        min-height:760px;
+        padding-top:275px;
+        background:#010204;
+    }
+
+    .journey-coach-p8__bg {
+        background-size:auto 410px;
+        background-position:18% top;
+        background-color:#010204;
+    }
+
+    .journey-coach-p8::before {
+        background:
+            linear-gradient(0deg,#010204 0%,rgba(1,2,4,.92) 36%,rgba(1,2,4,.18) 65%,rgba(1,2,4,.05) 100%);
+    }
+
+    .journey-coach-p8__panel {
+        position:relative;
+        top:auto;
+        right:auto;
+        bottom:auto;
+        left:auto;
+        margin:.7rem;
+        min-height:0;
+    }
+
+    .journey-coach-p8__grid {
+        grid-template-columns:1fr 1fr;
+    }
+}
+
+@media (max-width:650px) {
+    .journey-coach-p8 {
+        min-height:0;
+        padding-top:235px;
+    }
+
+    .journey-coach-p8__bg {
+        background-size:auto 330px;
+        background-position:21% top;
+    }
+
+    .journey-coach-p8__panel {
+        padding:.95rem;
+    }
+
+    .journey-coach-p8__title {
+        font-size:2.55rem;
+    }
+
+    .journey-coach-p8__grid {
+        grid-template-columns:1fr;
+    }
+
+    .journey-coach-p8__footer {
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .journey-coach-p8__actions {
+        width:100%;
+        flex-wrap:wrap;
+    }
+}
+
+@media (max-width:440px) {
+    .journey-coach-p8 {
+        padding-top:205px;
+    }
+
+    .journey-coach-p8__bg {
+        background-size:auto 290px;
+    }
+
+    .journey-coach-p8__title {
+        font-size:2.2rem;
+    }
+
+    .journey-coach-p8__metric {
+        grid-template-columns:36px minmax(0,1fr);
+    }
+
+    .journey-coach-p8__icon {
+        width:36px;
+        height:36px;
+        font-size:1rem;
+    }
+}
