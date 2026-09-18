@@ -1,43 +1,54 @@
 @{
     Layout = null;
-    ViewData["Title"] = "12 Week Recomp — Interactive World";
+    ViewData["Title"] = "12 Week Recomp — Hotspot Experience";
 }
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>12 Week Recomp — Interactive World</title>
-    <link rel="stylesheet" href="~/css/welcome-lab-v1012.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/welcome-lab-art-v1012.css" asp-append-version="true" />
+    <title>12 Week Recomp — Hotspot Experience</title>
+    <link rel="stylesheet" href="~/css/welcome-scenes-v1012.css" asp-append-version="true" />
 </head>
-<body class="wl-page">
-<header class="wl-topbar">
-    <a class="wl-brand" href="/welcome-lab">12 WEEK <em>RECOMP</em></a>
-    <a class="wl-back" href="/welcome-lab">← All concepts</a>
-    <a class="wl-cta-mini" href="/trial/start">Enter Recomp</a>
+<body class="ws-page">
+<header class="ws-top">
+    <a class="ws-brand" href="/welcome-lab">12 WEEK <em>RECOMP</em></a>
+    <nav class="ws-nav" aria-label="Concept navigation">
+        <a href="/welcome-lab/break-free">Poster</a>
+        <a href="/welcome-lab/cards">Cards</a>
+        <a href="/welcome-lab/ascend">Ascend</a>
+        <a class="primary" href="/trial/start">Start</a>
+    </nav>
 </header>
-<main class="wl-stage" data-wl-parallax>
-    <div class="wl-bg wl-art-2" aria-hidden="true"></div>
-    <div class="wl-vignette" style="background:linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.08) 70%,rgba(0,0,0,.72))" aria-hidden="true"></div>
-    <div class="wl-scan" aria-hidden="true"></div>
-    <div class="wl-motion-line one"></div><div class="wl-motion-line two"></div>
+<main class="ws-scene ws-hotspot-page">
+    <div class="ws-bg" aria-hidden="true"></div>
+    <div class="ws-vignette" aria-hidden="true"></div>
+    <div class="ws-noise" aria-hidden="true"></div>
+    <div class="ws-beam a" aria-hidden="true"></div><div class="ws-beam b" aria-hidden="true"></div>
+    <div class="ws-cursor" aria-hidden="true"></div>
 
-    <div class="wl-hotspot cyan wl-drag" tabindex="0" style="left:14%;top:24%" data-title="TRAIN" data-copy="Build the signal: progressive resistance work, conditioning and movement you can sustain."><div><strong>TRAIN</strong><small>drag me</small></div></div>
-    <div class="wl-hotspot gold wl-drag" tabindex="0" style="left:54%;top:26%" data-title="FUEL" data-copy="Use protein and carbohydrate intentionally. Food supports the work; it is not the enemy."><div><strong>FUEL</strong><small>drag me</small></div></div>
-    <div class="wl-hotspot wl-drag" tabindex="0" style="right:13%;top:48%" data-title="RECOVER" data-copy="Sleep, soreness, energy and workload matter. Recovery protects tomorrow's training."><div><strong>RECOVER</strong><small>drag me</small></div></div>
-    <div class="wl-hotspot cyan wl-drag" tabindex="0" style="left:39%;bottom:14%" data-title="CHECK THE EVIDENCE" data-copy="Question hype. Read the evidence. Keep what works, discard what does not, and stay open to better information."><div><strong>EVIDENCE</strong><small>drag me</small></div></div>
-
-    <section class="wl-overlay" style="align-items:flex-end;pointer-events:none">
-        <div class="wl-copy" style="pointer-events:auto;max-width:620px">
-            <p class="wl-kicker">CONCEPT B · THE IMAGE IS THE INTERFACE</p>
-            <h1 class="wl-title" style="font-size:clamp(48px,6vw,92px)">FIND YOUR<br /><span class="green">OWN SIGNAL.</span></h1>
-            <p class="wl-sub">Click the glowing nodes. Drag them around. Explore the system instead of reading another wall of copy.</p>
-        </div>
+    <section class="ws-freedom-title">
+        <p class="ws-eyebrow">THE IMAGE IS THE INTERFACE</p>
+        <h1>CLICK.<br /><span>EXPLORE.</span></h1>
+        <p>Drag the glowing points. Build your own route.</p>
     </section>
-    <div class="wl-tooltip" role="status"></div>
-    <nav class="wl-dock" aria-label="Concept navigation"><a href="/welcome-lab/break-free">Poster</a><a href="/welcome-lab/hotspots">Hotspots</a><a href="/welcome-lab/cards">Cards</a><a href="/welcome-lab/ascend">Ascend</a></nav>
+
+    <button class="ws-hotspot cyan" style="left:39%;top:24%" type="button" data-ws-drag data-ws-panel data-label="MINDSET" data-title="Own the signal" data-copy="Question noise, keep useful evidence, and build a plan you can actually live with."><span><strong>MINDSET</strong><small>drag</small></span></button>
+    <button class="ws-hotspot" style="left:47%;top:46%" type="button" data-ws-drag data-ws-panel data-label="TRAINING" data-title="Get stronger" data-copy="Build muscle, strength and capacity with progressive work that earns recovery."><span><strong>TRAIN</strong><small>drag</small></span></button>
+    <button class="ws-hotspot gold" style="left:64%;top:45%" type="button" data-ws-drag data-ws-panel data-label="NUTRITION" data-title="Fuel the work" data-copy="Use protein and carbohydrate intentionally. Eat to support training, recovery and the weekly energy goal."><span><strong>FUEL</strong><small>drag</small></span></button>
+    <button class="ws-hotspot cyan" style="left:55%;top:66%" type="button" data-ws-drag data-ws-panel data-label="RECOVERY" data-title="Come back ready" data-copy="Sleep, soreness, energy and workload guide the next move instead of forcing the same answer every day."><span><strong>RECOVER</strong><small>drag</small></span></button>
+    <button class="ws-hotspot" style="left:72%;top:69%" type="button" data-ws-drag data-ws-panel data-label="FREEDOM" data-title="Live stronger" data-copy="The goal is not to live for the plan. The goal is to build a stronger life with the plan."><span><strong>FREEDOM</strong><small>drag</small></span></button>
+
+    <div class="ws-panel" aria-live="polite">
+        <button class="close" type="button" aria-label="Close">×</button>
+        <span class="label">EXPLORE</span>
+        <h2>Tap a signal</h2>
+        <p>Every glowing point is live.</p>
+    </div>
+
+    <p class="ws-small-note">DRAG THE NODES · CLICK TO OPEN · MAKE IT YOURS</p>
+    <nav class="ws-dock" aria-label="Concept navigation"><a href="/welcome-lab/break-free">Poster</a><a href="/welcome-lab/hotspots">Hotspots</a><a href="/welcome-lab/cards">Cards</a><a href="/welcome-lab/ascend">Ascend</a></nav>
 </main>
-<script src="~/js/welcome-lab-v1012.js" asp-append-version="true"></script>
+<script src="~/js/welcome-scenes-v1012.js" asp-append-version="true"></script>
 </body>
 </html>
