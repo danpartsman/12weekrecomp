@@ -1,0 +1,270 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "12 Week Recomp — Welcome Preview";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>12 Week Recomp — Welcome Preview</title>
+    <meta name="description" content="12 Week Recomp combines training, nutrition, recovery and energy balance into one practical 12-week system." />
+    <link rel="stylesheet" href="~/css/welcome-next-v1012.css" asp-append-version="true" />
+</head>
+<body class="wn-page">
+    <header class="wn-nav-shell">
+        <nav class="wn-nav" aria-label="Welcome preview navigation">
+            <a class="wn-brand" href="/welcome-next" aria-label="12 Week Recomp welcome preview">
+                <span class="wn-brand-main">12 WEEK</span>
+                <span class="wn-brand-accent">RECOMP</span>
+            </a>
+
+            <div class="wn-nav-links">
+                <a href="#method">Method</a>
+                <a href="#pillars">Pillars</a>
+                <a href="#coaching">Coaching</a>
+                <a asp-controller="Home" asp-action="Evidence">Evidence</a>
+            </div>
+
+            <div class="wn-nav-actions">
+                <a class="wn-signin" asp-controller="Account" asp-action="SignIn">Sign In</a>
+                <a class="wn-start-small" href="/trial/start">Get Started</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="wn-hero" aria-labelledby="wn-hero-title">
+            <div class="wn-hero-media" aria-hidden="true"></div>
+            <div class="wn-hero-grid"></div>
+
+            <div class="wn-hero-content">
+                <p class="wn-overline">LIVE BETTER. BUILD YOUR OWN FUTURE.</p>
+                <h1 id="wn-hero-title">
+                    RECLAIM YOUR
+                    <span class="wn-cyan">STRENGTH.</span>
+                    <span class="wn-green">REBUILD YOUR LIFE.</span>
+                </h1>
+                <p class="wn-hero-copy">
+                    12 Week Recomp helps you break free from extremes and build a stronger body with a practical system for training, protein, carbs, recovery and energy balance.
+                </p>
+                <div class="wn-hero-actions">
+                    <a class="wn-btn wn-btn-primary" href="/trial/start">
+                        Start Your 12 Weeks
+                        <span aria-hidden="true">›</span>
+                    </a>
+                    <a class="wn-btn wn-btn-secondary" href="#method">
+                        Learn the Method
+                        <span aria-hidden="true">›</span>
+                    </a>
+                </div>
+
+                <div class="wn-hero-proof" aria-label="Program promises">
+                    <span>NO EXTREME DIETING</span>
+                    <span>REAL TRAINING</span>
+                    <span>INDIVIDUALIZED GUIDANCE</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="pillars" class="wn-pillar-strip" aria-label="Program pillars">
+            <article>
+                <div class="wn-pillar-icon">↗</div>
+                <div>
+                    <strong>TRAINING</strong>
+                    <span>Build strength. Preserve muscle.</span>
+                </div>
+            </article>
+            <article>
+                <div class="wn-pillar-icon wn-pillar-icon-green">◈</div>
+                <div>
+                    <strong>NUTRITION</strong>
+                    <span>Protein high. Carbs with purpose.</span>
+                </div>
+            </article>
+            <article>
+                <div class="wn-pillar-icon">◌</div>
+                <div>
+                    <strong>RECOVERY</strong>
+                    <span>Recover enough to keep progressing.</span>
+                </div>
+            </article>
+            <article>
+                <div class="wn-pillar-icon wn-pillar-icon-green">⚡</div>
+                <div>
+                    <strong>ENERGY BALANCE</strong>
+                    <span>Reduce body fat over time.</span>
+                </div>
+            </article>
+        </section>
+
+        <section id="method" class="wn-method">
+            <div class="wn-section-heading">
+                <p class="wn-kicker">THE METHOD</p>
+                <h2>Lose fat. Build muscle. <span>Keep eating.</span></h2>
+                <p>
+                    The goal is not to starve your way smaller. It is to align training, nutrition, recovery and energy balance so the plan still works in real life.
+                </p>
+            </div>
+
+            <div class="wn-method-grid">
+                <article class="wn-feature-card wn-feature-training">
+                    <div class="wn-feature-image"></div>
+                    <div class="wn-feature-shade"></div>
+                    <div class="wn-feature-copy">
+                        <div class="wn-feature-number">01</div>
+                        <div class="wn-feature-icon">↗</div>
+                        <h3>TRAIN WITH PURPOSE</h3>
+                        <p>Use structured resistance training and conditioning to build strength, maintain lean tissue and create a clear training signal.</p>
+                        <span>BUILD STRENGTH →</span>
+                    </div>
+                </article>
+
+                <article class="wn-feature-card wn-feature-nutrition">
+                    <div class="wn-feature-image"></div>
+                    <div class="wn-feature-shade"></div>
+                    <div class="wn-feature-copy">
+                        <div class="wn-feature-number">02</div>
+                        <div class="wn-feature-icon wn-feature-icon-green">◈</div>
+                        <h3>FUEL THE WORK</h3>
+                        <p>Keep protein high and use carbohydrate around harder training while keeping total intake aligned with the weekly goal.</p>
+                        <span>FUEL INTENTIONALLY →</span>
+                    </div>
+                </article>
+
+                <article class="wn-feature-card wn-feature-recovery">
+                    <div class="wn-feature-image"></div>
+                    <div class="wn-feature-shade"></div>
+                    <div class="wn-feature-copy">
+                        <div class="wn-feature-number">03</div>
+                        <div class="wn-feature-icon">◌</div>
+                        <h3>RECOVER & ADAPT</h3>
+                        <p>Use sleep, soreness, energy and recent workload to decide when to push, when to hold steady and when to recover.</p>
+                        <span>KEEP MOMENTUM →</span>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="wn-equation" aria-label="Recomp equation">
+            <div class="wn-equation-art"></div>
+            <div class="wn-equation-content">
+                <p class="wn-kicker">THE SIMPLE TRUTH</p>
+                <h2>THE LOOK PEOPLE CALL <span>“TONED”</span> IS RECOMP.</h2>
+                <p class="wn-equation-lede">
+                    More or better-preserved muscle. Less body fat. Enough food to train, recover and live your life.
+                </p>
+
+                <div class="wn-equation-grid">
+                    <div>
+                        <strong>TRAIN</strong>
+                        <span>Create the signal.</span>
+                    </div>
+                    <div>
+                        <strong>PROTEIN</strong>
+                        <span>Support lean muscle.</span>
+                    </div>
+                    <div>
+                        <strong>CARBS</strong>
+                        <span>Fuel demanding work.</span>
+                    </div>
+                    <div>
+                        <strong>RECOVER</strong>
+                        <span>Come back ready.</span>
+                    </div>
+                    <div>
+                        <strong>ADAPT</strong>
+                        <span>Adjust from real data.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="coaching" class="wn-coaching">
+            <div class="wn-coach-image-wrap">
+                <img src="~/images/marketing-v12/coach-duo-gym.png" alt="Two 12 Week Recomp coaches in a gym" />
+                <div class="wn-coach-image-glow"></div>
+            </div>
+
+            <div class="wn-coach-copy">
+                <p class="wn-kicker">COACHING + THE RECOMP ENGINE</p>
+                <h2>YOUR PLAN SHOULD RESPOND TO <span>YOUR DAY.</span></h2>
+                <p>
+                    12 Week Recomp combines practical coaching with an individualized planning engine that helps connect your training, nutrition and recovery instead of treating them as separate problems.
+                </p>
+
+                <div class="wn-coach-points">
+                    <div>
+                        <strong>DAILY DIRECTION</strong>
+                        <span>Know what today is asking from you.</span>
+                    </div>
+                    <div>
+                        <strong>SMART FUELING</strong>
+                        <span>Match harder work with appropriate fuel.</span>
+                    </div>
+                    <div>
+                        <strong>ADAPTIVE RECOVERY</strong>
+                        <span>Protect progress when readiness changes.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="wn-values">
+            <div class="wn-section-heading wn-section-heading-centered">
+                <p class="wn-kicker">WHAT 12 WEEK RECOMP STANDS FOR</p>
+                <h2>A STRONGER YOU. <span>WITHOUT THE NONSENSE.</span></h2>
+            </div>
+
+            <div class="wn-values-grid">
+                <article>
+                    <div class="wn-value-mark">Ø</div>
+                    <strong>NO EXTREME DIETING</strong>
+                    <span>No crash plan pretending hunger is a strategy.</span>
+                </article>
+                <article>
+                    <div class="wn-value-mark wn-value-mark-green">↗</div>
+                    <strong>CONSISTENT ACTIVITY</strong>
+                    <span>Train hard enough to matter and often enough to improve.</span>
+                </article>
+                <article>
+                    <div class="wn-value-mark">◉</div>
+                    <strong>HEALTHY BOUNDARIES</strong>
+                    <span>Food supports the plan. It does not become the enemy.</span>
+                </article>
+                <article>
+                    <div class="wn-value-mark wn-value-mark-green">⌁</div>
+                    <strong>YOUR OWN PATH</strong>
+                    <span>Use the system without turning your life into the system.</span>
+                </article>
+            </div>
+        </section>
+
+        <section class="wn-final-cta">
+            <div class="wn-final-bg"></div>
+            <div class="wn-final-inner">
+                <p class="wn-kicker">12 WEEKS. ONE DIRECTION.</p>
+                <h2>BUILD THE BODY.<br /><span>RECLAIM THE MOMENTUM.</span></h2>
+                <p>Start with a practical plan for training, nutrition and recovery—then keep adjusting as your body and life change.</p>
+                <div class="wn-hero-actions">
+                    <a class="wn-btn wn-btn-primary" href="/trial/start">Start Free Trial <span aria-hidden="true">›</span></a>
+                    <a class="wn-btn wn-btn-secondary" asp-controller="Home" asp-action="Evidence">Read the Evidence <span aria-hidden="true">›</span></a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="wn-footer">
+        <div class="wn-brand wn-brand-footer">
+            <span class="wn-brand-main">12 WEEK</span>
+            <span class="wn-brand-accent">RECOMP</span>
+        </div>
+        <p>Built on evidence. Designed for real life.</p>
+        <div>
+            <a asp-controller="Home" asp-action="Evidence">Evidence</a>
+            <a asp-controller="Contact" asp-action="Index">Contact</a>
+            <a asp-controller="Account" asp-action="SignIn">Sign In</a>
+        </div>
+    </footer>
+</body>
+</html>
