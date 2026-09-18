@@ -215,6 +215,23 @@
         return true;
     };
 
+    const relocateMomentum = () => {
+        const dashboard = document.querySelector(".recomp-dashboard");
+        const momentum = dashboard?.querySelector(".journey-momentum-banner");
+        const tomorrow =
+            dashboard?.querySelector(".journey-tomorrow-section")
+            || dashboard?.querySelector(".dash-tomorrow-repeat-section");
+
+        if (!dashboard || !momentum || !tomorrow) return false;
+
+        if (tomorrow.nextElementSibling !== momentum) {
+            tomorrow.insertAdjacentElement("afterend", momentum);
+        }
+
+        momentum.classList.add("journey-momentum-relocated");
+        return true;
+    };
+
     const initialize = () => {
         let attempts = 0;
 
@@ -224,7 +241,15 @@
             window.setTimeout(tryBuild, 100);
         };
 
+        let momentumAttempts = 0;
+        const tryRelocateMomentum = () => {
+            momentumAttempts += 1;
+            if (relocateMomentum() || momentumAttempts >= 24) return;
+            window.setTimeout(tryRelocateMomentum, 100);
+        };
+
         tryBuild();
+        tryRelocateMomentum();
     };
 
     if (document.readyState === "loading") {
