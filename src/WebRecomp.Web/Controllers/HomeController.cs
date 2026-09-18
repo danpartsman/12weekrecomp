@@ -86,6 +86,48 @@ public sealed class HomeController(
         return View();
     }
 
+    // Experimental welcome concept lab. All routes are TEST-safe previews and
+    // intentionally remain separate from the live root welcome page.
+    [AllowAnonymous]
+    [HttpGet("/welcome-lab")]
+    public IActionResult WelcomeLab()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
+    [AllowAnonymous]
+    [HttpGet("/welcome-lab/break-free")]
+    public IActionResult WelcomeLabBreakFree()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
+    [AllowAnonymous]
+    [HttpGet("/welcome-lab/hotspots")]
+    public IActionResult WelcomeLabHotspots()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
+    [AllowAnonymous]
+    [HttpGet("/welcome-lab/cards")]
+    public IActionResult WelcomeLabCards()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
+    [AllowAnonymous]
+    [HttpGet("/welcome-lab/ascend")]
+    public IActionResult WelcomeLabAscend()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
     [AllowAnonymous]
     [HttpGet]
     public IActionResult Evidence()
