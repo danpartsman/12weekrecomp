@@ -77,6 +77,14 @@ public sealed class HomeController(
     }
 
     [AllowAnonymous]
+    [HttpGet("/welcome-ignite")]
+    public IActionResult WelcomeIgnite()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
+    [AllowAnonymous]
     [HttpGet]
     public IActionResult Evidence()
     {
