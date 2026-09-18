@@ -46,33 +46,50 @@
 
         if (!bg || !panel || !header || !lead || !grid) return false;
 
+        const artworkUrl = "/images/coach/marisol-card-background-v1012.webp?v=card1540x620e";
+
         const syncPinnedArtwork = () => {
             const desktop = window.matchMedia("(min-width: 1281px)").matches;
-
-            if (bg.tagName === "IMG") {
-                bg.src = "/images/coach/marisol-card-background-v1012.webp?v=card1540x620d";
-                bg.removeAttribute("srcset");
-                bg.style.setProperty("inset", "0", "important");
-                bg.style.setProperty("width", "100%", "important");
-                bg.style.setProperty("height", "100%", "important");
-                bg.style.setProperty("object-position", "left center", "important");
-                bg.style.setProperty("filter", "none", "important");
-                bg.style.setProperty("object-fit", desktop ? "fill" : "cover", "important");
-            }
 
             if (desktop) {
                 coach.style.setProperty("aspect-ratio", "1540 / 620", "important");
                 coach.style.setProperty("height", "auto", "important");
                 coach.style.setProperty("min-height", "0", "important");
+                coach.style.setProperty("background-image", `url("${artworkUrl}")`, "important");
+                coach.style.setProperty("background-size", "100% 100%", "important");
+                coach.style.setProperty("background-position", "left top", "important");
+                coach.style.setProperty("background-repeat", "no-repeat", "important");
+
+                if (bg.tagName === "IMG") {
+                    bg.style.setProperty("opacity", "0", "important");
+                }
             } else {
                 coach.style.removeProperty("aspect-ratio");
                 coach.style.removeProperty("height");
                 coach.style.removeProperty("min-height");
+                coach.style.removeProperty("background-image");
+                coach.style.removeProperty("background-size");
+                coach.style.removeProperty("background-position");
+                coach.style.removeProperty("background-repeat");
+
+                if (bg.tagName === "IMG") {
+                    bg.src = artworkUrl;
+                    bg.removeAttribute("srcset");
+                    bg.style.removeProperty("opacity");
+                    bg.style.setProperty("inset", "0", "important");
+                    bg.style.setProperty("width", "100%", "important");
+                    bg.style.setProperty("height", "100%", "important");
+                    bg.style.setProperty("object-position", "left center", "important");
+                    bg.style.setProperty("filter", "none", "important");
+                    bg.style.setProperty("object-fit", "cover", "important");
+                }
             }
         };
 
         syncPinnedArtwork();
         window.addEventListener("resize", syncPinnedArtwork, { passive: true });
+        window.setTimeout(syncPinnedArtwork, 250);
+        window.setTimeout(syncPinnedArtwork, 1000);
 
         panel.style.setProperty("left", "31%", "important");
 
