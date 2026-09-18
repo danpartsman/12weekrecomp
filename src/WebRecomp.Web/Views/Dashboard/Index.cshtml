@@ -1,18 +1,8 @@
 @model DashboardViewModel
-@using WebRecomp.Web.Services.Coaching
 <!-- V1006_GUIDED_SHELL -->
 @await Html.PartialAsync("_GuidedDemoShell")
 @{
     ViewData["Title"] = "Dashboard";
-    var todayCoachGuide =
-        CoachWorkoutGuideCatalog.Resolve(
-            Model.PreferredCoachCode,
-            Model.Engine30WorkoutTypeCode);
-
-    var tomorrowCoachGuide =
-        CoachWorkoutGuideCatalog.Resolve(
-            Model.PreferredCoachCode,
-            Model.TomorrowEngine30WorkoutTypeCode);
     var isGuidedDemo =
         User.FindFirst("recomp_demo")?.Value == "true"
         && User.FindFirst("recomp_demo_type")?.Value == "GUIDED";
@@ -907,35 +897,6 @@
             <h2>@Model.CoachTitle</h2>
             <p class="dash-coach-copy">@Model.CoachRecommendation</p>
 
-@if (todayCoachGuide is not null)
-{
-    <button
-        type="button"
-        class="dash-coach-guide-card dash-coach-guide-card--@todayCoachGuide.PresentationVariant"
-        data-coach-guide-open="today"
-        data-coach-guide-asset="@Url.Content(todayCoachGuide.AssetPath)"
-        data-coach-guide-title="@todayCoachGuide.Title"
-        data-coach-guide-alt="@todayCoachGuide.AltText"
-        data-coach-guide-layout="@todayCoachGuide.PresentationVariant"
-        data-coach-guide-nutrition="@todayCoachGuide.NutritionGuideCode"
-        aria-haspopup="dialog"
-        aria-controls="coachTodayDetail">
-        <img
-            src="@Url.Content(todayCoachGuide.AvatarPath)"
-            alt=""
-            class="dash-coach-guide-card__portrait" />
-        <span class="dash-coach-guide-card__copy">
-            <strong>Coach @todayCoachGuide.CoachDisplayName</strong>
-            <span>See today's workout + nutrition guide</span>
-        </span>
-        <span class="dash-coach-guide-card__arrow" aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-                <path d="M5 12h13M13 6l6 6-6 6"></path>
-            </svg>
-        </span>
-    </button>
-}
-
 <div class="dash-coach-brief-launch">
     <button
         type="button"
@@ -1032,35 +993,7 @@
                     <h2>Prepare for tomorrow</h2>
                     <p class="dash-coach-copy">@Model.TomorrowTip</p>
 
-                    @if (tomorrowCoachGuide is not null)
-                    {
-                        <button
-                            type="button"
-                            class="dash-coach-guide-card dash-coach-guide-card--tomorrow dash-coach-guide-card--@tomorrowCoachGuide.PresentationVariant"
-                            data-coach-guide-open="tomorrow"
-                            data-coach-guide-asset="@Url.Content(tomorrowCoachGuide.AssetPath)"
-                            data-coach-guide-title="@tomorrowCoachGuide.Title"
-                            data-coach-guide-alt="@tomorrowCoachGuide.AltText"
-                            data-coach-guide-layout="@tomorrowCoachGuide.PresentationVariant"
-                            data-coach-guide-nutrition="@tomorrowCoachGuide.NutritionGuideCode"
-                            aria-haspopup="dialog"
-                            aria-controls="coachTodayDetail">
-                            <img
-                                src="@Url.Content(tomorrowCoachGuide.AvatarPath)"
-            alt=""
-            class="dash-coach-guide-card__portrait" />
-                            <span class="dash-coach-guide-card__copy">
-                                <strong>Coach @tomorrowCoachGuide.CoachDisplayName</strong>
-                                <span>Preview tomorrow's workout + nutrition guide</span>
-                            </span>
-                            <span class="dash-coach-guide-card__arrow" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" focusable="false">
-                                    <path d="M5 12h13M13 6l6 6-6 6"></path>
-                                </svg>
-                            </span>
-                        </button>
-                    }
-                </section>
+                                    </section>
             </div>
         }
         @if (isGuidedDemo)
@@ -1810,10 +1743,5 @@ body.test-live-preview
         });
 })();
 </script>
-
-
-@await Html.PartialAsync("_CoachTodayDetail")
-<script src="~/js/coach-today-detail.js" asp-append-version="true"></script>
-
 
 
