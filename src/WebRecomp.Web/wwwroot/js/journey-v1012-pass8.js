@@ -42,7 +42,6 @@
 
         const title = coach.querySelector(":scope > h2");
         const recommendation = coach.querySelector(":scope > .dash-coach-copy");
-        const guide = coach.querySelector(":scope > .dash-coach-guide-card");
         const brief = coach.querySelector(":scope > .dash-coach-brief-launch");
         const factors = coach.querySelector(":scope > .dash-coach-factors");
         const why = coach.querySelector(":scope > .dash-why");
@@ -99,8 +98,12 @@
         section.className = "journey-coach-p8";
         section.setAttribute("aria-label", "Today's coach prescription");
 
-        const bg = document.createElement("div");
+        const bg = document.createElement("img");
         bg.className = "journey-coach-p8__bg";
+        bg.src = "/images/coach/marisol-coach-band-v1012.webp";
+        bg.alt = "";
+        bg.loading = "eager";
+        bg.fetchPriority = "high";
         bg.setAttribute("aria-hidden", "true");
 
         const panel = document.createElement("div");
@@ -199,7 +202,6 @@
         const actions = document.createElement("div");
         actions.className = "journey-coach-p8__actions";
 
-        if (guide) actions.appendChild(guide);
         if (brief) actions.appendChild(brief);
 
         footer.append(mantra, actions);
