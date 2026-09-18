@@ -1,0 +1,8 @@
+/* 12WR TEST v1012 — Coach prescription panel opacity override */
+body.test-live-preview .recomp-dashboard .journey-coach-p8__panel {
+    background:
+        linear-gradient(145deg,#071012 0%,#020608 100%) padding-box,
+        linear-gradient(135deg,#49ff9b 0%,rgba(75,255,164,.34) 17%,rgba(86,118,112,.16) 52%,rgba(234,255,48,.78) 100%) border-box !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+}
