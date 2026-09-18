@@ -69,6 +69,21 @@
         document.head.appendChild(pass8Script);
     }
 
+    if (!document.querySelector('link[data-12wr-journey-pass9="v1012"]')) {
+        const pass9Style = document.createElement("link");
+        pass9Style.rel = "stylesheet";
+        pass9Style.href = "/css/journey-v1012-pass9.css?v=1012p9";
+        pass9Style.dataset["12wrJourneyPass9"] = "v1012";
+        document.head.appendChild(pass9Style);
+    }
+
+    if (!document.querySelector('script[data-12wr-journey-pass9="v1012"]')) {
+        const pass9Script = document.createElement("script");
+        pass9Script.src = "/js/journey-v1012-pass9.js?v=1012p9";
+        pass9Script.dataset["12wrJourneyPass9"] = "v1012";
+        document.head.appendChild(pass9Script);
+    }
+
     const makeDashboardHero = () => {
         if (!path.startsWith("/dashboard")) {
             return;
