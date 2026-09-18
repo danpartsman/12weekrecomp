@@ -17,6 +17,33 @@
         return;
     }
 
+    if (!document.getElementById("recomp-nav-overlay-layer-v1012")) {
+        const style = document.createElement("style");
+        style.id = "recomp-nav-overlay-layer-v1012";
+        style.textContent = `
+            body.test-live-preview .topbar,
+            body.test-live-preview.app-shell .topbar {
+                position: relative !important;
+                z-index: 50000 !important;
+                overflow: visible !important;
+                isolation: isolate;
+            }
+
+            body.test-live-preview .app-nav.app-menu,
+            body.test-live-preview.app-shell .app-nav.app-menu,
+            body.test-live-preview .app-nav.app-menu.is-open,
+            body.test-live-preview.app-shell .app-nav.app-menu.is-open {
+                z-index: 50001 !important;
+            }
+
+            body.test-live-preview main.container {
+                position: relative;
+                z-index: 1;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     if (!document.querySelector('link[data-12wr-journey="v1012"]')) {
         const journeyStyle = document.createElement("link");
         journeyStyle.rel = "stylesheet";
@@ -280,9 +307,41 @@
             });
     };
 
+    const enforceApprovedMarisol = () => {
+        if (!location.pathname.toLowerCase().startsWith("/dashboard")) {
+            return;
+        }
+
+        let attempts = 0;
+
+        const applyImage = () => {
+            attempts += 1;
+
+            const image =
+                document.querySelector(
+                    ".recomp-dashboard .journey-coach-p8__bg"
+                );
+
+            if (image instanceof HTMLImageElement) {
+                image.src =
+                    "/images/coach/marisol-card-background-v1012.webp?v=marisol-approved-20260918c";
+                image.removeAttribute("srcset");
+                image.style.setProperty("object-position", "left center", "important");
+                return;
+            }
+
+            if (attempts < 40) {
+                window.setTimeout(applyImage, 100);
+            }
+        };
+
+        applyImage();
+    };
+
     const initialize = () => {
         initializeWorkoutColors();
         classifyDailyEntry();
+        enforceApprovedMarisol();
     };
 
     if (
