@@ -40,21 +40,24 @@
         const bg = coach.querySelector(":scope > .journey-coach-p8__bg");
         const panel = coach.querySelector(":scope > .journey-coach-p8__panel");
         const message = coach.querySelector(":scope > .journey-coach-p9__message");
-        const header =
-            message?.querySelector(":scope > .journey-coach-p8__header")
-            || panel?.querySelector(":scope > .journey-coach-p8__header");
-        const lead =
-            message?.querySelector(":scope > .journey-coach-p8__lead")
-            || panel?.querySelector(":scope > .journey-coach-p8__lead");
+        const header = message?.querySelector(":scope > .journey-coach-p8__header") || panel?.querySelector(":scope > .journey-coach-p8__header");
+        const lead = message?.querySelector(":scope > .journey-coach-p8__lead") || panel?.querySelector(":scope > .journey-coach-p8__lead");
         const grid = panel?.querySelector(":scope > .journey-coach-p8__grid");
 
         if (!bg || !panel || !header || !lead || !grid) return false;
 
-        /* Use the existing full-body Marisol art as a portrait crop rather than an attached guide card. */
         if (bg.tagName === "IMG") {
-            bg.src = "/images/coach/marisol-full-body-strength-guide.webp";
+            bg.src = "/images/coach/marisol-card-background-v1012.webp";
             bg.removeAttribute("srcset");
+            bg.style.setProperty("inset", "0", "important");
+            bg.style.setProperty("width", "100%", "important");
+            bg.style.setProperty("height", "100%", "important");
+            bg.style.setProperty("object-fit", "cover", "important");
+            bg.style.setProperty("object-position", "left center", "important");
+            bg.style.setProperty("filter", "none", "important");
         }
+
+        panel.style.setProperty("left", "31%", "important");
 
         if (message) message.remove();
 
