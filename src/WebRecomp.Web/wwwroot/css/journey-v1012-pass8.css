@@ -52,10 +52,12 @@ body.journey-dashboard .journey-mission-coach > .guided-demo-callout {
     position:absolute;
     inset:0;
     z-index:0;
-    background-image:url("/images/coach/marisol-coach-band-v1012.webp");
-    background-repeat:no-repeat;
-    background-size:cover;
-    background-position:left center;
+    width:100%;
+    height:100%;
+    display:block;
+    object-fit:cover;
+    object-position:left center;
+    pointer-events:none;
 }
 
 .journey-coach-p8::before {
@@ -428,9 +430,9 @@ body.journey-dashboard .dash-pa-actual .dash-pa-label {
     }
 
     .journey-coach-p8__bg {
-        background-size:auto 410px;
-        background-position:18% top;
-        background-color:#010204;
+        object-fit:cover;
+        object-position:18% top;
+        background:#010204;
     }
 
     .journey-coach-p8::before {
@@ -460,8 +462,7 @@ body.journey-dashboard .dash-pa-actual .dash-pa-label {
     }
 
     .journey-coach-p8__bg {
-        background-size:auto 330px;
-        background-position:21% top;
+        object-position:21% top;
     }
 
     .journey-coach-p8__panel {
@@ -493,7 +494,7 @@ body.journey-dashboard .dash-pa-actual .dash-pa-label {
     }
 
     .journey-coach-p8__bg {
-        background-size:auto 290px;
+        object-position:21% top;
     }
 
     .journey-coach-p8__title {
@@ -514,10 +515,17 @@ body.journey-dashboard .dash-pa-actual .dash-pa-label {
 
 /* PASS 8B — keep the approved coach artwork visibly pinned to the left. */
 body.journey-dashboard .journey-coach-p8__bg {
-    background-position:left center !important;
+    object-position:left center !important;
 }
 
 body.journey-dashboard .journey-momentum-banner.journey-momentum-relocated {
     margin-top:1.45rem !important;
     margin-bottom:1.45rem !important;
+}
+
+
+/* PASS 8C — no coach-guide attachment cards anywhere on Dashboard. */
+body.journey-dashboard .dash-coach-guide-card,
+body.journey-dashboard [data-coach-guide-open] {
+    display:none !important;
 }
