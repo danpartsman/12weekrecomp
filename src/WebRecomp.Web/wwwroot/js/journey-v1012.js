@@ -54,19 +54,19 @@
         document.head.appendChild(pass4Script);
     }
 
-    if (!document.querySelector('link[data-12wr-journey-pass7="v1012"]')) {
-        const pass7Style = document.createElement("link");
-        pass7Style.rel = "stylesheet";
-        pass7Style.href = "/css/journey-v1012-pass7.css?v=1012p7";
-        pass7Style.dataset["12wrJourneyPass7"] = "v1012";
-        document.head.appendChild(pass7Style);
+    if (!document.querySelector('link[data-12wr-journey-pass8="v1012"]')) {
+        const pass8Style = document.createElement("link");
+        pass8Style.rel = "stylesheet";
+        pass8Style.href = "/css/journey-v1012-pass8.css?v=1012p8a";
+        pass8Style.dataset["12wrJourneyPass8"] = "v1012";
+        document.head.appendChild(pass8Style);
     }
 
-    if (!document.querySelector('script[data-12wr-journey-pass7="v1012"]')) {
-        const pass7Script = document.createElement("script");
-        pass7Script.src = "/js/journey-v1012-pass7.js?v=1012p7";
-        pass7Script.dataset["12wrJourneyPass7"] = "v1012";
-        document.head.appendChild(pass7Script);
+    if (!document.querySelector('script[data-12wr-journey-pass8="v1012"]')) {
+        const pass8Script = document.createElement("script");
+        pass8Script.src = "/js/journey-v1012-pass8.js?v=1012p8a";
+        pass8Script.dataset["12wrJourneyPass8"] = "v1012";
+        document.head.appendChild(pass8Script);
     }
 
     const makeDashboardHero = () => {
