@@ -76,6 +76,8 @@ public sealed class HomeController(
         return View();
     }
 
+    // High-energy marketing preview. Kept separate from the live welcome page
+    // until the design is explicitly approved for promotion.
     [AllowAnonymous]
     [HttpGet("/welcome-ignite")]
     public IActionResult WelcomeIgnite()
