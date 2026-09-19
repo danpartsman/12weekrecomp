@@ -9,41 +9,40 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#02070b" />
     <title>12 Week Recomp — Break Free</title>
-    <link rel="stylesheet" href="~/css/welcome-breakfree-v1012.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/welcome-breakfree-fallback-v1012.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/welcome-portal-final-v1012.css" asp-append-version="true" />
 </head>
 <body>
-<main class="bf-stage" data-bf-stage aria-label="12 Week Recomp Break Free welcome experience">
-    <div class="bf-light bf-light-cyan" aria-hidden="true"></div>
-    <div class="bf-light bf-light-green" aria-hidden="true"></div>
-    <div class="bf-sweep" aria-hidden="true"></div>
-    <div class="bf-cursor" data-bf-cursor aria-hidden="true"></div>
+<main class="portal-stage" data-portal-stage aria-label="12 Week Recomp Break Free welcome portal">
+    <img class="portal-art" src="/images/marketing-v15/break-free-portal-v1012.jpg" alt="12 Week Recomp — Break Free from programming, narratives, toxins, environmental pressures, depression, ailments, aging and medications" width="800" height="450" />
+    <div class="portal-sheen" aria-hidden="true"></div>
 
-    <nav class="bf-hotspots bf-topnav" aria-label="Primary">
-        <a class="bf-hit hit-what-top" href="/recomp/what"><span>What is Recomp</span></a>
-        <a class="bf-hit hit-how-top" href="/recomp/how"><span>How it works</span></a>
-        <a class="bf-hit hit-evidence-top" href="/recomp/evidence"><span>Evidence</span></a>
-        <a class="bf-hit hit-account-top" href="/recomp/start"><span>Create free account</span></a>
-    </nav>
+    <a class="portal-hit hit-home" href="/welcome-portal" aria-label="Home"></a>
+    <a class="portal-hit hit-what-top" href="/recomp/what" aria-label="What is Recomp"></a>
+    <a class="portal-hit hit-how-top" href="/recomp/how" aria-label="How it works"></a>
+    <a class="portal-hit hit-evidence-top" href="/recomp/evidence" aria-label="Evidence"></a>
+    <a class="portal-hit hit-account-top" href="/recomp/start" aria-label="Create free account"></a>
+    <a class="portal-hit hit-start" href="/recomp/start" aria-label="Start your 12 weeks"></a>
+    <button class="portal-hit hit-energy" type="button" data-portal-energy aria-label="Toggle Energy Max"></button>
+    <a class="portal-hit hit-card-what" href="/recomp/what" aria-label="What is Recomp"></a>
+    <a class="portal-hit hit-card-how" href="/recomp/how" aria-label="How it works"></a>
+    <a class="portal-hit hit-card-evidence" href="/recomp/evidence" aria-label="The evidence"></a>
+    <a class="portal-hit hit-card-plan" href="/recomp/start" aria-label="Build your plan"></a>
 
-    <a class="bf-hit hit-start" href="/recomp/start"><span>Start your 12 weeks</span></a>
-    <button class="bf-hit hit-energy" type="button" data-bf-energy aria-pressed="false"><span>Energy Max</span></button>
-
-    <section class="bf-hotspots bf-cards" aria-label="Explore 12 Week Recomp">
-        <a class="bf-hit hit-card-what" href="/recomp/what"><span>What is Recomp?</span></a>
-        <a class="bf-hit hit-card-how" href="/recomp/how"><span>How it works</span></a>
-        <a class="bf-hit hit-card-evidence" href="/recomp/evidence"><span>The evidence</span></a>
-        <a class="bf-hit hit-card-plan" href="/recomp/start"><span>Build your plan</span></a>
-    </section>
-
-    <div class="bf-mobile-actions" aria-label="Mobile navigation">
-        <a href="/recomp/what"><b>01</b> What is Recomp?</a>
-        <a href="/recomp/how"><b>02</b> How it works</a>
-        <a href="/recomp/evidence"><b>03</b> The evidence</a>
-        <a href="/recomp/start"><b>04</b> Build your plan</a>
-        <a class="primary" href="/recomp/start">Start your 12 weeks →</a>
+    <div class="portal-mobile" aria-label="Mobile navigation">
+        <a href="/recomp/what">What is Recomp? <span>→</span></a>
+        <a href="/recomp/how">How it works <span>→</span></a>
+        <a href="/recomp/evidence">The evidence <span>→</span></a>
+        <a href="/recomp/start">Build your plan <span>→</span></a>
+        <a class="primary" href="/recomp/start">Start your 12 weeks</a>
     </div>
 </main>
-<script src="~/js/welcome-breakfree-v1012.js" asp-append-version="true"></script>
+<script>
+(() => {
+    const stage = document.querySelector('[data-portal-stage]');
+    const energy = document.querySelector('[data-portal-energy]');
+    if (!stage || !energy) return;
+    energy.addEventListener('click', () => stage.classList.toggle('energy-max'));
+})();
+</script>
 </body>
 </html>

@@ -1,1 +1,0 @@
-Welcome portal marketing image assets. The hero image is stored as a binary Git blob and rendered directly by WelcomePortal.cshtml.
