@@ -9,90 +9,68 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#02070b" />
     <title>12 Week Recomp — Break Free</title>
+    <link rel="stylesheet" href="~/css/welcome-img-main-v1012.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/welcome-img-strength-v1012.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/welcome-portal-v1012.css" asp-append-version="true" />
 </head>
 <body class="wp-page">
-<div class="wp-scene" data-wp-scene>
-    <div class="wp-mountains" aria-hidden="true"></div>
-    <div class="wp-aurora wp-aurora-a" aria-hidden="true"></div>
-    <div class="wp-aurora wp-aurora-b" aria-hidden="true"></div>
-    <div class="wp-stars" aria-hidden="true"></div>
-    <div class="wp-scan" aria-hidden="true"></div>
-    <div class="wp-cursor-glow" data-wp-glow aria-hidden="true"></div>
+<main class="wp-stage" data-wp-stage>
+    <div class="wp-hero-media" data-wp-hero aria-hidden="true"></div>
+    <div class="wp-hero-shade" aria-hidden="true"></div>
+    <div class="wp-hero-bloom wp-bloom-cyan" aria-hidden="true"></div>
+    <div class="wp-hero-bloom wp-bloom-green" aria-hidden="true"></div>
+    <div class="wp-grid" aria-hidden="true"></div>
+    <div class="wp-sweep" aria-hidden="true"></div>
+    <div class="wp-cursor" data-wp-cursor aria-hidden="true"></div>
 
     <header class="wp-nav">
-        <a class="wp-brand" href="/welcome-portal">12 WEEK <em>RECOMP</em></a>
+        <a class="wp-brand" href="/welcome-portal"><span>12 WEEK</span> <em>RECOMP</em></a>
         <nav aria-label="12 Week Recomp">
-            <a class="active" href="/welcome-portal">Home</a>
-            <a href="/recomp/what">What is Recomp</a>
-            <a href="/recomp/how">How it Works</a>
+            <a href="/recomp/what">What Is Recomp</a>
+            <a href="/recomp/how">How It Works</a>
             <a href="/recomp/evidence">Evidence</a>
-            <a href="/welcome-lab">Concept Lab</a>
         </nav>
-        <a class="wp-top-cta" href="/recomp/start">Create Free Account</a>
+        <a class="wp-nav-cta" href="/recomp/start">CREATE FREE ACCOUNT</a>
     </header>
 
-    <aside class="wp-wall wp-wall-left" aria-label="What you can leave behind">
-        <span>Bad Habits</span><span>Low Energy</span><span>Self Doubt</span><span>Stagnation</span>
-    </aside>
-    <aside class="wp-wall wp-wall-right" aria-label="What can hold you back">
-        <span>Poor Health</span><span>No Time</span><span>Inconsistency</span><span>Limited Life</span>
-    </aside>
-
-    <div class="wp-chain wp-chain-left" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="wp-chain wp-chain-right" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-
-    <section class="wp-identity" aria-label="12 Week Recomp">
-        <div class="wp-ring" aria-hidden="true"></div>
-        <img src="/images/recomp/12wr-unbound-crest-v1012.jpg" alt="12 Week Recomp — Unbound, Energized, Alive" />
-        <div class="wp-dna" aria-hidden="true">⌁</div>
+    <section class="wp-copy" aria-labelledby="wp-title">
+        <p class="wp-kicker">UNBOUND · ENERGIZED · ALIVE</p>
+        <h1 id="wp-title"><span>BREAK</span><strong>FREE.</strong></h1>
+        <p class="wp-sub">TRAIN. FUEL. RECOVER. BECOME.</p>
+        <div class="wp-actions">
+            <a class="wp-primary" href="/recomp/start">START YOUR 12 WEEKS <b>→</b></a>
+            <button class="wp-energy" type="button" data-wp-energy aria-pressed="false">ENERGY +</button>
+        </div>
     </section>
 
-    <div class="wp-athlete wp-athlete-left" aria-hidden="true"></div>
-    <div class="wp-athlete wp-athlete-right" aria-hidden="true"></div>
-
-    <p class="wp-break wp-break-left">BREAK<br /><strong>FREE</strong></p>
-    <p class="wp-break wp-break-right">BUILD A<br /><strong>BRIGHTER TOMORROW</strong></p>
+    <aside class="wp-rail" aria-label="Change scene">
+        <button type="button" class="is-active" data-wp-scene="main" aria-label="Together">01</button>
+        <button type="button" data-wp-scene="strength" aria-label="Strength">02</button>
+        <button type="button" data-wp-scene="power" aria-label="Power">03</button>
+        <button type="button" data-wp-scene="team" aria-label="Community">04</button>
+    </aside>
 
     <section class="wp-paths" aria-label="Explore 12 Week Recomp">
-        <a class="wp-path cyan" href="/recomp/what">
-            <span class="wp-icon">▥</span>
-            <strong>WHAT IS<br />RECOMP?</strong>
-            <small>REAL CHANGE.<br />REAL YOU.</small>
-            <b>→</b>
+        <a class="wp-path cyan" href="/recomp/what" data-wp-preview="strength">
+            <span class="wp-path-tint"></span>
+            <div><small>01</small><strong>WHAT IS RECOMP?</strong><em>REAL CHANGE. REAL YOU.</em></div><b>→</b>
         </a>
-        <a class="wp-path green" href="/recomp/how">
-            <span class="wp-icon">⚙</span>
-            <strong>HOW DOES<br />IT WORK?</strong>
-            <small>SIMPLE SYSTEM.<br />REAL RESULTS.</small>
-            <b>→</b>
+        <a class="wp-path green" href="/recomp/how" data-wp-preview="rope">
+            <span class="wp-path-tint"></span>
+            <div><small>02</small><strong>HOW IT WORKS</strong><em>TRAIN. FUEL. ADAPT.</em></div><b>→</b>
         </a>
-        <a class="wp-path gold" href="/recomp/evidence">
-            <span class="wp-icon">▥</span>
-            <strong>THE<br />EVIDENCE</strong>
-            <small>REAL SCIENCE.<br />REAL PEOPLE.</small>
-            <b>→</b>
+        <a class="wp-path gold" href="/recomp/evidence" data-wp-preview="team">
+            <span class="wp-path-tint"></span>
+            <div><small>03</small><strong>THE EVIDENCE</strong><em>LESS HYPE. MORE SIGNAL.</em></div><b>→</b>
         </a>
-        <a class="wp-path purple" href="/recomp/start">
-            <span class="wp-icon">＋</span>
-            <strong>CREATE YOUR<br />FREE ACCOUNT</strong>
-            <small>YOUR PLAN.<br />YOUR FUTURE.</small>
-            <b>→</b>
+        <a class="wp-path purple" href="/recomp/start" data-wp-preview="dumbbell">
+            <span class="wp-path-tint"></span>
+            <div><small>04</small><strong>BUILD YOUR PLAN</strong><em>FREE. INDIVIDUALIZED. YOURS.</em></div><b>→</b>
         </a>
     </section>
 
-    <footer class="wp-bottom">
-        <div class="wp-benefits">
-            <span>◒ <b>MORE ENERGY</b></span>
-            <span>♥ <b>BETTER HEALTH</b></span>
-            <span>◎ <b>CLEARER MIND</b></span>
-            <span>⌁ <b>A STRONGER YOU</b></span>
-        </div>
-        <a class="wp-start" href="/recomp/start">START YOUR 12 WEEKS <strong>→</strong><small>UNLOCK A BRIGHTER YOU</small></a>
-    </footer>
-
-    <button class="wp-sound" type="button" data-wp-energy aria-pressed="false" title="Toggle extra motion">ENERGY +</button>
-</div>
+    <div class="wp-mantra" aria-hidden="true"><span>MORE ENERGY</span><span>MORE STRENGTH</span><span>MORE YOU</span></div>
+</main>
 <script src="~/js/welcome-portal-v1012.js" asp-append-version="true"></script>
 </body>
 </html>
