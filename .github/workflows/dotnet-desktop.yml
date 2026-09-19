@@ -6,6 +6,10 @@ on:
     branches:
       - test
 
+concurrency:
+  group: recomp-test-deploy
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: windows-latest
