@@ -96,6 +96,15 @@ public sealed class HomeController(
         return View();
     }
 
+    // Interactive translation of the approved cinematic welcome artwork.
+    [AllowAnonymous]
+    [HttpGet("/welcome-portal")]
+    public IActionResult WelcomePortal()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
     [AllowAnonymous]
     [HttpGet("/welcome-lab/break-free")]
     public IActionResult WelcomeLabBreakFree()
