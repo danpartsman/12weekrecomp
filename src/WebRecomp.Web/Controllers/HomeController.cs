@@ -14,8 +14,7 @@ public sealed class HomeController(
     public async Task<IActionResult> Index(
         CancellationToken cancellationToken)
     {
-        // Welcome remains public. Authenticated customers opening the root
-        // are routed into their Recomp experience.
+        // Authenticated customers opening the root are routed into their Recomp experience.
         if (User.Identity?.IsAuthenticated == true)
         {
             var context =
@@ -65,7 +64,8 @@ public sealed class HomeController(
             }
         }
 
-        return View();
+        // TEST v1012 approved public starting page.
+        return View("RecompStart");
     }
 
     [AllowAnonymous]
@@ -76,8 +76,6 @@ public sealed class HomeController(
         return View();
     }
 
-    // High-energy marketing preview. Kept separate from the live welcome page
-    // until the design is explicitly approved for promotion.
     [AllowAnonymous]
     [HttpGet("/welcome-ignite")]
     public IActionResult WelcomeIgnite()
@@ -86,8 +84,6 @@ public sealed class HomeController(
         return View();
     }
 
-    // Experimental welcome concept lab. All routes are TEST-safe previews and
-    // intentionally remain separate from the live root welcome page.
     [AllowAnonymous]
     [HttpGet("/welcome-lab")]
     public IActionResult WelcomeLab()
@@ -96,7 +92,6 @@ public sealed class HomeController(
         return View();
     }
 
-    // Interactive translation of the approved cinematic welcome artwork.
     [AllowAnonymous]
     [HttpGet("/welcome-portal")]
     public IActionResult WelcomePortal()
@@ -137,7 +132,6 @@ public sealed class HomeController(
         return View();
     }
 
-    // Simple public guide pages used by the experimental welcome concepts.
     [AllowAnonymous]
     [HttpGet("/recomp/what")]
     public IActionResult RecompWhat()
@@ -188,20 +182,15 @@ public sealed class HomeController(
 
         if (entitlements.IsEntitlementRequired)
         {
-            if (entitlements.IsEntitlementRequired)
-            {
-                var hasAccess =
-                    await entitlements.HasApplicationAccessAsync(
-                        context.User.UserId,
-                        cancellationToken);
+            var hasAccess =
+                await entitlements.HasApplicationAccessAsync(
+                    context.User.UserId,
+                    cancellationToken);
 
-                if (!hasAccess)
-                    return RedirectToAction("Index", "Access");
-            }
+            if (!hasAccess)
+                return RedirectToAction("Index", "Access");
         }
 
-        // Entitled new customers enter onboarding.
-        // Existing customers return directly to Dashboard.
         if (context.Client is null || context.Program is null)
             return RedirectToAction("Index", "Onboarding");
 
