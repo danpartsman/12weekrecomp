@@ -1,65 +1,74 @@
 @{
     Layout = null;
-    ViewData["Title"] = "12 Week Recomp — Concept Lab";
+    ViewData["Title"] = "12 Week Recomp — Break Free";
 }
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>12 Week Recomp — Concept Lab</title>
-    <link rel="stylesheet" href="~/css/welcome-lab-v1012.css" asp-append-version="true" />
+    <title>12 Week Recomp — Break Free</title>
+    <link rel="stylesheet" href="~/css/welcome-lab-main-v1012.css" asp-append-version="true" />
 </head>
-<body class="wl-page">
-<header class="wl-topbar">
-    <a class="wl-brand" href="/welcome-lab">12 WEEK <em>RECOMP</em></a>
-    <a class="wl-back" href="/welcome-ignite">← Ignite</a>
-    <a class="wl-cta-mini" href="/recomp/start">Create Free Account</a>
-</header>
-<main class="wl-lab">
-    <section class="wl-lab-intro">
-        <div>
-            <p class="wl-kicker">WELCOME EXPERIENCE LAB · TEST ONLY</p>
-            <h1>FOUR WAYS TO <span>BREAK FREE.</span></h1>
-            <p>These are four visual entry experiences. Every concept now leads to the same four simple destinations: understand Recomp, see how the system works, inspect the evidence, or build your individualized account.</p>
-            <div class="wl-guide-links">
-                <a href="/recomp/what">What is Recomp?</a>
-                <a href="/recomp/how">How it Works</a>
-                <a href="/recomp/evidence">Evidence</a>
-                <a class="start" href="/recomp/start">Create Free Account</a>
-            </div>
-        </div>
-        <a class="wl-crest" href="/recomp/what" aria-label="Open What Is Recomp" style="padding:0;background:#000;display:block;">
-            <img src="/images/recomp/12wr-unbound-crest-v1012.jpg" alt="12 Week Recomp — Unbound, Energized, Alive" style="display:block;width:100%;height:100%;min-height:360px;object-fit:contain;background:#000;" />
-        </a>
-    </section>
+<body class="wlx-page">
+    <header class="wlx-nav">
+        <a class="wlx-brand" href="/welcome-lab">12 WEEK <em>RECOMP</em></a>
+        <nav aria-label="Explore 12 Week Recomp">
+            <a href="/recomp/what">What is Recomp?</a>
+            <a href="/recomp/how">How it Works</a>
+            <a href="/recomp/evidence">Evidence</a>
+            <a class="primary" href="/recomp/start">Create Free Account</a>
+        </nav>
+    </header>
 
-    <div class="wl-lab-grid">
-        <a class="wl-lab-card" href="/welcome-lab/break-free">
-            <span class="tag">Concept A · Full-screen poster</span>
-            <h2>BREAK FREE</h2>
-            <p>One image. One message. Motion, glow, parallax and almost no explanation.</p>
-            <span class="arrow">↗</span>
+    <main class="wlx-stage" data-wlx-stage>
+        <div class="wlx-aurora cyan" aria-hidden="true"></div>
+        <div class="wlx-aurora green" aria-hidden="true"></div>
+        <div class="wlx-beam one" aria-hidden="true"></div>
+        <div class="wlx-beam two" aria-hidden="true"></div>
+        <div class="wlx-cursor" data-wlx-cursor aria-hidden="true"></div>
+
+        <img
+            class="wlx-crest"
+            src="/images/recomp/12wr-unbound-crest-v1012.jpg"
+            alt="12 Week Recomp — Unbound, Energized, Alive. Science-driven wellness for real life." />
+
+        <a class="wlx-path cyan p1" href="/recomp/what" data-wlx-drag>
+            <span class="number">01</span>
+            <strong>WHAT IS RECOMP?</strong>
+            <small>Understand the system</small>
         </a>
-        <a class="wl-lab-card" href="/welcome-lab/hotspots">
-            <span class="tag">Concept B · Clickable image world</span>
-            <h2>EXPLORE YOUR SYSTEM</h2>
-            <p>The image is the interface. Four draggable hotspots now open the four real public guide pages.</p>
-            <span class="arrow">◎</span>
+        <a class="wlx-path green p2" href="/recomp/how" data-wlx-drag>
+            <span class="number">02</span>
+            <strong>HOW IT WORKS</strong>
+            <small>See the four signals</small>
         </a>
-        <a class="wl-lab-card" href="/welcome-lab/cards">
-            <span class="tag">Concept C · Draggable cards</span>
-            <h2>BUILD YOUR STACK</h2>
-            <p>Four visual cards. Reorder them, then open What, How, Evidence or Start.</p>
-            <span class="arrow">↕</span>
+        <a class="wlx-path gold p3" href="/recomp/evidence" data-wlx-drag>
+            <span class="number">03</span>
+            <strong>THE EVIDENCE</strong>
+            <small>Science over hype</small>
         </a>
-        <a class="wl-lab-card" href="/welcome-lab/ascend">
-            <span class="tag">Concept D · Borderless cinematic</span>
-            <h2>ASCEND</h2>
-            <p>No boxed layout. The photograph owns the screen while the key paths remain one click away.</p>
-            <span class="arrow">→</span>
+        <a class="wlx-path purple p4" href="/recomp/start" data-wlx-drag>
+            <span class="number">04</span>
+            <strong>BUILD YOUR PLAN</strong>
+            <small>Create your free account</small>
         </a>
-    </div>
-</main>
+
+        <div class="wlx-mantra" aria-hidden="true">
+            <span>BREAK THE LOOP</span><b>•</b><span>BUILD THE SYSTEM</span><b>•</b><span>BECOME MORE YOU</span>
+        </div>
+
+        <a class="wlx-start" href="/recomp/start">START YOUR 12 WEEKS <span>→</span></a>
+
+        <nav class="wlx-lab-links" aria-label="Experimental welcome concepts">
+            <span>LAB</span>
+            <a href="/welcome-lab/break-free">Poster</a>
+            <a href="/welcome-lab/hotspots">Hotspots</a>
+            <a href="/welcome-lab/cards">Cards</a>
+            <a href="/welcome-lab/ascend">Ascend</a>
+        </nav>
+    </main>
+
+    <script src="~/js/welcome-lab-main-v1012.js" asp-append-version="true"></script>
 </body>
 </html>
