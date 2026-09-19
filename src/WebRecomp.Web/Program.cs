@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.StaticFiles;
 using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
@@ -200,7 +201,17 @@ app.UseExceptionHandler("/TestDiagnostics/Error");
 app.UseForwardedHeaders();
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+
+// Static asset provider: explicitly support modern marketing image formats.
+// This avoids a silent 404 on environments whose default provider does not
+// include WebP, which would leave image-led pages visually blank.
+var staticContentTypes = new FileExtensionContentTypeProvider();
+staticContentTypes.Mappings[".webp"] = "image/webp";
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = staticContentTypes
+});
+
 app.UseRouting();
 
 app.UseAuthentication();
