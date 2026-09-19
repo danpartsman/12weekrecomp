@@ -1,0 +1,48 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "12 Week Recomp — Break Free";
+}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#02070b" />
+    <title>12 Week Recomp — Break Free</title>
+    <link rel="stylesheet" href="~/css/welcome-portal-final-v1012.css" asp-append-version="true" />
+</head>
+<body>
+<main class="portal-stage" data-portal-stage>
+    <img class="portal-art" src="/images/marketing-v15/break-free-portal-v1012.jpg" alt="12 Week Recomp Break Free portal" width="1000" height="563" />
+    <div class="portal-sheen" aria-hidden="true"></div>
+
+    <a class="portal-hit hit-home" href="/welcome-portal" aria-label="Home"></a>
+    <a class="portal-hit hit-what-top" href="/recomp/what" aria-label="What is Recomp"></a>
+    <a class="portal-hit hit-how-top" href="/recomp/how" aria-label="How it works"></a>
+    <a class="portal-hit hit-evidence-top" href="/recomp/evidence" aria-label="Evidence"></a>
+    <a class="portal-hit hit-account-top" href="/recomp/start" aria-label="Create free account"></a>
+    <a class="portal-hit hit-start" href="/recomp/start" aria-label="Start your 12 weeks"></a>
+    <button class="portal-hit hit-energy" type="button" data-portal-energy aria-label="Toggle Energy Max"></button>
+    <a class="portal-hit hit-card-what" href="/recomp/what" aria-label="What is Recomp card"></a>
+    <a class="portal-hit hit-card-how" href="/recomp/how" aria-label="How it works card"></a>
+    <a class="portal-hit hit-card-evidence" href="/recomp/evidence" aria-label="Evidence card"></a>
+    <a class="portal-hit hit-card-plan" href="/recomp/start" aria-label="Build your plan card"></a>
+
+    <div class="portal-mobile" aria-label="Mobile navigation">
+        <a href="/recomp/what">What is Recomp? <span>→</span></a>
+        <a href="/recomp/how">How it works <span>→</span></a>
+        <a href="/recomp/evidence">The evidence <span>→</span></a>
+        <a href="/recomp/start">Build your plan <span>→</span></a>
+        <a class="primary" href="/recomp/start">Start your 12 weeks</a>
+    </div>
+</main>
+<script>
+(() => {
+    const stage = document.querySelector('[data-portal-stage]');
+    const energy = document.querySelector('[data-portal-energy]');
+    if (!stage || !energy) return;
+    energy.addEventListener('click', () => stage.classList.toggle('energy-max'));
+})();
+</script>
+</body>
+</html>
