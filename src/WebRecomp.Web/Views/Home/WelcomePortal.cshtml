@@ -1,6 +1,15 @@
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
 @{
     Layout = null;
     ViewData["Title"] = "12 Week Recomp — Break Free";
+
+    var heroDirectory = System.IO.Path.Combine(Env.WebRootPath, "images", "marketing-v17");
+    var heroBase64 = new System.Text.StringBuilder(105000);
+    for (var part = 1; part <= 12; part++)
+    {
+        var heroPart = System.IO.Path.Combine(heroDirectory, $"hero900.part{part:00}.b64");
+        heroBase64.Append(System.IO.File.ReadAllText(heroPart));
+    }
 }
 <!doctype html>
 <html lang="en">
@@ -13,8 +22,17 @@
 </head>
 <body>
 <main class="portal-stage" data-portal-stage aria-label="12 Week Recomp Break Free welcome portal">
+    <div class="portal-free-banner">
+        <strong>NOW — THE ENTIRE PROGRAM IS COMPLETELY FREE!</strong>
+        <span>Donate a little something if you feel it was worthwhile.</span>
+        <a href="/recomp/start">START FREE →</a>
+    </div>
+
     <div class="portal-canvas">
-        <img class="portal-art" src="/images/marketing-v15/break-free-portal-v1012.jpg" alt="12 Week Recomp — Break Free from programming, narratives, toxins, environmental pressures, depression, ailments, aging and medications" width="800" height="450" fetchpriority="high" decoding="sync" />
+        <img class="portal-art"
+             src="data:image/jpeg;base64,@heroBase64"
+             alt="12 Week Recomp — Break Free from programming, narratives, toxins, environmental pressures, depression, ailments, aging and medications"
+             width="900" height="507" fetchpriority="high" decoding="sync" />
         <div class="portal-sheen" aria-hidden="true"></div>
 
         <a class="portal-hit hit-what-top" href="/recomp/what" aria-label="What is Recomp"></a>
