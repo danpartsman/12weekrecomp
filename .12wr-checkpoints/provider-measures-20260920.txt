@@ -1,0 +1,3 @@
+Deploy checkpoint for provider-specific Nutrition frequent-food measures.
+Source repair commit: a9880195762977aae214cf7f93a76ac5dbaa1d1d
+Date: 2026-09-20
