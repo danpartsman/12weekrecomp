@@ -414,7 +414,11 @@ public sealed class NutritionController(
             foods.Add(
                 new
                 {
-                    kind = "pastFood",
+                    kind =
+              !string.IsNullOrWhiteSpace(item.ProviderCode)
+              && !string.IsNullOrWhiteSpace(item.SourceFoodId)
+                  ? "provider"
+                  : "pastFood",
                     sourceDailyLogItemId =
                         item.SourceDailyLogItemId,
                     description = item.Description,

@@ -976,3 +976,9 @@
         grid-column: auto;
     }
 }
+
+
+/* TEST_LEGACY_HISTORY_MEASURE_GUARD */
+.nutrition-picker-provider-controls[hidden] {
+    display: none !important;
+}
