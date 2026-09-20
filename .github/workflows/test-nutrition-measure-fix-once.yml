@@ -1,0 +1,67 @@
+name: TEST one-time nutrition measure repair
+
+on:
+  push:
+    branches:
+      - test
+    paths:
+      - '.github/workflows/test-nutrition-measure-fix-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout TEST
+        uses: actions/checkout@v4
+        with:
+          ref: test
+          fetch-depth: 0
+
+      - name: Patch provider-backed history classification
+        shell: python
+        run: |
+          from pathlib import Path
+
+          controller = Path('src/WebRecomp.Web/Controllers/NutritionController.cs')
+          text = controller.read_text(encoding='utf-8')
+
+          old = '''                    kind = "pastFood",
+                    sourceDailyLogItemId =
+                        item.SourceDailyLogItemId,'''
+
+          new = '''                    kind =
+                        !string.IsNullOrWhiteSpace(item.ProviderCode)
+                        && !string.IsNullOrWhiteSpace(item.SourceFoodId)
+                            ? "provider"
+                            : "pastFood",
+                    sourceDailyLogItemId =
+                        item.SourceDailyLogItemId,'''
+
+          if old not in text:
+              raise SystemExit('Expected frequent-food classification block was not found.')
+
+          text = text.replace(old, new, 1)
+          controller.write_text(text, encoding='utf-8')
+
+          # Keep legacy/unlinked history from ever displaying a stale provider measure.
+          css = Path('src/WebRecomp.Web/wwwroot/css/nutrition-intelligence.css')
+          css_text = css.read_text(encoding='utf-8')
+          marker = '/* TEST_LEGACY_HISTORY_MEASURE_GUARD */'
+          if marker not in css_text:
+              css_text += '''\n\n/* TEST_LEGACY_HISTORY_MEASURE_GUARD */\n.nutrition-picker-provider-controls[hidden] {\n    display: none !important;\n}\n'''
+              css.write_text(css_text, encoding='utf-8')
+
+          # Remove this one-time workflow in the same commit.
+          Path('.github/workflows/test-nutrition-measure-fix-once.yml').unlink()
+
+      - name: Commit repair
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/WebRecomp.Web/Controllers/NutritionController.cs src/WebRecomp.Web/wwwroot/css/nutrition-intelligence.css .github/workflows/test-nutrition-measure-fix-once.yml
+          git commit -m "TEST: use per-food provider measures for frequent foods"
+          git push origin HEAD:test
