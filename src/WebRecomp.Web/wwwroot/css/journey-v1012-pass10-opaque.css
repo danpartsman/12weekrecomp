@@ -1,8 +1,35 @@
-/* 12WR TEST v1012 — Coach prescription panel opacity override */
+/* 12WR TEST v1012 — final dashboard visual overrides */
 body.test-live-preview .recomp-dashboard .journey-coach-p8__panel {
     background:
         linear-gradient(145deg,#071012 0%,#020608 100%) padding-box,
         linear-gradient(135deg,#49ff9b 0%,rgba(75,255,164,.34) 17%,rgba(86,118,112,.16) 52%,rgba(234,255,48,.78) 100%) border-box !important;
     backdrop-filter:none !important;
     -webkit-backdrop-filter:none !important;
+}
+
+/*
+Mobile dashboard header correction.
+Pass 4 intentionally gives the integrated brand art a 185px minimum height on
+small screens. At phone widths that creates a large empty-looking band above
+the TODAY/date content. Keep the REBUILD MOTIVATION identity, but collapse the
+art area to a compact masthead so the useful dashboard content starts sooner.
+*/
+@media (max-width:720px) {
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-dashboard-date .journey-integrated-brand {
+        min-height:88px !important;
+        height:88px !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-dashboard-date .journey-integrated-brand img {
+        object-position:center 45% !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-dashboard-date .journey-integrated-brand-copy {
+        right:.8rem;
+        bottom:.55rem;
+        left:.8rem;
+    }
 }
