@@ -411,7 +411,7 @@
 })();
 
 // TEST nutrition picker cleanup: dropdown-only amounts, no Change button,
-// whole-number kcal display, and 1-unit spinner steps with typed hundredths.
+// whole-number kcal display, selected-food emphasis, and exact 1-unit spinner steps.
 (() => {
     "use strict";
 
@@ -436,6 +436,37 @@
                 #nutrition-food-picker-dialog .nutrition-picker-selected-head {
                     grid-template-columns: minmax(0, 1fr) !important;
                 }
+
+                #nutrition-food-picker-dialog .nutrition-picker-selection {
+                    display: grid !important;
+                    gap: .22rem !important;
+                    padding: .72rem .9rem !important;
+                    margin: 0 0 .35rem 0 !important;
+                    border: 1px solid rgba(34, 211, 238, .52) !important;
+                    border-radius: .78rem !important;
+                    background:
+                        linear-gradient(
+                            135deg,
+                            rgba(8, 145, 178, .24),
+                            rgba(15, 23, 42, .72)
+                        ) !important;
+                    box-shadow:
+                        inset 3px 0 0 rgba(74, 222, 128, .85),
+                        0 8px 24px rgba(2, 132, 199, .10) !important;
+                }
+
+                #nutrition-food-picker-dialog .nutrition-picker-selection > strong {
+                    display: block !important;
+                    color: #f8fafc !important;
+                    font-size: calc(1rem + 1.3px) !important;
+                    line-height: 1.2 !important;
+                    font-weight: 800 !important;
+                }
+
+                #nutrition-food-picker-dialog .nutrition-picker-selection > .small,
+                #nutrition-food-picker-dialog .nutrition-picker-selection > span {
+                    color: #b8c7da !important;
+                }
             `;
             document.head.appendChild(style);
         }
@@ -443,10 +474,25 @@
         const amountInput = document.querySelector("[data-picker-amount]");
 
         if (amountInput instanceof HTMLInputElement) {
-            // Native spinner arrows now move in whole units. Users can still
-            // type decimal amounts such as .25, 1.5, or 2.75 directly.
-            amountInput.step = "1";
-            amountInput.inputMode = "decimal";
+            const enforceWholeStep = () => {
+                if (amountInput.step !== "1") {
+                    amountInput.step = "1";
+                }
+                amountInput.inputMode = "decimal";
+            };
+
+            // An older picker script used to restore step=.01 at DOMContentLoaded.
+            // Enforce the final rule after all listeners run and whenever the
+            // attribute is changed again.
+            enforceWholeStep();
+            window.setTimeout(enforceWholeStep, 0);
+            window.setTimeout(enforceWholeStep, 60);
+
+            const stepObserver = new MutationObserver(enforceWholeStep);
+            stepObserver.observe(amountInput, {
+                attributes: true,
+                attributeFilter: ["step"]
+            });
 
             if (amountInput.dataset.wholeStepBound !== "true") {
                 amountInput.dataset.wholeStepBound = "true";
@@ -472,31 +518,55 @@
                         new Event("input", { bubbles: true }));
                 };
 
+                const changeAmountByOne = direction => {
+                    const current = Number.parseFloat(amountInput.value);
+                    const base = Number.isFinite(current) ? current : 0;
+                    const minimum = Number.parseFloat(amountInput.min || "0.01");
+                    const maximum = Number.parseFloat(amountInput.max || "1000");
+                    const requested = base + direction;
+                    const next = Math.min(
+                        Number.isFinite(maximum) ? maximum : requested,
+                        Math.max(
+                            Number.isFinite(minimum) ? minimum : requested,
+                            requested));
+
+                    amountInput.value =
+                        (Math.round(next * 100) / 100).toString();
+                    amountInput.dispatchEvent(
+                        new Event("input", { bubbles: true }));
+                };
+
                 amountInput.addEventListener("blur", normalizeTypedAmount);
 
-                // Keep keyboard arrows exactly aligned with the spinner rule.
                 amountInput.addEventListener("keydown", event => {
                     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") {
                         return;
                     }
 
                     event.preventDefault();
+                    changeAmountByOne(event.key === "ArrowUp" ? 1 : -1);
+                });
 
-                    const current = Number.parseFloat(amountInput.value);
-                    const base = Number.isFinite(current) ? current : 0;
-                    const direction = event.key === "ArrowUp" ? 1 : -1;
-                    const minimum = Number.parseFloat(amountInput.min || "0.01");
-                    const maximum = Number.parseFloat(amountInput.max || "1000");
-                    const next = Math.min(
-                        Number.isFinite(maximum) ? maximum : base + direction,
-                        Math.max(
-                            Number.isFinite(minimum) ? minimum : base + direction,
-                            base + direction));
+                // Chrome's native spin controls can keep an old fractional step
+                // until the element is repainted. Intercept clicks in the spinner
+                // zone so each visible arrow always changes the value by exactly 1.
+                amountInput.addEventListener("mousedown", event => {
+                    const rect = amountInput.getBoundingClientRect();
+                    const spinnerWidth = Math.min(34, rect.width * .28);
 
-                    amountInput.value =
-                        (Math.round(next * 100) / 100).toString();
-                    amountInput.dispatchEvent(
-                        new Event("input", { bubbles: true }));
+                    if (event.clientX < rect.right - spinnerWidth) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    amountInput.focus();
+
+                    const direction =
+                        event.clientY < rect.top + (rect.height / 2)
+                            ? 1
+                            : -1;
+
+                    changeAmountByOne(direction);
                 });
             }
         }
