@@ -13,10 +13,10 @@ namespace WebRecomp.Web.Controllers;
 // TEST hotfix: the legacy DetailedWorkoutController.Review action builds an
 // unused dictionary keyed by ExerciseId. A valid workout may contain the same
 // exercise more than once, which makes ToDictionary throw an ArgumentException.
-// This literal route has higher route precedence than the conventional
-// /{controller}/{action} route and renders the same Review view without that
-// duplicate-key projection. Finalization continues through the existing
-// DetailedWorkoutController.FinalizeWorkout action.
+// This literal GET route has higher route precedence than the conventional
+// /{controller}/{action} route and renders the normal Review view without that
+// duplicate-key projection. The POST action below completes the workout and
+// returns directly to Dashboard; no intermediate Complete screen is required.
 public sealed class DetailedWorkoutReviewHotfixController(
     RecompDbContext db,
     AppUserContextService userContext,
@@ -54,12 +54,8 @@ public sealed class DetailedWorkoutReviewHotfixController(
         if (session.CompletedFlag)
         {
             return RedirectToAction(
-                "Complete",
-                "DetailedWorkout",
-                new
-                {
-                    workoutSessionId
-                });
+                "Index",
+                "Dashboard");
         }
 
         var detailed =
@@ -136,9 +132,6 @@ public sealed class DetailedWorkoutReviewHotfixController(
                             x.MuscleSlug
                                 .Replace("-", " ")));
 
-        // Preserve the existing 10-minute review deadline. If the deadline is
-        // already past, Review.cshtml immediately submits the existing finalize
-        // form; no duplicate-key dictionary is required.
         ViewData["ReviewDeadlineUtc"] =
             DateTime.SpecifyKind(
                     session.UpdatedAtUtc,
@@ -149,6 +142,300 @@ public sealed class DetailedWorkoutReviewHotfixController(
 
         return View(
             "~/Views/DetailedWorkout/Review.cshtml");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> FinalizeWorkout(
+        Guid workoutSessionId,
+        decimal durationMin,
+        decimal? sessionRpe,
+        int extraSets,
+        Guid? extraExerciseId,
+        CancellationToken cancellationToken)
+    {
+        var context =
+            await userContext.GetAsync(
+                HttpContext,
+                cancellationToken);
+
+        if (context.Client is null || context.Program is null)
+            return RedirectToAction("Index", "Intake");
+
+        if (!context.Program.DetailedWorkoutEntryEnabled)
+            return StatusCode(403);
+
+        if (durationMin is < 1m or > 360m)
+            return BadRequest(
+                "Workout duration must be between 1 and 360 minutes.");
+
+        if (sessionRpe.HasValue
+            && sessionRpe.Value is < 1m or > 10m)
+        {
+            return BadRequest(
+                "Workout RPE must be between 1 and 10.");
+        }
+
+        if (extraSets is < 0 or > 50)
+            return BadRequest(
+                "Untracked sets must be between 0 and 50.");
+
+        var session =
+            await db.WorkoutSessions
+                .SingleOrDefaultAsync(
+                    x =>
+                        x.WorkoutSessionId == workoutSessionId
+                        && x.ClientId == context.Client.ClientId
+                        && x.ProgramId == context.Program.ProgramId,
+                    cancellationToken);
+
+        if (session is null)
+            return NotFound();
+
+        if (!session.CompletedFlag)
+        {
+            await FinalizeWorkoutReviewAsync(
+                session,
+                durationMin,
+                sessionRpe,
+                extraSets,
+                extraExerciseId,
+                cancellationToken);
+        }
+
+        TempData["StatusMessage"] =
+            "Workout saved and completed.";
+
+        return RedirectToAction(
+            "Index",
+            "Dashboard");
+    }
+
+    private async Task FinalizeWorkoutReviewAsync(
+        WorkoutSession session,
+        decimal durationMin,
+        decimal? sessionRpe,
+        int extraSets,
+        Guid? extraExerciseId,
+        CancellationToken cancellationToken)
+    {
+        var detailed =
+            await detailedWorkoutStore.GetAsync(
+                session.WorkoutSessionId,
+                cancellationToken);
+
+        if (detailed is null
+            || detailed.Exercises.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "A detailed workout is required before finalization.");
+        }
+
+        if (extraSets > 0)
+        {
+            var targetExercise =
+                await ResolveExtraSetExerciseAsync(
+                    detailed,
+                    durationMin,
+                    extraExerciseId,
+                    cancellationToken);
+
+            var representativeReps =
+                targetExercise.Sets
+                    .Where(
+                        x =>
+                            !x.IsWarmup
+                            && (x.Reps ?? 0) > 0)
+                    .OrderByDescending(x => x.SetOrder)
+                    .Select(x => x.Reps!.Value)
+                    .FirstOrDefault();
+
+            if (representativeReps <= 0)
+                representativeReps = 1;
+
+            var nextSetOrder =
+                targetExercise.Sets.Count == 0
+                    ? 1
+                    : targetExercise.Sets.Max(
+                        x => x.SetOrder) + 1;
+
+            var added =
+                Enumerable.Range(
+                        0,
+                        extraSets)
+                    .Select(
+                        offset =>
+                            new DetailedWorkoutSetEntry(
+                                Guid.Empty,
+                                nextSetOrder + offset,
+                                representativeReps,
+                                null,
+                                targetExercise.LoadUnitCode,
+                                null,
+                                null,
+                                null,
+                                null,
+                                false,
+                                "Untracked set added during workout review."))
+                    .ToArray();
+
+            var revisedExercises =
+                detailed.Exercises
+                    .Select(
+                        exercise =>
+                            exercise.ExerciseId
+                                == targetExercise.ExerciseId
+                                ? exercise with
+                                {
+                                    Sets =
+                                        exercise.Sets
+                                            .Concat(added)
+                                            .ToArray()
+                                }
+                                : exercise)
+                    .ToArray();
+
+            await detailedWorkoutStore.ReplaceAsync(
+                new DetailedWorkoutSession(
+                    detailed.WorkoutSessionId,
+                    revisedExercises),
+                cancellationToken);
+        }
+
+        session.DurationMin =
+            Math.Clamp(
+                Math.Round(
+                    durationMin,
+                    1,
+                    MidpointRounding.AwayFromZero),
+                1m,
+                360m);
+
+        session.SessionRpe =
+            sessionRpe;
+
+        if (session.TypicalRestSec.HasValue
+            && session.TypicalRestSec.Value <= 0)
+        {
+            session.TypicalRestSec = null;
+        }
+
+        session.CompletedFlag = true;
+        session.EntrySourceCode =
+            RecompInputSourceCodes.DetailedWorkout;
+        session.CalculationEngineVersion = "3.0";
+        session.UpdatedAtUtc =
+            DateTime.UtcNow;
+
+        await db.SaveChangesAsync(
+            cancellationToken);
+    }
+
+    private async Task<DetailedWorkoutExerciseEntry>
+        ResolveExtraSetExerciseAsync(
+            DetailedWorkoutSession detailed,
+            decimal durationMin,
+            Guid? requestedExerciseId,
+            CancellationToken cancellationToken)
+    {
+        if (requestedExerciseId.HasValue)
+        {
+            var requested =
+                detailed.Exercises
+                    .FirstOrDefault(
+                        x =>
+                            x.ExerciseId
+                                == requestedExerciseId.Value);
+
+            if (requested is null)
+            {
+                throw new InvalidOperationException(
+                    "The selected exercise is not part of this workout.");
+            }
+
+            return requested;
+        }
+
+        var analysis =
+            await BuildReviewAnalysisAsync(
+                detailed,
+                durationMin,
+                cancellationToken);
+
+        var primaryMuscle =
+            analysis.MuscleDemand
+                .OrderByDescending(
+                    x => x.WeightedSetEquivalents)
+                .Select(x => x.MuscleSlug)
+                .FirstOrDefault();
+
+        if (!string.IsNullOrWhiteSpace(primaryMuscle))
+        {
+            var exerciseIds =
+                detailed.Exercises
+                    .Select(x => x.ExerciseId)
+                    .Distinct()
+                    .ToArray();
+
+            var targets =
+                await db.ExerciseMuscleTargets
+                    .AsNoTracking()
+                    .Where(
+                        x =>
+                            exerciseIds.Contains(
+                                x.ExerciseCatalogItemId)
+                            && x.MuscleSlug == primaryMuscle)
+                    .OrderBy(x => x.DisplayOrder)
+                    .ToListAsync(
+                        cancellationToken);
+
+            var primaryTargetIds =
+                targets
+                    .Where(
+                        x =>
+                            string.Equals(
+                                x.RoleCode,
+                                "PRIMARY",
+                                StringComparison.OrdinalIgnoreCase))
+                    .Select(x => x.ExerciseCatalogItemId)
+                    .ToHashSet();
+
+            var primaryMatch =
+                detailed.Exercises
+                    .FirstOrDefault(
+                        exercise =>
+                            primaryTargetIds.Contains(
+                                exercise.ExerciseId));
+
+            if (primaryMatch is not null)
+                return primaryMatch;
+
+            var anyTargetIds =
+                targets
+                    .Select(x => x.ExerciseCatalogItemId)
+                    .ToHashSet();
+
+            var anyMatch =
+                detailed.Exercises
+                    .FirstOrDefault(
+                        exercise =>
+                            anyTargetIds.Contains(
+                                exercise.ExerciseId));
+
+            if (anyMatch is not null)
+                return anyMatch;
+        }
+
+        return detailed.Exercises
+            .OrderByDescending(
+                exercise =>
+                    exercise.Sets.Count(
+                        set =>
+                            !set.IsWarmup
+                            && ((set.Reps ?? 0) > 0
+                                || (set.DurationSeconds ?? 0) > 0)))
+            .ThenBy(x => x.ExerciseOrder)
+            .First();
     }
 
     private async Task<WorkoutIntelligenceHandoff>
