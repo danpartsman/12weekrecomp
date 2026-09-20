@@ -476,3 +476,243 @@
         initializeNutritionMeasurePrompt();
     }
 })();
+
+// TEST nutrition picker presentation polish.
+// Keep provider measure lists practical and replace the corrupted header glyphs.
+(function () {
+    "use strict";
+
+    const normalize = value =>
+        (value || "")
+            .toString()
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, " ");
+
+    const preferredUnitCodes =
+        new Set([
+            "oz",
+            "fl oz",
+            "cup",
+            "cups",
+            "serving",
+            "servings",
+            "unit",
+            "units",
+            "tsp",
+            "teaspoon",
+            "teaspoons",
+            "tbsp",
+            "tbs",
+            "tablespoon",
+            "tablespoons"
+        ]);
+
+    const preferredMeasurePattern =
+        /\b(?:oz|ounce|ounces|fl oz|fluid ounce|fluid ounces|cup|cups|serving|servings|unit|units|tsp|teaspoon|teaspoons|tbsp|tbs|tablespoon|tablespoons)\b/i;
+
+    const isPreferredMeasure = option => {
+        const unitCode =
+            normalize(option?.dataset?.unitCode);
+
+        if (preferredUnitCodes.has(unitCode)) {
+            return true;
+        }
+
+        const description =
+            normalize(
+                `${option?.textContent || ""} ${option?.value || ""}`);
+
+        return preferredMeasurePattern.test(
+            description);
+    };
+
+    const installFoodIcon = button => {
+        if (!(button instanceof HTMLButtonElement)) {
+            return;
+        }
+
+        button.textContent = "🍎";
+        button.classList.add(
+            "nutrition-picker-food-icon");
+        button.setAttribute(
+            "aria-label",
+            "Close food picker");
+        button.title = "Close";
+    };
+
+    const installFoodIconStyles = () => {
+        if (document.getElementById(
+                "nutrition-picker-food-icon-style")) {
+            return;
+        }
+
+        const style =
+            document.createElement("style");
+
+        style.id =
+            "nutrition-picker-food-icon-style";
+
+        style.textContent = `
+            .nutrition-picker-head-close.nutrition-picker-food-icon {
+                width: 3rem !important;
+                min-width: 3rem !important;
+                height: 3rem !important;
+                padding: 0 !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border-radius: 999px !important;
+                border: 1px solid rgba(125, 211, 252, .55) !important;
+                background: radial-gradient(circle at 35% 28%, rgba(56, 189, 248, .22), rgba(15, 23, 42, .92) 68%) !important;
+                font-size: 1.7rem !important;
+                line-height: 1 !important;
+                overflow: hidden !important;
+                box-shadow: 0 0 18px rgba(34, 211, 238, .12) !important;
+            }
+
+            .nutrition-picker-head-close.nutrition-picker-food-icon:hover,
+            .nutrition-picker-head-close.nutrition-picker-food-icon:focus-visible {
+                transform: translateY(-1px);
+                border-color: rgba(74, 222, 128, .8) !important;
+                box-shadow: 0 0 22px rgba(74, 222, 128, .2) !important;
+            }
+        `;
+
+        document.head.appendChild(style);
+    };
+
+    const initializeNutritionPickerPolish = () => {
+        if (!location.pathname
+                .toLowerCase()
+                .startsWith("/nutrition")) {
+            return;
+        }
+
+        installFoodIconStyles();
+
+        document
+            .querySelectorAll(
+                ".nutrition-picker-head-close")
+            .forEach(installFoodIcon);
+
+        const measureSelect =
+            document.querySelector(
+                "[data-picker-measure]");
+
+        const amountInput =
+            document.querySelector(
+                "[data-picker-amount]");
+
+        if (amountInput instanceof HTMLInputElement) {
+            amountInput.step = "0.01";
+        }
+
+        if (!(measureSelect instanceof HTMLSelectElement)) {
+            return;
+        }
+
+        let filtering = false;
+
+        const simplifyMeasures = () => {
+            if (filtering) {
+                return;
+            }
+
+            const placeholder =
+                Array.from(measureSelect.options)
+                    .find(option => !option.value);
+
+            if (
+                placeholder
+                && normalize(placeholder.textContent)
+                    === "choose a food first"
+            ) {
+                placeholder.textContent =
+                    "Select measurement";
+            }
+
+            const available =
+                Array.from(measureSelect.options)
+                    .filter(option => option.value);
+
+            if (available.length < 2) {
+                return;
+            }
+
+            const preferred =
+                available.filter(
+                    isPreferredMeasure);
+
+            // If the provider gives none of the practical measures requested,
+            // keep its original list so the food remains loggable.
+            if (preferred.length === 0) {
+                return;
+            }
+
+            const selectedValue =
+                measureSelect.value;
+
+            const selectedWillRemain =
+                preferred.some(option =>
+                    option.value === selectedValue);
+
+            const toRemove =
+                available.filter(option =>
+                    !isPreferredMeasure(option));
+
+            if (toRemove.length === 0) {
+                return;
+            }
+
+            filtering = true;
+
+            for (const option of toRemove) {
+                option.remove();
+            }
+
+            if (!selectedWillRemain) {
+                const firstPreferred =
+                    Array.from(measureSelect.options)
+                        .find(option => option.value);
+
+                if (firstPreferred) {
+                    measureSelect.value =
+                        firstPreferred.value;
+
+                    window.queueMicrotask(
+                        () => measureSelect.dispatchEvent(
+                            new Event(
+                                "change",
+                                {
+                                    bubbles: true
+                                })));
+                }
+            }
+
+            filtering = false;
+        };
+
+        simplifyMeasures();
+
+        const observer =
+            new MutationObserver(
+                simplifyMeasures);
+
+        observer.observe(
+            measureSelect,
+            {
+                childList: true
+            });
+    };
+
+    if (document.readyState === "loading") {
+        document.addEventListener(
+            "DOMContentLoaded",
+            initializeNutritionPickerPolish,
+            { once: true });
+    }
+    else {
+        initializeNutritionPickerPolish();
+    }
+})();
