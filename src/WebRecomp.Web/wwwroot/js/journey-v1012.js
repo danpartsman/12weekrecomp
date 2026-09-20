@@ -18,7 +18,7 @@
             document.createElement("script");
 
         nutritionAmountsScript.src =
-            "/js/nutrition-picker-amounts-v1012.js?v=1012amount1";
+            "/js/nutrition-picker-amounts-v1012.js?v=1012amount2";
 
         nutritionAmountsScript.dataset["12wrNutritionAmounts"] =
             "v1012";
