@@ -311,3 +311,168 @@
         initialize();
     }
 })();
+
+// TEST nutrition picker bridge.
+// Provider-backed frequent/past foods should behave like provider search
+// results so the user can choose a real serving measure and then quantity.
+(function () {
+    "use strict";
+
+    const originalFetch =
+        window.fetch.bind(window);
+
+    const normalizeMeasurePrompt = () => {
+        const select =
+            document.querySelector(
+                "[data-picker-measure]");
+
+        if (!(select instanceof HTMLSelectElement)) {
+            return;
+        }
+
+        const placeholder =
+            Array.from(select.options)
+                .find(option => !option.value);
+
+        if (
+            placeholder
+            && placeholder.textContent.trim()
+                === "Choose a food first"
+        ) {
+            placeholder.textContent =
+                "Select measurement";
+        }
+    };
+
+    window.fetch =
+        async (...args) => {
+            const response =
+                await originalFetch(...args);
+
+            const request =
+                args[0];
+
+            const rawUrl =
+                typeof request === "string"
+                    ? request
+                    : request instanceof URL
+                        ? request.href
+                        : request?.url;
+
+            if (!rawUrl) {
+                return response;
+            }
+
+            let url;
+
+            try {
+                url =
+                    new URL(
+                        rawUrl,
+                        window.location.href);
+            }
+            catch {
+                return response;
+            }
+
+            if (!url.pathname.endsWith(
+                    "/Nutrition/FoodPickerData")) {
+                return response;
+            }
+
+            let payload;
+
+            try {
+                payload =
+                    await response.clone().json();
+            }
+            catch {
+                return response;
+            }
+
+            if (!Array.isArray(
+                    payload?.foods)) {
+                return response;
+            }
+
+            let changed = false;
+
+            payload.foods =
+                payload.foods.map(
+                    food => {
+                        if (
+                            food?.kind !== "pastFood"
+                            || !food.providerCode
+                            || !food.sourceFoodId
+                        ) {
+                            return food;
+                        }
+
+                        changed = true;
+
+                        return {
+                            ...food,
+                            kind: "provider",
+                            dataType:
+                                food.usageCount
+                                    ? `Used ${food.usageCount} time${food.usageCount === 1 ? "" : "s"}`
+                                    : "Previously used"
+                        };
+                    });
+
+            if (!changed) {
+                return response;
+            }
+
+            const headers =
+                new Headers(
+                    response.headers);
+
+            headers.set(
+                "content-type",
+                "application/json; charset=utf-8");
+
+            return new Response(
+                JSON.stringify(payload),
+                {
+                    status:
+                        response.status,
+                    statusText:
+                        response.statusText,
+                    headers
+                });
+        };
+
+    const initializeNutritionMeasurePrompt = () => {
+        normalizeMeasurePrompt();
+
+        const select =
+            document.querySelector(
+                "[data-picker-measure]");
+
+        if (!(select instanceof HTMLSelectElement)) {
+            return;
+        }
+
+        const observer =
+            new MutationObserver(
+                normalizeMeasurePrompt);
+
+        observer.observe(
+            select,
+            {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+    };
+
+    if (document.readyState === "loading") {
+        document.addEventListener(
+            "DOMContentLoaded",
+            initializeNutritionMeasurePrompt);
+    }
+    else {
+        initializeNutritionMeasurePrompt();
+    }
+})();
