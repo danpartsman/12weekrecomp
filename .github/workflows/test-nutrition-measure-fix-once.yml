@@ -28,25 +28,19 @@ jobs:
           controller = Path('src/WebRecomp.Web/Controllers/NutritionController.cs')
           text = controller.read_text(encoding='utf-8')
 
-          old = '''                    kind = "pastFood",
-                    sourceDailyLogItemId =
-                        item.SourceDailyLogItemId,'''
+          needle = 'kind = "pastFood",'
+          if needle not in text:
+              raise SystemExit('No pastFood classification token was found.')
 
-          new = '''                    kind =
+          replacement = '''kind =
                         !string.IsNullOrWhiteSpace(item.ProviderCode)
                         && !string.IsNullOrWhiteSpace(item.SourceFoodId)
                             ? "provider"
-                            : "pastFood",
-                    sourceDailyLogItemId =
-                        item.SourceDailyLogItemId,'''
+                            : "pastFood",'''
 
-          if old not in text:
-              raise SystemExit('Expected frequent-food classification block was not found.')
-
-          text = text.replace(old, new, 1)
+          text = text.replace(needle, replacement, 1)
           controller.write_text(text, encoding='utf-8')
 
-          # Keep legacy/unlinked history from ever displaying a stale provider measure.
           css = Path('src/WebRecomp.Web/wwwroot/css/nutrition-intelligence.css')
           css_text = css.read_text(encoding='utf-8')
           marker = '/* TEST_LEGACY_HISTORY_MEASURE_GUARD */'
@@ -54,7 +48,6 @@ jobs:
               css_text += '''\n\n/* TEST_LEGACY_HISTORY_MEASURE_GUARD */\n.nutrition-picker-provider-controls[hidden] {\n    display: none !important;\n}\n'''
               css.write_text(css_text, encoding='utf-8')
 
-          # Remove this one-time workflow in the same commit.
           Path('.github/workflows/test-nutrition-measure-fix-once.yml').unlink()
 
       - name: Commit repair
