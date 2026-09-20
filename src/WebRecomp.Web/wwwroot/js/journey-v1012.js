@@ -9,6 +9,24 @@
         return;
     }
 
+    if (
+        path.startsWith("/nutrition")
+        && !document.querySelector(
+            'script[data-12wr-nutrition-amounts="v1012"]')
+    ) {
+        const nutritionAmountsScript =
+            document.createElement("script");
+
+        nutritionAmountsScript.src =
+            "/js/nutrition-picker-amounts-v1012.js?v=1012amount1";
+
+        nutritionAmountsScript.dataset["12wrNutritionAmounts"] =
+            "v1012";
+
+        document.head.appendChild(
+            nutritionAmountsScript);
+    }
+
     if (!document.querySelector('link[data-12wr-journey-pass2="v1012"]')) {
         const pass2Style = document.createElement("link");
         pass2Style.rel = "stylesheet";
@@ -83,7 +101,6 @@
         pass9Script.dataset["12wrJourneyPass9"] = "v1012";
         document.head.appendChild(pass9Script);
     }
-
 
     if (!document.querySelector('link[data-12wr-journey-pass10="v1012"]')) {
         const pass10Style = document.createElement("link");
