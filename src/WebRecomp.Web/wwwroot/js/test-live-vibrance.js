@@ -409,3 +409,156 @@
         initialize();
     }
 })();
+
+// TEST nutrition picker cleanup: dropdown-only amounts, no Change button,
+// whole-number kcal display, and 1-unit spinner steps with typed hundredths.
+(() => {
+    "use strict";
+
+    const initializeNutritionPickerCleanup = () => {
+        if (!location.pathname.toLowerCase().startsWith("/nutrition")) {
+            return;
+        }
+
+        if (!document.getElementById("nutrition-picker-cleanup-v1012")) {
+            const style = document.createElement("style");
+            style.id = "nutrition-picker-cleanup-v1012";
+            style.textContent = `
+                #nutrition-food-picker-dialog .nutrition-picker-quick-amounts,
+                #nutrition-food-picker-dialog [data-picker-amount-presets] {
+                    display: none !important;
+                }
+
+                #nutrition-food-picker-dialog [data-picker-change] {
+                    display: none !important;
+                }
+
+                #nutrition-food-picker-dialog .nutrition-picker-selected-head {
+                    grid-template-columns: minmax(0, 1fr) !important;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        const amountInput = document.querySelector("[data-picker-amount]");
+
+        if (amountInput instanceof HTMLInputElement) {
+            // Native spinner arrows now move in whole units. Users can still
+            // type decimal amounts such as .25, 1.5, or 2.75 directly.
+            amountInput.step = "1";
+            amountInput.inputMode = "decimal";
+
+            if (amountInput.dataset.wholeStepBound !== "true") {
+                amountInput.dataset.wholeStepBound = "true";
+
+                const normalizeTypedAmount = () => {
+                    const value = Number.parseFloat(amountInput.value);
+
+                    if (!Number.isFinite(value)) {
+                        return;
+                    }
+
+                    const minimum = Number.parseFloat(amountInput.min || "0.01");
+                    const maximum = Number.parseFloat(amountInput.max || "1000");
+                    const clamped = Math.min(
+                        Number.isFinite(maximum) ? maximum : value,
+                        Math.max(
+                            Number.isFinite(minimum) ? minimum : value,
+                            value));
+                    const rounded = Math.round(clamped * 100) / 100;
+
+                    amountInput.value = rounded.toString();
+                    amountInput.dispatchEvent(
+                        new Event("input", { bubbles: true }));
+                };
+
+                amountInput.addEventListener("blur", normalizeTypedAmount);
+
+                // Keep keyboard arrows exactly aligned with the spinner rule.
+                amountInput.addEventListener("keydown", event => {
+                    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") {
+                        return;
+                    }
+
+                    event.preventDefault();
+
+                    const current = Number.parseFloat(amountInput.value);
+                    const base = Number.isFinite(current) ? current : 0;
+                    const direction = event.key === "ArrowUp" ? 1 : -1;
+                    const minimum = Number.parseFloat(amountInput.min || "0.01");
+                    const maximum = Number.parseFloat(amountInput.max || "1000");
+                    const next = Math.min(
+                        Number.isFinite(maximum) ? maximum : base + direction,
+                        Math.max(
+                            Number.isFinite(minimum) ? minimum : base + direction,
+                            base + direction));
+
+                    amountInput.value =
+                        (Math.round(next * 100) / 100).toString();
+                    amountInput.dispatchEvent(
+                        new Event("input", { bubbles: true }));
+                });
+            }
+        }
+
+        const roundKcalText = root => {
+            if (!root) {
+                return;
+            }
+
+            const walker = document.createTreeWalker(
+                root,
+                NodeFilter.SHOW_TEXT);
+            const nodes = [];
+
+            while (walker.nextNode()) {
+                nodes.push(walker.currentNode);
+            }
+
+            for (const node of nodes) {
+                const before = node.nodeValue || "";
+                const after = before.replace(
+                    /(-?\d+(?:\.\d+)?)\s*kcal\b/gi,
+                    (match, numeric) => {
+                        const value = Number.parseFloat(numeric);
+                        return Number.isFinite(value)
+                            ? `${Math.round(value)} kcal`
+                            : match;
+                    });
+
+                if (after !== before) {
+                    node.nodeValue = after;
+                }
+            }
+        };
+
+        const dialogs = [
+            document.getElementById("nutrition-food-picker-dialog"),
+            document.getElementById("nutrition-custom-food-dialog")
+        ].filter(Boolean);
+
+        for (const dialog of dialogs) {
+            roundKcalText(dialog);
+
+            const observer = new MutationObserver(() => {
+                roundKcalText(dialog);
+            });
+
+            observer.observe(dialog, {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+        }
+    };
+
+    if (document.readyState === "loading") {
+        document.addEventListener(
+            "DOMContentLoaded",
+            initializeNutritionPickerCleanup,
+            { once: true });
+    }
+    else {
+        initializeNutritionPickerCleanup();
+    }
+})();
