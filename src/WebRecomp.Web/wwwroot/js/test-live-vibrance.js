@@ -307,41 +307,93 @@
             });
     };
 
-    const enforceApprovedMarisol = () => {
+    const enforceDashboardCoachCleanup = () => {
         if (!location.pathname.toLowerCase().startsWith("/dashboard")) {
             return;
         }
 
-        let attempts = 0;
+        const trainerImage =
+            "/images/marketing-v12/coach-marisol-gym.png?v=dashboard-trainer-20260919";
 
-        const applyImage = () => {
-            attempts += 1;
-
-            const image =
-                document.querySelector(
-                    ".recomp-dashboard .journey-coach-p8__bg"
-                );
-
-            if (image instanceof HTMLImageElement) {
-                image.src =
-                    "/images/coach/marisol-card-background-v1012.webp?v=marisol-approved-20260918c";
-                image.removeAttribute("srcset");
-                image.style.setProperty("object-position", "left center", "important");
-                return;
-            }
-
-            if (attempts < 40) {
-                window.setTimeout(applyImage, 100);
+        const setImportant = (element, property, value) => {
+            if (!element) return;
+            if (
+                element.style.getPropertyValue(property) !== value
+                || element.style.getPropertyPriority(property) !== "important"
+            ) {
+                element.style.setProperty(property, value, "important");
             }
         };
 
-        applyImage();
+        const apply = () => {
+            document
+                .querySelectorAll(".recomp-dashboard .journey-momentum-banner")
+                .forEach(element => element.remove());
+
+            const coach =
+                document.querySelector(".recomp-dashboard .journey-coach-p8");
+            const image =
+                coach?.querySelector(":scope > .journey-coach-p8__bg");
+
+            if (!coach || !(image instanceof HTMLImageElement)) {
+                return false;
+            }
+
+            if (!image.src.includes("/images/marketing-v12/coach-marisol-gym.png")) {
+                image.src = trainerImage;
+                image.removeAttribute("srcset");
+            }
+
+            setImportant(coach, "background-image", "none");
+            setImportant(image, "opacity", "1");
+            setImportant(image, "display", "block");
+            setImportant(image, "filter", "saturate(.96) contrast(1.07) brightness(.78)");
+            setImportant(image, "object-fit", "cover");
+
+            if (window.matchMedia("(max-width: 940px)").matches) {
+                setImportant(image, "inset", "0 0 auto 0");
+                setImportant(image, "width", "100%");
+                setImportant(image, "height", "330px");
+                setImportant(image, "object-position", "center 28%");
+            }
+            else {
+                setImportant(image, "inset", "0 auto 0 0");
+                setImportant(image, "width", "31%");
+                setImportant(image, "height", "100%");
+                setImportant(image, "object-position", "center center");
+            }
+
+            return true;
+        };
+
+        const delays = [0, 100, 250, 500, 1000, 1600, 2400, 3500];
+        delays.forEach(delay => window.setTimeout(apply, delay));
+
+        const dashboard = document.querySelector(".recomp-dashboard");
+        if (dashboard) {
+            const observer = new MutationObserver(() => {
+                window.requestAnimationFrame(apply);
+            });
+
+            observer.observe(dashboard, {
+                childList: true,
+                subtree: true
+            });
+
+            window.setTimeout(() => observer.disconnect(), 6000);
+        }
+
+        window.addEventListener(
+            "resize",
+            () => window.setTimeout(apply, 40),
+            { passive: true }
+        );
     };
 
     const initialize = () => {
         initializeWorkoutColors();
         classifyDailyEntry();
-        enforceApprovedMarisol();
+        enforceDashboardCoachCleanup();
     };
 
     if (
