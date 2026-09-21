@@ -27,6 +27,24 @@
             nutritionAmountsScript);
     }
 
+    if (
+        path.startsWith("/detailedworkout")
+        && !document.querySelector(
+            'script[data-12wr-live-workout="v1012"]')
+    ) {
+        const liveWorkoutScript =
+            document.createElement("script");
+
+        liveWorkoutScript.src =
+            "/js/live-workout-v1012.js?v=1012live1";
+
+        liveWorkoutScript.dataset["12wrLiveWorkout"] =
+            "v1012";
+
+        document.head.appendChild(
+            liveWorkoutScript);
+    }
+
     if (!document.querySelector('link[data-12wr-journey-pass2="v1012"]')) {
         const pass2Style = document.createElement("link");
         pass2Style.rel = "stylesheet";
