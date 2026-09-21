@@ -1,7 +1,8 @@
 /*
 ========================================================================
 12WR TEST v1012 — WHY RECOMPOSITION MATTERS
-Evidence page presentation. The trial comparison is the visual priority.
+Public evidence narrative + study ledger.
+Presentation only.
 ========================================================================
 */
 :root {
@@ -41,7 +42,7 @@ body.wm-page .wm-nav {
     position:sticky;
     top:0;
     z-index:50;
-    background:rgba(2,7,11,.94);
+    background:rgba(2,7,11,.92);
     border-bottom:1px solid rgba(45,227,255,.16);
     backdrop-filter:blur(14px);
     -webkit-backdrop-filter:blur(14px);
@@ -54,203 +55,36 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
     padding:26px 0 70px;
 }
 
-/* ---------------------------------------------------------------------
-   HERO: make the evidence the headline. Hide the generic oversized copy.
-   --------------------------------------------------------------------- */
 .wm-hero {
     position:relative;
-    display:block;
-    min-height:0;
-    overflow:visible;
-    padding:0;
-    border:0;
-    background:none;
-    box-shadow:none;
-}
-.wm-hero::after { display:none; }
-.wm-hero-copy { display:none!important; }
-
-.wm-hero-proof {
-    position:relative;
-    z-index:2;
-    width:100%;
-    margin:0;
-    padding:clamp(1rem,2.4vw,2rem);
-    border:1px solid rgba(45,227,255,.32);
-    border-radius:24px;
-    background:
-        radial-gradient(circle at 82% 14%,rgba(168,255,69,.075),transparent 28rem),
-        linear-gradient(150deg,rgba(7,18,27,.985),rgba(2,8,12,.99));
-    box-shadow:var(--wm-shadow),0 0 44px rgba(45,227,255,.055),inset 0 1px 0 rgba(255,255,255,.035);
-}
-
-/* Remove the old giant headline completely. */
-.wm-hero-proof > p,
-.wm-hero-proof > strong { display:none!important; }
-
-.wm-proof-row {
     display:grid;
-    grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:clamp(.7rem,1.5vw,1.2rem);
+    grid-template-columns:minmax(0,1fr) minmax(410px,.82fr);
+    min-height:520px;
+    overflow:hidden;
+    border:1px solid #17415a;
+    border-radius:26px;
+    background:
+        linear-gradient(90deg,rgba(1,6,9,.97),rgba(3,14,21,.9) 52%,rgba(1,6,9,.96)),
+        url('/images/recomp/12wr-break-free-v1012.jpg') center 28%/cover no-repeat;
+    box-shadow:var(--wm-shadow),0 0 46px rgba(45,227,255,.045);
 }
-.wm-proof-row > div {
-    position:relative;
-    min-width:0;
-    min-height:290px;
+.wm-hero::after {
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:
+        repeating-linear-gradient(116deg,transparent 0 72px,rgba(255,255,255,.012) 73px 74px),
+        radial-gradient(circle at 80% 22%,rgba(168,255,69,.08),transparent 24rem);
+}
+.wm-hero-copy,
+.wm-hero-proof { position:relative; z-index:2; }
+.wm-hero-copy {
     display:flex;
     flex-direction:column;
     justify-content:center;
-    padding:1.35rem 1.15rem;
-    border:2px solid #224b63;
-    border-radius:19px;
-    background:
-        linear-gradient(160deg,rgba(9,25,36,.97),rgba(4,12,18,.98));
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+    padding:clamp(2rem,5vw,5.3rem);
 }
-
-/* Big program labels: these are now the visual headline. */
-.wm-proof-row > div::before {
-    display:block;
-    margin-bottom:.75rem;
-    color:#fff;
-    font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-    font-size:clamp(2rem,3vw,3.45rem);
-    font-style:italic;
-    font-weight:950;
-    line-height:.88;
-    letter-spacing:-.025em;
-    text-transform:uppercase;
-}
-.wm-proof-row > div:nth-child(1)::before { content:"DIET ALONE"; }
-.wm-proof-row > div:nth-child(2)::before { content:"DIET + CARDIO"; }
-.wm-proof-row > div:nth-child(3)::before { content:"RECOMP PLAN"; color:var(--wm-green); }
-
-.wm-proof-row b {
-    display:block;
-    margin:.1rem 0 .65rem;
-    color:#fff;
-    font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-    font-size:clamp(3.6rem,6.5vw,6.8rem);
-    font-weight:950;
-    line-height:.78;
-    letter-spacing:-.035em;
-    white-space:nowrap;
-}
-
-/* Hide the repeated plan-name text from the original markup while keeping
-   the fat-free-tissue value visible and prominent. */
-.wm-proof-row span {
-    display:block;
-    color:transparent;
-    font-size:0;
-    font-weight:900;
-    line-height:1.25;
-}
-.wm-proof-row span strong {
-    display:block;
-    color:#c8d6df!important;
-    font-size:clamp(1rem,1.55vw,1.4rem);
-    font-weight:950;
-    line-height:1.15;
-    text-transform:uppercase;
-}
-.wm-proof-row > div:nth-child(1) span strong { color:#ff9aa2!important; }
-.wm-proof-row > div:nth-child(2) span strong { color:var(--wm-amber)!important; }
-.wm-proof-row > div:nth-child(3) span strong { color:var(--wm-green)!important; }
-
-.wm-proof-row .wm-proof-hot {
-    border-color:rgba(168,255,69,.78);
-    background:
-        radial-gradient(circle at 75% 10%,rgba(168,255,69,.10),transparent 12rem),
-        linear-gradient(160deg,#0a1c18,#05100d 72%);
-    box-shadow:
-        inset 0 5px 0 var(--wm-green),
-        0 0 32px rgba(168,255,69,.12),
-        0 18px 42px rgba(0,0,0,.28);
-    transform:translateY(-5px);
-}
-.wm-proof-row .wm-proof-hot b {
-    color:var(--wm-green);
-    text-shadow:0 0 28px rgba(168,255,69,.18);
-}
-
-/* Bold arrow/callout aimed conceptually at the highlighted 97% card. */
-.wm-hero-proof::after {
-    content:"↗  THIS IS WHY WE RECOMP INSTEAD OF DIET!";
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    margin-top:1.25rem;
-    padding:1.05rem 1.2rem;
-    border:2px solid rgba(168,255,69,.58);
-    border-radius:15px;
-    background:linear-gradient(90deg,rgba(168,255,69,.06),rgba(168,255,69,.14),rgba(168,255,69,.06));
-    color:var(--wm-green);
-    font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-    font-size:clamp(1.8rem,3.3vw,3.35rem);
-    font-style:italic;
-    font-weight:950;
-    line-height:.95;
-    letter-spacing:.015em;
-    text-align:center;
-    text-transform:uppercase;
-    box-shadow:0 0 30px rgba(168,255,69,.08);
-}
-
-.wm-hero-proof > small {
-    display:block;
-    margin-top:1rem;
-    color:#90a5b4;
-    font-size:.78rem;
-    line-height:1.5;
-}
-
-/* ---------------------------------------------------------------------
-   PHOTO MOMENTS: use existing approved TEST assets and keep the old banned
-   women-only image out of this page.
-   --------------------------------------------------------------------- */
-.wm-summary,
-#true-recomp,
-.wm-health { position:relative; overflow:hidden; }
-
-.wm-summary::before,
-#true-recomp::before,
-.wm-health::before {
-    content:"";
-    display:block;
-    width:100%;
-    height:clamp(180px,26vw,330px);
-    margin:0 0 1.35rem;
-    border:1px solid rgba(45,227,255,.20);
-    border-radius:17px;
-    background-color:#061018;
-    background-repeat:no-repeat;
-    background-size:cover;
-    box-shadow:inset 0 0 70px rgba(0,0,0,.24),0 15px 35px rgba(0,0,0,.18);
-}
-.wm-summary::before {
-    background-image:
-        linear-gradient(90deg,rgba(2,8,12,.18),rgba(2,8,12,.04)),
-        url('/images/marketing-v13/evidence-gym-group-clean.jpg');
-    background-position:center 42%;
-}
-#true-recomp::before {
-    background-image:
-        linear-gradient(90deg,rgba(2,8,12,.18),rgba(2,8,12,.06)),
-        url('/images/marketing-v12/coach-duo-gym.png');
-    background-position:center 38%;
-}
-.wm-health::before {
-    height:clamp(170px,22vw,285px);
-    background-image:
-        linear-gradient(90deg,rgba(2,8,12,.22),rgba(2,8,12,.03)),
-        url('/images/marketing-v14/break-free-societal-v1012.webp');
-    background-position:center 44%;
-}
-
-/* ---------------------------------------------------------------------
-   SECTION TYPOGRAPHY AND CARDS
-   --------------------------------------------------------------------- */
 .wm-kicker,
 .wm-section-heading > p {
     margin:0 0 .55rem;
@@ -259,6 +93,127 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
     font-weight:950;
     letter-spacing:.18em;
     text-transform:uppercase;
+}
+.wm-hero h1 {
+    max-width:820px;
+    margin:0;
+    font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
+    font-size:clamp(4rem,7.4vw,7.6rem);
+    font-style:italic;
+    font-weight:950;
+    line-height:.82;
+    letter-spacing:-.035em;
+    text-transform:uppercase;
+    text-shadow:0 14px 34px rgba(0,0,0,.58);
+}
+.wm-hero h1 span {
+    display:block;
+    color:var(--wm-green);
+    text-shadow:0 0 30px rgba(168,255,69,.14),0 14px 34px rgba(0,0,0,.58);
+}
+.wm-hero-lede {
+    max-width:720px;
+    margin:1.25rem 0 0;
+    color:#d8e4ed;
+    font-size:clamp(1.04rem,1.7vw,1.28rem);
+    font-weight:680;
+    line-height:1.6;
+}
+.wm-hero-actions,
+.wm-final > div {
+    display:flex;
+    flex-wrap:wrap;
+    gap:.65rem;
+    margin-top:1.55rem;
+}
+.wm-button {
+    display:inline-flex;
+    min-height:46px;
+    align-items:center;
+    justify-content:center;
+    padding:.72rem 1rem;
+    border:1px solid #315a72;
+    border-radius:.72rem;
+    background:rgba(7,20,30,.88);
+    color:#f3f8fb!important;
+    font-size:.76rem;
+    font-weight:950;
+    letter-spacing:.075em;
+    text-decoration:none;
+    text-transform:uppercase;
+    transition:transform .15s ease,border-color .15s ease,background .15s ease;
+}
+.wm-button:hover { transform:translateY(-1px); border-color:var(--wm-cyan); background:#0b2635; }
+.wm-button-primary {
+    border-color:rgba(168,255,69,.55);
+    background:linear-gradient(180deg,#b8ff65,#8bea33);
+    color:#071006!important;
+    box-shadow:0 10px 26px rgba(118,222,47,.13);
+}
+
+.wm-hero-proof {
+    align-self:center;
+    margin:2rem 2rem 2rem 0;
+    padding:1.45rem;
+    border:1px solid rgba(45,227,255,.27);
+    border-radius:20px;
+    background:linear-gradient(150deg,rgba(7,18,27,.93),rgba(2,8,12,.94));
+    box-shadow:0 22px 52px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04);
+    backdrop-filter:blur(10px);
+}
+.wm-hero-proof > p {
+    margin:0;
+    color:var(--wm-cyan);
+    font-size:.68rem;
+    font-weight:950;
+    letter-spacing:.16em;
+}
+.wm-hero-proof > strong {
+    display:block;
+    margin:.4rem 0 1.15rem;
+    font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
+    font-size:clamp(1.9rem,3.2vw,3.25rem);
+    font-style:italic;
+    line-height:.92;
+}
+.wm-proof-row {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:.55rem;
+}
+.wm-proof-row > div {
+    min-width:0;
+    padding:.9rem .65rem;
+    border:1px solid #1e4258;
+    border-radius:13px;
+    background:#061018;
+}
+.wm-proof-row b {
+    display:block;
+    color:#fff;
+    font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
+    font-size:2.55rem;
+    line-height:1;
+}
+.wm-proof-row span {
+    display:block;
+    margin-top:.36rem;
+    color:#a8bbc8;
+    font-size:.65rem;
+    font-weight:850;
+    line-height:1.35;
+}
+.wm-proof-row .wm-proof-hot {
+    border-color:rgba(168,255,69,.45);
+    box-shadow:inset 0 3px 0 var(--wm-green),0 0 22px rgba(168,255,69,.055);
+}
+.wm-proof-row .wm-proof-hot b { color:var(--wm-green); }
+.wm-hero-proof > small {
+    display:block;
+    margin-top:.9rem;
+    color:#849aa9;
+    font-size:.68rem;
+    line-height:1.45;
 }
 
 .wm-section {
@@ -270,31 +225,31 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
     box-shadow:0 18px 46px rgba(0,0,0,.22);
 }
 .wm-section-heading {
-    max-width:1040px;
-    margin-bottom:1.45rem;
+    max-width:1000px;
+    margin-bottom:1.55rem;
 }
 .wm-section-heading h2 {
     margin:0;
     color:#fff;
     font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-    font-size:clamp(2.1rem,3.7vw,3.7rem);
+    font-size:clamp(2.5rem,5vw,4.6rem);
     font-style:italic;
     font-weight:950;
-    line-height:.94;
-    letter-spacing:-.02em;
+    line-height:.9;
+    letter-spacing:-.025em;
     text-transform:uppercase;
 }
 .wm-section-heading > span {
     display:block;
-    max-width:980px;
-    margin-top:.75rem;
+    max-width:940px;
+    margin-top:.8rem;
     color:var(--wm-muted);
     font-size:.95rem;
     line-height:1.65;
 }
 
 .wm-summary {
-    border-color:rgba(168,255,69,.20);
+    border-color:rgba(168,255,69,.2);
     background:
         radial-gradient(circle at 100% 0%,rgba(168,255,69,.055),transparent 24rem),
         linear-gradient(150deg,rgba(8,20,29,.97),rgba(3,10,15,.97));
@@ -310,7 +265,6 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
     font-size:1rem;
     line-height:1.72;
 }
-.wm-prose strong { color:#fff; }
 .wm-prose .wm-punch {
     padding:1rem 1.05rem;
     border-left:4px solid var(--wm-green);
@@ -319,11 +273,10 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
     color:#fff;
     font-weight:850;
 }
-
 .wm-closing-quote {
     margin:1.8rem 0 0;
-    padding:1.45rem 1.55rem;
-    border:1px solid rgba(45,227,255,.20);
+    padding:1.5rem 1.6rem;
+    border:1px solid rgba(45,227,255,.2);
     border-radius:18px;
     background:linear-gradient(100deg,rgba(45,227,255,.055),rgba(168,255,69,.045));
 }
@@ -340,9 +293,9 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
     margin-top:.35rem;
     color:#fff;
     font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-    font-size:clamp(1.8rem,3vw,3.05rem);
+    font-size:clamp(2rem,4vw,3.8rem);
     font-style:italic;
-    line-height:.98;
+    line-height:.95;
 }
 
 .wm-feature-grid {
@@ -477,7 +430,9 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
 }
 .wm-context-card .wm-study-meta { color:var(--wm-purple); }
 
-.wm-health { border-color:rgba(45,227,255,.20); }
+.wm-health {
+    border-color:rgba(45,227,255,.2);
+}
 .wm-health-grid {
     display:grid;
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -501,7 +456,9 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
     letter-spacing:.09em;
 }
 
-.wm-interpretation { border-color:rgba(255,199,92,.22); }
+.wm-interpretation {
+    border-color:rgba(255,199,92,.22);
+}
 .wm-interpretation .wm-section-heading > p { color:var(--wm-amber); }
 .wm-rule-grid {
     display:grid;
@@ -532,11 +489,11 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
     margin-top:1.25rem;
     padding:clamp(2rem,5vw,4rem);
     overflow:hidden;
-    border:1px solid rgba(168,255,69,.30);
+    border:1px solid rgba(168,255,69,.3);
     border-radius:24px;
     background:
-        linear-gradient(90deg,rgba(2,8,11,.94),rgba(4,20,23,.80) 58%,rgba(2,8,11,.90)),
-        url('/images/marketing-v15/break-free-portal-v1012.jpg') center 38%/cover no-repeat;
+        linear-gradient(90deg,rgba(2,8,11,.96),rgba(4,20,23,.9) 58%,rgba(2,8,11,.92)),
+        url('/images/recomp/12wr-break-free-v1012.jpg') center 38%/cover no-repeat;
     box-shadow:var(--wm-shadow);
 }
 .wm-final > p {
@@ -550,10 +507,10 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
     max-width:900px;
     margin:.35rem 0 0;
     font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-    font-size:clamp(2.5rem,4.8vw,4.8rem);
+    font-size:clamp(3rem,6vw,5.7rem);
     font-style:italic;
     font-weight:950;
-    line-height:.92;
+    line-height:.88;
     text-transform:uppercase;
 }
 .wm-final > span {
@@ -563,37 +520,6 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
     color:#d3e0e7;
     font-size:1rem;
     line-height:1.6;
-}
-.wm-final > div {
-    display:flex;
-    flex-wrap:wrap;
-    gap:.65rem;
-    margin-top:1.55rem;
-}
-
-.wm-button {
-    display:inline-flex;
-    min-height:46px;
-    align-items:center;
-    justify-content:center;
-    padding:.72rem 1rem;
-    border:1px solid #315a72;
-    border-radius:.72rem;
-    background:rgba(7,20,30,.88);
-    color:#f3f8fb!important;
-    font-size:.76rem;
-    font-weight:950;
-    letter-spacing:.075em;
-    text-decoration:none;
-    text-transform:uppercase;
-    transition:transform .15s ease,border-color .15s ease,background .15s ease;
-}
-.wm-button:hover { transform:translateY(-1px); border-color:var(--wm-cyan); background:#0b2635; }
-.wm-button-primary {
-    border-color:rgba(168,255,69,.55);
-    background:linear-gradient(180deg,#b8ff65,#8bea33);
-    color:#071006!important;
-    box-shadow:0 10px 26px rgba(118,222,47,.13);
 }
 
 .wm-source-note {
@@ -611,58 +537,266 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
 .wm-footer { margin-top:0; }
 
 @media (max-width:1100px) {
-    .wm-proof-row > div { min-height:250px; }
+    .wm-hero { grid-template-columns:1fr; }
+    .wm-hero-copy { padding-bottom:1.25rem; }
+    .wm-hero-proof { margin:0 1.25rem 1.25rem; }
     .wm-study-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 
-@media (max-width:820px) {
+@media (max-width:760px) {
     .wm-page main { width:min(100% - 18px,1440px); padding-top:10px; }
-    .wm-hero-proof { padding:.9rem; border-radius:18px; }
+    .wm-hero { border-radius:18px; min-height:0; }
+    .wm-hero-copy { padding:1.5rem 1.15rem 1.05rem; }
+    .wm-hero h1 { font-size:clamp(3.3rem,15vw,5rem); }
+    .wm-hero-lede { font-size:.96rem; }
+    .wm-hero-proof { margin:0 .75rem .75rem; padding:.9rem; }
     .wm-proof-row { grid-template-columns:1fr; }
-    .wm-proof-row > div {
-        min-height:0;
-        padding:1rem;
-    }
-    .wm-proof-row .wm-proof-hot { transform:none; }
-    .wm-proof-row > div::before { font-size:2.4rem; margin-bottom:.42rem; }
-    .wm-proof-row b { font-size:4.4rem; }
-    .wm-hero-proof::after {
-        font-size:2rem;
-        padding:.9rem;
-        text-align:left;
-        justify-content:flex-start;
-    }
-    .wm-summary::before,
-    #true-recomp::before,
-    .wm-health::before { height:210px; }
+    .wm-proof-row > div { display:grid; grid-template-columns:76px 1fr; align-items:center; gap:.65rem; }
+    .wm-proof-row b { font-size:2rem; }
     .wm-feature-grid,
     .wm-health-grid,
     .wm-rule-grid { grid-template-columns:1fr; }
     .wm-section { padding:1.05rem; border-radius:16px; }
-    .wm-section-heading h2 { font-size:2.45rem; }
+    .wm-section-heading h2 { font-size:2.65rem; }
     .wm-prose { columns:1; }
     .wm-study-grid { grid-template-columns:1fr; }
     .wm-study-name { min-height:0; }
     .wm-final { padding:1.5rem 1.15rem; border-radius:18px; }
-    .wm-final h2 { font-size:2.7rem; }
+    .wm-final h2 { font-size:3rem; }
 }
 
 @media (max-width:520px) {
     body.wm-page .wm-nav { position:relative; }
     body.wm-page .wm-nav nav { gap:.2rem; }
     body.wm-page .wm-nav nav a:not(.rg-start) { font-size:.68rem; }
-    .wm-proof-row b { font-size:3.75rem; }
-    .wm-proof-row > div::before { font-size:2rem; }
-    .wm-proof-row span strong { font-size:1rem; }
-    .wm-hero-proof::after { font-size:1.62rem; }
+    .wm-hero-actions,
+    .wm-final > div { display:grid; grid-template-columns:1fr; }
     .wm-big-stats { grid-template-columns:1fr 1fr; }
     .wm-big-stats b { font-size:1.48rem; }
     .wm-closing-quote { padding:1rem; }
-    .wm-closing-quote strong { font-size:2rem; }
-    .wm-final > div { display:grid; grid-template-columns:1fr; }
+    .wm-closing-quote strong { font-size:2.1rem; }
 }
 
 @media (prefers-reduced-motion:reduce) {
     html { scroll-behavior:auto; }
     * { transition:none!important; }
+}
+
+/* ======================================================================
+   TEST v1012 — VISUAL STUDY COMPARISON GRAPH
+   Makes the three routines the primary message and overlays body imagery.
+   ====================================================================== */
+.wm-page .wm-hero.wm-hero-clarity {
+    padding:clamp(1rem,2.5vw,1.7rem) !important;
+    background:
+        linear-gradient(110deg,rgba(2,8,11,.97),rgba(5,20,23,.9)),
+        url('/images/marketing-v13/evidence-gym-group-clean.jpg') center 42%/cover no-repeat !important;
+}
+
+.wm-page .wm-clarity-proof {
+    max-width:1360px;
+    margin:0 auto !important;
+    padding:clamp(1rem,2.5vw,1.75rem) !important;
+}
+
+.wm-page .wm-clarity-intro {
+    font-size:0 !important;
+    margin:0 0 .35rem !important;
+}
+.wm-page .wm-clarity-intro::after {
+    content:"A 12-WEEK RANDOMIZED STUDY COMPARED THREE DIFFERENT WEIGHT-LOSS ROUTINES.";
+    display:block;
+    color:#fff;
+    font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
+    font-size:clamp(1.7rem,3.7vw,3.35rem);
+    font-style:italic;
+    font-weight:950;
+    line-height:.96;
+    text-transform:uppercase;
+}
+.wm-page .wm-clarity-sub {
+    max-width:1050px;
+    margin:0 0 1.1rem !important;
+    color:#d8e4eb !important;
+    font-size:clamp(.95rem,1.5vw,1.15rem) !important;
+}
+
+.wm-page .wm-clarity-grid {
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+    gap:1rem !important;
+    align-items:stretch;
+}
+
+.wm-page .wm-clarity-card {
+    display:flex;
+    flex-direction:column;
+    min-height:520px;
+    overflow:hidden;
+    padding:0 1rem 4.6rem !important;
+    border-radius:20px !important;
+    background:#061018 !important;
+    box-shadow:0 18px 38px rgba(0,0,0,.28);
+}
+
+.wm-page .wm-clarity-card::before {
+    content:"";
+    display:block;
+    height:210px;
+    margin:0 -1rem 1rem;
+    border-bottom:1px solid rgba(255,255,255,.12);
+    background-position:center;
+    background-size:cover;
+    background-repeat:no-repeat;
+    filter:saturate(.82) contrast(1.04);
+}
+.wm-page .wm-diet-card::before {
+    background-image:
+        linear-gradient(180deg,rgba(4,11,17,.05),rgba(4,11,17,.32)),
+        url('/images/marketing-v12/coach-cassie-gym.png');
+    background-position:center 28%;
+}
+.wm-page .wm-cardio::before {
+    background-image:
+        linear-gradient(180deg,rgba(4,11,17,.04),rgba(4,11,17,.28)),
+        url('/images/marketing-v13/evidence-gym-group-clean.jpg');
+    background-position:center 44%;
+}
+.wm-page .wm-recomp-card::before {
+    background-image:
+        linear-gradient(180deg,rgba(4,11,17,.02),rgba(20,58,8,.18)),
+        url('/images/marketing-v12/coach-marisol-gym.png');
+    background-position:center 24%;
+    filter:saturate(1.06) contrast(1.06);
+}
+
+.wm-page .wm-clarity-card h2 {
+    margin:.05rem 0 .2rem !important;
+    font-size:clamp(2rem,3.5vw,3.3rem) !important;
+    line-height:.9 !important;
+}
+.wm-page .wm-clarity-card h2::after {
+    display:block;
+    margin-top:.5rem;
+    font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:clamp(.85rem,1.35vw,1.05rem);
+    font-style:normal;
+    font-weight:950;
+    letter-spacing:.05em;
+    line-height:1.15;
+}
+.wm-page .wm-diet-card h2::after { content:"69% OF THE WEIGHT LOST WAS FAT"; color:#79ddff; }
+.wm-page .wm-cardio h2::after { content:"78% OF THE WEIGHT LOST WAS FAT"; color:#79ddff; }
+.wm-page .wm-recomp-card h2::after { content:"97% OF THE WEIGHT LOST WAS FAT"; color:#a8ff45; }
+
+.wm-page .wm-loss-number {
+    margin:.7rem 0 .1rem !important;
+    font-size:clamp(4.2rem,7vw,6.6rem) !important;
+    line-height:.8 !important;
+}
+.wm-page .wm-loss-copy {
+    font-size:0 !important;
+}
+.wm-page .wm-loss-copy::after {
+    content:"MOSTLY MUSCLE LOST*";
+    display:block;
+    color:#fff;
+    font-size:clamp(1rem,1.55vw,1.28rem);
+    font-weight:950;
+    line-height:1.08;
+    text-transform:uppercase;
+}
+.wm-page .wm-recomp-card .wm-loss-copy::after {
+    content:"ONLY 3% MOSTLY MUSCLE LOST*";
+    color:#dfffba;
+}
+
+.wm-page .wm-clarity-card::after {
+    content:"";
+    position:absolute;
+    left:1rem;
+    right:1rem;
+    bottom:1rem;
+    height:2.15rem;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:999px;
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.45);
+}
+.wm-page .wm-diet-card::after {
+    background:linear-gradient(90deg,#4ad4ff 0 69%,#ff6c79 69% 100%);
+}
+.wm-page .wm-cardio::after {
+    background:linear-gradient(90deg,#4ad4ff 0 78%,#ffb64e 78% 100%);
+}
+.wm-page .wm-recomp-card::after {
+    background:linear-gradient(90deg,#9fff35 0 97%,#ff6c79 97% 100%);
+    box-shadow:0 0 20px rgba(159,255,53,.18),inset 0 1px 3px rgba(0,0,0,.38);
+}
+
+.wm-page .wm-fat-result { display:none !important; }
+.wm-page .wm-recomp-arrow {
+    top:224px !important;
+    right:1rem !important;
+    font-size:clamp(2.2rem,4vw,4rem) !important;
+    transform:rotate(90deg);
+}
+
+.wm-page .wm-why-callout {
+    grid-template-columns:auto 1fr !important;
+    margin-top:1.15rem !important;
+    border-width:3px !important;
+    box-shadow:0 0 28px rgba(152,255,49,.08);
+}
+.wm-page .wm-why-callout b {
+    font-size:clamp(3rem,6vw,5.8rem) !important;
+}
+.wm-page .wm-why-callout strong {
+    font-size:0 !important;
+}
+.wm-page .wm-why-callout strong::after {
+    content:"THIS IS WHY WE RECOMP INSTEAD OF DIET!";
+    display:block;
+    color:#fff;
+    font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
+    font-size:clamp(2rem,4.7vw,4.4rem);
+    font-style:italic;
+    font-weight:950;
+    line-height:.9;
+    text-transform:uppercase;
+}
+.wm-page .wm-why-callout span {
+    font-size:0 !important;
+}
+.wm-page .wm-why-callout span::after {
+    content:"SAME SCALE LOSS. VERY DIFFERENT BODY.";
+    display:block;
+    margin-top:.45rem;
+    color:#a8ff45;
+    font-size:clamp(.95rem,1.8vw,1.3rem);
+    font-weight:950;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+}
+
+.wm-page .wm-clarity-note span:nth-child(2) {
+    font-size:0;
+}
+.wm-page .wm-clarity-note span:nth-child(2)::after {
+    content:"*The study measured fat-free mass, which is largely muscle plus other non-fat tissue. 'Mostly muscle lost' is the plain-language summary used in the graph.";
+    font-size:.72rem;
+}
+
+@media (max-width:980px) {
+    .wm-page .wm-clarity-grid { grid-template-columns:1fr !important; }
+    .wm-page .wm-clarity-card { min-height:0; padding-bottom:4.4rem !important; }
+    .wm-page .wm-clarity-card::before { height:250px; }
+    .wm-page .wm-recomp-arrow { top:266px !important; }
+}
+
+@media (max-width:560px) {
+    .wm-page .wm-clarity-proof { padding:.8rem !important; }
+    .wm-page .wm-clarity-card::before { height:205px; }
+    .wm-page .wm-recomp-arrow { top:221px !important; }
+    .wm-page .wm-why-callout { grid-template-columns:1fr !important; }
+    .wm-page .wm-why-callout b { transform:rotate(90deg); width:max-content; }
 }
