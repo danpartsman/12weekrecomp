@@ -153,7 +153,7 @@ public sealed class TrainingSessionController(
                         mode = "live",
                         workoutSessionId = session.WorkoutSessionId,
                         date = session.WorkoutDate.ToString("yyyy-MM-dd"),
-                        endPrompt = 1
+                        showEndMenu = 1
                     }),
                 completedSegments
             });
@@ -252,6 +252,65 @@ public sealed class TrainingSessionController(
             new
             {
                 workoutSessionId
+            });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Discard(
+        Guid workoutSessionId,
+        CancellationToken cancellationToken = default)
+    {
+        var context =
+            await userContext.GetAsync(
+                HttpContext,
+                cancellationToken);
+
+        if (context.Client is null || context.Program is null)
+            return RedirectToAction("Index", "Intake");
+
+        if (!context.Program.DetailedWorkoutEntryEnabled)
+            return StatusCode(403);
+
+        var session =
+            await db.WorkoutSessions
+                .SingleOrDefaultAsync(
+                    x =>
+                        x.WorkoutSessionId == workoutSessionId
+                        && x.ClientId == context.Client.ClientId
+                        && x.ProgramId == context.Program.ProgramId,
+                    cancellationToken);
+
+        if (session is null)
+            return NotFound();
+
+        if (session.CompletedFlag)
+        {
+            return RedirectToAction(
+                "Complete",
+                "DetailedWorkout",
+                new
+                {
+                    workoutSessionId
+                });
+        }
+
+        var workoutDate = session.WorkoutDate;
+
+        // Detailed exercises and their sets cascade from WorkoutSession.
+        // A discarded session never becomes an Engine 3.0 completed actual.
+        db.WorkoutSessions.Remove(session);
+        await db.SaveChangesAsync(cancellationToken);
+
+        TempData["StatusMessage"] = "Workout discarded.";
+
+        return RedirectToAction(
+            "Index",
+            "DetailedWorkout",
+            new
+            {
+                mode = "start",
+                date = workoutDate.ToString("yyyy-MM-dd")
             });
     }
 
