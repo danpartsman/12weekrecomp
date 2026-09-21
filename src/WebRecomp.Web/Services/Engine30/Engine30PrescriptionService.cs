@@ -67,18 +67,17 @@ public sealed record Engine30WeeklyPrescriptionResult(
 /// <summary>
 /// Engine 3.0 physiology-first prescription layer.
 ///
-/// Energy architecture remains authoritative for expenditure diagnostics, but
-/// expenditure no longer back-fills carbohydrate. Nutrition is constructed in
-/// physiological order:
-///
+/// Nutrition is constructed in physiological order:
 ///   1. Stable protein.
-///   2. Stable weight-based fat target.
+///   2. Stable weight-based fat minimum.
 ///   3. Adult background carbohydrate requirement.
 ///   4. Actual Engine 3.0 glycogen reload requirement for the day's workout.
 ///   5. Calories are the consequence of those macros.
 ///
-/// Maintenance and plan deficit remain diagnostic guardrails. They do not
-/// manufacture carbohydrate merely to make a calorie target reconcile.
+/// Maintenance never back-fills carbohydrate. If the physiology-first macros
+/// would create a deficit beyond Engine 3.0's existing 20% / 500-kcal-per-day
+/// safety guardrail, carbohydrate remains untouched and stable dietary fat is
+/// raised only enough to satisfy that safety boundary.
 /// </summary>
 public sealed class Engine30PrescriptionService
 {
@@ -131,9 +130,6 @@ public sealed class Engine30PrescriptionService
             "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED"
         };
 
-        if (bmi < 18.5m)
-            reasons.Add("BMI_BELOW_DEFICIT_THRESHOLD_REVIEW");
-
         var weeklyMaintenance =
             days.Sum(x => x.MaintenanceEnergyKcal);
 
@@ -145,20 +141,11 @@ public sealed class Engine30PrescriptionService
                 weightLb * 0.88m,
                 5m);
 
-        /*
-         * Stable dietary fat remains a minimum weight-based target. It is not
-         * used as a residual calorie bucket.
-         */
-        var fat =
+        var baseFat =
             CeilingToIncrement(
                 weightKg * 0.50m,
                 5m);
 
-        /*
-         * Compatibility name: BaseRestCarbsG now means the physiological
-         * background glucose/carbohydrate requirement, not a plan-owned carb
-         * allowance. It is intentionally identical across plans.
-         */
         var baseRestCarbs =
             Engine30BackgroundCarbohydrateDefaults
                 .AdultBackgroundCarbohydrateEarG;
@@ -168,31 +155,80 @@ public sealed class Engine30PrescriptionService
                 weightKg * 5.0m,
                 5m);
 
+        var orderedDays =
+            days.OrderBy(x => x.Date).ToArray();
+
+        var carbFloors =
+            orderedDays
+                .Select(day =>
+                    CeilingToIncrement(
+                        baseRestCarbs
+                        + day.GlycogenReloadRequirementG,
+                        5m))
+                .ToArray();
+
+        /*
+         * Carb is now fully determined before energy reconciliation.
+         * No calorie target is allowed to change these values.
+         */
+        var weeklyNonFatEnergy =
+            carbFloors.Sum(x => x * 4m)
+            + protein * 4m * 7m;
+
+        var safetyDeficitCap =
+            bmi < 18.5m
+                ? 0m
+                : Math.Min(
+                    weeklyMaintenance * 0.20m,
+                    500m * 7m);
+
+        if (bmi < 18.5m)
+            reasons.Add("BMI_BELOW_DEFICIT_THRESHOLD");
+
+        var minimumWeeklyDietaryEnergy =
+            weeklyMaintenance - safetyDeficitCap;
+
+        var fat = baseFat;
+
+        var weeklyEnergyAtBaseFat =
+            weeklyNonFatEnergy
+            + baseFat * 9m * 7m;
+
+        if (weeklyEnergyAtBaseFat
+            < minimumWeeklyDietaryEnergy - 0.001m)
+        {
+            var requiredStableFatG =
+                (minimumWeeklyDietaryEnergy - weeklyNonFatEnergy)
+                / (9m * 7m);
+
+            fat =
+                bmi < 18.5m
+                    ? Math.Max(baseFat, requiredStableFatG)
+                    : Math.Max(
+                        baseFat,
+                        CeilingToIncrement(
+                            requiredStableFatG,
+                            5m));
+
+            reasons.Add(
+                "STABLE_FAT_RAISED_FOR_ENERGY_SAFETY_GUARDRAIL");
+        }
+
         var results =
             new List<Engine30PrescriptionDayResult>(7);
 
-        foreach (var day in days.OrderBy(x => x.Date))
+        for (var i = 0; i < orderedDays.Length; i++)
         {
-            var carbFloor =
-                CeilingToIncrement(
-                    baseRestCarbs
-                    + day.GlycogenReloadRequirementG,
-                    5m);
-
-            /*
-             * Do NOT use maintenance or a requested calorie target to fill
-             * carbohydrate. The carbohydrate prescription is exactly the
-             * background requirement plus calculated glycogen replacement.
-             */
+            var day = orderedDays[i];
+            var carbFloor = carbFloors[i];
             var carbs = carbFloor;
 
             var macroKcal =
-                Math.Round(
+                Round(
                     protein * 4m
                     + fat * 9m
                     + carbs * 4m,
-                    0,
-                    MidpointRounding.AwayFromZero);
+                    2);
 
             var governing =
                 carbFloor > standardCarbUpper
@@ -213,11 +249,12 @@ public sealed class Engine30PrescriptionService
                     ProteinG:
                         protein,
                     FatG:
-                        fat,
+                        Round(fat, 2),
                     PhysiologicalCarbFloorG:
                         carbFloor,
-                    // Legacy diagnostic field retained for contract stability.
-                    // It intentionally equals the physiology-governed target.
+                    // Contract-compatible legacy field. It no longer means
+                    // "fill carbs until calorie target"; it mirrors the
+                    // physiology-governed carbohydrate prescription.
                     EnergyBalancedCarbsG:
                         carbs,
                     StandardCarbUpperBoundaryG:
@@ -243,19 +280,13 @@ public sealed class Engine30PrescriptionService
                 ? weeklyDeficit / weeklyMaintenance
                 : 0m;
 
-        var absoluteDeficitCap = 500m * 7m;
-        var percentageDeficitCap = weeklyMaintenance * 0.20m;
-        var safetyDeficitCap = Math.Min(
-            absoluteDeficitCap,
-            percentageDeficitCap);
-
-        if (weeklyDeficit > safetyDeficitCap + 0.001m)
+        if (weeklyDeficit > safetyDeficitCap + 0.10m)
         {
             reasons.Add(
-                "MACRO_DERIVED_DEFICIT_EXCEEDS_EXISTING_SAFETY_GUARDRAIL_REVIEW");
+                "ENERGY_SAFETY_GUARDRAIL_ROUNDING_REVIEW");
         }
 
-        if (weeklyPrescribed > weeklyMaintenance + 0.001m)
+        if (weeklyPrescribed > weeklyMaintenance + 0.10m)
         {
             reasons.Add(
                 "PHYSIOLOGICAL_MACROS_EXCEED_MAINTENANCE_REVIEW");
@@ -288,13 +319,13 @@ public sealed class Engine30PrescriptionService
             WeeklyDeficitKcal:
                 Round(weeklyDeficit, 2),
             WeeklyPrescribedEnergyKcal:
-                weeklyPrescribed,
+                Round(weeklyPrescribed, 2),
             AverageDailyPrescribedEnergyKcal:
                 Round(weeklyPrescribed / 7m, 2),
             StableProteinG:
                 protein,
             StableFatG:
-                fat,
+                Round(fat, 2),
             BaseRestCarbsG:
                 baseRestCarbs,
             Days:
