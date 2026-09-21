@@ -10,6 +10,23 @@
     }
 
     if (
+        !document.querySelector(
+            'script[data-12wr-training-session="v1012"]')
+    ) {
+        const trainingSessionScript =
+            document.createElement("script");
+
+        trainingSessionScript.src =
+            "/js/training-session-v1012.js?v=1012session1";
+
+        trainingSessionScript.dataset["12wrTrainingSession"] =
+            "v1012";
+
+        document.head.appendChild(
+            trainingSessionScript);
+    }
+
+    if (
         path.startsWith("/nutrition")
         && !document.querySelector(
             'script[data-12wr-nutrition-amounts="v1012"]')
@@ -36,7 +53,7 @@
             document.createElement("script");
 
         liveWorkoutScript.src =
-            "/js/live-workout-v1012.js?v=1012live1";
+            "/js/live-workout-v1012.js?v=1012live2";
 
         liveWorkoutScript.dataset["12wrLiveWorkout"] =
             "v1012";
