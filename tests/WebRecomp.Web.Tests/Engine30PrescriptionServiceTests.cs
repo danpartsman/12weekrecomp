@@ -1,4 +1,4 @@
-﻿using WebRecomp.Web.Services.Engine30;
+using WebRecomp.Web.Services.Engine30;
 using Xunit;
 
 namespace WebRecomp.Web.Tests;
@@ -6,82 +6,126 @@ namespace WebRecomp.Web.Tests;
 public sealed class Engine30PrescriptionServiceTests
 {
     [Fact]
-    public void WeeklyPeriodization_PreservesAuthoritativeWeeklyEnergy()
+    public void BackgroundCarbohydrate_IsPhysiologicalAndPlanIndependent()
+    {
+        var service = new Engine30PrescriptionService();
+
+        foreach (var plan in new[]
+        {
+            "PLAN_1", "PLAN_2", "PLAN_3", "PLAN_4", "PLAN_5"
+        })
+        {
+            var result =
+                service.Calculate(
+                    plan,
+                    weightLb: 210m,
+                    heightIn: 73m,
+                    days: StandardWeek());
+
+            Assert.Equal(100m, result.BaseRestCarbsG);
+            Assert.Contains(
+                "BACKGROUND_CARB_EAR_100G",
+                result.ReasonCodes);
+        }
+    }
+
+    [Fact]
+    public void Carbohydrate_EqualsBackgroundPlusCalculatedGlycogenReload()
     {
         var result =
             new Engine30PrescriptionService()
                 .Calculate(
                     "PLAN_2",
-                    weightLb: 200m,
-                    heightIn: 72m,
+                    weightLb: 210m,
+                    heightIn: 73m,
                     days: StandardWeek());
 
+        var first = result.Days[0];
+        var rest = result.Days[^1];
+
+        Assert.Equal(210m, first.RecommendedCarbsG);
+        Assert.Equal(100m, rest.RecommendedCarbsG);
+
         Assert.Equal(
-            7,
-            result.Days.Count);
+            first.PhysiologicalCarbFloorG,
+            first.RecommendedCarbsG);
+
+        Assert.Equal(
+            "BACKGROUND_PLUS_GLYCOGEN_RELOAD",
+            first.CarbGoverningRuleCode);
+    }
+
+    [Fact]
+    public void Calories_AreDerivedFromMacros_NotUsedToBackfillCarbohydrate()
+    {
+        var result =
+            new Engine30PrescriptionService()
+                .Calculate(
+                    "PLAN_2",
+                    weightLb: 210m,
+                    heightIn: 73m,
+                    days: StandardWeek(equalMaintenance: true));
+
+        foreach (var day in result.Days)
+        {
+            var expected =
+                day.ProteinG * 4m
+                + day.FatG * 9m
+                + day.RecommendedCarbsG * 4m;
+
+            Assert.Equal(expected, day.PrescribedEnergyKcal);
+            Assert.Equal(expected, day.MacroDerivedEnergyKcal);
+            Assert.Equal(0m, day.MacroEnergyVarianceKcal);
+            Assert.Equal(
+                day.RecommendedCarbsG,
+                day.EnergyBalancedCarbsG);
+        }
 
         Assert.Equal(
             result.WeeklyPrescribedEnergyKcal,
-            result.Days.Sum(
-                x => x.PrescribedEnergyKcal));
+            result.Days.Sum(x => x.PrescribedEnergyKcal));
 
-        Assert.True(
-            result.WeeklyPrescribedEnergyKcal
-            <= result.WeeklyMaintenanceEnergyKcal);
+        Assert.Contains(
+            "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED",
+            result.ReasonCodes);
     }
 
     [Fact]
-    public void EqualMaintenance_MajorStrengthReceivesMoreEnergyThanRest_WhenFloorsDoNotBindBothDays()
+    public void EqualMaintenance_CategoryWeightDoesNotManufactureExtraCalories()
     {
         var result =
             new Engine30PrescriptionService()
                 .Calculate(
                     "PLAN_2",
-                    200m,
-                    72m,
-                    StandardWeek(
-                        equalMaintenance: true));
+                    210m,
+                    73m,
+                    StandardWeek(equalMaintenance: true));
 
-        var major =
-            result.Days.Single(
-                x => x.Date
-                     == new DateOnly(
-                         2026,
-                         9,
-                         7));
+        var major = result.Days[0];
+        var rest = result.Days[^1];
 
-        var rest =
-            result.Days.Single(
-                x => x.Date
-                     == new DateOnly(
-                         2026,
-                         9,
-                         13));
-
-        Assert.True(
-            major.PrescribedEnergyKcal
-            > rest.PrescribedEnergyKcal);
+        Assert.Equal(1.10m, major.CategoryWeight);
+        Assert.Equal(0.80m, rest.CategoryWeight);
 
         Assert.Equal(
-            1.10m,
-            major.CategoryWeight);
+            110m,
+            major.RecommendedCarbsG - rest.RecommendedCarbsG);
 
         Assert.Equal(
-            0.80m,
-            rest.CategoryWeight);
+            440m,
+            major.PrescribedEnergyKcal - rest.PrescribedEnergyKcal);
     }
 
     [Fact]
-    public void ProteinAndFatRemainStable_CarbohydratePeriodizes()
+    public void ProteinAndFatRemainStable_CarbohydrateTracksGlycogenDemand()
     {
         var result =
             new Engine30PrescriptionService()
                 .Calculate(
                     "PLAN_3",
-                    200m,
-                    72m,
-                    StandardWeek(
-                        equalMaintenance: true));
+                    210m,
+                    73m,
+                    StandardWeek(equalMaintenance: true));
 
         Assert.Single(
             result.Days
@@ -93,45 +137,20 @@ public sealed class Engine30PrescriptionServiceTests
                 .Select(x => x.FatG)
                 .Distinct());
 
-        var highGlycogen =
-            result.Days.Single(
-                x => x.Date
-                     == new DateOnly(
-                         2026,
-                         9,
-                         7));
-
-        var rest =
-            result.Days.Single(
-                x => x.Date
-                     == new DateOnly(
-                         2026,
-                         9,
-                         13));
-
         Assert.True(
-            highGlycogen
-                .PhysiologicalCarbFloorG
-            > rest
-                .PhysiologicalCarbFloorG);
-
-        Assert.True(
-            highGlycogen
-                .RecommendedCarbsG
-            >= rest
-                .RecommendedCarbsG);
+            result.Days[0].RecommendedCarbsG
+            > result.Days[^1].RecommendedCarbsG);
     }
 
     [Fact]
-    public void FatFloor_IsNeverRoundedBelowHalfGramPerKg()
+    public void FatTarget_IsNeverRoundedBelowHalfGramPerKg()
     {
-        var service =
-            new Engine30PrescriptionService();
+        var service = new Engine30PrescriptionService();
 
         foreach (var sample in new[]
         {
             new { WeightLb = 155m, HeightIn = 68m },
-            new { WeightLb = 135m, HeightIn = 64m },
+            new { WeightLb = 210m, HeightIn = 73m },
             new { WeightLb = 250m, HeightIn = 76m }
         })
         {
@@ -148,106 +167,18 @@ public sealed class Engine30PrescriptionServiceTests
                 * 0.50m;
 
             Assert.True(
-                result.StableFatG
-                >= floor,
-                $"{sample.WeightLb} lb: " +
-                $"fat {result.StableFatG}g " +
-                $"was below floor {floor:0.00}g.");
+                result.StableFatG >= floor,
+                $"{sample.WeightLb} lb: fat {result.StableFatG}g was below floor {floor:0.00}g.");
         }
     }
 
     [Fact]
-    public void MacroFloors_ReduceDeficitInsteadOfCreatingLargeDailyVariance()
+    public void GlycogenReload_DoesNotChangeMaintenance_ButChangesMacrosAndCalories()
     {
-        var days =
-            new[]
-            {
-                new Engine30PrescriptionDayInput(
-                    new DateOnly(2026, 9, 7),
-                    1601m,
-                    Engine30PrescriptionCategoryCodes.MajorStrength,
-                    59.5m),
-
-                new Engine30PrescriptionDayInput(
-                    new DateOnly(2026, 9, 8),
-                    1502m,
-                    Engine30PrescriptionCategoryCodes.AccessoryStrength,
-                    33.2m),
-
-                new Engine30PrescriptionDayInput(
-                    new DateOnly(2026, 9, 9),
-                    1518m,
-                    Engine30PrescriptionCategoryCodes.ConditioningCardio,
-                    16.2m),
-
-                new Engine30PrescriptionDayInput(
-                    new DateOnly(2026, 9, 10),
-                    1576m,
-                    Engine30PrescriptionCategoryCodes.MajorStrength,
-                    22.4m),
-
-                new Engine30PrescriptionDayInput(
-                    new DateOnly(2026, 9, 11),
-                    1606m,
-                    Engine30PrescriptionCategoryCodes.ConditioningCardio,
-                    41.2m),
-
-                new Engine30PrescriptionDayInput(
-                    new DateOnly(2026, 9, 12),
-                    1614m,
-                    Engine30PrescriptionCategoryCodes.ConditioningCardio,
-                    91.5m),
-
-                new Engine30PrescriptionDayInput(
-                    new DateOnly(2026, 9, 13),
-                    1372m,
-                    Engine30PrescriptionCategoryCodes.RestRecoveryOther,
-                    0m)
-            };
-
-        var result =
-            new Engine30PrescriptionService()
-                .Calculate(
-                    "PLAN_2",
-                    135m,
-                    64m,
-                    days);
-
-        Assert.Contains(
-            "DEFICIT_REDUCED_TO_PROTECT_MACRO_FLOORS",
-            result.ReasonCodes);
-
-        Assert.True(
-            result.EffectiveDeficitPct
-            < result.RequestedDeficitPct);
-
-        Assert.True(
-            result.Days.All(
-                x =>
-                    Math.Abs(
-                        x.MacroEnergyVarianceKcal)
-                    <= 10m));
-
-        Assert.True(
-            result.Days.All(
-                x =>
-                    x.PrescribedEnergyKcal
-                    >=
-                    x.ProteinG * 4m
-                    + x.FatG * 9m
-                    + x.PhysiologicalCarbFloorG * 4m
-                    - 0.01m));
-    }
-
-    [Fact]
-    public void GlycogenReload_DoesNotChangeMaintenance_AndReconcilesInsidePrescription()
-    {
-        var service =
-            new Engine30PrescriptionService();
+        var service = new Engine30PrescriptionService();
 
         var original =
-            StandardWeek(
-                equalMaintenance: true);
+            StandardWeek(equalMaintenance: true);
 
         var highReload =
             original
@@ -256,8 +187,7 @@ public sealed class Engine30PrescriptionServiceTests
                         i == 0
                             ? x with
                             {
-                                GlycogenReloadRequirementG =
-                                    200m
+                                GlycogenReloadRequirementG = 200m
                             }
                             : x)
                 .ToArray();
@@ -265,34 +195,28 @@ public sealed class Engine30PrescriptionServiceTests
         var a =
             service.Calculate(
                 "PLAN_2",
-                200m,
-                72m,
+                210m,
+                73m,
                 original);
 
         var b =
             service.Calculate(
                 "PLAN_2",
-                200m,
-                72m,
+                210m,
+                73m,
                 highReload);
 
         Assert.Equal(
             a.WeeklyMaintenanceEnergyKcal,
             b.WeeklyMaintenanceEnergyKcal);
 
-        Assert.True(
-            b.Days[0]
-                .PhysiologicalCarbFloorG
-            >
-            a.Days[0]
-                .PhysiologicalCarbFloorG);
+        Assert.Equal(210m, a.Days[0].RecommendedCarbsG);
+        Assert.Equal(300m, b.Days[0].RecommendedCarbsG);
 
-        Assert.True(
-            b.Days.All(
-                x =>
-                    Math.Abs(
-                        x.MacroEnergyVarianceKcal)
-                    <= 10m));
+        Assert.Equal(
+            360m,
+            b.Days[0].PrescribedEnergyKcal
+            - a.Days[0].PrescribedEnergyKcal);
     }
 
     private static Engine30PrescriptionDayInput[] StandardWeek(
@@ -302,8 +226,7 @@ public sealed class Engine30PrescriptionServiceTests
             =>
                 equalMaintenance
                     ? 2400m
-                    : 2250m
-                      + day * 50m;
+                    : 2250m + day * 50m;
 
         return
         [
