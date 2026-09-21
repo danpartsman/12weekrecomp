@@ -1,29 +1,19 @@
-﻿namespace WebRecomp.Web.Services.Engine30;
+namespace WebRecomp.Web.Services.Engine30;
 
 /// <summary>
-/// Converts the baseline Engine 3.0 weekly prescription into a goal-specific
-/// RECOMP prescription.
+/// Engine 3.0 goal-energy policy diagnostic layer.
 ///
-/// The baseline weekly energy budget remains authoritative unless either:
-/// - physiological macro floors, or
-/// - administrator-configured category minimums
-/// require more energy.
+/// The category energy policy is retained for comparison, reporting and
+/// guardrail diagnostics, but it no longer creates calories by back-filling
+/// carbohydrate. The authoritative prescription now comes from physiological
+/// macros: stable protein, stable fat, background carbohydrate, and calculated
+/// workout glycogen replacement.
 ///
-/// The allocator starts every day at the stronger of:
-/// - its macro-energy floor, and
-/// - the category minimum maintenance fraction.
-///
-/// Remaining weekly calories are then spent in descending protection priority:
-/// first toward each category TARGET, then toward each category MAXIMUM.
-///
-/// This deliberately makes important Major Strength days calorie-protected
-/// rather than merely giving them a relative 1.10 weighting.
+/// This keeps goal/category policy observable without allowing it to overwrite
+/// the glycogen model.
 /// </summary>
 public sealed class Engine30RecompEnergyPolicyAllocator
 {
-    private const decimal EnergyIncrementKcal = 10m;
-    private const decimal CarbIncrementG = 5m;
-
     public Engine30WeeklyPrescriptionResult Apply(
         Engine30WeeklyPrescriptionResult baseline,
         Engine30GoalEnergyPolicy policy)
@@ -31,12 +21,10 @@ public sealed class Engine30RecompEnergyPolicyAllocator
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(policy);
 
-        Engine30GoalEnergyPolicyService.Validate(
-            policy);
+        Engine30GoalEnergyPolicyService.Validate(policy);
 
         var normalizedPlan =
-            NormalizePlan(
-                baseline.PlanCode);
+            NormalizePlan(baseline.PlanCode);
 
         if (!policy.PlanCode.Equals(
                 normalizedPlan,
@@ -56,343 +44,57 @@ public sealed class Engine30RecompEnergyPolicyAllocator
             baseline.ReasonCodes.ToList();
 
         reasons.Add(
-            "ADMIN_GOAL_CATEGORY_ENERGY_POLICY_APPLIED");
+            "ADMIN_GOAL_CATEGORY_ENERGY_POLICY_DIAGNOSTIC_ONLY");
 
-        var rows =
-            baseline.Days
-                .Select((day, index) =>
-                {
-                    var category =
-                        policy.Category(
-                            day.WorkoutCategoryCode);
-
-                    var macroFloorKcal =
-                        CeilingToIncrement(
-                            baseline.StableProteinG * 4m
-                            + baseline.StableFatG * 9m
-                            + day.PhysiologicalCarbFloorG * 4m,
-                            EnergyIncrementKcal);
-
-                    var categoryMinimum =
-                        CeilingToIncrement(
-                            day.MaintenanceEnergyKcal
-                            * category.MinimumMaintenanceFraction,
-                            EnergyIncrementKcal);
-
-                    var minimum =
-                        Math.Max(
-                            macroFloorKcal,
-                            categoryMinimum);
-
-                    var target =
-                        RoundToIncrement(
-                            day.MaintenanceEnergyKcal
-                            * category.TargetMaintenanceFraction,
-                            EnergyIncrementKcal);
-
-                    var maximum =
-                        RoundToIncrement(
-                            day.MaintenanceEnergyKcal
-                            * category.MaximumMaintenanceFraction,
-                            EnergyIncrementKcal);
-
-                    target =
-                        Math.Clamp(
-                            target,
-                            minimum,
-                            Math.Max(
-                                minimum,
-                                maximum));
-
-                    maximum =
-                        Math.Max(
-                            maximum,
-                            target);
-
-                    return new Row(
-                        Index:
-                            index,
-                        Day:
-                            day,
-                        Policy:
-                            category,
-                        Minimum:
-                            minimum,
-                        Target:
-                            target,
-                        Maximum:
-                            maximum);
-                })
-                .ToArray();
-
-        var weeklyTarget =
-            baseline.WeeklyPrescribedEnergyKcal;
-
-        var minimumWeekly =
-            rows.Sum(x => x.Minimum);
-
-        if (minimumWeekly > weeklyTarget)
+        foreach (var day in baseline.Days)
         {
-            weeklyTarget =
-                minimumWeekly;
+            var category =
+                policy.Category(day.WorkoutCategoryCode);
 
-            reasons.Add(
-                "DEFICIT_REDUCED_TO_PROTECT_CATEGORY_ENERGY_FLOORS");
-        }
+            var minimum =
+                day.MaintenanceEnergyKcal
+                * category.MinimumMaintenanceFraction;
 
-        var allocated =
-            rows
-                .Select(x => x.Minimum)
-                .ToArray();
+            var target =
+                day.MaintenanceEnergyKcal
+                * category.TargetMaintenanceFraction;
 
-        var remaining =
-            weeklyTarget
-            - allocated.Sum();
+            var maximum =
+                day.MaintenanceEnergyKcal
+                * category.MaximumMaintenanceFraction;
 
-        remaining =
-            FillInPriorityOrder(
-                rows,
-                allocated,
-                remaining,
-                x => x.Target);
-
-        remaining =
-            FillInPriorityOrder(
-                rows,
-                allocated,
-                remaining,
-                x => x.Maximum);
-
-        if (remaining > 0m)
-        {
-            // A configuration can theoretically set maximums too low to hold
-            // the already-approved weekly energy budget. We never throw away
-            // legitimate prescribed energy. Put the unavoidable remainder on
-            // the highest-protection day and make the relaxation auditable.
-            var highestPriority =
-                rows
-                    .OrderByDescending(
-                        x => x.Policy.ProtectionPriority)
-                    .ThenByDescending(
-                        x => x.Day.MaintenanceEnergyKcal)
-                    .ThenBy(x => x.Index)
-                    .First();
-
-            allocated[highestPriority.Index] +=
-                remaining;
-
-            remaining = 0m;
-
-            reasons.Add(
-                "CATEGORY_MAX_RELAXED_TO_PRESERVE_WEEKLY_ENERGY");
-        }
-
-        var results =
-            new List<Engine30PrescriptionDayResult>(
-                rows.Length);
-
-        foreach (var row in rows)
-        {
-            var day =
-                row.Day;
-
-            var energyTarget =
-                allocated[row.Index];
-
-            var fixedKcal =
-                baseline.StableProteinG * 4m
-                + baseline.StableFatG * 9m;
-
-            var energyBalancedCarbs =
-                RoundToIncrement(
-                    Math.Max(
-                        0m,
-                        (energyTarget - fixedKcal) / 4m),
-                    CarbIncrementG);
-
-            decimal carbs;
-            string governing;
-
-            if (
-                day.PhysiologicalCarbFloorG
-                > day.StandardCarbUpperBoundaryG
-            ) {
-                carbs =
-                    day.PhysiologicalCarbFloorG;
-
-                governing =
-                    "PHYSIOLOGICAL_FLOOR_EXCEEDS_STANDARD_MAX";
-            }
-            else if (
-                energyBalancedCarbs
-                < day.PhysiologicalCarbFloorG
-            ) {
-                carbs =
-                    day.PhysiologicalCarbFloorG;
-
-                governing =
-                    "PHYSIOLOGICAL_FLOOR";
-            }
-            else if (
-                energyBalancedCarbs
-                > day.StandardCarbUpperBoundaryG
-            ) {
-                carbs =
-                    day.StandardCarbUpperBoundaryG;
-
-                governing =
-                    "STANDARD_USEFUL_MAX";
-            }
-            else
+            if (day.PrescribedEnergyKcal < minimum - 0.001m)
             {
-                carbs =
-                    energyBalancedCarbs;
-
-                governing =
-                    "ENERGY_BALANCE";
+                reasons.Add(
+                    "PHYSIOLOGY_FIRST_BELOW_CATEGORY_MINIMUM_DIAGNOSTIC");
             }
 
-            var macroKcal =
-                Math.Round(
-                    baseline.StableProteinG * 4m
-                    + carbs * 4m
-                    + baseline.StableFatG * 9m,
-                    0,
-                    MidpointRounding.AwayFromZero);
+            if (day.PrescribedEnergyKcal > maximum + 0.001m)
+            {
+                reasons.Add(
+                    "PHYSIOLOGY_FIRST_ABOVE_CATEGORY_MAXIMUM_DIAGNOSTIC");
+            }
 
-            results.Add(
-                new Engine30PrescriptionDayResult(
-                    Date:
-                        day.Date,
-                    WorkoutCategoryCode:
-                        NormalizeCategory(
-                            day.WorkoutCategoryCode),
-                    CategoryWeight:
-                        day.CategoryWeight,
-                    MaintenanceEnergyKcal:
-                        day.MaintenanceEnergyKcal,
-                    PrescribedEnergyKcal:
-                        energyTarget,
-                    ProteinG:
-                        baseline.StableProteinG,
-                    FatG:
-                        baseline.StableFatG,
-                    PhysiologicalCarbFloorG:
-                        day.PhysiologicalCarbFloorG,
-                    EnergyBalancedCarbsG:
-                        energyBalancedCarbs,
-                    StandardCarbUpperBoundaryG:
-                        day.StandardCarbUpperBoundaryG,
-                    RecommendedCarbsG:
-                        carbs,
-                    MacroDerivedEnergyKcal:
-                        macroKcal,
-                    MacroEnergyVarianceKcal:
-                        Math.Round(
-                            macroKcal - energyTarget,
-                            2,
-                            MidpointRounding.AwayFromZero),
-                    CarbGoverningRuleCode:
-                        governing));
+            if (Math.Abs(day.PrescribedEnergyKcal - target) <= 10m)
+            {
+                reasons.Add(
+                    "PHYSIOLOGY_FIRST_NEAR_CATEGORY_TARGET_DIAGNOSTIC");
+            }
         }
 
-        var weeklyMaintenance =
-            baseline.WeeklyMaintenanceEnergyKcal;
-
-        var effectivePct =
-            weeklyMaintenance > 0m
-                ? (weeklyMaintenance - weeklyTarget)
-                    / weeklyMaintenance
-                : 0m;
-
-        return new Engine30WeeklyPrescriptionResult(
-            PlanCode:
-                baseline.PlanCode,
-            WeightLb:
-                baseline.WeightLb,
-            Bmi:
-                baseline.Bmi,
-            RequestedDeficitPct:
-                baseline.RequestedDeficitPct,
-            EffectiveDeficitPct:
-                Math.Round(
-                    effectivePct,
-                    6,
-                    MidpointRounding.AwayFromZero),
-            WeeklyMaintenanceEnergyKcal:
-                weeklyMaintenance,
-            WeeklyDeficitKcal:
-                Math.Round(
-                    weeklyMaintenance - weeklyTarget,
-                    2,
-                    MidpointRounding.AwayFromZero),
-            WeeklyPrescribedEnergyKcal:
-                weeklyTarget,
-            AverageDailyPrescribedEnergyKcal:
-                Math.Round(
-                    weeklyTarget / 7m,
-                    2,
-                    MidpointRounding.AwayFromZero),
-            StableProteinG:
-                baseline.StableProteinG,
-            StableFatG:
-                baseline.StableFatG,
-            BaseRestCarbsG:
-                baseline.BaseRestCarbsG,
-            Days:
-                results,
-            ReasonCodes:
-                reasons
-                    .Distinct(
-                        StringComparer.OrdinalIgnoreCase)
-                    .ToArray());
-    }
-
-    private static decimal FillInPriorityOrder(
-        IReadOnlyCollection<Row> rows,
-        decimal[] allocated,
-        decimal remaining,
-        Func<Row, decimal> capSelector)
-    {
-        if (remaining <= 0m)
-            return 0m;
-
-        foreach (
-            var row in
-            rows
-                .OrderByDescending(
-                    x => x.Policy.ProtectionPriority)
-                .ThenByDescending(
-                    x => x.Day.MaintenanceEnergyKcal)
-                .ThenBy(x => x.Index)
-        ) {
-            if (remaining <= 0m)
-                break;
-
-            var cap =
-                capSelector(row);
-
-            var headroom =
-                Math.Max(
-                    0m,
-                    cap - allocated[row.Index]);
-
-            if (headroom <= 0m)
-                continue;
-
-            var add =
-                Math.Min(
-                    remaining,
-                    headroom);
-
-            allocated[row.Index] +=
-                add;
-
-            remaining -=
-                add;
-        }
-
-        return remaining;
+        /*
+         * Deliberately return the physiology-first macro prescription without
+         * changing calories or carbohydrate. The plan/category energy policy
+         * is informational unless a future explicit non-carbohydrate safety
+         * mechanism is introduced.
+         */
+        return baseline with
+        {
+            PlanCode = normalizedPlan,
+            ReasonCodes = reasons
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+        };
     }
 
     public static string NormalizeCategory(
@@ -439,38 +141,4 @@ public sealed class Engine30RecompEnergyPolicyAllocator
                 $"Unsupported Engine 3.0 plan '{planCode}'.")
         };
     }
-
-    private static decimal RoundToIncrement(
-        decimal value,
-        decimal increment)
-    {
-        if (increment <= 0m)
-            return value;
-
-        return Math.Round(
-                   value / increment,
-                   0,
-                   MidpointRounding.AwayFromZero)
-               * increment;
-    }
-
-    private static decimal CeilingToIncrement(
-        decimal value,
-        decimal increment)
-    {
-        if (increment <= 0m)
-            return value;
-
-        return Math.Ceiling(
-                   value / increment)
-               * increment;
-    }
-
-    private sealed record Row(
-        int Index,
-        Engine30PrescriptionDayResult Day,
-        Engine30CategoryEnergyPolicy Policy,
-        decimal Minimum,
-        decimal Target,
-        decimal Maximum);
 }
