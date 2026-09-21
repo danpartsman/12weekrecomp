@@ -1,0 +1,428 @@
+name: TEMP v1012 actualize completed-workout nutrition
+
+on:
+  push:
+    branches:
+      - test
+    paths:
+      - '.github/workflows/temp-v1012-actualize-nutrition.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout TEST
+        uses: actions/checkout@v7
+        with:
+          ref: test
+          fetch-depth: 0
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
+
+      - name: Patch Engine 3.0 completed-workout nutrition actualization
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs')
+          text = path.read_text(encoding='utf-8-sig')
+
+          marker1 = '''        var plannedByDate =
+              planned.ToDictionary(
+                  x => x.PlannedDate,
+                  x => x);
+
+          var dailyResults =
+          '''
+          replacement1 = '''        var plannedByDate =
+              planned.ToDictionary(
+                  x => x.PlannedDate,
+                  x => x);
+
+          // B2.35.33 COMPLETED-WORKOUT NUTRITION ACTUALIZATION
+          //
+          // Preserve the Weekly Plan as historical/planned truth for the workout UI,
+          // but once a workout is completed, use the completed session's Engine 3.0
+          // energy + glycogen physiology to recalculate that day's nutrition input.
+          // This prevents a stale planned-workout carb target from surviving after
+          // the user performs a materially different actual workout. Because the
+          // weekly prescription and carryover are rebuilt from these inputs, the
+          // correction also flows into same-week calorie/macronutrient allocation.
+          var completedCutoff =
+              knowledgeCutoffDate < weekStart
+                  ? weekStart.AddDays(-1)
+                  : knowledgeCutoffDate > weekEnd
+                      ? weekEnd
+                      : knowledgeCutoffDate;
+
+          var completedSessions =
+              await db.WorkoutSessions
+                  .AsNoTracking()
+                  .Where(x =>
+                      x.ClientId == client.ClientId
+                      && x.ProgramId == program.ProgramId
+                      && x.WorkoutDate >= weekStart
+                      && x.WorkoutDate <= completedCutoff
+                      && x.CompletedFlag)
+                  .OrderBy(x => x.WorkoutDate)
+                  .ThenBy(x => x.CreatedAtUtc)
+                  .ToListAsync(cancellationToken);
+
+          completedSessions =
+              (await DetailedWorkoutEngine30Adapter
+                  .PreferBuilderSessionsAsync(
+                      db,
+                      completedSessions,
+                      cancellationToken))
+              .ToList();
+
+          var completedByDate =
+              completedSessions
+                  .GroupBy(x => x.WorkoutDate)
+                  .ToDictionary(
+                      x => x.Key,
+                      x => (IReadOnlyList<WorkoutSession>)x.ToArray());
+
+          var dailyResults =
+          '''
+
+          if marker1 not in text:
+              raise SystemExit('marker1 not found; refusing unsafe patch')
+          text = text.replace(marker1, replacement1, 1)
+
+          marker2 = '''        var prescriptionInputs =
+              dailyResults
+                  .Select(x =>
+                      new Engine30PrescriptionDayInput(
+                          Date: x.Runtime.ActionDate,
+                          MaintenanceEnergyKcal:
+                              x.Runtime.Energy.MaintenanceEnergyKcal,
+                          WorkoutCategoryCode:
+                              x.WorkoutCategoryCode,
+                          GlycogenReloadRequirementG:
+                              x.Runtime.Glycogen.CarbohydrateReloadRequirementG))
+                  .ToArray();
+          '''
+          replacement2 = '''        var prescriptionInputs =
+              new List<Engine30PrescriptionDayInput>(7);
+
+          foreach (var item in dailyResults)
+          {
+              var plannedInput =
+                  new Engine30PrescriptionDayInput(
+                      Date: item.Runtime.ActionDate,
+                      MaintenanceEnergyKcal:
+                          item.Runtime.Energy.MaintenanceEnergyKcal,
+                      WorkoutCategoryCode:
+                          item.WorkoutCategoryCode,
+                      GlycogenReloadRequirementG:
+                          item.Runtime.Glycogen.CarbohydrateReloadRequirementG);
+
+              Engine30PrescriptionDayInput? actualized = null;
+
+              if (item.Runtime.ActionDate <= knowledgeCutoffDate
+                  && completedByDate.TryGetValue(
+                      item.Runtime.ActionDate,
+                      out var actualDaySessions)
+                  && actualDaySessions.Count > 0)
+              {
+                  actualized =
+                      await BuildActualizedPrescriptionDayInputAsync(
+                          client,
+                          item.Runtime,
+                          item.WorkoutCategoryCode,
+                          actualDaySessions,
+                          definitions,
+                          measurements,
+                          cancellationToken);
+              }
+
+              // If actual physiology cannot be resolved completely (for example,
+              // an unmapped legacy workout), preserve the original planned target
+              // rather than silently undercounting the day's workload.
+              prescriptionInputs.Add(
+                  actualized ?? plannedInput);
+          }
+          '''
+
+          if marker2 not in text:
+              raise SystemExit('marker2 not found; refusing unsafe patch')
+          text = text.replace(marker2, replacement2, 1)
+
+          marker3 = '''    private async Task<(decimal DemandG, string? Summary)>
+          CalculateActualDayGlycogenAsync(
+          '''
+          helper = '''    private async Task<Engine30PrescriptionDayInput?>
+          BuildActualizedPrescriptionDayInputAsync(
+              Client client,
+              Engine30DailyRuntimeResult plannedRuntime,
+              string plannedWorkoutCategoryCode,
+              IReadOnlyList<WorkoutSession> sessions,
+              IReadOnlyDictionary<string, WorkoutTypeDefinition> definitions,
+              IReadOnlyList<Measurement> measurements,
+              CancellationToken cancellationToken)
+          {
+              if (sessions.Count == 0)
+                  return null;
+
+              var date =
+                  plannedRuntime.ActionDate;
+
+              var measurement =
+                  ResolveMeasurement(
+                      measurements,
+                      date);
+
+              var roles =
+                  await activityProfiles.BuildRuntimeRolesAsync(
+                      client.ClientId,
+                      date,
+                      cancellationToken);
+
+              var actualNetWorkoutEnergyKcal =
+                  0m;
+
+              var actualGlycogenReloadRequirementG =
+                  0m;
+
+              var actualCategories =
+                  new List<string>(sessions.Count);
+
+              foreach (var stored in sessions)
+              {
+                  var workoutCode =
+                      NormalizeWorkoutCode(
+                          stored.WorkoutTypeCode);
+
+                  Engine30WorkoutRuntimeProfileResolution profileResolution;
+
+                  try
+                  {
+                      profileResolution =
+                          await profileProvider.ResolveAsync(
+                              workoutCode,
+                              cancellationToken);
+                  }
+                  catch (KeyNotFoundException)
+                  {
+                      // Do not create false precision from a partially resolved day.
+                      // Historical analysis may still describe the legacy session,
+                      // but nutrition stays on the planned prescription until the
+                      // actual workout can be mapped to Engine 3.0 physiology.
+                      return null;
+                  }
+
+                  if (!definitions.TryGetValue(
+                          workoutCode,
+                          out var definition))
+                  {
+                      return null;
+                  }
+
+                  var session =
+                      await DetailedWorkoutEngine30Adapter
+                          .BuildActualInputAsync(
+                              db,
+                              workoutIntelligence,
+                              stored,
+                              profileResolution.Profile,
+                              workoutCode,
+                              cancellationToken);
+
+                  var runtime =
+                      await dailyRuntime.CalculateAsync(
+                          new Engine30DailyRuntimeRequest(
+                              ActionDate:
+                                  date,
+                              DateOfBirth:
+                                  client.DateOfBirth!.Value,
+                              SexCode:
+                                  client.SexCode!,
+                              HeightIn:
+                                  client.HeightIn,
+                              WeightLb:
+                                  measurement.WeightLb!.Value,
+                              BodyFatFraction:
+                                  NormalizeBodyFatFraction(
+                                      measurement.BodyFatPct),
+                              OccupationalRoles:
+                                  roles,
+                              LifestyleActivityCode:
+                                  client.LifestyleActivityCode ?? "MINIMAL",
+                              WorkoutSession:
+                                  session),
+                          cancellationToken);
+
+                  if (runtime.Workout is null)
+                      return null;
+
+                  actualNetWorkoutEnergyKcal +=
+                      runtime.Energy.NetWorkoutActivityEnergyKcal;
+
+                  actualGlycogenReloadRequirementG +=
+                      runtime.Glycogen.CarbohydrateReloadRequirementG;
+
+                  actualCategories.Add(
+                      definition.WorkoutCategoryCode);
+              }
+
+              var actualCategory =
+                  SelectActualPrescriptionCategory(
+                      actualCategories,
+                      plannedWorkoutCategoryCode);
+
+              var actualMaintenanceEnergyKcal =
+                  plannedRuntime.Energy.BaseLivingEnergyKcal
+                  + plannedRuntime.Energy.HabitualActivityEnergyKcal
+                  + actualNetWorkoutEnergyKcal;
+
+              return new Engine30PrescriptionDayInput(
+                  Date:
+                      date,
+                  MaintenanceEnergyKcal:
+                      Math.Round(
+                          actualMaintenanceEnergyKcal,
+                          2,
+                          MidpointRounding.AwayFromZero),
+                  WorkoutCategoryCode:
+                      actualCategory,
+                  GlycogenReloadRequirementG:
+                      Math.Round(
+                          actualGlycogenReloadRequirementG,
+                          2,
+                          MidpointRounding.AwayFromZero));
+          }
+
+          private static string SelectActualPrescriptionCategory(
+              IReadOnlyCollection<string> actualCategories,
+              string fallbackCategory)
+          {
+              var selected =
+                  actualCategories
+                      .Select(x => new
+                      {
+                          Code = x,
+                          Priority = PrescriptionCategoryPriority(x)
+                      })
+                      .Where(x => x.Priority > 0)
+                      .OrderByDescending(x => x.Priority)
+                      .Select(x => x.Code)
+                      .FirstOrDefault();
+
+              return selected ?? fallbackCategory;
+          }
+
+          private static int PrescriptionCategoryPriority(string? categoryCode)
+              => categoryCode?.Trim().ToUpperInvariant() switch
+              {
+                  Engine30PrescriptionCategoryCodes.MajorStrength => 4,
+                  Engine30PrescriptionCategoryCodes.AccessoryStrength => 3,
+                  Engine30PrescriptionCategoryCodes.ConditioningCardio => 2,
+                  Engine30PrescriptionCategoryCodes.RestRecoveryOther => 1,
+                  _ => 0
+              };
+
+          private async Task<(decimal DemandG, string? Summary)>
+          CalculateActualDayGlycogenAsync(
+          '''
+
+          if marker3 not in text:
+              raise SystemExit('marker3 not found; refusing unsafe patch')
+          text = text.replace(marker3, helper, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+          test_path = Path('tests/WebRecomp.Web.Tests/Engine30CompletedWorkoutNutritionWiringTests.cs')
+          test_path.write_text(r'''using Xunit;
+
+          namespace WebRecomp.Web.Tests;
+
+          /// <summary>
+          /// Regression guard for B2.35.33: completed workouts must actualize the
+          /// Engine 3.0 nutrition prescription without overwriting planned-workout UI.
+          /// </summary>
+          public sealed class Engine30CompletedWorkoutNutritionWiringTests
+          {
+              [Fact]
+              public void DashboardProjection_ActualizesNutritionFromCompletedWorkoutPhysiology()
+              {
+                  var root = FindRepoRoot();
+                  var source = File.ReadAllText(
+                      Path.Combine(
+                          root,
+                          "src",
+                          "WebRecomp.Web",
+                          "Services",
+                          "Engine30",
+                          "Engine30DashboardProjectionService.cs"));
+
+                  Assert.Contains("B2.35.33 COMPLETED-WORKOUT NUTRITION ACTUALIZATION", source, StringComparison.Ordinal);
+                  Assert.Contains("completedByDate.TryGetValue", source, StringComparison.Ordinal);
+                  Assert.Contains("BuildActualizedPrescriptionDayInputAsync", source, StringComparison.Ordinal);
+                  Assert.Contains("actualized ?? plannedInput", source, StringComparison.Ordinal);
+                  Assert.Contains("actualNetWorkoutEnergyKcal", source, StringComparison.Ordinal);
+                  Assert.Contains("actualGlycogenReloadRequirementG", source, StringComparison.Ordinal);
+                  Assert.Contains("plannedRuntime.Energy.BaseLivingEnergyKcal", source, StringComparison.Ordinal);
+                  Assert.Contains("plannedRuntime.Energy.HabitualActivityEnergyKcal", source, StringComparison.Ordinal);
+              }
+
+              private static string FindRepoRoot()
+              {
+                  var current = new DirectoryInfo(AppContext.BaseDirectory);
+
+                  while (current is not null)
+                  {
+                      var candidate = Path.Combine(
+                          current.FullName,
+                          "src",
+                          "WebRecomp.Web",
+                          "WebRecomp.Web.csproj");
+
+                      if (File.Exists(candidate))
+                          return current.FullName;
+
+                      current = current.Parent;
+                  }
+
+                  throw new DirectoryNotFoundException(
+                      "Could not locate the 12WR repository root.");
+              }
+          }
+          ''', encoding='utf-8')
+          PY
+
+      - name: Verify patch markers
+        shell: bash
+        run: |
+          grep -n "B2.35.33 COMPLETED-WORKOUT NUTRITION ACTUALIZATION" src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs
+          grep -n "BuildActualizedPrescriptionDayInputAsync" src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs
+          grep -n "actualized ?? plannedInput" src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs
+
+      - name: Restore web project
+        run: dotnet restore src/WebRecomp.Web/WebRecomp.Web.csproj
+
+      - name: Restore test project
+        run: dotnet restore tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj
+
+      - name: Build web project
+        run: dotnet build src/WebRecomp.Web/WebRecomp.Web.csproj --configuration Release --no-restore
+
+      - name: Run automated tests
+        run: dotnet test tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj --configuration Release --no-restore
+
+      - name: Commit tested patch to TEST
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs tests/WebRecomp.Web.Tests/Engine30CompletedWorkoutNutritionWiringTests.cs
+          git diff --cached --check
+          git commit -m "12WR TEST v1012 — actualize nutrition from completed workouts"
+          git push origin HEAD:test
