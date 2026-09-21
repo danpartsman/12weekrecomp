@@ -31,155 +31,126 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          service_path = Path('src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs')
-          text = service_path.read_text(encoding='utf-8-sig')
+          path = Path('src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs')
+          text = path.read_text(encoding='utf-8-sig')
 
           text = text.replace(
               '///   2. Protect an adequate/stable fat floor.\n',
               '///   2. Protect a stable, weight-based fat target.\n')
 
-          old = '''        /*
-           * Determine stable fat and the minimum daily macro-energy targets.
-           *
-           * Fat depends partly on average prescribed energy. If physiological
-           * macro floors force the weekly prescription upward, fat may change
-           * slightly too. Iterate until the stable-fat / weekly-budget pair
-           * converges. With 5g/10kcal rounding this normally settles in one or
-           * two passes.
-           */
-          var weeklyPrescribed =
-              requestedWeeklyPrescribed;
+          old_comment = (
+              '        /*\n'
+              '         * Determine stable fat and the minimum daily macro-energy targets.\n'
+              '         *\n'
+              '         * Fat depends partly on average prescribed energy. If physiological\n'
+              '         * macro floors force the weekly prescription upward, fat may change\n'
+              '         * slightly too. Iterate until the stable-fat / weekly-budget pair\n'
+              '         * converges. With 5g/10kcal rounding this normally settles in one or\n'
+              '         * two passes.\n'
+              '         */\n'
+          )
 
-          decimal fat = 0m;
-          decimal[] carbFloors = [];
-          decimal[] minimumDailyTargets = [];
+          new_comment = (
+              '        /*\n'
+              '         * Stable fat is a deliberate weight-based target, not a residual\n'
+              '         * calorie bucket and not a percentage of average prescribed energy.\n'
+              '         *\n'
+              '         * Engine 3.0 keeps fat at 0.50 g/kg (rounded upward to the next 5 g)\n'
+              '         * for the full week. Protein remains stable and carbohydrate is the\n'
+              '         * primary macro that moves with training, glycogen demand, and the\n'
+              '         * category energy policy.\n'
+              '         */\n'
+          )
 
-          for (var iteration = 0; iteration < 10; iteration++)
-          {
-              var averagePrescribed =
-                  weeklyPrescribed / 7m;
+          if old_comment not in text:
+              raise SystemExit('stable-fat comment anchor not found; refusing unsafe patch')
+          text = text.replace(old_comment, new_comment, 1)
 
-              var fatFromEnergy =
-                  averagePrescribed
-                  * 0.20m
-                  / 9m;
+          old_declaration = (
+              '        decimal fat = 0m;\n'
+              '        decimal[] carbFloors = [];\n'
+          )
+          new_declaration = (
+              '        var fat =\n'
+              '            CeilingToIncrement(\n'
+              '                weightKg * 0.50m,\n'
+              '                5m);\n'
+              '\n'
+              '        decimal[] carbFloors = [];\n'
+          )
+          if old_declaration not in text:
+              raise SystemExit('stable-fat declaration anchor not found; refusing unsafe patch')
+          text = text.replace(old_declaration, new_declaration, 1)
 
-              var unroundedFatFloor =
-                  weightKg * 0.50m;
-
-              /*
-               * This is a FLOOR. Normal rounding can move 35.15g down to 35g,
-               * which is exactly what the plausibility matrix caught.
-               */
-              var roundedFatFloor =
-                  CeilingToIncrement(
-                      unroundedFatFloor,
-                      5m);
-
-              var roundedFatFromEnergy =
-                  RoundToIncrement(
-                      fatFromEnergy,
-                      5m);
-
-              fat =
-                  Math.Max(
-                      roundedFatFromEnergy,
-                      roundedFatFloor);
-
-              var fixedKcal =
-'''
-
-          new = '''        /*
-           * Stable fat is a deliberate weight-based target, not a residual
-           * calorie bucket and not a percentage of average prescribed energy.
-           *
-           * Engine 3.0 keeps fat at 0.50 g/kg (rounded upward to the next 5 g)
-           * for the full week. Protein remains stable and carbohydrate is the
-           * primary macro that moves with training, glycogen demand, and the
-           * category energy policy.
-           */
-          var weeklyPrescribed =
-              requestedWeeklyPrescribed;
-
-          var fat =
-              CeilingToIncrement(
-                  weightKg * 0.50m,
-                  5m);
-
-          decimal[] carbFloors = [];
-          decimal[] minimumDailyTargets = [];
-
-          for (var iteration = 0; iteration < 10; iteration++)
-          {
-              var fixedKcal =
-'''
-
-          if old not in text:
-              raise SystemExit('stable-fat source anchor not found; refusing unsafe patch')
-
-          text = text.replace(old, new, 1)
+          start_marker = (
+              '            var averagePrescribed =\n'
+              '                weeklyPrescribed / 7m;\n'
+          )
+          end_marker = (
+              '            var fixedKcal =\n'
+          )
+          start = text.find(start_marker)
+          if start < 0:
+              raise SystemExit('energy-percentage fat block start not found')
+          end = text.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('energy-percentage fat block end not found')
+          text = text[:start] + text[end:]
 
           if 'fatFromEnergy' in text or 'roundedFatFromEnergy' in text:
               raise SystemExit('energy-percentage fat logic still present after patch')
 
-          service_path.write_text(text, encoding='utf-8')
-
-          test_path = Path('tests/WebRecomp.Web.Tests/Engine30PrescriptionServiceTests.cs')
-          tests = test_path.read_text(encoding='utf-8-sig')
-
-          anchor = '''    [Fact]
-          public void FatFloor_IsNeverRoundedBelowHalfGramPerKg()
-'''
-
-          regression = '''    [Fact]
-          public void StableFat_UsesWeightBasedTarget_NotEnergyPercentage()
-          {
-              var highEnergyWeek =
-                  StandardWeek(
-                          equalMaintenance: true)
-                      .Select(x =>
-                          x with
-                          {
-                              MaintenanceEnergyKcal = 4000m
-                          })
-                      .ToArray();
-
-              var result =
-                  new Engine30PrescriptionService()
-                      .Calculate(
-                          "PLAN_2",
-                          weightLb: 208m,
-                          heightIn: 73m,
-                          days: highEnergyWeek);
-
-              Assert.Equal(
-                  50m,
-                  result.StableFatG);
-
-              Assert.All(
-                  result.Days,
-                  day =>
-                      Assert.Equal(
-                          50m,
-                          day.FatG));
-          }
-
-'''
-
-          if 'StableFat_UsesWeightBasedTarget_NotEnergyPercentage' not in tests:
-              if anchor not in tests:
-                  raise SystemExit('prescription test anchor not found; refusing unsafe patch')
-              tests = tests.replace(anchor, regression + anchor, 1)
-
-          test_path.write_text(tests, encoding='utf-8')
+          path.write_text(text, encoding='utf-8')
           PY
+
+      - name: Add stable-fat regression test
+        shell: bash
+        run: |
+          cat > tests/WebRecomp.Web.Tests/Engine30StableFatTargetTests.cs <<'EOF'
+          using WebRecomp.Web.Services.Engine30;
+          using Xunit;
+
+          namespace WebRecomp.Web.Tests;
+
+          public sealed class Engine30StableFatTargetTests
+          {
+              [Fact]
+              public void HighEnergyWeek_DoesNotInflateStableFatAboveWeightBasedTarget()
+              {
+                  var days =
+                      Enumerable.Range(0, 7)
+                          .Select(i =>
+                              new Engine30PrescriptionDayInput(
+                                  new DateOnly(2026, 9, 7).AddDays(i),
+                                  4000m,
+                                  i is 0 or 3
+                                      ? Engine30PrescriptionCategoryCodes.MajorStrength
+                                      : i == 6
+                                          ? Engine30PrescriptionCategoryCodes.RestRecoveryOther
+                                          : Engine30PrescriptionCategoryCodes.AccessoryStrength,
+                                  i is 0 or 3 ? 100m : 25m))
+                          .ToArray();
+
+                  var result =
+                      new Engine30PrescriptionService()
+                          .Calculate(
+                              "PLAN_2",
+                              weightLb: 208m,
+                              heightIn: 73m,
+                              days: days);
+
+                  Assert.Equal(50m, result.StableFatG);
+                  Assert.All(result.Days, day => Assert.Equal(50m, day.FatG));
+              }
+          }
+          EOF
 
       - name: Verify stable-fat patch markers
         shell: bash
         run: |
           grep -n "Stable fat is a deliberate weight-based target" src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs
           grep -n "weightKg \* 0.50m" src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs
-          grep -n "StableFat_UsesWeightBasedTarget_NotEnergyPercentage" tests/WebRecomp.Web.Tests/Engine30PrescriptionServiceTests.cs
+          grep -n "HighEnergyWeek_DoesNotInflateStableFatAboveWeightBasedTarget" tests/WebRecomp.Web.Tests/Engine30StableFatTargetTests.cs
           if grep -q "fatFromEnergy" src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs; then
             echo "Old energy-percentage fat logic remains" >&2
             exit 1
@@ -202,7 +173,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs tests/WebRecomp.Web.Tests/Engine30PrescriptionServiceTests.cs
+          git add src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs tests/WebRecomp.Web.Tests/Engine30StableFatTargetTests.cs
           git rm .github/workflows/temp-v1012-stable-fat-target.yml
           git diff --cached --check
           git commit -m "12WR TEST v1012 — use stable weight-based fat target"
