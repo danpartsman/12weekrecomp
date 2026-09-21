@@ -117,7 +117,7 @@ jobs:
           d = sub1(
               d,
               r'(GlycogenReloadRequirementG:\s*Math\.Round\(\s*actualGlycogenReloadRequirementG,\s*2,\s*MidpointRounding\.AwayFromZero)\)\);',
-              r'''\1,
+              r'''\1),
               BackgroundCarbohydrateRequirementG:
                   new Engine30BackgroundCarbohydrateCalculator()
                       .Calculate(plannedRuntime.HabitualActivity)
