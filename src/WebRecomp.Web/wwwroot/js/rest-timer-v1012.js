@@ -1,10 +1,9 @@
 (() => {
     "use strict";
 
-    // TEST v1012 compatibility slot.
-    // The separate rest countdown was removed by design. The existing loader
-    // still requests this file, so it now owns only the small live-workout
-    // controls that belong beside the authoritative workout count-up timer.
+    // TEST v1012 compatibility slot. The old rest countdown is intentionally
+    // gone; this file now owns the lightweight live-workout controls that sit
+    // beside the authoritative workout count-up timer.
     if (!window.location.pathname.toLowerCase().startsWith("/detailedworkout")) {
         return;
     }
@@ -17,6 +16,30 @@
         return;
     }
 
+    const workoutForm = document.getElementById("wi-detailed-workout-form");
+    const exerciseList = document.getElementById("wi-exercise-list");
+    const typeInput = document.querySelector('input[name="DraftWorkoutTypeCode"]');
+    const editCompletedInput = document.querySelector('input[name="EditCompleted"]');
+
+    const CARDIO_CODES = new Set([
+        "GENERAL_CARDIO",
+        "EASY_CARDIO",
+        "ZONE2_CARDIO",
+        "WALKING",
+        "RUNNING",
+        "TREADMILL",
+        "CYCLING",
+        "ROWING",
+        "ELLIPTICAL",
+        "STAIR_CLIMBER",
+        "SWIMMING"
+    ]);
+
+    const workoutTypeCode = (typeInput?.value || "").trim().toUpperCase();
+    const cardioSession = CARDIO_CODES.has(workoutTypeCode);
+    const editingCompleted =
+        String(editCompletedInput?.value || "").trim().toLowerCase() === "true";
+
     const ensureStyles = () => {
         if (document.getElementById("wi-end-workout-v1012-style")) return;
 
@@ -26,14 +49,46 @@
             .wi-live-elapsed strong[data-live-workout-elapsed] {
                 display: block;
                 margin-top: .08rem;
-                font-size: clamp(2rem, 4.8vw, 3rem) !important;
+                font-size: clamp(2.15rem, 5.4vw, 3.25rem) !important;
                 line-height: 1 !important;
                 letter-spacing: .035em;
                 font-variant-numeric: tabular-nums;
             }
             .ts-live-banner-v1012__time {
-                font-size: 1.15rem !important;
+                font-size: 1.2rem !important;
                 line-height: 1 !important;
+            }
+            .wi-live-history-toolbar-v1012 {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: .45rem;
+                margin-top: .55rem;
+            }
+            .wi-live-history-toolbar-v1012[hidden] {
+                display: none !important;
+            }
+            .wi-live-history-note-v1012,
+            .wi-live-autosave-status-v1012 {
+                font-size: .78rem;
+                opacity: .78;
+            }
+            .wi-live-autosave-status-v1012.is-saving {
+                opacity: 1;
+            }
+            .wi-live-autosave-status-v1012.is-error {
+                opacity: 1;
+                color: #fecaca;
+            }
+            .wi-live-page-minimal input.wi-live-entered-v1012 {
+                border-color: rgba(103, 232, 249, .55) !important;
+                background: rgba(14, 116, 144, .12) !important;
+                transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
+            }
+            .wi-live-page-minimal input.wi-live-entered-v1012.wi-live-saved-v1012 {
+                border-color: rgba(134, 239, 172, .48) !important;
+                background: rgba(22, 101, 52, .13) !important;
+                box-shadow: inset 0 0 0 1px rgba(134, 239, 172, .08);
             }
             .wi-end-menu-v1012 {
                 position: fixed;
@@ -103,6 +158,384 @@
             "'": "&#39;"
         })[character]);
 
+    // ---------------------------------------------------------------------
+    // Screen wake lock: keep an active workout visible on supported phones.
+    // The browser/OS can still revoke the lock (for example, low battery), so
+    // we reacquire whenever this page returns to the foreground.
+    // ---------------------------------------------------------------------
+    let wakeLockSentinel = null;
+
+    const requestWakeLock = async () => {
+        if (editingCompleted
+            || document.visibilityState !== "visible"
+            || !("wakeLock" in navigator)
+            || wakeLockSentinel) {
+            return;
+        }
+
+        try {
+            wakeLockSentinel =
+                await navigator.wakeLock.request("screen");
+
+            wakeLockSentinel.addEventListener(
+                "release",
+                () => {
+                    wakeLockSentinel = null;
+                },
+                { once: true });
+        }
+        catch {
+            // Wake Lock is an enhancement. The server clock and autosave still
+            // preserve the workout even when a browser or OS declines it.
+        }
+    };
+
+    const releaseWakeLock = async () => {
+        const current = wakeLockSentinel;
+        wakeLockSentinel = null;
+
+        if (!current) return;
+
+        try {
+            await current.release();
+        }
+        catch {
+            // Already released by the browser/OS.
+        }
+    };
+
+    if (!editingCompleted) {
+        void requestWakeLock();
+
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) void requestWakeLock();
+        });
+
+        window.addEventListener("focus", () => void requestWakeLock(), { passive: true });
+        window.addEventListener("pageshow", () => void requestWakeLock(), { passive: true });
+        window.addEventListener("pagehide", () => void releaseWakeLock(), { passive: true });
+    }
+
+    // ---------------------------------------------------------------------
+    // Live strength-workout persistence.
+    // ---------------------------------------------------------------------
+    let toolbar = null;
+    let autosaveStatus = null;
+    let autosaveTimer = null;
+    let autosaveInFlight = false;
+    let autosaveQueued = false;
+    let structureDirty = false;
+    let autosaveDisabled = false;
+    let autosaveAbortController = null;
+    const dirtyFields = new Set();
+
+    const ensureToolbar = () => {
+        if (toolbar) return toolbar;
+
+        toolbar = document.createElement("div");
+        toolbar.className = "wi-live-history-toolbar-v1012";
+        toolbar.id = "wi-live-history-toolbar-v1012";
+        toolbar.hidden = false;
+
+        autosaveStatus = document.createElement("span");
+        autosaveStatus.className = "wi-live-autosave-status-v1012";
+        autosaveStatus.setAttribute("aria-live", "polite");
+        toolbar.appendChild(autosaveStatus);
+
+        timerHost.insertAdjacentElement("afterend", toolbar);
+        return toolbar;
+    };
+
+    const setAutosaveStatus = (text, state = "") => {
+        const host = ensureToolbar();
+        host.hidden = false;
+
+        autosaveStatus.textContent = text || "";
+        autosaveStatus.classList.toggle("is-saving", state === "saving");
+        autosaveStatus.classList.toggle("is-error", state === "error");
+    };
+
+    const trackedInput = element =>
+        element instanceof HTMLInputElement
+        && (
+            element.matches('input[name="WorkoutName"]')
+            || (
+                element.type !== "hidden"
+                && element.name.startsWith("Exercises[")
+            )
+        );
+
+    const markEntered = input => {
+        if (!(input instanceof HTMLInputElement)) return;
+
+        const hasValue = input.value.trim() !== "";
+        input.classList.toggle("wi-live-entered-v1012", hasValue);
+        input.classList.remove("wi-live-saved-v1012");
+
+        if (hasValue) dirtyFields.add(input);
+        else dirtyFields.delete(input);
+    };
+
+    const stopAutosave = () => {
+        autosaveDisabled = true;
+        window.clearTimeout(autosaveTimer);
+        autosaveTimer = null;
+        autosaveAbortController?.abort();
+        autosaveAbortController = null;
+    };
+
+    const runAutosave = async () => {
+        if (autosaveDisabled
+            || cardioSession
+            || editingCompleted
+            || !(workoutForm instanceof HTMLFormElement)) {
+            return;
+        }
+
+        if (autosaveInFlight) {
+            autosaveQueued = true;
+            return;
+        }
+
+        if (dirtyFields.size === 0 && !structureDirty) return;
+
+        if (!workoutForm.checkValidity()) {
+            setAutosaveStatus("Waiting for a valid entry…");
+            return;
+        }
+
+        autosaveInFlight = true;
+        autosaveQueued = false;
+
+        const fieldsBeingSaved = [...dirtyFields];
+        dirtyFields.clear();
+        structureDirty = false;
+        setAutosaveStatus("Saving…", "saving");
+
+        const formData = new FormData(workoutForm);
+        formData.set("WorkoutSessionId", sessionId);
+        formData.set("pausedSeconds", "0");
+
+        autosaveAbortController = new AbortController();
+
+        try {
+            const response = await fetch(
+                "/TrainingSession/Autosave",
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: formData,
+                    signal: autosaveAbortController.signal
+                });
+
+            if (!response.ok) {
+                throw new Error(`Autosave failed (${response.status}).`);
+            }
+
+            fieldsBeingSaved.forEach(input => {
+                if (input.isConnected
+                    && input.value.trim() !== "") {
+                    input.classList.add("wi-live-saved-v1012");
+                }
+            });
+
+            const savedAt = new Date();
+            setAutosaveStatus(
+                `Saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
+        }
+        catch (error) {
+            if (error?.name !== "AbortError") {
+                fieldsBeingSaved.forEach(input => {
+                    if (input.isConnected) dirtyFields.add(input);
+                });
+                structureDirty = true;
+                setAutosaveStatus("Not saved — will retry", "error");
+            }
+        }
+        finally {
+            autosaveInFlight = false;
+            autosaveAbortController = null;
+
+            if (!autosaveDisabled
+                && (autosaveQueued || dirtyFields.size > 0 || structureDirty)) {
+                autosaveQueued = false;
+                window.clearTimeout(autosaveTimer);
+                autosaveTimer = window.setTimeout(runAutosave, 350);
+            }
+        }
+    };
+
+    const scheduleAutosave = (delay = 700) => {
+        if (autosaveDisabled || cardioSession || editingCompleted) return;
+        window.clearTimeout(autosaveTimer);
+        autosaveTimer = window.setTimeout(runAutosave, delay);
+    };
+
+    if (!cardioSession
+        && !editingCompleted
+        && workoutForm instanceof HTMLFormElement) {
+        ensureToolbar();
+
+        workoutForm.addEventListener("input", event => {
+            if (!trackedInput(event.target)) return;
+            markEntered(event.target);
+            scheduleAutosave();
+        });
+
+        workoutForm.addEventListener("change", event => {
+            if (!trackedInput(event.target)) return;
+            markEntered(event.target);
+            scheduleAutosave(250);
+        });
+
+        if (exerciseList) {
+            const structureObserver = new MutationObserver(() => {
+                structureDirty = true;
+                scheduleAutosave(500);
+            });
+
+            structureObserver.observe(
+                exerciseList,
+                {
+                    childList: true,
+                    subtree: true
+                });
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Prior workout helper. It only appears when a completed workout with the
+    // same template/system identity exists, and it fills matching exercises
+    // without changing today's exercise selection.
+    // ---------------------------------------------------------------------
+    let previousWorkout = null;
+
+    const formatWorkoutDate = isoDate => {
+        if (!isoDate) return "last workout";
+        const parsed = new Date(`${isoDate}T12:00:00`);
+        if (!Number.isFinite(parsed.getTime())) return isoDate;
+        return parsed.toLocaleDateString([], { month: "short", day: "numeric" });
+    };
+
+    const findCard = exerciseId =>
+        [...document.querySelectorAll("[data-exercise-card]")]
+            .find(card =>
+                String(card.dataset.exerciseId || "").toLowerCase()
+                === String(exerciseId || "").toLowerCase());
+
+    const applyPreviousWorkout = () => {
+        if (!previousWorkout?.exercises?.length) return;
+
+        let changedCount = 0;
+
+        previousWorkout.exercises.forEach(previous => {
+            const card = findCard(previous.exerciseId);
+            if (!card) return;
+
+            const setsInput = card.querySelector("[data-set-count]");
+            if (setsInput instanceof HTMLInputElement
+                && Number(previous.sets) > 0) {
+                setsInput.value = String(previous.sets);
+                markEntered(setsInput);
+                setsInput.dispatchEvent(new Event("input", { bubbles: true }));
+                changedCount += 1;
+            }
+
+            const repInputs = [...card.querySelectorAll("[data-set-rep]")];
+            const priorReps = Array.isArray(previous.setReps)
+                ? previous.setReps
+                : [];
+
+            repInputs.forEach((input, index) => {
+                const previousRep = Number(priorReps[index]);
+                if (!(input instanceof HTMLInputElement)
+                    || !Number.isFinite(previousRep)
+                    || previousRep <= 0) {
+                    return;
+                }
+
+                input.value = String(previousRep);
+                markEntered(input);
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+                changedCount += 1;
+            });
+
+            const weightInput = card.querySelector('[data-field="MaxWeight"]');
+            if (weightInput instanceof HTMLInputElement) {
+                weightInput.value = previous.maxWeight == null
+                    ? ""
+                    : String(Math.round(Number(previous.maxWeight)));
+                markEntered(weightInput);
+                weightInput.dispatchEvent(new Event("input", { bubbles: true }));
+                changedCount += 1;
+            }
+        });
+
+        if (changedCount > 0) {
+            structureDirty = true;
+            setAutosaveStatus(
+                `Loaded ${formatWorkoutDate(previousWorkout.workoutDate)} — saving…`,
+                "saving");
+            scheduleAutosave(100);
+        }
+    };
+
+    const loadPreviousWorkoutOption = async () => {
+        if (cardioSession
+            || editingCompleted
+            || !(workoutForm instanceof HTMLFormElement)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `/TrainingSession/LastWorkout?workoutSessionId=${encodeURIComponent(sessionId)}`,
+                {
+                    credentials: "same-origin",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                });
+
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (!data?.available || !Array.isArray(data.exercises) || data.exercises.length === 0) {
+                return;
+            }
+
+            previousWorkout = data;
+            const host = ensureToolbar();
+
+            if (document.getElementById("wi-use-last-workout-v1012")) return;
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.id = "wi-use-last-workout-v1012";
+            button.className = "button";
+            button.textContent = "Use Last Workout";
+            button.addEventListener("click", applyPreviousWorkout);
+
+            const note = document.createElement("span");
+            note.className = "wi-live-history-note-v1012";
+            note.textContent = `Last: ${formatWorkoutDate(data.workoutDate)}`;
+
+            host.insertBefore(button, autosaveStatus);
+            host.insertBefore(note, autosaveStatus);
+        }
+        catch {
+            // History helper is optional; live entry remains fully usable.
+        }
+    };
+
+    void loadPreviousWorkoutOption();
+
+    // ---------------------------------------------------------------------
+    // End / discard menu.
+    // ---------------------------------------------------------------------
     let bypassStopPrompt = false;
     let modal = null;
 
@@ -113,7 +546,8 @@
         document.querySelector("#wi-cardio-live-v1012 form");
 
     const isCardio = () =>
-        Boolean(document.getElementById("wi-cardio-live-v1012"));
+        Boolean(document.getElementById("wi-cardio-live-v1012"))
+        || cardioSession;
 
     const getToken = () =>
         document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
@@ -131,6 +565,8 @@
 
     const submitStop = () => {
         closeMenu();
+        stopAutosave();
+        void releaseWakeLock();
 
         const cardioForm = getCardioForm();
         if (cardioForm instanceof HTMLFormElement) {
@@ -139,15 +575,15 @@
         }
 
         const stopButton = getStopButton();
-        const workoutForm = document.getElementById("wi-detailed-workout-form");
+        const form = document.getElementById("wi-detailed-workout-form");
 
         if (!(stopButton instanceof HTMLButtonElement)
-            || !(workoutForm instanceof HTMLFormElement)) {
+            || !(form instanceof HTMLFormElement)) {
             return;
         }
 
         bypassStopPrompt = true;
-        workoutForm.requestSubmit(stopButton);
+        form.requestSubmit(stopButton);
     };
 
     const submitDiscard = () => {
@@ -155,6 +591,8 @@
         if (!token) return;
 
         closeMenu();
+        stopAutosave();
+        void releaseWakeLock();
 
         const form = document.createElement("form");
         form.method = "post";
