@@ -85,6 +85,11 @@ public sealed class IntakeController(
             DurationWeeks = 12,
             AvailableTrainingDaysWeek =
                 model.AvailableTrainingDaysWeek,
+            // TEST v1012: full tracking is the default for new programs.
+            // Existing users keep their saved choices and can turn either
+            // setting off independently from Profile > Settings.
+            DetailedWorkoutEntryEnabled = true,
+            NutritionFoodLogEnabled = true,
             ProgramStatusCode = "ACTIVE",
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
