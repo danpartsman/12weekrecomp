@@ -1,311 +1,331 @@
 (() => {
     "use strict";
 
-    const path =
-        window.location.pathname.toLowerCase();
+    const path = window.location.pathname.toLowerCase();
+    if (!path.startsWith("/detailedworkout")) return;
 
-    if (!path.startsWith("/detailedworkout")) {
-        return;
-    }
+    const params = new URLSearchParams(window.location.search);
+    const mode = (params.get("mode") || "").trim().toLowerCase();
 
-    const params =
-        new URLSearchParams(window.location.search);
+    const CARDIO_CODES = new Set([
+        "GENERAL_CARDIO",
+        "EASY_CARDIO",
+        "ZONE2_CARDIO",
+        "WALKING",
+        "RUNNING",
+        "TREADMILL",
+        "CYCLING",
+        "ROWING",
+        "ELLIPTICAL",
+        "STAIR_CLIMBER",
+        "SWIMMING"
+    ]);
 
-    const mode =
-        (params.get("mode") || "").trim().toLowerCase();
+    const duplicateHeaderStart = document.querySelector(".wi-header-start-workout");
+    if (duplicateHeaderStart) duplicateHeaderStart.hidden = true;
 
-    // Keep one clear entry point into the workout launcher. The page-level
-    // command card remains the primary Start Workout action; the duplicate
-    // header action only added another hop to the same screen.
-    const duplicateHeaderStart =
-        document.querySelector(".wi-header-start-workout");
-
-    if (duplicateHeaderStart) {
-        duplicateHeaderStart.hidden = true;
-    }
-
-    // Once the user is already in the Start Workout launcher, the command
-    // shell above it is redundant. Go directly to Create / My / System choices.
     if (mode === "start") {
-        const commandShell =
-            document.querySelector(".wi-workout-command-shell");
+        const commandShell = document.querySelector(".wi-workout-command-shell");
+        if (commandShell) commandShell.hidden = true;
+    }
 
-        if (commandShell) {
-            commandShell.hidden = true;
+    const timerHost = document.querySelector("[data-live-workout-start]");
+    const startButton = document.querySelector("[data-workout-start-button]");
+
+    if (!timerHost || !(startButton instanceof HTMLButtonElement)) return;
+
+    const output = timerHost.querySelector("[data-live-workout-elapsed]");
+    const workoutForm = document.getElementById("wi-detailed-workout-form");
+    const searchPanel = document.getElementById("wi-exercise-search");
+    const searchInput = document.getElementById("wi-search-input");
+    const exerciseList = document.getElementById("wi-exercise-list");
+    const emptyWorkout = document.getElementById("wi-empty-workout");
+    const pauseButton = document.querySelector("[data-workout-pause-toggle]");
+    const pausedSecondsInput = document.querySelector("[data-workout-paused-seconds]");
+    const typeInput = document.querySelector('input[name="DraftWorkoutTypeCode"]');
+    const sessionId = timerHost.dataset.liveWorkoutSessionId || "";
+    const started = Date.parse(timerHost.dataset.liveWorkoutStart || "");
+    const workoutTypeCode = (typeInput?.value || "").trim().toUpperCase();
+    const isCardio = CARDIO_CODES.has(workoutTypeCode);
+    const timerStorageKey = sessionId ? `12wr:workout-timer:v2:${sessionId}` : null;
+
+    let serverClockOffsetMs = 0;
+
+    const formatElapsed = milliseconds => {
+        const total = Math.max(0, Math.floor(milliseconds / 1000));
+        const hours = Math.floor(total / 3600);
+        const minutes = Math.floor((total % 3600) / 60);
+        const seconds = total % 60;
+        return `${String(hours).padStart(2, "0")}:`
+            + `${String(minutes).padStart(2, "0")}:`
+            + `${String(seconds).padStart(2, "0")}`;
+    };
+
+    // The server-side WorkoutSession timestamp is authoritative. Prime the
+    // legacy page timer as "started" so its old controls cannot disable End,
+    // but never use its localStorage pause total for final workout duration.
+    if (timerStorageKey) {
+        try {
+            window.localStorage.setItem(
+                timerStorageKey,
+                JSON.stringify({
+                    accumulatedPausedMs: 0,
+                    pausedAtMs: null,
+                    hasStarted: true
+                }));
+        }
+        catch {
+            // Browser storage is optional; the server timestamp still works.
         }
     }
 
-    const timerHost =
-        document.querySelector("[data-live-workout-start]");
+    const renderServerTimer = () => {
+        if (!(output instanceof HTMLElement) || !Number.isFinite(started)) return;
+        output.textContent = formatElapsed(
+            (Date.now() + serverClockOffsetMs) - started);
+    };
 
-    const startButton =
-        document.querySelector("[data-workout-start-button]");
+    const enforceServerTimerUi = () => {
+        startButton.hidden = true;
+        startButton.disabled = true;
 
-    if (!timerHost || !(startButton instanceof HTMLButtonElement)) {
-        return;
-    }
-
-    const workoutForm =
-        document.getElementById("wi-detailed-workout-form");
-
-    const searchPanel =
-        document.getElementById("wi-exercise-search");
-
-    const searchInput =
-        document.getElementById("wi-search-input");
-
-    const sessionId =
-        timerHost.dataset.liveWorkoutSessionId || "";
-
-    const timerStorageKey =
-        sessionId
-            ? `12wr:workout-timer:v2:${sessionId}`
-            : null;
-
-    const normalizeLabels = () => {
-        if (startButton.textContent.trim() !== "Start Timer") {
-            startButton.textContent = "Start Timer";
+        if (pauseButton instanceof HTMLButtonElement) {
+            pauseButton.hidden = true;
+            pauseButton.disabled = true;
         }
 
-        const endButton =
-            document.querySelector('[name="stopWorkout"]');
+        if (pausedSecondsInput instanceof HTMLInputElement) {
+            pausedSecondsInput.value = "0";
+        }
+
+        const stopButton = document.querySelector('[name="stopWorkout"]');
+        if (stopButton instanceof HTMLButtonElement) {
+            stopButton.disabled = false;
+            stopButton.textContent = isCardio ? "End Cardio" : "End Workout";
+        }
+
+        const label = timerHost.querySelector("span");
+        if (label) label.textContent = isCardio ? "Cardio time" : "Workout time";
+
+        renderServerTimer();
+    };
+
+    // formdata fires after the legacy submit listener. This guarantees the
+    // server receives zero paused seconds even if old timer code rewrites the
+    // hidden field immediately before submission.
+    if (workoutForm instanceof HTMLFormElement) {
+        workoutForm.addEventListener(
+            "formdata",
+            event => event.formData.set("pausedSeconds", "0"));
+    }
+
+    const ensureStyles = () => {
+        if (document.getElementById("live-workout-server-timer-v1012-style")) return;
+        const style = document.createElement("style");
+        style.id = "live-workout-server-timer-v1012-style";
+        style.textContent = `
+            .wi-segment-history-v1012 {
+                display: flex;
+                flex-wrap: wrap;
+                gap: .45rem;
+                margin-top: .45rem;
+            }
+            .wi-segment-history-v1012 span {
+                display: inline-flex;
+                gap: .35rem;
+                align-items: center;
+                padding: .28rem .48rem;
+                border-radius: 999px;
+                border: 1px solid rgba(148, 163, 184, .24);
+                background: rgba(15, 23, 42, .5);
+                font-size: .78rem;
+            }
+            .wi-cardio-live-v1012 {
+                margin-top: 1rem;
+                padding: 1rem;
+                border: 1px solid rgba(34, 211, 238, .35);
+                border-radius: .9rem;
+                background: rgba(8, 15, 29, .56);
+            }
+            .wi-cardio-live-v1012 h2 { margin-top: 0; }
+            .wi-cardio-live-v1012 form {
+                display: grid;
+                gap: .85rem;
+            }
+            .wi-cardio-live-v1012 label {
+                display: grid;
+                gap: .3rem;
+                max-width: 220px;
+            }
+            .wi-cardio-live-v1012 .wi-cardio-note {
+                opacity: .78;
+                margin: 0;
+            }
+        `;
+        document.head.appendChild(style);
+    };
+
+    const renderCompletedSegments = status => {
+        const rows = Array.isArray(status?.completedSegments)
+            ? status.completedSegments
+            : [];
+
+        if (!rows.length || document.getElementById("wi-segment-history-v1012")) return;
+
+        const host = document.createElement("div");
+        host.id = "wi-segment-history-v1012";
+        host.className = "wi-segment-history-v1012";
+
+        rows.forEach(segment => {
+            const pill = document.createElement("span");
+            const minutes = Number(segment.durationMin || 0);
+            pill.textContent = `${segment.name || segment.workoutTypeCode || "Previous segment"} — ${formatElapsed(minutes * 60000)}`;
+            host.appendChild(pill);
+        });
+
+        timerHost.insertAdjacentElement("afterend", host);
+    };
+
+    const applyStatus = status => {
+        if (!status) return;
+
+        const serverNow = Date.parse(status.serverNowUtc || "");
+        if (Number.isFinite(serverNow)) {
+            serverClockOffsetMs = serverNow - Date.now();
+        }
 
         if (
-            endButton instanceof HTMLButtonElement
-            && endButton.textContent.trim() !== "End Workout"
+            String(status.workoutSessionId || "").toLowerCase()
+            === sessionId.toLowerCase()
         ) {
-            endButton.textContent = "End Workout";
+            renderCompletedSegments(status);
+        }
+
+        renderServerTimer();
+    };
+
+    const syncStatus = async () => {
+        try {
+            const response = await fetch(
+                "/TrainingSession/Status",
+                {
+                    credentials: "same-origin",
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                });
+            if (!response.ok) return;
+            applyStatus(await response.json());
+        }
+        catch {
+            // Continue from the persisted server start timestamp if offline.
         }
     };
 
-    normalizeLabels();
+    window.addEventListener(
+        "12wr:training-session-status",
+        event => applyStatus(event.detail));
 
-    // Make exercise changes discoverable from the top of the live screen.
-    if (
-        searchPanel
-        && !document.getElementById("wi-live-edit-exercises")
-    ) {
-        const editButton =
-            document.createElement("button");
+    const addEditExercisesButton = () => {
+        if (isCardio || !searchPanel || document.getElementById("wi-live-edit-exercises")) return;
 
+        const editButton = document.createElement("button");
         editButton.type = "button";
         editButton.id = "wi-live-edit-exercises";
         editButton.className = "button wi-live-edit-exercises-button";
         editButton.textContent = "Edit Exercises";
+        startButton.insertAdjacentElement("beforebegin", editButton);
 
-        startButton.insertAdjacentElement(
-            "beforebegin",
-            editButton);
-
-        editButton.addEventListener(
-            "click",
-            () => {
-                searchPanel.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start"
-                });
-
-                window.setTimeout(
-                    () => {
-                        if (searchInput instanceof HTMLInputElement) {
-                            try {
-                                searchInput.focus({ preventScroll: true });
-                            }
-                            catch {
-                                searchInput.focus();
-                            }
-                        }
-                    },
-                    320);
-            });
-    }
-
-    let workoutWakeLock = null;
-    let keepScreenAwake = false;
-    let wakeLockRequestInFlight = false;
-
-    const timerHasStarted = () => {
-        if (!timerStorageKey) {
-            return false;
-        }
-
-        try {
-            const raw =
-                window.localStorage.getItem(timerStorageKey);
-
-            if (!raw) {
-                return false;
-            }
-
-            const parsed =
-                JSON.parse(raw);
-
-            return parsed?.hasStarted === true;
-        }
-        catch {
-            return false;
-        }
-    };
-
-    const requestWorkoutWakeLock = async () => {
-        if (
-            !keepScreenAwake
-            || workoutWakeLock
-            || wakeLockRequestInFlight
-            || document.visibilityState !== "visible"
-            || !("wakeLock" in navigator)
-        ) {
-            return;
-        }
-
-        wakeLockRequestInFlight = true;
-
-        try {
-            const sentinel =
-                await navigator.wakeLock.request("screen");
-
-            workoutWakeLock = sentinel;
-
-            sentinel.addEventListener(
-                "release",
-                () => {
-                    if (workoutWakeLock === sentinel) {
-                        workoutWakeLock = null;
-                    }
-                },
-                { once: true });
-        }
-        catch {
-            // Wake Lock is an enhancement only. The timestamp-based workout
-            // timer remains authoritative even when the browser or OS denies it.
-            workoutWakeLock = null;
-        }
-        finally {
-            wakeLockRequestInFlight = false;
-        }
-    };
-
-    const releaseWorkoutWakeLock = async () => {
-        keepScreenAwake = false;
-
-        const sentinel =
-            workoutWakeLock;
-
-        workoutWakeLock = null;
-
-        if (!sentinel) {
-            return;
-        }
-
-        try {
-            await sentinel.release();
-        }
-        catch {
-            // The browser may already have released the lock while hidden.
-        }
-    };
-
-    // If an already-started workout is resumed or the page reloads, restore
-    // the keep-awake behavior from the same persisted timer state used by the
-    // existing live timer.
-    keepScreenAwake =
-        timerHasStarted();
-
-    if (keepScreenAwake) {
-        void requestWorkoutWakeLock();
-    }
-
-    startButton.addEventListener(
-        "click",
-        () => {
-            keepScreenAwake = true;
-            void requestWorkoutWakeLock();
-        });
-
-    const bindEndButton = () => {
-        const endButton =
-            document.querySelector('[name="stopWorkout"]');
-
-        if (
-            !(endButton instanceof HTMLButtonElement)
-            || endButton.dataset.wakeLockEndBound === "true"
-        ) {
-            return;
-        }
-
-        endButton.dataset.wakeLockEndBound = "true";
-
-        endButton.addEventListener(
-            "click",
-            () => {
-                void releaseWorkoutWakeLock();
-            });
-    };
-
-    bindEndButton();
-
-    if (workoutForm instanceof HTMLFormElement) {
-        workoutForm.addEventListener(
-            "submit",
-            event => {
-                const submitter =
-                    event.submitter;
-
-                if (
-                    submitter instanceof HTMLButtonElement
-                    && submitter.name === "stopWorkout"
-                ) {
-                    void releaseWorkoutWakeLock();
+        editButton.addEventListener("click", () => {
+            searchPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+            window.setTimeout(() => {
+                if (searchInput instanceof HTMLInputElement) {
+                    try { searchInput.focus({ preventScroll: true }); }
+                    catch { searchInput.focus(); }
                 }
-            });
-
-        // detailed-workout.js may normalize action controls after exercises
-        // change. Re-apply the clearer labels without touching calculations.
-        const actionObserver =
-            new MutationObserver(
-                () => {
-                    normalizeLabels();
-                    bindEndButton();
-                });
-
-        actionObserver.observe(
-            workoutForm,
-            {
-                childList: true,
-                subtree: true
-            });
-    }
-
-    const restoreVisibleWorkoutState = () => {
-        normalizeLabels();
-
-        if (timerHasStarted()) {
-            keepScreenAwake = true;
-        }
-
-        if (
-            keepScreenAwake
-            && document.visibilityState === "visible"
-        ) {
-            void requestWorkoutWakeLock();
-        }
+            }, 320);
+        });
     };
 
-    document.addEventListener(
-        "visibilitychange",
-        () => {
-            if (document.visibilityState === "visible") {
-                restoreVisibleWorkoutState();
+    const convertCardioPage = () => {
+        if (!isCardio || !(workoutForm instanceof HTMLFormElement)) return;
+
+        const workoutName =
+            workoutForm.querySelector('.wi-name-field input')?.value
+            || "Cardio";
+
+        // Cardio is duration/intensity driven. Do not force users to fabricate
+        // lifting exercises merely to satisfy the strength-editor workflow.
+        workoutForm.hidden = true;
+
+        if (document.getElementById("wi-cardio-live-v1012")) return;
+
+        const token = workoutForm.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
+        const panel = document.createElement("section");
+        panel.id = "wi-cardio-live-v1012";
+        panel.className = "wi-cardio-live-v1012";
+        panel.innerHTML = `
+            <h2>${workoutName.replace(/[&<>"']/g, character => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[character]))}</h2>
+            <p class="wi-cardio-note">The cardio timer continues from the server timestamp even if you leave this page or use another app.</p>
+            <form action="/TrainingSession/EndCardio" method="post">
+                <input type="hidden" name="__RequestVerificationToken" value="${token.replace(/"/g, "&quot;")}" />
+                <input type="hidden" name="workoutSessionId" value="${sessionId}" />
+                <label>
+                    <span>Session RPE (optional)</span>
+                    <input type="number" name="sessionRpe" min="1" max="10" step="0.5" inputmode="decimal" placeholder="1-10" />
+                </label>
+                <button class="button primary" type="submit">End Cardio</button>
+            </form>
+        `;
+
+        workoutForm.insertAdjacentElement("afterend", panel);
+    };
+
+    const handleEndPrompt = () => {
+        if (params.get("endPrompt") !== "1") return;
+
+        window.setTimeout(() => {
+            if (!window.confirm(isCardio ? "End this cardio segment?" : "End this workout segment?")) {
+                const clean = new URL(location.href);
+                clean.searchParams.delete("endPrompt");
+                history.replaceState({}, "", clean);
+                return;
             }
-        });
 
-    window.addEventListener(
-        "focus",
-        restoreVisibleWorkoutState,
-        { passive: true });
+            if (isCardio) {
+                document.querySelector("#wi-cardio-live-v1012 form")?.requestSubmit();
+                return;
+            }
 
-    window.addEventListener(
-        "pageshow",
-        restoreVisibleWorkoutState,
-        { passive: true });
+            const stopButton = document.querySelector('[name="stopWorkout"]');
+            if (stopButton instanceof HTMLButtonElement) stopButton.click();
+        }, 250);
+    };
+
+    ensureStyles();
+    addEditExercisesButton();
+    convertCardioPage();
+    enforceServerTimerUi();
+    void syncStatus();
+    handleEndPrompt();
+
+    // The legacy timer still renders once per second. Reassert the authoritative
+    // server-derived display slightly afterward without keeping the screen awake.
+    window.setInterval(enforceServerTimerUi, 350);
+    window.setInterval(() => void syncStatus(), 60000);
+
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+            enforceServerTimerUi();
+            void syncStatus();
+        }
+    });
+
+    window.addEventListener("focus", () => {
+        enforceServerTimerUi();
+        void syncStatus();
+    }, { passive: true });
+
+    window.addEventListener("pageshow", () => {
+        enforceServerTimerUi();
+        void syncStatus();
+    }, { passive: true });
 })();
