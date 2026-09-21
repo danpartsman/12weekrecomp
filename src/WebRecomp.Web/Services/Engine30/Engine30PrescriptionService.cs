@@ -1,4 +1,4 @@
-﻿namespace WebRecomp.Web.Services.Engine30;
+namespace WebRecomp.Web.Services.Engine30;
 
 public static class Engine30PrescriptionCategoryCodes
 {
@@ -55,7 +55,7 @@ public sealed record Engine30WeeklyPrescriptionResult(
 ///
 /// Hierarchy:
 ///   1. Protect stable protein.
-///   2. Protect an adequate/stable fat floor.
+///   2. Protect a stable, weight-based fat target.
 ///   3. Protect the physiological carbohydrate/fuel floor.
 ///   4. Periodize the remaining weekly energy across workout demand.
 ///   5. If the requested deficit cannot fit those physiological floors,
@@ -185,53 +185,27 @@ public sealed class Engine30PrescriptionService
         }
 
         /*
-         * Determine stable fat and the minimum daily macro-energy targets.
+         * Stable fat is a deliberate weight-based target, not a residual
+         * calorie bucket and not a percentage of average prescribed energy.
          *
-         * Fat depends partly on average prescribed energy. If physiological
-         * macro floors force the weekly prescription upward, fat may change
-         * slightly too. Iterate until the stable-fat / weekly-budget pair
-         * converges. With 5g/10kcal rounding this normally settles in one or
-         * two passes.
+         * Engine 3.0 keeps fat at 0.50 g/kg (rounded upward to the next 5 g)
+         * for the full week. Protein remains stable and carbohydrate is the
+         * primary macro that moves with training, glycogen demand, and the
+         * category energy policy.
          */
         var weeklyPrescribed =
             requestedWeeklyPrescribed;
 
-        decimal fat = 0m;
+        var fat =
+            CeilingToIncrement(
+                weightKg * 0.50m,
+                5m);
+
         decimal[] carbFloors = [];
         decimal[] minimumDailyTargets = [];
 
         for (var iteration = 0; iteration < 10; iteration++)
         {
-            var averagePrescribed =
-                weeklyPrescribed / 7m;
-
-            var fatFromEnergy =
-                averagePrescribed
-                * 0.20m
-                / 9m;
-
-            var unroundedFatFloor =
-                weightKg * 0.50m;
-
-            /*
-             * This is a FLOOR. Normal rounding can move 35.15g down to 35g,
-             * which is exactly what the plausibility matrix caught.
-             */
-            var roundedFatFloor =
-                CeilingToIncrement(
-                    unroundedFatFloor,
-                    5m);
-
-            var roundedFatFromEnergy =
-                RoundToIncrement(
-                    fatFromEnergy,
-                    5m);
-
-            fat =
-                Math.Max(
-                    roundedFatFromEnergy,
-                    roundedFatFloor);
-
             var fixedKcal =
                 protein * 4m
                 + fat * 9m;
