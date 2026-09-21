@@ -329,7 +329,7 @@ jobs:
 
           '''
 
-          if 'BuildActualizedPrescriptionDayInputAsync(' not in text:
+          if 'private async Task<Engine30PrescriptionDayInput?>' not in text:
               pos = text.find(helper_anchor)
               if pos < 0:
                   raise SystemExit('actual glycogen helper anchor not found; refusing unsafe patch')
@@ -399,7 +399,7 @@ jobs:
         shell: bash
         run: |
           grep -n "B2.35.33 COMPLETED-WORKOUT NUTRITION ACTUALIZATION" src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs
-          grep -n "BuildActualizedPrescriptionDayInputAsync" src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs
+          grep -n "private async Task<Engine30PrescriptionDayInput?>" src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs
           grep -n "actualized ?? plannedInput" src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs
 
       - name: Restore web project
