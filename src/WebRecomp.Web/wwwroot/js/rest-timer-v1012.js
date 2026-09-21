@@ -1,262 +1,260 @@
 (() => {
     "use strict";
 
-    if (!location.pathname.toLowerCase().startsWith("/detailedworkout")) {
+    // TEST v1012 compatibility slot.
+    // The separate rest countdown was removed by design. The existing loader
+    // still requests this file, so it now owns only the small live-workout
+    // controls that belong beside the authoritative workout count-up timer.
+    if (!window.location.pathname.toLowerCase().startsWith("/detailedworkout")) {
         return;
     }
 
-    const timerHost =
-        document.querySelector("[data-live-workout-start]");
+    const params = new URLSearchParams(window.location.search);
+    const timerHost = document.querySelector("[data-live-workout-start]");
+    const sessionId = timerHost?.dataset.liveWorkoutSessionId || "";
 
-    const typeInput =
-        document.querySelector('input[name="DraftWorkoutTypeCode"]');
-
-    if (!timerHost || !(typeInput instanceof HTMLInputElement)) {
+    if (!timerHost || !sessionId) {
         return;
     }
 
-    const CARDIO_CODES = new Set([
-        "GENERAL_CARDIO",
-        "EASY_CARDIO",
-        "ZONE2_CARDIO",
-        "WALKING",
-        "RUNNING",
-        "TREADMILL",
-        "CYCLING",
-        "ROWING",
-        "ELLIPTICAL",
-        "STAIR_CLIMBER",
-        "SWIMMING"
-    ]);
+    const ensureStyles = () => {
+        if (document.getElementById("wi-end-workout-v1012-style")) return;
 
-    const workoutTypeCode =
-        typeInput.value.trim().toUpperCase();
-
-    if (CARDIO_CODES.has(workoutTypeCode)) {
-        return;
-    }
-
-    const sessionId =
-        timerHost.dataset.liveWorkoutSessionId || "";
-
-    if (!sessionId) {
-        return;
-    }
-
-    const storageKey =
-        `12wr:rest-timer:v1012:${sessionId}`;
-
-    const style =
-        document.createElement("style");
-
-    style.textContent = `
-        .wi-rest-timer-v1012 {
-            display: grid;
-            gap: .45rem;
-            margin-top: .55rem;
-            padding: .6rem .72rem;
-            width: min(100%, 420px);
-            border: 1px solid rgba(148, 163, 184, .24);
-            border-radius: .8rem;
-            background: rgba(15, 23, 42, .45);
-        }
-        .wi-rest-timer-v1012__top {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            gap: .75rem;
-        }
-        .wi-rest-timer-v1012__top span {
-            font-size: .76rem;
-            text-transform: uppercase;
-            letter-spacing: .08em;
-            opacity: .72;
-        }
-        .wi-rest-timer-v1012__time {
-            font-size: 1.15rem;
-            font-weight: 900;
-            font-variant-numeric: tabular-nums;
-        }
-        .wi-rest-timer-v1012.is-running .wi-rest-timer-v1012__time {
-            color: #67e8f9;
-        }
-        .wi-rest-timer-v1012.is-done .wi-rest-timer-v1012__time {
-            color: #86efac;
-        }
-        .wi-rest-timer-v1012__actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .35rem;
-        }
-        .wi-rest-timer-v1012__actions button {
-            min-width: 58px;
-        }
-    `;
-
-    document.head.appendChild(style);
-
-    const panel =
-        document.createElement("section");
-
-    panel.className =
-        "wi-rest-timer-v1012";
-
-    panel.setAttribute(
-        "aria-label",
-        "Rest timer");
-
-    panel.innerHTML = `
-        <div class="wi-rest-timer-v1012__top">
-            <span>Rest timer</span>
-            <strong class="wi-rest-timer-v1012__time" data-rest-output>01:30</strong>
-        </div>
-        <div class="wi-rest-timer-v1012__actions">
-            <button type="button" class="button" data-rest-seconds="60">60s</button>
-            <button type="button" class="button" data-rest-seconds="90">90s</button>
-            <button type="button" class="button" data-rest-seconds="120">120s</button>
-            <button type="button" class="button primary" data-rest-start>Start</button>
-            <button type="button" class="button" data-rest-reset>Reset</button>
-        </div>
-    `;
-
-    timerHost.insertAdjacentElement(
-        "afterend",
-        panel);
-
-    const output =
-        panel.querySelector("[data-rest-output]");
-
-    const startButton =
-        panel.querySelector("[data-rest-start]");
-
-    const resetButton =
-        panel.querySelector("[data-rest-reset]");
-
-    let selectedSeconds = 90;
-    let targetAtMs = null;
-    let completedSignalShown = false;
-
-    const readState = () => {
-        try {
-            const raw =
-                localStorage.getItem(storageKey);
-
-            if (!raw) return;
-
-            const parsed = JSON.parse(raw);
-            const storedSeconds = Number(parsed?.selectedSeconds);
-            const storedTarget = Number(parsed?.targetAtMs);
-
-            if (Number.isFinite(storedSeconds)
-                && storedSeconds >= 5
-                && storedSeconds <= 900) {
-                selectedSeconds = storedSeconds;
+        const style = document.createElement("style");
+        style.id = "wi-end-workout-v1012-style";
+        style.textContent = `
+            .wi-live-elapsed strong[data-live-workout-elapsed] {
+                display: block;
+                margin-top: .08rem;
+                font-size: clamp(2rem, 4.8vw, 3rem) !important;
+                line-height: 1 !important;
+                letter-spacing: .035em;
+                font-variant-numeric: tabular-nums;
             }
-
-            if (Number.isFinite(storedTarget)
-                && storedTarget > 0) {
-                targetAtMs = storedTarget;
+            .ts-live-banner-v1012__time {
+                font-size: 1.15rem !important;
+                line-height: 1 !important;
             }
-        }
-        catch {
-            // Rest timing remains usable without browser storage.
-        }
+            .wi-end-menu-v1012 {
+                position: fixed;
+                inset: 0;
+                z-index: 65000;
+                display: grid;
+                place-items: center;
+                padding: 1rem;
+                background: rgba(2, 6, 12, .78);
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+            }
+            .wi-end-menu-v1012[hidden] { display: none !important; }
+            .wi-end-menu-v1012__panel {
+                width: min(94vw, 470px);
+                padding: 1.25rem;
+                border: 1px solid rgba(103, 232, 249, .28);
+                border-radius: 1rem;
+                background: linear-gradient(160deg, #0c1726, #07101b);
+                box-shadow: 0 28px 90px rgba(0, 0, 0, .55);
+            }
+            .wi-end-menu-v1012__kicker {
+                margin: 0 0 .3rem;
+                color: #67e8f9;
+                font-size: .7rem;
+                font-weight: 900;
+                letter-spacing: .12em;
+                text-transform: uppercase;
+            }
+            .wi-end-menu-v1012 h2 {
+                margin: 0;
+                font-size: clamp(1.7rem, 5vw, 2.35rem);
+            }
+            .wi-end-menu-v1012 p {
+                margin: .65rem 0 1rem;
+                color: #cbd5e1;
+                line-height: 1.45;
+            }
+            .wi-end-menu-v1012__actions {
+                display: grid;
+                gap: .6rem;
+            }
+            .wi-end-menu-v1012__actions .button,
+            .wi-end-menu-v1012__actions button {
+                width: 100%;
+                min-height: 48px;
+            }
+            .wi-end-menu-v1012__discard {
+                border: 1px solid rgba(248, 113, 113, .62) !important;
+                background: rgba(127, 29, 29, .22) !important;
+                color: #fecaca !important;
+            }
+            .wi-end-menu-v1012__discard:hover {
+                background: rgba(127, 29, 29, .38) !important;
+            }
+        `;
+        document.head.appendChild(style);
     };
 
-    const writeState = () => {
-        try {
-            localStorage.setItem(
-                storageKey,
-                JSON.stringify({
-                    selectedSeconds,
-                    targetAtMs
-                }));
-        }
-        catch {
-            // No-op when browser storage is unavailable.
-        }
+    const htmlEscape = value => String(value || "").replace(
+        /[&<>"']/g,
+        character => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        })[character]);
+
+    let bypassStopPrompt = false;
+    let modal = null;
+
+    const getStopButton = () =>
+        document.querySelector('[name="stopWorkout"]');
+
+    const getCardioForm = () =>
+        document.querySelector("#wi-cardio-live-v1012 form");
+
+    const isCardio = () =>
+        Boolean(document.getElementById("wi-cardio-live-v1012"));
+
+    const getToken = () =>
+        document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
+
+    const cleanEndMenuFlag = () => {
+        if (params.get("showEndMenu") !== "1") return;
+        const clean = new URL(window.location.href);
+        clean.searchParams.delete("showEndMenu");
+        window.history.replaceState({}, "", clean);
     };
 
-    const format = seconds => {
-        const safe = Math.max(0, Math.ceil(seconds));
-        const minutes = Math.floor(safe / 60);
-        const remainder = safe % 60;
-        return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+    const closeMenu = () => {
+        if (modal) modal.hidden = true;
     };
 
-    const tick = () => {
-        if (!(output instanceof HTMLElement)) return;
+    const submitStop = () => {
+        closeMenu();
 
-        if (!targetAtMs) {
-            panel.classList.remove("is-running", "is-done");
-            output.textContent = format(selectedSeconds);
+        const cardioForm = getCardioForm();
+        if (cardioForm instanceof HTMLFormElement) {
+            cardioForm.requestSubmit();
             return;
         }
 
-        const remainingMs =
-            targetAtMs - Date.now();
+        const stopButton = getStopButton();
+        const workoutForm = document.getElementById("wi-detailed-workout-form");
 
-        if (remainingMs <= 0) {
-            output.textContent = "00:00";
-            panel.classList.remove("is-running");
-            panel.classList.add("is-done");
-
-            if (!completedSignalShown) {
-                completedSignalShown = true;
-                if (navigator.vibrate) {
-                    try { navigator.vibrate([120, 80, 120]); }
-                    catch { /* vibration is optional */ }
-                }
-            }
+        if (!(stopButton instanceof HTMLButtonElement)
+            || !(workoutForm instanceof HTMLFormElement)) {
             return;
         }
 
-        panel.classList.add("is-running");
-        panel.classList.remove("is-done");
-        output.textContent =
-            format(remainingMs / 1000);
+        bypassStopPrompt = true;
+        workoutForm.requestSubmit(stopButton);
     };
 
-    panel
-        .querySelectorAll("[data-rest-seconds]")
-        .forEach(button => {
-            button.addEventListener("click", () => {
-                const requested =
-                    Number(button.dataset.restSeconds);
+    const submitDiscard = () => {
+        const token = getToken();
+        if (!token) return;
 
-                if (!Number.isFinite(requested)) return;
+        closeMenu();
 
-                selectedSeconds = requested;
-                targetAtMs = null;
-                completedSignalShown = false;
-                writeState();
-                tick();
-            });
+        const form = document.createElement("form");
+        form.method = "post";
+        form.action = "/TrainingSession/Discard";
+        form.hidden = true;
+        form.innerHTML = `
+            <input type="hidden" name="__RequestVerificationToken" value="${htmlEscape(token)}" />
+            <input type="hidden" name="workoutSessionId" value="${htmlEscape(sessionId)}" />
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    };
+
+    const ensureModal = () => {
+        if (modal) return modal;
+
+        modal = document.createElement("section");
+        modal.className = "wi-end-menu-v1012";
+        modal.hidden = true;
+        modal.setAttribute("role", "dialog");
+        modal.setAttribute("aria-modal", "true");
+        modal.setAttribute("aria-labelledby", "wi-end-menu-title-v1012");
+        modal.innerHTML = `
+            <div class="wi-end-menu-v1012__panel">
+                <div class="wi-end-menu-v1012__kicker">WORKOUT IN PROGRESS</div>
+                <h2 id="wi-end-menu-title-v1012">End Workout?</h2>
+                <p>Stop and review this workout, discard the unfinished workout completely, or keep training.</p>
+                <div class="wi-end-menu-v1012__actions">
+                    <button type="button" class="button primary" data-wi-end-stop>Stop Workout</button>
+                    <button type="button" class="button wi-end-menu-v1012__discard" data-wi-end-discard>Discard Workout</button>
+                    <button type="button" class="button" data-wi-end-cancel>Cancel</button>
+                </div>
+            </div>
+        `;
+
+        modal.querySelector("[data-wi-end-stop]")?.addEventListener("click", submitStop);
+        modal.querySelector("[data-wi-end-discard]")?.addEventListener("click", submitDiscard);
+        modal.querySelector("[data-wi-end-cancel]")?.addEventListener("click", closeMenu);
+        modal.addEventListener("click", event => {
+            if (event.target === modal) closeMenu();
+        });
+        document.addEventListener("keydown", event => {
+            if (event.key === "Escape" && !modal.hidden) closeMenu();
         });
 
-    startButton?.addEventListener("click", () => {
-        targetAtMs =
-            Date.now() + (selectedSeconds * 1000);
-        completedSignalShown = false;
-        writeState();
-        tick();
-    });
+        document.body.appendChild(modal);
+        return modal;
+    };
 
-    resetButton?.addEventListener("click", () => {
-        targetAtMs = null;
-        completedSignalShown = false;
-        writeState();
-        tick();
-    });
+    const openMenu = () => {
+        const dialog = ensureModal();
+        const title = dialog.querySelector("#wi-end-menu-title-v1012");
+        const stop = dialog.querySelector("[data-wi-end-stop]");
+        const paragraph = dialog.querySelector("p");
 
-    document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) tick();
-    });
+        if (isCardio()) {
+            if (title) title.textContent = "End Cardio?";
+            if (stop) stop.textContent = "End Cardio";
+            if (paragraph) paragraph.textContent = "End and save this cardio segment, discard the unfinished segment completely, or keep training.";
+        }
+        else {
+            if (title) title.textContent = "End Workout?";
+            if (stop) stop.textContent = "Stop Workout";
+            if (paragraph) paragraph.textContent = "Stop and review this workout, discard the unfinished workout completely, or keep training.";
+        }
 
-    window.addEventListener("focus", tick, { passive: true });
-    window.addEventListener("pageshow", tick, { passive: true });
+        dialog.hidden = false;
+        stop?.focus();
+    };
 
-    readState();
-    tick();
-    window.setInterval(tick, 250);
+    const bindStopButton = () => {
+        const stopButton = getStopButton();
+        if (!(stopButton instanceof HTMLButtonElement)
+            || stopButton.dataset.wiEndMenuBound === "1") {
+            return;
+        }
+
+        stopButton.dataset.wiEndMenuBound = "1";
+        stopButton.addEventListener("click", event => {
+            if (bypassStopPrompt) {
+                bypassStopPrompt = false;
+                return;
+            }
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            openMenu();
+        }, true);
+    };
+
+    ensureStyles();
+    bindStopButton();
+
+    // Live-workout code can rewrite the action row as values change. Rebind
+    // without touching the workout's authoritative server timer.
+    const observer = new MutationObserver(bindStopButton);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    if (params.get("showEndMenu") === "1") {
+        cleanEndMenuFlag();
+        window.setTimeout(openMenu, 250);
+    }
 })();
