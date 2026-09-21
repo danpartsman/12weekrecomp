@@ -4,6 +4,13 @@
     const path = window.location.pathname.toLowerCase();
     if (!path.startsWith("/detailedworkout")) return;
 
+    if (!document.querySelector('script[data-12wr-rest-timer="v1012"]')) {
+        const restTimerScript = document.createElement("script");
+        restTimerScript.src = "/js/rest-timer-v1012.js?v=1012rest1";
+        restTimerScript.dataset["12wrRestTimer"] = "v1012";
+        document.head.appendChild(restTimerScript);
+    }
+
     const params = new URLSearchParams(window.location.search);
     const mode = (params.get("mode") || "").trim().toLowerCase();
 
@@ -38,8 +45,6 @@
     const workoutForm = document.getElementById("wi-detailed-workout-form");
     const searchPanel = document.getElementById("wi-exercise-search");
     const searchInput = document.getElementById("wi-search-input");
-    const exerciseList = document.getElementById("wi-exercise-list");
-    const emptyWorkout = document.getElementById("wi-empty-workout");
     const pauseButton = document.querySelector("[data-workout-pause-toggle]");
     const pausedSecondsInput = document.querySelector("[data-workout-paused-seconds]");
     const typeInput = document.querySelector('input[name="DraftWorkoutTypeCode"]');
