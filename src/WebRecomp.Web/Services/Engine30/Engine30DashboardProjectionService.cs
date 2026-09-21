@@ -943,6 +943,52 @@ public sealed class Engine30DashboardProjectionService(
                 x => x.PlannedDate,
                 x => x);
 
+        // B2.35.33 COMPLETED-WORKOUT NUTRITION ACTUALIZATION
+        //
+        // Preserve the Weekly Plan as historical/planned truth for the workout UI,
+        // but once a workout is completed, use the completed session's Engine 3.0
+        // energy + glycogen physiology to recalculate that day's nutrition input.
+        // This prevents a stale planned-workout carb target from surviving after
+        // the user performs a materially different actual workout. Because the
+        // weekly prescription and carryover are rebuilt from these inputs, the
+        // correction also flows into same-week calorie/macronutrient allocation.
+        var completedCutoff =
+            knowledgeCutoffDate < weekStart
+                ? weekStart.AddDays(-1)
+                : knowledgeCutoffDate > weekEnd
+                    ? weekEnd
+                    : knowledgeCutoffDate;
+
+        var completedSessions =
+            completedCutoff < weekStart
+                ? new List<WorkoutSession>()
+                : await db.WorkoutSessions
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.ClientId == client.ClientId
+                        && x.ProgramId == program.ProgramId
+                        && x.WorkoutDate >= weekStart
+                        && x.WorkoutDate <= completedCutoff
+                        && x.CompletedFlag)
+                    .OrderBy(x => x.WorkoutDate)
+                    .ThenBy(x => x.CreatedAtUtc)
+                    .ToListAsync(cancellationToken);
+
+        completedSessions =
+            (await DetailedWorkoutEngine30Adapter
+                .PreferBuilderSessionsAsync(
+                    db,
+                    completedSessions,
+                    cancellationToken))
+            .ToList();
+
+        var completedByDate =
+            completedSessions
+                .GroupBy(x => x.WorkoutDate)
+                .ToDictionary(
+                    x => x.Key,
+                    x => (IReadOnlyList<WorkoutSession>)x.ToArray());
+
         var dailyResults =
             new List<(
                 Engine30DailyRuntimeResult Runtime,
@@ -1029,17 +1075,45 @@ public sealed class Engine30DashboardProjectionService(
         }
 
         var prescriptionInputs =
-            dailyResults
-                .Select(x =>
-                    new Engine30PrescriptionDayInput(
-                        Date: x.Runtime.ActionDate,
-                        MaintenanceEnergyKcal:
-                            x.Runtime.Energy.MaintenanceEnergyKcal,
-                        WorkoutCategoryCode:
-                            x.WorkoutCategoryCode,
-                        GlycogenReloadRequirementG:
-                            x.Runtime.Glycogen.CarbohydrateReloadRequirementG))
-                .ToArray();
+            new List<Engine30PrescriptionDayInput>(7);
+
+        foreach (var item in dailyResults)
+        {
+            var plannedInput =
+                new Engine30PrescriptionDayInput(
+                    Date: item.Runtime.ActionDate,
+                    MaintenanceEnergyKcal:
+                        item.Runtime.Energy.MaintenanceEnergyKcal,
+                    WorkoutCategoryCode:
+                        item.WorkoutCategoryCode,
+                    GlycogenReloadRequirementG:
+                        item.Runtime.Glycogen.CarbohydrateReloadRequirementG);
+
+            Engine30PrescriptionDayInput? actualized = null;
+
+            if (item.Runtime.ActionDate <= knowledgeCutoffDate
+                && completedByDate.TryGetValue(
+                    item.Runtime.ActionDate,
+                    out var actualDaySessions)
+                && actualDaySessions.Count > 0)
+            {
+                actualized =
+                    await BuildActualizedPrescriptionDayInputAsync(
+                        client,
+                        item.Runtime,
+                        item.WorkoutCategoryCode,
+                        actualDaySessions,
+                        definitions,
+                        measurements,
+                        cancellationToken);
+            }
+
+            // If actual physiology cannot be resolved completely (for example,
+            // an unmapped legacy workout), preserve the original planned target
+            // rather than silently undercounting the day's workload.
+            prescriptionInputs.Add(
+                actualized ?? plannedInput);
+        }
 
         var anchorDate =
             knowledgeCutoffDate < weekStart
@@ -1172,6 +1246,176 @@ public sealed class Engine30DashboardProjectionService(
             Days: result,
             EnergyCarryover: carryover);
     }
+
+    private async Task<Engine30PrescriptionDayInput?>
+    BuildActualizedPrescriptionDayInputAsync(
+        Client client,
+        Engine30DailyRuntimeResult plannedRuntime,
+        string plannedWorkoutCategoryCode,
+        IReadOnlyList<WorkoutSession> sessions,
+        IReadOnlyDictionary<string, WorkoutTypeDefinition> definitions,
+        IReadOnlyList<Measurement> measurements,
+        CancellationToken cancellationToken)
+    {
+        if (sessions.Count == 0)
+            return null;
+
+        var date =
+            plannedRuntime.ActionDate;
+
+        var measurement =
+            ResolveMeasurement(
+                measurements,
+                date);
+
+        var roles =
+            await activityProfiles.BuildRuntimeRolesAsync(
+                client.ClientId,
+                date,
+                cancellationToken);
+
+        var actualNetWorkoutEnergyKcal =
+            0m;
+
+        var actualGlycogenReloadRequirementG =
+            0m;
+
+        var actualCategories =
+            new List<string>(sessions.Count);
+
+        foreach (var stored in sessions)
+        {
+            var workoutCode =
+                NormalizeWorkoutCode(
+                    stored.WorkoutTypeCode);
+
+            Engine30WorkoutRuntimeProfileResolution profileResolution;
+
+            try
+            {
+                profileResolution =
+                    await profileProvider.ResolveAsync(
+                        workoutCode,
+                        cancellationToken);
+            }
+            catch (KeyNotFoundException)
+            {
+                // Do not create false precision from a partially resolved day.
+                // Historical analysis may still describe the legacy session,
+                // but nutrition stays on the planned prescription until the
+                // actual workout can be mapped to Engine 3.0 physiology.
+                return null;
+            }
+
+            if (!definitions.TryGetValue(
+                    workoutCode,
+                    out var definition))
+            {
+                return null;
+            }
+
+            var session =
+                await DetailedWorkoutEngine30Adapter
+                    .BuildActualInputAsync(
+                        db,
+                        workoutIntelligence,
+                        stored,
+                        profileResolution.Profile,
+                        workoutCode,
+                        cancellationToken);
+
+            var runtime =
+                await dailyRuntime.CalculateAsync(
+                    new Engine30DailyRuntimeRequest(
+                        ActionDate:
+                            date,
+                        DateOfBirth:
+                            client.DateOfBirth!.Value,
+                        SexCode:
+                            client.SexCode!,
+                        HeightIn:
+                            client.HeightIn,
+                        WeightLb:
+                            measurement.WeightLb!.Value,
+                        BodyFatFraction:
+                            NormalizeBodyFatFraction(
+                                measurement.BodyFatPct),
+                        OccupationalRoles:
+                            roles,
+                        LifestyleActivityCode:
+                            client.LifestyleActivityCode ?? "MINIMAL",
+                        WorkoutSession:
+                            session),
+                    cancellationToken);
+
+            if (runtime.Workout is null)
+                return null;
+
+            actualNetWorkoutEnergyKcal +=
+                runtime.Energy.NetWorkoutActivityEnergyKcal;
+
+            actualGlycogenReloadRequirementG +=
+                runtime.Glycogen.CarbohydrateReloadRequirementG;
+
+            actualCategories.Add(
+                definition.WorkoutCategoryCode);
+        }
+
+        var actualCategory =
+            SelectActualPrescriptionCategory(
+                actualCategories,
+                plannedWorkoutCategoryCode);
+
+        var actualMaintenanceEnergyKcal =
+            plannedRuntime.Energy.BaseLivingEnergyKcal
+            + plannedRuntime.Energy.HabitualActivityEnergyKcal
+            + actualNetWorkoutEnergyKcal;
+
+        return new Engine30PrescriptionDayInput(
+            Date:
+                date,
+            MaintenanceEnergyKcal:
+                Math.Round(
+                    actualMaintenanceEnergyKcal,
+                    2,
+                    MidpointRounding.AwayFromZero),
+            WorkoutCategoryCode:
+                actualCategory,
+            GlycogenReloadRequirementG:
+                Math.Round(
+                    actualGlycogenReloadRequirementG,
+                    2,
+                    MidpointRounding.AwayFromZero));
+    }
+
+    private static string SelectActualPrescriptionCategory(
+        IReadOnlyCollection<string> actualCategories,
+        string fallbackCategory)
+    {
+        var selected =
+            actualCategories
+                .Select(x => new
+                {
+                    Code = x,
+                    Priority = PrescriptionCategoryPriority(x)
+                })
+                .Where(x => x.Priority > 0)
+                .OrderByDescending(x => x.Priority)
+                .Select(x => x.Code)
+                .FirstOrDefault();
+
+        return selected ?? fallbackCategory;
+    }
+
+    private static int PrescriptionCategoryPriority(string? categoryCode)
+        => categoryCode?.Trim().ToUpperInvariant() switch
+        {
+            Engine30PrescriptionCategoryCodes.MajorStrength => 4,
+            Engine30PrescriptionCategoryCodes.AccessoryStrength => 3,
+            Engine30PrescriptionCategoryCodes.ConditioningCardio => 2,
+            Engine30PrescriptionCategoryCodes.RestRecoveryOther => 1,
+            _ => 0
+        };
 
     private async Task<(decimal DemandG, string? Summary)>
         CalculateActualDayGlycogenAsync(
