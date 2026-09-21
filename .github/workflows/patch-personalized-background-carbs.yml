@@ -28,163 +28,143 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          @'
+          from pathlib import Path
 
-          function Replace-Exact([string]$Path, [string]$Old, [string]$New, [string]$Label) {
-              $text = [System.IO.File]::ReadAllText($Path)
-              if (-not $text.Contains($Old)) {
-                  throw "Expected patch marker not found: $Label in $Path"
-              }
-              $text = $text.Replace($Old, $New)
-              [System.IO.File]::WriteAllText($Path, $text, [System.Text.UTF8Encoding]::new($false))
-          }
+          def load(path):
+              p = Path(path)
+              return p, p.read_text(encoding='utf-8-sig').replace('\r\n', '\n')
 
-          $service = 'src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs'
-          $dashboard = 'src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs'
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{label}: expected exactly one marker, found {count}')
+              return text.replace(old, new, 1)
 
-          $old = @'
-          public sealed record Engine30PrescriptionDayInput(
+          service_path, service = load('src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs')
+          dashboard_path, dashboard = load('src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs')
+
+          service = replace_once(
+              service,
+              '''public sealed record Engine30PrescriptionDayInput(
               DateOnly Date,
               decimal MaintenanceEnergyKcal,
               string WorkoutCategoryCode,
-              decimal GlycogenReloadRequirementG);
-          '@
-          $new = @'
-          public sealed record Engine30PrescriptionDayInput(
+              decimal GlycogenReloadRequirementG);''',
+              '''public sealed record Engine30PrescriptionDayInput(
               DateOnly Date,
               decimal MaintenanceEnergyKcal,
               string WorkoutCategoryCode,
               decimal GlycogenReloadRequirementG,
               decimal BackgroundCarbohydrateRequirementG =
-                  Engine30BackgroundCarbohydrateCalculator.AdultObligatoryGlucoseAnchorG);
-          '@
-          Replace-Exact $service $old $new 'prescription input background field'
+                  Engine30BackgroundCarbohydrateCalculator.AdultObligatoryGlucoseAnchorG);''',
+              'prescription input background field')
 
-          $old = @'
-                  PlanReason(normalizedPlan),
-                  "PHYSIOLOGY_FIRST_CARBOHYDRATE",
-                  "BACKGROUND_CARB_EAR_100G",
-                  "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED"
-          '@
-          $new = @'
-                  PlanReason(normalizedPlan),
-                  "PHYSIOLOGY_FIRST_CARBOHYDRATE",
-                  "OBLIGATORY_GLUCOSE_ANCHOR_100G",
-                  "PERSONALIZED_BACKGROUND_CARB_FROM_HABITUAL_ACTIVITY",
-                  "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED"
-          '@
-          Replace-Exact $service $old $new 'reason codes'
+          service = replace_once(
+              service,
+              '            "BACKGROUND_CARB_EAR_100G",',
+              '''            "BACKGROUND_CARB_EAR_100G",
+              "PERSONALIZED_BACKGROUND_CARB_FROM_HABITUAL_ACTIVITY",''',
+              'personalized background reason')
 
-          $old = @'
-              var baseRestCarbs =
-                  Engine30BackgroundCarbohydrateDefaults
-                      .AdultBackgroundCarbohydrateEarG;
+          service = replace_once(
+              service,
+              '''        var baseRestCarbs =
+              Engine30BackgroundCarbohydrateDefaults
+                  .AdultBackgroundCarbohydrateEarG;
 
-              var standardCarbUpper =
-                  RoundToIncrement(
-                      weightKg * 5.0m,
-                      5m);
+          var standardCarbUpper =
+              RoundToIncrement(
+                  weightKg * 5.0m,
+                  5m);
 
-              var orderedDays =
-                  days.OrderBy(x => x.Date).ToArray();
-          '@
-          $new = @'
-              var orderedDays =
-                  days.OrderBy(x => x.Date).ToArray();
+          var orderedDays =
+              days.OrderBy(x => x.Date).ToArray();''',
+              '''        var orderedDays =
+              days.OrderBy(x => x.Date).ToArray();
 
-              if (orderedDays.Any(
-                      x =>
-                          x.BackgroundCarbohydrateRequirementG
-                          < Engine30BackgroundCarbohydrateCalculator
-                              .AdultObligatoryGlucoseAnchorG))
-              {
-                  throw new ArgumentOutOfRangeException(
-                      nameof(days),
-                      "Background carbohydrate cannot be below the adult obligatory-glucose anchor.");
-              }
+          if (orderedDays.Any(
+                  x =>
+                      x.BackgroundCarbohydrateRequirementG
+                      < Engine30BackgroundCarbohydrateCalculator
+                          .AdultObligatoryGlucoseAnchorG))
+          {
+              throw new ArgumentOutOfRangeException(
+                  nameof(days),
+                  "Background carbohydrate cannot be below the adult obligatory-glucose anchor.");
+          }
 
-              // Compatibility aggregate for the existing weekly/fuel-state contract.
-              // Current habitual activity is a weekly-average model, so this value
-              // will normally be identical across all seven days. The day input is
-              // already capable of carrying different values when day-specific
-              // activity data become available.
-              var baseRestCarbs =
-                  Round(
-                      orderedDays.Average(
-                          x => x.BackgroundCarbohydrateRequirementG),
-                      2);
+          // Weekly compatibility value for fuel-state/history contracts.
+          // The daily prescription below uses each day's personalized value.
+          var baseRestCarbs =
+              Round(
+                  orderedDays.Average(
+                      x => x.BackgroundCarbohydrateRequirementG),
+                  2);
 
-              var standardCarbUpper =
-                  RoundToIncrement(
-                      weightKg * 5.0m,
-                      5m);
-          '@
-          Replace-Exact $service $old $new 'personalized background aggregate'
+          var standardCarbUpper =
+              RoundToIncrement(
+                  weightKg * 5.0m,
+                  5m);''',
+              'personalized background aggregate')
 
-          $old = @'
-                      CeilingToIncrement(
-                          baseRestCarbs
-                          + day.GlycogenReloadRequirementG,
-                          5m))
-          '@
-          $new = @'
-                      CeilingToIncrement(
-                          day.BackgroundCarbohydrateRequirementG
-                          + day.GlycogenReloadRequirementG,
-                          5m))
-          '@
-          Replace-Exact $service $old $new 'daily personalized carb floor'
+          service = replace_once(
+              service,
+              '''                    baseRestCarbs
+                      + day.GlycogenReloadRequirementG,''',
+              '''                    day.BackgroundCarbohydrateRequirementG
+                      + day.GlycogenReloadRequirementG,''',
+              'daily personalized carb floor')
 
-          $old = @'
-                      GlycogenReloadRequirementG:
-                          item.Runtime.Glycogen.CarbohydrateReloadRequirementG);
-          '@
-          $new = @'
-                      GlycogenReloadRequirementG:
-                          item.Runtime.Glycogen.CarbohydrateReloadRequirementG,
-                      BackgroundCarbohydrateRequirementG:
-                          new Engine30BackgroundCarbohydrateCalculator()
-                              .Calculate(item.Runtime.HabitualActivity)
-                              .TotalBackgroundCarbohydrateRequirementG);
-          '@
-          Replace-Exact $dashboard $old $new 'planned dashboard background carbs'
-
-          $old = @'
-                  GlycogenReloadRequirementG:
-                      Math.Round(
-                          actualGlycogenReloadRequirementG,
-                          2,
-                          MidpointRounding.AwayFromZero));
-          '@
-          $new = @'
-                  GlycogenReloadRequirementG:
-                      Math.Round(
-                          actualGlycogenReloadRequirementG,
-                          2,
-                          MidpointRounding.AwayFromZero),
+          dashboard = replace_once(
+              dashboard,
+              '''                GlycogenReloadRequirementG:
+                      item.Runtime.Glycogen.CarbohydrateReloadRequirementG);''',
+              '''                GlycogenReloadRequirementG:
+                      item.Runtime.Glycogen.CarbohydrateReloadRequirementG,
                   BackgroundCarbohydrateRequirementG:
                       new Engine30BackgroundCarbohydrateCalculator()
-                          .Calculate(plannedRuntime.HabitualActivity)
-                          .TotalBackgroundCarbohydrateRequirementG);
-          '@
-          Replace-Exact $dashboard $old $new 'actualized dashboard background carbs'
+                          .Calculate(item.Runtime.HabitualActivity)
+                          .TotalBackgroundCarbohydrateRequirementG);''',
+              'planned dashboard background carbs')
 
-          Write-Host 'Personalized background carbohydrate wiring patched.'
+          dashboard = replace_once(
+              dashboard,
+              '''            GlycogenReloadRequirementG:
+                  Math.Round(
+                      actualGlycogenReloadRequirementG,
+                      2,
+                      MidpointRounding.AwayFromZero));''',
+              '''            GlycogenReloadRequirementG:
+                  Math.Round(
+                      actualGlycogenReloadRequirementG,
+                      2,
+                      MidpointRounding.AwayFromZero),
+              BackgroundCarbohydrateRequirementG:
+                  new Engine30BackgroundCarbohydrateCalculator()
+                      .Calculate(plannedRuntime.HabitualActivity)
+                      .TotalBackgroundCarbohydrateRequirementG);''',
+              'actualized dashboard background carbs')
+
+          service_path.write_text(service, encoding='utf-8', newline='\n')
+          dashboard_path.write_text(dashboard, encoding='utf-8', newline='\n')
+          print('Personalized background carbohydrate wiring patched.')
+          '@ | python -
 
       - name: Add regression assertion for personalized prescription
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $path = 'tests/WebRecomp.Web.Tests/Engine30BackgroundCarbohydrateCalculatorTests.cs'
-          $text = [System.IO.File]::ReadAllText($path)
-          $marker = @'
-              [Theory]
-              [InlineData(0.30, 0.225)]
-          '@
-          if (-not $text.Contains($marker)) {
-              throw 'Test insertion marker not found.'
-          }
-          $test = @'
-              [Fact]
+          @'
+          from pathlib import Path
+
+          p = Path('tests/WebRecomp.Web.Tests/Engine30BackgroundCarbohydrateCalculatorTests.cs')
+          text = p.read_text(encoding='utf-8-sig').replace('\r\n', '\n')
+          marker = '''    [Theory]
+              [InlineData(0.30, 0.225)]'''
+          if text.count(marker) != 1:
+              raise RuntimeError(f'test insertion marker count={text.count(marker)}')
+          test = '''    [Fact]
               public void Prescription_AddsCalculatedBackgroundToWorkoutReload_NotCalories()
               {
                   var days =
@@ -218,9 +198,9 @@ jobs:
                       day => day.CarbGoverningRuleCode == "ENERGY_BALANCE");
               }
 
-          '@
-          $text = $text.Replace($marker, $test + $marker)
-          [System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))
+          '''
+          p.write_text(text.replace(marker, test + marker, 1), encoding='utf-8', newline='\n')
+          '@ | python -
 
       - name: Restore
         shell: pwsh
