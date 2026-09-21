@@ -30,7 +30,9 @@ public sealed record Engine30PrescriptionDayInput(
     DateOnly Date,
     decimal MaintenanceEnergyKcal,
     string WorkoutCategoryCode,
-    decimal GlycogenReloadRequirementG);
+    decimal GlycogenReloadRequirementG,
+    decimal BackgroundCarbohydrateRequirementG =
+        Engine30BackgroundCarbohydrateCalculator.AdultObligatoryGlucoseAnchorG);
 
 public sealed record Engine30PrescriptionDayResult(
     DateOnly Date,
@@ -127,6 +129,7 @@ public sealed class Engine30PrescriptionService
             PlanReason(normalizedPlan),
             "PHYSIOLOGY_FIRST_CARBOHYDRATE",
             "BACKGROUND_CARB_EAR_100G",
+            "PERSONALIZED_BACKGROUND_CARB_FROM_HABITUAL_ACTIVITY",
             "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED"
         };
 
@@ -146,23 +149,39 @@ public sealed class Engine30PrescriptionService
                 weightKg * 0.50m,
                 5m);
 
-        var baseRestCarbs =
-            Engine30BackgroundCarbohydrateDefaults
-                .AdultBackgroundCarbohydrateEarG;
+var orderedDays =
+    days.OrderBy(x => x.Date).ToArray();
 
-        var standardCarbUpper =
-            RoundToIncrement(
-                weightKg * 5.0m,
-                5m);
+if (orderedDays.Any(
+        x =>
+            x.BackgroundCarbohydrateRequirementG
+            < Engine30BackgroundCarbohydrateCalculator
+                .AdultObligatoryGlucoseAnchorG))
+{
+    throw new ArgumentOutOfRangeException(
+        nameof(days),
+        "Background carbohydrate cannot be below the adult obligatory-glucose anchor.");
+}
 
-        var orderedDays =
-            days.OrderBy(x => x.Date).ToArray();
+// Weekly compatibility value for fuel-state/history contracts.
+// Each daily carb target below still uses that day's personalized
+// background demand rather than this average.
+var baseRestCarbs =
+    Round(
+        orderedDays.Average(
+            x => x.BackgroundCarbohydrateRequirementG),
+        2);
+
+var standardCarbUpper =
+    RoundToIncrement(
+        weightKg * 5.0m,
+        5m);
 
         var carbFloors =
             orderedDays
                 .Select(day =>
                     CeilingToIncrement(
-                        baseRestCarbs
+                        day.BackgroundCarbohydrateRequirementG
                         + day.GlycogenReloadRequirementG,
                         5m))
                 .ToArray();

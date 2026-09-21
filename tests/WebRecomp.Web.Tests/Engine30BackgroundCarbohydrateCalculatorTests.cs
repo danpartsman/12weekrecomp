@@ -93,6 +93,39 @@ public sealed class Engine30BackgroundCarbohydrateCalculatorTests
             physicalResult.HabitualActivityCarbohydrateG
             > sedentaryResult.HabitualActivityCarbohydrateG);
     }
+    [Fact]
+    public void Prescription_AddsCalculatedBackgroundToWorkoutReload_NotCalories()
+    {
+        var days =
+            Enumerable.Range(0, 7)
+                .Select(i =>
+                    new Engine30PrescriptionDayInput(
+                        new DateOnly(2026, 9, 7).AddDays(i),
+                        MaintenanceEnergyKcal: 2400m,
+                        WorkoutCategoryCode:
+                            Engine30PrescriptionCategoryCodes.ConditioningCardio,
+                        GlycogenReloadRequirementG: 78m,
+                        BackgroundCarbohydrateRequirementG: 113.93m))
+                .ToArray();
+
+        var result =
+            new Engine30PrescriptionService()
+                .Calculate(
+                    "PLAN_2",
+                    weightLb: 208m,
+                    heightIn: 73m,
+                    days: days);
+
+        Assert.All(
+            result.Days,
+            day => Assert.Equal(195m, day.RecommendedCarbsG));
+
+        Assert.Equal(113.93m, result.BaseRestCarbsG);
+        Assert.DoesNotContain(
+            result.Days,
+            day => day.CarbGoverningRuleCode == "ENERGY_BALANCE");
+    }
+
 
     [Theory]
     [InlineData(0.30, 0.225)]

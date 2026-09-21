@@ -1087,7 +1087,11 @@ public sealed class Engine30DashboardProjectionService(
                     WorkoutCategoryCode:
                         item.WorkoutCategoryCode,
                     GlycogenReloadRequirementG:
-                        item.Runtime.Glycogen.CarbohydrateReloadRequirementG);
+                        item.Runtime.Glycogen.CarbohydrateReloadRequirementG,
+        BackgroundCarbohydrateRequirementG:
+            new Engine30BackgroundCarbohydrateCalculator()
+                .Calculate(item.Runtime.HabitualActivity)
+                .TotalBackgroundCarbohydrateRequirementG);
 
             Engine30PrescriptionDayInput? actualized = null;
 
@@ -1385,7 +1389,11 @@ public sealed class Engine30DashboardProjectionService(
                 Math.Round(
                     actualGlycogenReloadRequirementG,
                     2,
-                    MidpointRounding.AwayFromZero));
+                    MidpointRounding.AwayFromZero),
+    BackgroundCarbohydrateRequirementG:
+        new Engine30BackgroundCarbohydrateCalculator()
+            .Calculate(plannedRuntime.HabitualActivity)
+            .TotalBackgroundCarbohydrateRequirementG);
     }
 
     private static string SelectActualPrescriptionCategory(
