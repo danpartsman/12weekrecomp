@@ -8,6 +8,24 @@ public static class Engine30PrescriptionCategoryCodes
     public const string RestRecoveryOther = "REST_RECOVERY_OTHER";
 }
 
+public static class Engine30BackgroundCarbohydrateDefaults
+{
+    /*
+     * Adult background carbohydrate EAR.
+     *
+     * The Institute of Medicine / National Academies carbohydrate DRI uses
+     * 100 g/day as the adult Estimated Average Requirement based on brain
+     * glucose utilization. The 130 g/day RDA includes the population-variance
+     * margin; Engine 3.0 is calculating an individual physiological floor, so
+     * it uses the 100 g EAR as the background requirement.
+     *
+     * This is deliberately NOT labeled muscle-glycogen depletion. Ordinary
+     * low-intensity living is substantially fat-fueled. Workout muscle
+     * glycogen depletion is modeled separately and added explicitly below.
+     */
+    public const decimal AdultBackgroundCarbohydrateEarG = 100m;
+}
+
 public sealed record Engine30PrescriptionDayInput(
     DateOnly Date,
     decimal MaintenanceEnergyKcal,
@@ -47,23 +65,20 @@ public sealed record Engine30WeeklyPrescriptionResult(
     IReadOnlyList<string> ReasonCodes);
 
 /// <summary>
-/// Engine 3.0 shadow prescription layer.
+/// Engine 3.0 physiology-first prescription layer.
 ///
-/// This consumes already-modeled maintenance and glycogen demand. It does not
-/// recalculate expenditure, does not add glycogen-reload kcal to maintenance,
-/// and does not modify workout configuration.
+/// Energy architecture remains authoritative for expenditure diagnostics, but
+/// expenditure no longer back-fills carbohydrate. Nutrition is constructed in
+/// physiological order:
 ///
-/// Hierarchy:
-///   1. Protect stable protein.
-///   2. Protect a stable, weight-based fat target.
-///   3. Protect the physiological carbohydrate/fuel floor.
-///   4. Periodize the remaining weekly energy across workout demand.
-///   5. If the requested deficit cannot fit those physiological floors,
-///      reduce the deficit transparently rather than reporting a calorie
-///      target that the macro prescription itself exceeds.
+///   1. Stable protein.
+///   2. Stable weight-based fat target.
+///   3. Adult background carbohydrate requirement.
+///   4. Actual Engine 3.0 glycogen reload requirement for the day's workout.
+///   5. Calories are the consequence of those macros.
 ///
-/// DRAFT calibration values remain explicit/versionable until promoted into
-/// CFG-3000.x configuration.
+/// Maintenance and plan deficit remain diagnostic guardrails. They do not
+/// manufacture carbohydrate merely to make a calorie target reconcile.
 /// </summary>
 public sealed class Engine30PrescriptionService
 {
@@ -106,49 +121,21 @@ public sealed class Engine30PrescriptionService
 
         var normalizedPlan = NormalizePlan(planCode);
         var bmi = CalculateBmi(weightLb, heightIn);
-
         var requestedPct = PlanDeficitPct(normalizedPlan);
 
         var reasons = new List<string>
         {
-            PlanReason(normalizedPlan)
+            PlanReason(normalizedPlan),
+            "PHYSIOLOGY_FIRST_CARBOHYDRATE",
+            "BACKGROUND_CARB_EAR_100G",
+            "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED"
         };
+
+        if (bmi < 18.5m)
+            reasons.Add("BMI_BELOW_DEFICIT_THRESHOLD_REVIEW");
 
         var weeklyMaintenance =
             days.Sum(x => x.MaintenanceEnergyKcal);
-
-        decimal effectiveRequestedPct = requestedPct;
-
-        if (bmi < 18.5m)
-        {
-            effectiveRequestedPct = 0m;
-            reasons.Add("BMI_BELOW_DEFICIT_THRESHOLD");
-        }
-
-        var boundedPct =
-            Math.Clamp(
-                effectiveRequestedPct,
-                0m,
-                0.20m);
-
-        if (boundedPct < effectiveRequestedPct)
-            reasons.Add("DEFICIT_PERCENT_CAP_APPLIED");
-
-        var percentageDeficit =
-            weeklyMaintenance * boundedPct;
-
-        var requestedWeeklyDeficit =
-            Math.Min(
-                percentageDeficit,
-                500m * 7m);
-
-        if (requestedWeeklyDeficit < percentageDeficit)
-            reasons.Add("DEFICIT_ABSOLUTE_CAP_APPLIED");
-
-        var requestedWeeklyPrescribed =
-            RoundToIncrement(
-                weeklyMaintenance - requestedWeeklyDeficit,
-                10m);
 
         var weightKg =
             weightLb / PoundsPerKg;
@@ -158,442 +145,169 @@ public sealed class Engine30PrescriptionService
                 weightLb * 0.88m,
                 5m);
 
+        /*
+         * Stable dietary fat remains a minimum weight-based target. It is not
+         * used as a residual calorie bucket.
+         */
+        var fat =
+            CeilingToIncrement(
+                weightKg * 0.50m,
+                5m);
+
+        /*
+         * Compatibility name: BaseRestCarbsG now means the physiological
+         * background glucose/carbohydrate requirement, not a plan-owned carb
+         * allowance. It is intentionally identical across plans.
+         */
         var baseRestCarbs =
-            BaseRestCarbs(normalizedPlan);
+            Engine30BackgroundCarbohydrateDefaults
+                .AdultBackgroundCarbohydrateEarG;
 
         var standardCarbUpper =
             RoundToIncrement(
                 weightKg * 5.0m,
                 5m);
 
-        var allocationRows =
-            days.Select(x => new AllocationRow(
-                    Day: x,
-                    Weight:
-                        CategoryWeight(
-                            x.WorkoutCategoryCode),
-                    Score:
-                        x.MaintenanceEnergyKcal
-                        * CategoryWeight(
-                            x.WorkoutCategoryCode)))
-                .ToArray();
-
-        if (allocationRows.Sum(x => x.Score) <= 0m)
-        {
-            throw new InvalidOperationException(
-                "Weekly allocation score must be positive.");
-        }
-
-        /*
-         * Stable fat is a deliberate weight-based target, not a residual
-         * calorie bucket and not a percentage of average prescribed energy.
-         *
-         * Engine 3.0 keeps fat at 0.50 g/kg (rounded upward to the next 5 g)
-         * for the full week. Protein remains stable and carbohydrate is the
-         * primary macro that moves with training, glycogen demand, and the
-         * category energy policy.
-         */
-        var weeklyPrescribed =
-            requestedWeeklyPrescribed;
-
-        var fat =
-            CeilingToIncrement(
-                weightKg * 0.50m,
-                5m);
-
-        decimal[] carbFloors = [];
-        decimal[] minimumDailyTargets = [];
-
-        for (var iteration = 0; iteration < 10; iteration++)
-        {
-            var fixedKcal =
-                protein * 4m
-                + fat * 9m;
-
-            carbFloors =
-                allocationRows
-                    .Select(x =>
-                        /*
-                         * A physiological carbohydrate FLOOR is also rounded
-                         * upward, never downward.
-                         */
-                        CeilingToIncrement(
-                            baseRestCarbs
-                            + x.Day.GlycogenReloadRequirementG,
-                            5m))
-                    .ToArray();
-
-            minimumDailyTargets =
-                carbFloors
-                    .Select(carbFloor =>
-                        /*
-                         * Daily calorie target must be high enough to contain
-                         * stable protein + stable fat + the carb floor.
-                         *
-                         * The calorie target remains a 10-kcal value.
-                         */
-                        CeilingToIncrement(
-                            fixedKcal
-                            + carbFloor * 4m,
-                            10m))
-                    .ToArray();
-
-            var minimumWeeklyEnergy =
-                minimumDailyTargets.Sum();
-
-            if (minimumWeeklyEnergy
-                <= weeklyPrescribed + 0.001m)
-            {
-                break;
-            }
-
-            /*
-             * The requested deficit cannot coexist with the configured
-             * physiological macro floors. Reduce the deficit instead of
-             * allowing macro-derived calories to silently exceed the target.
-             */
-            weeklyPrescribed =
-                CeilingToIncrement(
-                    minimumWeeklyEnergy,
-                    10m);
-
-            if (!reasons.Contains(
-                    "DEFICIT_REDUCED_TO_PROTECT_MACRO_FLOORS"))
-            {
-                reasons.Add(
-                    "DEFICIT_REDUCED_TO_PROTECT_MACRO_FLOORS");
-            }
-
-            if (iteration == 9)
-            {
-                throw new InvalidOperationException(
-                    "Engine 3.0 macro-floor reconciliation did not converge.");
-            }
-        }
-
-        if (weeklyPrescribed
-            > weeklyMaintenance + 0.001m)
-        {
-            /*
-             * Do not hide an impossible calibration. This means the current
-             * protein/fat/carb floors require more energy than modeled
-             * maintenance across the week.
-             */
-            reasons.Add(
-                "PHYSIOLOGICAL_MACRO_MINIMUM_EXCEEDS_MAINTENANCE");
-        }
-
-        /*
-         * Allocate the authoritative weekly energy with lower bounds.
-         *
-         * This is a constrained proportional allocation:
-         * - start with maintenance x category-weight shares;
-         * - lock any day whose proportional share falls below its macro floor;
-         * - reallocate the remaining energy over the remaining days;
-         * - preserve the exact weekly total.
-         */
-        var roundedTargets =
-            AllocateTargetsWithFloors(
-                allocationRows.Select(x => x.Score).ToArray(),
-                minimumDailyTargets,
-                weeklyPrescribed);
-
         var results =
             new List<Engine30PrescriptionDayResult>(7);
 
-        for (var i = 0; i < allocationRows.Length; i++)
+        foreach (var day in days.OrderBy(x => x.Date))
         {
-            var row =
-                allocationRows[i];
-
-            var energyTarget =
-                roundedTargets[i];
-
             var carbFloor =
-                carbFloors[i];
-
-            var fixedKcal =
-                protein * 4m
-                + fat * 9m;
-
-            var energyBalancedCarbs =
-                RoundToIncrement(
-                    Math.Max(
-                        0m,
-                        (energyTarget - fixedKcal) / 4m),
+                CeilingToIncrement(
+                    baseRestCarbs
+                    + day.GlycogenReloadRequirementG,
                     5m);
 
-            decimal carbs;
-            string governing;
-
-            if (carbFloor > standardCarbUpper)
-            {
-                carbs = carbFloor;
-                governing =
-                    "PHYSIOLOGICAL_FLOOR_EXCEEDS_STANDARD_MAX";
-            }
-            else if (energyBalancedCarbs < carbFloor)
-            {
-                carbs = carbFloor;
-                governing =
-                    "PHYSIOLOGICAL_FLOOR";
-            }
-            else if (energyBalancedCarbs > standardCarbUpper)
-            {
-                carbs = standardCarbUpper;
-                governing =
-                    "STANDARD_USEFUL_MAX";
-            }
-            else
-            {
-                carbs = energyBalancedCarbs;
-                governing =
-                    "ENERGY_BALANCE";
-            }
+            /*
+             * Do NOT use maintenance or a requested calorie target to fill
+             * carbohydrate. The carbohydrate prescription is exactly the
+             * background requirement plus calculated glycogen replacement.
+             */
+            var carbs = carbFloor;
 
             var macroKcal =
                 Math.Round(
                     protein * 4m
-                    + carbs * 4m
-                    + fat * 9m,
+                    + fat * 9m
+                    + carbs * 4m,
                     0,
                     MidpointRounding.AwayFromZero);
 
+            var governing =
+                carbFloor > standardCarbUpper
+                    ? "PHYSIOLOGICAL_FLOOR_EXCEEDS_STANDARD_MAX"
+                    : "BACKGROUND_PLUS_GLYCOGEN_RELOAD";
+
             results.Add(
                 new Engine30PrescriptionDayResult(
-                    row.Day.Date,
-                    NormalizeCategory(
-                        row.Day.WorkoutCategoryCode),
-                    row.Weight,
-                    Round(
-                        row.Day.MaintenanceEnergyKcal,
-                        2),
-                    energyTarget,
-                    protein,
-                    fat,
-                    carbFloor,
-                    energyBalancedCarbs,
-                    standardCarbUpper,
-                    carbs,
-                    macroKcal,
-                    Round(
-                        macroKcal - energyTarget,
-                        2),
-                    governing));
+                    Date: day.Date,
+                    WorkoutCategoryCode:
+                        NormalizeCategory(day.WorkoutCategoryCode),
+                    CategoryWeight:
+                        CategoryWeight(day.WorkoutCategoryCode),
+                    MaintenanceEnergyKcal:
+                        Round(day.MaintenanceEnergyKcal, 2),
+                    PrescribedEnergyKcal:
+                        macroKcal,
+                    ProteinG:
+                        protein,
+                    FatG:
+                        fat,
+                    PhysiologicalCarbFloorG:
+                        carbFloor,
+                    // Legacy diagnostic field retained for contract stability.
+                    // It intentionally equals the physiology-governed target.
+                    EnergyBalancedCarbsG:
+                        carbs,
+                    StandardCarbUpperBoundaryG:
+                        standardCarbUpper,
+                    RecommendedCarbsG:
+                        carbs,
+                    MacroDerivedEnergyKcal:
+                        macroKcal,
+                    MacroEnergyVarianceKcal:
+                        0m,
+                    CarbGoverningRuleCode:
+                        governing));
         }
+
+        var weeklyPrescribed =
+            results.Sum(x => x.PrescribedEnergyKcal);
+
+        var weeklyDeficit =
+            weeklyMaintenance - weeklyPrescribed;
 
         var effectivePct =
             weeklyMaintenance > 0m
-                ? (weeklyMaintenance - weeklyPrescribed)
-                    / weeklyMaintenance
+                ? weeklyDeficit / weeklyMaintenance
                 : 0m;
 
+        var absoluteDeficitCap = 500m * 7m;
+        var percentageDeficitCap = weeklyMaintenance * 0.20m;
+        var safetyDeficitCap = Math.Min(
+            absoluteDeficitCap,
+            percentageDeficitCap);
+
+        if (weeklyDeficit > safetyDeficitCap + 0.001m)
+        {
+            reasons.Add(
+                "MACRO_DERIVED_DEFICIT_EXCEEDS_EXISTING_SAFETY_GUARDRAIL_REVIEW");
+        }
+
+        if (weeklyPrescribed > weeklyMaintenance + 0.001m)
+        {
+            reasons.Add(
+                "PHYSIOLOGICAL_MACROS_EXCEED_MAINTENANCE_REVIEW");
+        }
+
+        if (effectivePct > requestedPct + 0.001m)
+        {
+            reasons.Add(
+                "MACRO_DERIVED_DEFICIT_EXCEEDS_PLAN_TARGET");
+        }
+        else if (effectivePct < requestedPct - 0.001m)
+        {
+            reasons.Add(
+                "PHYSIOLOGICAL_MACROS_LIMIT_PLAN_DEFICIT");
+        }
+
         return new Engine30WeeklyPrescriptionResult(
-            normalizedPlan,
-            Round(weightLb, 2),
-            Round(bmi, 2),
-            Round(requestedPct, 4),
-            Round(effectivePct, 6),
-            Round(weeklyMaintenance, 2),
-            Round(
-                weeklyMaintenance - weeklyPrescribed,
-                2),
-            weeklyPrescribed,
-            Round(
-                weeklyPrescribed / 7m,
-                2),
-            protein,
-            fat,
-            baseRestCarbs,
-            results,
-            reasons);
-    }
-
-    private static decimal[] AllocateTargetsWithFloors(
-        decimal[] scores,
-        decimal[] minimumTargets,
-        decimal weeklyTarget)
-    {
-        if (scores.Length != minimumTargets.Length)
-        {
-            throw new ArgumentException(
-                "Allocation score and minimum-target arrays must have equal length.");
-        }
-
-        if (scores.Length == 0)
-            return [];
-
-        if (minimumTargets.Sum()
-            > weeklyTarget + 0.001m)
-        {
-            throw new InvalidOperationException(
-                "Weekly prescribed energy is below the sum of the daily physiological macro floors.");
-        }
-
-        var raw =
-            new decimal[scores.Length];
-
-        var locked =
-            new bool[scores.Length];
-
-        var remainingTarget =
-            weeklyTarget;
-
-        var remainingScore =
-            scores.Sum();
-
-        while (true)
-        {
-            var unlocked =
-                Enumerable.Range(
-                        0,
-                        scores.Length)
-                    .Where(i => !locked[i])
-                    .ToArray();
-
-            if (unlocked.Length == 0)
-                break;
-
-            if (remainingScore <= 0m)
-            {
-                throw new InvalidOperationException(
-                    "Remaining allocation score must stay positive.");
-            }
-
-            var proposals =
-                unlocked
-                    .Select(i => new
-                    {
-                        Index = i,
-                        Proposed =
-                            remainingTarget
-                            * scores[i]
-                            / remainingScore,
-                        Deficit =
-                            remainingTarget
-                            * scores[i]
-                            / remainingScore
-                            - minimumTargets[i]
-                    })
-                    .OrderBy(x => x.Deficit)
-                    .ThenBy(x => x.Index)
-                    .ToArray();
-
-            var worst =
-                proposals[0];
-
-            if (worst.Deficit >= -0.001m)
-            {
-                foreach (var proposal in proposals)
-                {
-                    raw[proposal.Index] =
-                        proposal.Proposed;
-                }
-
-                break;
-            }
-
-            /*
-             * Lock only the most constrained day, then recompute. Locking all
-             * provisional violations at once can over-constrain the solution
-             * because removing one floor-bound day increases the share
-             * available to all remaining days.
-             */
-            raw[worst.Index] =
-                minimumTargets[worst.Index];
-
-            locked[worst.Index] = true;
-
-            remainingTarget -=
-                raw[worst.Index];
-
-            remainingScore -=
-                scores[worst.Index];
-        }
-
-        var rounded =
-            raw.Select(
-                    (value, i) =>
-                        Math.Max(
-                            minimumTargets[i],
-                            RoundToIncrement(
-                                value,
-                                10m)))
-                .ToArray();
-
-        var difference =
-            weeklyTarget
-            - rounded.Sum();
-
-        while (difference >= 9.999m)
-        {
-            var index =
-                raw.Select(
-                        (value, i) => new
-                        {
-                            Index = i,
-                            Residual =
-                                value - rounded[i]
-                        })
-                    .OrderByDescending(
-                        x => x.Residual)
-                    .ThenBy(
-                        x => x.Index)
-                    .First()
-                    .Index;
-
-            rounded[index] += 10m;
-            difference -= 10m;
-        }
-
-        while (difference <= -9.999m)
-        {
-            var candidate =
-                raw.Select(
-                        (value, i) => new
-                        {
-                            Index = i,
-                            Residual =
-                                rounded[i] - value,
-                            CanReduce =
-                                rounded[i] - 10m
-                                >= minimumTargets[i]
-                                - 0.001m
-                        })
-                    .Where(x => x.CanReduce)
-                    .OrderByDescending(
-                        x => x.Residual)
-                    .ThenBy(
-                        x => x.Index)
-                    .FirstOrDefault();
-
-            if (candidate is null)
-            {
-                throw new InvalidOperationException(
-                    "Rounded weekly targets could not be reconciled without violating a physiological macro floor.");
-            }
-
-            rounded[candidate.Index] -= 10m;
-            difference += 10m;
-        }
-
-        /*
-         * Every meaningful value is 10-kcal rounded here. Any remaining
-         * fraction is decimal noise.
-         */
-        if (Math.Abs(difference) > 0.01m)
-        {
-            throw new InvalidOperationException(
-                $"Weekly target reconciliation left an unexpected {difference:0.###} kcal residual.");
-        }
-
-        return rounded;
+            PlanCode:
+                normalizedPlan,
+            WeightLb:
+                Round(weightLb, 2),
+            Bmi:
+                Round(bmi, 2),
+            RequestedDeficitPct:
+                Round(requestedPct, 4),
+            EffectiveDeficitPct:
+                Round(effectivePct, 6),
+            WeeklyMaintenanceEnergyKcal:
+                Round(weeklyMaintenance, 2),
+            WeeklyDeficitKcal:
+                Round(weeklyDeficit, 2),
+            WeeklyPrescribedEnergyKcal:
+                weeklyPrescribed,
+            AverageDailyPrescribedEnergyKcal:
+                Round(weeklyPrescribed / 7m, 2),
+            StableProteinG:
+                protein,
+            StableFatG:
+                fat,
+            BaseRestCarbsG:
+                baseRestCarbs,
+            Days:
+                results,
+            ReasonCodes:
+                reasons
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray());
     }
 
     private static decimal CategoryWeight(
         string categoryCode)
-        => NormalizeCategory(
-            categoryCode) switch
+        => NormalizeCategory(categoryCode) switch
         {
             Engine30PrescriptionCategoryCodes.MajorStrength
                 => 1.10m,
@@ -614,24 +328,38 @@ public sealed class Engine30PrescriptionService
     private static string NormalizeCategory(
         string categoryCode)
     {
-        if (string.IsNullOrWhiteSpace(
-                categoryCode))
+        if (string.IsNullOrWhiteSpace(categoryCode))
         {
             throw new ArgumentException(
                 "Workout category is required.",
                 nameof(categoryCode));
         }
 
-        return categoryCode
-            .Trim()
-            .ToUpperInvariant();
+        var normalized =
+            categoryCode
+                .Trim()
+                .ToUpperInvariant();
+
+        return normalized switch
+        {
+            Engine30PrescriptionCategoryCodes.MajorStrength
+                => Engine30PrescriptionCategoryCodes.MajorStrength,
+            Engine30PrescriptionCategoryCodes.AccessoryStrength
+                => Engine30PrescriptionCategoryCodes.AccessoryStrength,
+            Engine30PrescriptionCategoryCodes.ConditioningCardio
+                => Engine30PrescriptionCategoryCodes.ConditioningCardio,
+            Engine30PrescriptionCategoryCodes.RestRecoveryOther
+                => Engine30PrescriptionCategoryCodes.RestRecoveryOther,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(categoryCode),
+                $"Unsupported prescription category '{categoryCode}'.")
+        };
     }
 
     private static string NormalizePlan(
         string planCode)
     {
-        if (string.IsNullOrWhiteSpace(
-                planCode))
+        if (string.IsNullOrWhiteSpace(planCode))
         {
             throw new ArgumentException(
                 "Plan is required.",
@@ -668,21 +396,6 @@ public sealed class Engine30PrescriptionService
             "PLAN_4" => "PLAN_ATHLETIC_RECOMP",
             "PLAN_5" => "PLAN_PAIN_LIMITED",
             _ => "PLAN_UNKNOWN"
-        };
-
-    private static decimal BaseRestCarbs(
-        string planCode)
-        => planCode switch
-        {
-            "PLAN_1" => 100m,
-            "PLAN_2" => 120m,
-            "PLAN_3" => 140m,
-            "PLAN_4" => 130m,
-            "PLAN_5" => 90m,
-
-            _ => throw new ArgumentException(
-                $"Unsupported Recomp plan '{planCode}'.",
-                nameof(planCode))
         };
 
     private static decimal CalculateBmi(
@@ -726,10 +439,4 @@ public sealed class Engine30PrescriptionService
                 value,
                 decimals,
                 MidpointRounding.AwayFromZero);
-
-    private sealed record AllocationRow(
-        Engine30PrescriptionDayInput Day,
-        decimal Weight,
-        decimal Score);
 }
-
