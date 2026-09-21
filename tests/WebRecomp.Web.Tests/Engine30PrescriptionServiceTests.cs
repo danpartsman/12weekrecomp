@@ -213,10 +213,21 @@ public sealed class Engine30PrescriptionServiceTests
         Assert.Equal(210m, a.Days[0].RecommendedCarbsG);
         Assert.Equal(300m, b.Days[0].RecommendedCarbsG);
 
+        // The extra 90 g of workout carbohydrate is preserved exactly.
         Assert.Equal(
-            360m,
-            b.Days[0].PrescribedEnergyKcal
-            - a.Days[0].PrescribedEnergyKcal);
+            90m,
+            b.Days[0].RecommendedCarbsG
+            - a.Days[0].RecommendedCarbsG);
+
+        // Calories always reconcile from the macros. If the weekly energy
+        // safety guardrail is active, additional carbohydrate can legitimately
+        // reduce the amount of guardrail fat required; therefore the calorie
+        // delta is not assumed to equal carbohydrate delta x 4.
+        Assert.Equal(
+            b.Days[0].ProteinG * 4m
+            + b.Days[0].FatG * 9m
+            + b.Days[0].RecommendedCarbsG * 4m,
+            b.Days[0].PrescribedEnergyKcal);
     }
 
     private static Engine30PrescriptionDayInput[] StandardWeek(
