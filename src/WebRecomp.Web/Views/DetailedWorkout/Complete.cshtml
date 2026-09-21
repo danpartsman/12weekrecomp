@@ -42,7 +42,7 @@
         </div>
 
         <div class="wi-complete-kicker">
-            WORKOUT COMPLETE
+            SEGMENT COMPLETE
         </div>
 
         <h1>@workoutName</h1>
@@ -82,10 +82,39 @@
             }
         </div>
 
-        <a class="button primary wi-complete-dashboard"
+        <section class="wi-complete-next-v1012"
+                 aria-label="Continue training">
+            <strong>Continue training?</strong>
+            <p>
+                Start another segment with its own independent timer, or finish
+                training and return to your dashboard.
+            </p>
+
+            <div class="wi-actions">
+                <a class="button primary"
+                   asp-controller="DetailedWorkout"
+                   asp-action="Index"
+                   asp-route-mode="start"
+                   asp-route-startCategory="system"
+                   asp-route-trainingFilter="cardio">
+                    Start Cardio
+                </a>
+
+                <a class="button"
+                   asp-controller="DetailedWorkout"
+                   asp-action="Index"
+                   asp-route-mode="start"
+                   asp-route-startCategory="my"
+                   asp-route-trainingFilter="strength">
+                    Start Strength
+                </a>
+            </div>
+        </section>
+
+        <a class="button wi-complete-dashboard"
            asp-controller="Dashboard"
            asp-action="Index">
-            Close Workout &amp; Return to Dashboard
+            Finish Training &amp; Return to Dashboard
         </a>
     </section>
 </div>
