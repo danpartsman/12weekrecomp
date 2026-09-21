@@ -1,0 +1,251 @@
+name: Patch personalized background carbohydrate
+
+on:
+  push:
+    branches: [ test ]
+    paths:
+      - '.github/workflows/patch-personalized-background-carbs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout TEST
+        uses: actions/checkout@v7
+        with:
+          ref: test
+          fetch-depth: 0
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
+
+      - name: Patch prescription and dashboard wiring
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          function Replace-Exact([string]$Path, [string]$Old, [string]$New, [string]$Label) {
+              $text = [System.IO.File]::ReadAllText($Path)
+              if (-not $text.Contains($Old)) {
+                  throw "Expected patch marker not found: $Label in $Path"
+              }
+              $text = $text.Replace($Old, $New)
+              [System.IO.File]::WriteAllText($Path, $text, [System.Text.UTF8Encoding]::new($false))
+          }
+
+          $service = 'src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs'
+          $dashboard = 'src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs'
+
+          $old = @'
+          public sealed record Engine30PrescriptionDayInput(
+              DateOnly Date,
+              decimal MaintenanceEnergyKcal,
+              string WorkoutCategoryCode,
+              decimal GlycogenReloadRequirementG);
+          '@
+          $new = @'
+          public sealed record Engine30PrescriptionDayInput(
+              DateOnly Date,
+              decimal MaintenanceEnergyKcal,
+              string WorkoutCategoryCode,
+              decimal GlycogenReloadRequirementG,
+              decimal BackgroundCarbohydrateRequirementG =
+                  Engine30BackgroundCarbohydrateCalculator.AdultObligatoryGlucoseAnchorG);
+          '@
+          Replace-Exact $service $old $new 'prescription input background field'
+
+          $old = @'
+                  PlanReason(normalizedPlan),
+                  "PHYSIOLOGY_FIRST_CARBOHYDRATE",
+                  "BACKGROUND_CARB_EAR_100G",
+                  "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED"
+          '@
+          $new = @'
+                  PlanReason(normalizedPlan),
+                  "PHYSIOLOGY_FIRST_CARBOHYDRATE",
+                  "OBLIGATORY_GLUCOSE_ANCHOR_100G",
+                  "PERSONALIZED_BACKGROUND_CARB_FROM_HABITUAL_ACTIVITY",
+                  "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED"
+          '@
+          Replace-Exact $service $old $new 'reason codes'
+
+          $old = @'
+              var baseRestCarbs =
+                  Engine30BackgroundCarbohydrateDefaults
+                      .AdultBackgroundCarbohydrateEarG;
+
+              var standardCarbUpper =
+                  RoundToIncrement(
+                      weightKg * 5.0m,
+                      5m);
+
+              var orderedDays =
+                  days.OrderBy(x => x.Date).ToArray();
+          '@
+          $new = @'
+              var orderedDays =
+                  days.OrderBy(x => x.Date).ToArray();
+
+              if (orderedDays.Any(
+                      x =>
+                          x.BackgroundCarbohydrateRequirementG
+                          < Engine30BackgroundCarbohydrateCalculator
+                              .AdultObligatoryGlucoseAnchorG))
+              {
+                  throw new ArgumentOutOfRangeException(
+                      nameof(days),
+                      "Background carbohydrate cannot be below the adult obligatory-glucose anchor.");
+              }
+
+              // Compatibility aggregate for the existing weekly/fuel-state contract.
+              // Current habitual activity is a weekly-average model, so this value
+              // will normally be identical across all seven days. The day input is
+              // already capable of carrying different values when day-specific
+              // activity data become available.
+              var baseRestCarbs =
+                  Round(
+                      orderedDays.Average(
+                          x => x.BackgroundCarbohydrateRequirementG),
+                      2);
+
+              var standardCarbUpper =
+                  RoundToIncrement(
+                      weightKg * 5.0m,
+                      5m);
+          '@
+          Replace-Exact $service $old $new 'personalized background aggregate'
+
+          $old = @'
+                      CeilingToIncrement(
+                          baseRestCarbs
+                          + day.GlycogenReloadRequirementG,
+                          5m))
+          '@
+          $new = @'
+                      CeilingToIncrement(
+                          day.BackgroundCarbohydrateRequirementG
+                          + day.GlycogenReloadRequirementG,
+                          5m))
+          '@
+          Replace-Exact $service $old $new 'daily personalized carb floor'
+
+          $old = @'
+                      GlycogenReloadRequirementG:
+                          item.Runtime.Glycogen.CarbohydrateReloadRequirementG);
+          '@
+          $new = @'
+                      GlycogenReloadRequirementG:
+                          item.Runtime.Glycogen.CarbohydrateReloadRequirementG,
+                      BackgroundCarbohydrateRequirementG:
+                          new Engine30BackgroundCarbohydrateCalculator()
+                              .Calculate(item.Runtime.HabitualActivity)
+                              .TotalBackgroundCarbohydrateRequirementG);
+          '@
+          Replace-Exact $dashboard $old $new 'planned dashboard background carbs'
+
+          $old = @'
+                  GlycogenReloadRequirementG:
+                      Math.Round(
+                          actualGlycogenReloadRequirementG,
+                          2,
+                          MidpointRounding.AwayFromZero));
+          '@
+          $new = @'
+                  GlycogenReloadRequirementG:
+                      Math.Round(
+                          actualGlycogenReloadRequirementG,
+                          2,
+                          MidpointRounding.AwayFromZero),
+                  BackgroundCarbohydrateRequirementG:
+                      new Engine30BackgroundCarbohydrateCalculator()
+                          .Calculate(plannedRuntime.HabitualActivity)
+                          .TotalBackgroundCarbohydrateRequirementG);
+          '@
+          Replace-Exact $dashboard $old $new 'actualized dashboard background carbs'
+
+          Write-Host 'Personalized background carbohydrate wiring patched.'
+
+      - name: Add regression assertion for personalized prescription
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = 'tests/WebRecomp.Web.Tests/Engine30BackgroundCarbohydrateCalculatorTests.cs'
+          $text = [System.IO.File]::ReadAllText($path)
+          $marker = @'
+              [Theory]
+              [InlineData(0.30, 0.225)]
+          '@
+          if (-not $text.Contains($marker)) {
+              throw 'Test insertion marker not found.'
+          }
+          $test = @'
+              [Fact]
+              public void Prescription_AddsCalculatedBackgroundToWorkoutReload_NotCalories()
+              {
+                  var days =
+                      Enumerable.Range(0, 7)
+                          .Select(i =>
+                              new Engine30PrescriptionDayInput(
+                                  new DateOnly(2026, 9, 7).AddDays(i),
+                                  MaintenanceEnergyKcal: 2400m,
+                                  WorkoutCategoryCode:
+                                      Engine30PrescriptionCategoryCodes.ConditioningCardio,
+                                  GlycogenReloadRequirementG: 78m,
+                                  BackgroundCarbohydrateRequirementG: 113.93m))
+                          .ToArray();
+
+                  var result =
+                      new Engine30PrescriptionService()
+                          .Calculate(
+                              "PLAN_2",
+                              weightLb: 208m,
+                              heightIn: 73m,
+                              days: days);
+
+                  // 113.93 + 78 = 191.93, rounded upward to the next 5 g.
+                  Assert.All(
+                      result.Days,
+                      day => Assert.Equal(195m, day.RecommendedCarbsG));
+
+                  Assert.Equal(113.93m, result.BaseRestCarbsG);
+                  Assert.DoesNotContain(
+                      result.Days,
+                      day => day.CarbGoverningRuleCode == "ENERGY_BALANCE");
+              }
+
+          '@
+          $text = $text.Replace($marker, $test + $marker)
+          [System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          dotnet restore src/WebRecomp.Web/WebRecomp.Web.csproj
+          dotnet restore tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build src/WebRecomp.Web/WebRecomp.Web.csproj --configuration Release --no-restore
+
+      - name: Test
+        shell: pwsh
+        run: dotnet test tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj --configuration Release --no-restore
+
+      - name: Commit tested patch and remove temporary workflow
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Remove-Item '.github/workflows/patch-personalized-background-carbs.yml'
+          git config user.name 'danpartsman'
+          git config user.email 'danpartsman@gmail.com'
+          git add src/WebRecomp.Web/Services/Engine30/Engine30PrescriptionService.cs
+          git add src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs
+          git add tests/WebRecomp.Web.Tests/Engine30BackgroundCarbohydrateCalculatorTests.cs
+          git add .github/workflows/patch-personalized-background-carbs.yml
+          git commit -m '12WR TEST v1012 — personalize living carbohydrate demand'
+          git push origin HEAD:test
