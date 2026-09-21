@@ -30,19 +30,17 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import textwrap
 
           path = Path('src/WebRecomp.Web/Services/Engine30/Engine30DashboardProjectionService.cs')
           text = path.read_text(encoding='utf-8-sig')
 
-          # Insert completed-session lookup immediately before the canonical
-          # seven-day runtime list. The anchor is intentionally short and unique
-          # so whitespace changes in the preceding LINQ do not break the patch.
-          daily_anchor = '''        var dailyResults =
-              new List<(
-                  Engine30DailyRuntimeResult Runtime,
-          '''
+          daily_anchor = (
+              "        var dailyResults =\n"
+              "            new List<("
+          )
 
-          completed_block = '''        // B2.35.33 COMPLETED-WORKOUT NUTRITION ACTUALIZATION
+          completed_body = '''// B2.35.33 COMPLETED-WORKOUT NUTRITION ACTUALIZATION
           //
           // Preserve the Weekly Plan as historical/planned truth for the workout UI,
           // but once a workout is completed, use the completed session's Engine 3.0
@@ -87,21 +85,17 @@ jobs:
                   .ToDictionary(
                       x => x.Key,
                       x => (IReadOnlyList<WorkoutSession>)x.ToArray());
-
           '''
 
           if 'B2.35.33 COMPLETED-WORKOUT NUTRITION ACTUALIZATION' not in text:
-              if daily_anchor not in text:
+              pos = text.find(daily_anchor)
+              if pos < 0:
                   raise SystemExit('daily runtime anchor not found; refusing unsafe patch')
-              text = text.replace(daily_anchor, completed_block + daily_anchor, 1)
+              completed_block = textwrap.indent(completed_body, '        ') + '\n'
+              text = text[:pos] + completed_block + text[pos:]
 
-          # Replace only the planned-only prescription-input construction. We use
-          # stable start/end anchors rather than reproducing every indentation level.
-          prescription_start = '''        var prescriptionInputs =
-              dailyResults
-          '''
-          anchor_date = '''        var anchorDate =
-          '''
+          prescription_start = "        var prescriptionInputs =\n"
+          anchor_date = "        var anchorDate =\n"
 
           start = text.find(prescription_start)
           if start < 0:
@@ -110,7 +104,7 @@ jobs:
           if end < 0:
               raise SystemExit('anchorDate boundary not found; refusing unsafe patch')
 
-          replacement = '''        var prescriptionInputs =
+          replacement_body = '''var prescriptionInputs =
               new List<Engine30PrescriptionDayInput>(7);
 
           foreach (var item in dailyResults)
@@ -153,15 +147,17 @@ jobs:
 
           '''
 
-          existing_segment = text[start:end]
-          if 'actualized ?? plannedInput' not in existing_segment:
+          existing = text[start:end]
+          if 'actualized ?? plannedInput' not in existing:
+              replacement = textwrap.indent(replacement_body, '        ')
               text = text[:start] + replacement + text[end:]
 
-          helper_anchor = '''    private async Task<(decimal DemandG, string? Summary)>
-              CalculateActualDayGlycogenAsync(
-          '''
+          helper_anchor = (
+              "    private async Task<(decimal DemandG, string? Summary)>\n"
+              "        CalculateActualDayGlycogenAsync("
+          )
 
-          helper = '''    private async Task<Engine30PrescriptionDayInput?>
+          helper_body = '''private async Task<Engine30PrescriptionDayInput?>
           BuildActualizedPrescriptionDayInputAsync(
               Client client,
               Engine30DailyRuntimeResult plannedRuntime,
@@ -334,21 +330,18 @@ jobs:
           '''
 
           if 'BuildActualizedPrescriptionDayInputAsync(' not in text:
-              if helper_anchor not in text:
+              pos = text.find(helper_anchor)
+              if pos < 0:
                   raise SystemExit('actual glycogen helper anchor not found; refusing unsafe patch')
-              text = text.replace(helper_anchor, helper + helper_anchor, 1)
+              helper = textwrap.indent(helper_body, '    ')
+              text = text[:pos] + helper + text[pos:]
 
           path.write_text(text, encoding='utf-8')
 
-          test_path = Path('tests/WebRecomp.Web.Tests/Engine30CompletedWorkoutNutritionWiringTests.cs')
-          test_path.write_text(r'''using Xunit;
+          test_body = '''using Xunit;
 
           namespace WebRecomp.Web.Tests;
 
-          /// <summary>
-          /// Regression guard for B2.35.33: completed workouts must actualize the
-          /// Engine 3.0 nutrition prescription without overwriting planned-workout UI.
-          /// </summary>
           public sealed class Engine30CompletedWorkoutNutritionWiringTests
           {
               [Fact]
@@ -396,7 +389,10 @@ jobs:
                       "Could not locate the 12WR repository root.");
               }
           }
-          ''', encoding='utf-8')
+          '''
+
+          test_path = Path('tests/WebRecomp.Web.Tests/Engine30CompletedWorkoutNutritionWiringTests.cs')
+          test_path.write_text(test_body, encoding='utf-8')
           PY
 
       - name: Verify patch markers
