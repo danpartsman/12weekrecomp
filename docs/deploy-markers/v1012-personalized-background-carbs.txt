@@ -1,0 +1,2 @@
+Deploy TEST v1012 personalized background carbohydrate model.
+Application logic commit: e7f85b97b08706af3740f59c3037b3cd69531763
