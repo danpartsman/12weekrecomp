@@ -6,7 +6,7 @@
 
     if (!document.querySelector('script[data-12wr-rest-timer="v1012"]')) {
         const restTimerScript = document.createElement("script");
-        restTimerScript.src = "/js/rest-timer-v1012.js?v=1012rest1";
+        restTimerScript.src = "/js/rest-timer-v1012.js?v=1012rest2";
         restTimerScript.dataset["12wrRestTimer"] = "v1012";
         document.head.appendChild(restTimerScript);
     }
