@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using WebRecomp.NutritionIntelligence.Persistence;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Services;
 
@@ -10,7 +11,8 @@ namespace WebRecomp.Web.Controllers;
 [Route("test-persona/status")]
 public sealed class TestPersonaStatusController(
     RecompDbContext db,
-    TestPersonaSessionService sessions) : ControllerBase
+    TestPersonaSessionService sessions,
+    INutritionFoodLogStore nutritionStore) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Index(
@@ -32,18 +34,7 @@ public sealed class TestPersonaStatusController(
 
             if (user is null)
             {
-                rows.Add(new TestPersonaStatusRow(
-                    spec.Email,
-                    Exists: false,
-                    Active: false,
-                    Client: false,
-                    Program: false,
-                    Measurements: 0,
-                    DailyCheckins: 0,
-                    NutritionDays: 0,
-                    CompletedWorkouts: 0,
-                    PlannedWorkouts: 0,
-                    Ready: false));
+                rows.Add(Empty(spec.Email));
                 continue;
             }
 
@@ -56,14 +47,13 @@ public sealed class TestPersonaStatusController(
                 .Select(x => (Guid?)x.ClientId)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            var programId = clientId.HasValue
+            var program = clientId.HasValue
                 ? await db.Programs
                     .AsNoTracking()
                     .Where(x =>
                         x.ClientId == clientId.Value
                         && x.ProgramStatusCode == "ACTIVE")
                     .OrderByDescending(x => x.StartDate)
-                    .Select(x => (Guid?)x.ProgramId)
                     .FirstOrDefaultAsync(cancellationToken)
                 : null;
 
@@ -73,48 +63,60 @@ public sealed class TestPersonaStatusController(
                     cancellationToken)
                 : 0;
 
-            var dailyCheckins = programId.HasValue
+            var dailyCheckins = program is not null
                 ? await db.DailyCheckins.CountAsync(
-                    x => x.ProgramId == programId.Value,
+                    x => x.ProgramId == program.ProgramId,
                     cancellationToken)
                 : 0;
 
-            var nutritionDays = programId.HasValue
+            var nutritionDays = program is not null
                 ? await db.NutritionDays.CountAsync(
-                    x => x.ProgramId == programId.Value,
+                    x => x.ProgramId == program.ProgramId,
                     cancellationToken)
                 : 0;
 
-            var completedWorkouts = programId.HasValue
+            var completedWorkouts = program is not null
                 ? await db.WorkoutSessions.CountAsync(
-                    x => x.ProgramId == programId.Value && x.CompletedFlag,
+                    x => x.ProgramId == program.ProgramId && x.CompletedFlag,
                     cancellationToken)
                 : 0;
 
-            var plannedWorkouts = programId.HasValue
+            var plannedWorkouts = program is not null
                 ? await db.PlannedWorkouts.CountAsync(
-                    x => x.ProgramId == programId.Value,
+                    x => x.ProgramId == program.ProgramId,
                     cancellationToken)
                 : 0;
+
+            var foodLogDays = 0;
+            if (clientId.HasValue && program is not null)
+            {
+                for (var day = 0; day < 28; day++)
+                {
+                    var log = await nutritionStore.GetDailyLogAsync(
+                        clientId.Value,
+                        program.StartDate.AddDays(day),
+                        cancellationToken);
+
+                    if (log.Items.Count >= 4)
+                        foodLogDays++;
+                }
+            }
 
             var active = string.Equals(
                 user.AccountStatusCode,
                 "ACTIVE",
                 StringComparison.OrdinalIgnoreCase);
 
-            // A persona is ready for immediate analysis when it has:
-            // - the account/client/program chain,
-            // - 28 historical daily records + today's morning measurement/check-in,
-            // - historical nutrition,
-            // - completed actual training,
-            // - enough Weekly Plan rows to cover at least the historical window.
+            // A persona is ready for immediate analysis AND UI testing when
+            // core Engine history and all 28 item-level food-log days exist.
             var ready =
                 active
                 && clientId.HasValue
-                && programId.HasValue
+                && program is not null
                 && measurements >= 29
                 && dailyCheckins >= 29
                 && nutritionDays >= 28
+                && foodLogDays >= 28
                 && completedWorkouts > 0
                 && plannedWorkouts >= 28;
 
@@ -123,10 +125,11 @@ public sealed class TestPersonaStatusController(
                 Exists: true,
                 Active: active,
                 Client: clientId.HasValue,
-                Program: programId.HasValue,
+                Program: program is not null,
                 Measurements: measurements,
                 DailyCheckins: dailyCheckins,
                 NutritionDays: nutritionDays,
+                FoodLogDays: foodLogDays,
                 CompletedWorkouts: completedWorkouts,
                 PlannedWorkouts: plannedWorkouts,
                 Ready: ready));
@@ -141,6 +144,21 @@ public sealed class TestPersonaStatusController(
         });
     }
 
+    private static TestPersonaStatusRow Empty(string email)
+        => new(
+            email,
+            Exists: false,
+            Active: false,
+            Client: false,
+            Program: false,
+            Measurements: 0,
+            DailyCheckins: 0,
+            NutritionDays: 0,
+            FoodLogDays: 0,
+            CompletedWorkouts: 0,
+            PlannedWorkouts: 0,
+            Ready: false);
+
     private sealed record TestPersonaStatusRow(
         string Email,
         bool Exists,
@@ -150,6 +168,7 @@ public sealed class TestPersonaStatusController(
         int Measurements,
         int DailyCheckins,
         int NutritionDays,
+        int FoodLogDays,
         int CompletedWorkouts,
         int PlannedWorkouts,
         bool Ready);
