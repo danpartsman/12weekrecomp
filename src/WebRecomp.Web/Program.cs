@@ -183,6 +183,7 @@ builder.Services.AddScoped<GuidedDemoSeederService>();
 // TEST-only persistent synthetic personas. Both seeders and the session service
 // independently refuse to operate outside the recomp-test app.
 builder.Services.AddScoped<TestPersonaSessionService>();
+builder.Services.AddHostedService<TestPersonaLegacyMigrationHostedService>();
 builder.Services.AddScoped<TestPersonaSeederService>();
 builder.Services.AddHostedService<TestPersonaSeederHostedService>();
 builder.Services.AddScoped<TestPersonaNutritionSeederService>();
