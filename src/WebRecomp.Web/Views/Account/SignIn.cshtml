@@ -1,0 +1,49 @@
+@{
+    ViewData["Title"] = "Sign In";
+    var returnUrl = ViewData["ReturnUrl"] as string ?? string.Empty;
+    var encodedReturnUrl = string.IsNullOrWhiteSpace(returnUrl)
+        ? string.Empty
+        : $"?returnUrl={Uri.EscapeDataString(returnUrl)}";
+}
+
+<div style="max-width:980px;margin:2.5rem auto;padding:1.5rem;">
+    <div style="margin-bottom:1.5rem;">
+        <p style="font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.72;margin-bottom:.4rem;">12 Week Recomp TEST</p>
+        <h1 style="margin-bottom:.6rem;">Choose how you want to sign in</h1>
+        <p style="max-width:760px;opacity:.82;">
+            Real users continue through Microsoft Entra. Synthetic TEST users sign in directly to 12 Week Recomp and do not need a real email account.
+        </p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;align-items:stretch;">
+        <section style="padding:1.5rem;border:1px solid rgba(120,170,220,.35);border-radius:18px;display:flex;flex-direction:column;gap:.85rem;">
+            <div style="font-size:2rem;">🔐</div>
+            <h2 style="margin:0;">Normal Sign In</h2>
+            <p style="margin:0;opacity:.8;flex:1;">
+                Use this for a real 12 Week Recomp account. Authentication is handled by Microsoft Entra.
+            </p>
+            <a class="button primary"
+               href="/Account/EntraSignIn@encodedReturnUrl"
+               style="text-align:center;text-decoration:none;">
+                Continue with Microsoft / Entra
+            </a>
+        </section>
+
+        <section style="padding:1.5rem;border:1px solid rgba(104,211,145,.48);border-radius:18px;display:flex;flex-direction:column;gap:.85rem;box-shadow:0 0 30px rgba(104,211,145,.08);">
+            <div style="font-size:2rem;">🧪</div>
+            <h2 style="margin:0;">TEST User Sign In</h2>
+            <p style="margin:0;opacity:.8;flex:1;">
+                Use one of the preloaded synthetic personas. These accounts authenticate inside the TEST application and bypass Entra completely.
+            </p>
+            <a class="button primary"
+               href="/test-persona"
+               style="text-align:center;text-decoration:none;">
+                Open TEST User Sign In
+            </a>
+        </section>
+    </div>
+
+    <p style="margin-top:1.25rem;opacity:.65;font-size:.92rem;">
+        The TEST User option exists only in the TEST environment and is not exposed on the LIVE site.
+    </p>
+</div>
