@@ -15,33 +15,30 @@ public sealed class AccountController(
     [HttpGet]
     public IActionResult SignIn(string? returnUrl = null)
     {
-        var destination =
-            pendingCodes.HasPendingCode(HttpContext)
-                ? "/access/complete"
-                : !string.IsNullOrWhiteSpace(returnUrl)
-                  && Url.IsLocalUrl(returnUrl)
+        // TEST exposes a deliberate choice between real Entra authentication
+        // and synthetic application-only personas. LIVE retains the existing
+        // direct Entra challenge because TestPersonaSessionService is disabled.
+        if (testPersonaSessions.IsEnabled)
+        {
+            ViewData["PublicPage"] = true;
+            ViewData["ReturnUrl"] =
+                !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
                     ? returnUrl
-                    : "/Home/AfterSignIn";
+                    : string.Empty;
+            return View();
+        }
 
-        return Challenge(
-            new OpenIdConnectChallengeProperties
-            {
-                RedirectUri = destination,
-                Prompt = "select_account"
-            },
-            OpenIdConnectDefaults.AuthenticationScheme);
+        return StartEntraSignIn(returnUrl);
     }
+
+    [HttpGet]
+    public IActionResult EntraSignIn(string? returnUrl = null)
+        => StartEntraSignIn(returnUrl);
 
     [HttpGet]
     public IActionResult CreateAccount(string? returnUrl = null)
     {
-        var destination =
-            pendingCodes.HasPendingCode(HttpContext)
-                ? "/access/complete"
-                : !string.IsNullOrWhiteSpace(returnUrl)
-                  && Url.IsLocalUrl(returnUrl)
-                    ? returnUrl
-                    : "/Home/AfterSignIn";
+        var destination = ResolveDestination(returnUrl);
 
         return Challenge(
             new OpenIdConnectChallengeProperties
@@ -90,4 +87,25 @@ public sealed class AccountController(
             CookieAuthenticationDefaults.AuthenticationScheme,
             OpenIdConnectDefaults.AuthenticationScheme);
     }
+
+    private IActionResult StartEntraSignIn(string? returnUrl)
+    {
+        var destination = ResolveDestination(returnUrl);
+
+        return Challenge(
+            new OpenIdConnectChallengeProperties
+            {
+                RedirectUri = destination,
+                Prompt = "select_account"
+            },
+            OpenIdConnectDefaults.AuthenticationScheme);
+    }
+
+    private string ResolveDestination(string? returnUrl)
+        => pendingCodes.HasPendingCode(HttpContext)
+            ? "/access/complete"
+            : !string.IsNullOrWhiteSpace(returnUrl)
+              && Url.IsLocalUrl(returnUrl)
+                ? returnUrl
+                : "/Home/AfterSignIn";
 }
