@@ -57,3 +57,39 @@ jobs:
           app-name: recomp-test
           slot-name: Production
           package: ./publish
+
+      - name: Verify synthetic TEST personas
+        shell: pwsh
+        run: |
+          $url = "https://test.12weekrecomp.com/test-persona/status?v=${{ github.sha }}"
+          $last = $null
+
+          for ($attempt = 1; $attempt -le 12; $attempt++) {
+              try {
+                  $last = Invoke-RestMethod -Uri $url -Method Get -TimeoutSec 30
+                  $notReady = @($last.personas | Where-Object { -not $_.ready })
+
+                  if ($last.environment -eq "TEST" -and
+                      $last.personaCount -eq 4 -and
+                      $last.ready -eq $true -and
+                      $notReady.Count -eq 0) {
+                      Write-Host "All four TEST personas are active and analysis-ready."
+                      $last | ConvertTo-Json -Depth 8
+                      exit 0
+                  }
+
+                  Write-Host "Persona seed not ready yet (attempt $attempt/12)."
+                  $last | ConvertTo-Json -Depth 8
+              }
+              catch {
+                  Write-Host "Persona status check attempt $attempt/12 failed: $($_.Exception.Message)"
+              }
+
+              Start-Sleep -Seconds 5
+          }
+
+          if ($null -ne $last) {
+              $last | ConvertTo-Json -Depth 8
+          }
+
+          throw "TEST persona database verification failed."
