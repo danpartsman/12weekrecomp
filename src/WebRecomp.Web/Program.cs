@@ -180,11 +180,13 @@ builder.Services.AddHttpClient<IEmailService, MicrosoftGraphEmailService>();
 builder.Services.AddScoped<DemoSessionService>();
 builder.Services.AddScoped<GuidedDemoSeederService>();
 
-// TEST-only persistent synthetic personas. Both the session service and the
-// hosted seeder independently refuse to operate outside the recomp-test app.
+// TEST-only persistent synthetic personas. Both seeders and the session service
+// independently refuse to operate outside the recomp-test app.
 builder.Services.AddScoped<TestPersonaSessionService>();
 builder.Services.AddScoped<TestPersonaSeederService>();
 builder.Services.AddHostedService<TestPersonaSeederHostedService>();
+builder.Services.AddScoped<TestPersonaNutritionSeederService>();
+builder.Services.AddHostedService<TestPersonaNutritionSeederHostedService>();
 
 builder.Services.AddScoped<Engine21PipelineService>();
 builder.Services.AddScoped<Engine21FuelWindowService>();
