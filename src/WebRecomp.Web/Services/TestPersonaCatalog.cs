@@ -33,6 +33,7 @@ public sealed record TestPersonaSpec(
 public static class TestPersonaCatalog
 {
     public const string SharedPassword = "test";
+    public const string LegacyF160Email = "f160@test.com";
 
     public static IReadOnlyList<TestPersonaSpec> All { get; } =
     [
@@ -62,7 +63,7 @@ public static class TestPersonaCatalog
             TargetWaistIn: 28m),
 
         new(
-            Email: "f160@test.com",
+            Email: "testf160@test.com",
             DisplayName: "Test F160 - Fat Loss Recomp",
             DateOfBirth: new DateOnly(1976, 5, 10),
             SexCode: "FEMALE",
