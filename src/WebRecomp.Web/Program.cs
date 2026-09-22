@@ -180,6 +180,12 @@ builder.Services.AddHttpClient<IEmailService, MicrosoftGraphEmailService>();
 builder.Services.AddScoped<DemoSessionService>();
 builder.Services.AddScoped<GuidedDemoSeederService>();
 
+// TEST-only persistent synthetic personas. Both the session service and the
+// hosted seeder independently refuse to operate outside the recomp-test app.
+builder.Services.AddScoped<TestPersonaSessionService>();
+builder.Services.AddScoped<TestPersonaSeederService>();
+builder.Services.AddHostedService<TestPersonaSeederHostedService>();
+
 builder.Services.AddScoped<Engine21PipelineService>();
 builder.Services.AddScoped<Engine21FuelWindowService>();
 builder.Services.AddScoped<Engine21CarbRequirementService>();
@@ -217,8 +223,9 @@ app.UseRouting();
 app.UseAuthentication();
 
 // Permanent Entra/OIDC identity wins. Only anonymous requests are eligible
-// for restoration from the v1006 demo-session cookie.
+// for restoration from temporary TEST/demo cookies.
 app.UseMiddleware<DemoSessionMiddleware>();
+app.UseMiddleware<TestPersonaMiddleware>();
 
 app.UseAuthorization();
 app.UseRateLimiter();
