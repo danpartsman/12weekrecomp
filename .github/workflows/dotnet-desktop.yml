@@ -11,10 +11,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  build-test-deploy:
     runs-on: windows-latest
 
     permissions:
+      id-token: write
       contents: read
 
     steps:
@@ -41,27 +42,8 @@ jobs:
       - name: Publish web project
         run: dotnet publish src/WebRecomp.Web/WebRecomp.Web.csproj --configuration Release --no-build --output ./publish
 
-      - name: Upload deployment artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: recomp-test-app
-          path: ./publish
-
-  deploy:
-    runs-on: windows-latest
-    needs: build-and-test
-
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Download deployment artifact
-        uses: actions/download-artifact@v7
-        with:
-          name: recomp-test-app
-          path: ./publish
-
+      # TEST deploys directly from the same green runner. This avoids a
+      # GitHub artifact-storage dependency while preserving the build/test gate.
       - name: Login to Azure
         uses: azure/login@v2
         with:
