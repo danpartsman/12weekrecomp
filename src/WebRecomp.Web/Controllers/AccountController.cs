@@ -3,12 +3,14 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebRecomp.Web.Services;
 
 namespace WebRecomp.Web.Controllers;
 
 [AllowAnonymous]
 public sealed class AccountController(
-    WebRecomp.Web.Services.PendingAccessCodeService pendingCodes) : Controller
+    PendingAccessCodeService pendingCodes,
+    TestPersonaSessionService testPersonaSessions) : Controller
 {
     [HttpGet]
     public IActionResult SignIn(string? returnUrl = null)
@@ -60,6 +62,14 @@ public sealed class AccountController(
     [HttpGet]
     public async Task<IActionResult> Logout()
     {
+        if (User.HasClaim(
+                "recomp_test_persona",
+                "true"))
+        {
+            testPersonaSessions.SignOut(Response);
+            return RedirectToAction("Index", "Home");
+        }
+
         // Entra can perform a promptless full OIDC logout when the ID token
         // contains the optional login_hint claim. Older sessions without that
         // claim fall back to a local Recomp sign-out instead of showing an
