@@ -1,0 +1,53 @@
+@model WebRecomp.Web.ViewModels.TestPersonaLoginViewModel
+@using WebRecomp.Web.Services
+@{
+    ViewData["Title"] = "TEST Personas";
+}
+
+<div style="max-width:760px;margin:2rem auto;padding:1.5rem;">
+    <p style="font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.8;">TEST ONLY</p>
+    <h1>12 Week Recomp Test Personas</h1>
+    <p>
+        These accounts contain synthetic data only. They are preloaded with several weeks of
+        weekly plans, body measurements, daily entries, nutrition, and completed workouts so
+        Engine analysis can be exercised immediately.
+    </p>
+
+    <div style="display:grid;gap:.75rem;margin:1.25rem 0 1.75rem;">
+        @foreach (var persona in TestPersonaCatalog.All)
+        {
+            <a href="/test-persona?email=@Uri.EscapeDataString(persona.Email)"
+               style="display:block;padding:1rem;border:1px solid rgba(120,170,220,.35);border-radius:14px;text-decoration:none;">
+                <strong>@persona.Email</strong><br />
+                <span>@persona.DisplayName &bull; @persona.StartingWeightLb.ToString("0") lb &bull; @persona.GoalCode</span>
+            </a>
+        }
+    </div>
+
+    <form asp-controller="TestPersona"
+          asp-action="Login"
+          method="post"
+          style="display:grid;gap:1rem;padding:1.25rem;border:1px solid rgba(120,170,220,.35);border-radius:16px;">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="validation"></div>
+
+        <label>
+            Email
+            <input asp-for="Email" autocomplete="username" style="width:100%;" />
+            <span asp-validation-for="Email"></span>
+        </label>
+
+        <label>
+            Password
+            <input asp-for="Password" type="password" autocomplete="current-password" style="width:100%;" />
+            <span asp-validation-for="Password"></span>
+        </label>
+
+        <button class="button primary" type="submit">Sign in to TEST persona</button>
+    </form>
+
+    <p style="margin-top:1rem;opacity:.75;">
+        Shared TEST password: <strong>test</strong>
+    </p>
+</div>
