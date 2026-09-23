@@ -1,9 +1,10 @@
 @{
     ViewData["Title"] = "Sign In";
     var returnUrl = ViewData["ReturnUrl"] as string ?? string.Empty;
-    var encodedReturnUrl = string.IsNullOrWhiteSpace(returnUrl)
-        ? string.Empty
-        : $"?returnUrl={Uri.EscapeDataString(returnUrl)}";
+    var entraHref = string.IsNullOrWhiteSpace(returnUrl)
+        ? Url.Action("EntraSignIn", "Account")
+        : Url.Action("EntraSignIn", "Account", new { returnUrl });
+    entraHref ??= "/Account/EntraSignIn";
 }
 
 <div style="max-width:980px;margin:2.5rem auto;padding:1.5rem;">
@@ -23,7 +24,7 @@
                 Use this for a real 12 Week Recomp account. Authentication is handled by Microsoft Entra.
             </p>
             <a class="button primary"
-               href="/Account/EntraSignIn@encodedReturnUrl"
+               href="@entraHref"
                style="text-align:center;text-decoration:none;">
                 Continue with Microsoft / Entra
             </a>
