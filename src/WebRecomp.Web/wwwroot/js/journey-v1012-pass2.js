@@ -172,8 +172,10 @@
 
         body.classList.add("journey-daily-entry");
 
+        const trackingSection = page.querySelector("#body-recovery");
+
         makeStepBanner(
-            page.querySelector("#body-recovery"),
+            trackingSection,
             "recover",
             "STEP 1",
             "TRACK",
@@ -196,7 +198,125 @@
             "Fuel the work."
         );
 
+        const trackingHeading =
+            trackingSection?.querySelector(
+                ".daily-entry-section-heading h2");
+
+        if (trackingHeading) {
+            trackingHeading.textContent =
+                "Recomp Tracking";
+        }
+
+        const trackingInfoTitle =
+            trackingSection?.querySelector(
+                ".daily-entry-info strong");
+
+        if (trackingInfoTitle) {
+            trackingInfoTitle.textContent =
+                "Recomposition means reducing fat while building skeletal muscle";
+        }
+
+        const bodyStatus =
+            page.querySelector(
+                '[data-completion="body"]');
+
+        if (bodyStatus) {
+            const currentState =
+                bodyStatus.querySelector("em")
+                    ?.textContent?.trim()
+                || "Open";
+
+            bodyStatus.innerHTML =
+                `<b>1</b> Recomp Tracking <em>${currentState}</em>`;
+        }
+
         const form = page.querySelector("#daily-entry-autosave-form");
+
+        const trackingFieldNames = [
+            "WeightLb",
+            "BodyFatPercent",
+            "SkeletalMuscleMassLb",
+            "SubcutaneousFatPercent",
+            "BodyWaterLb",
+            "VisceralFatRating",
+            "WaistIn",
+            "HipsIn",
+            "SleepHours",
+            "RestingHr",
+            "EnergyScore",
+            "SorenessScore",
+            "PainFlag",
+            "IllnessFlag",
+            "RecoveryNotes"
+        ];
+
+        const hasValidTrackingEntry = () =>
+            trackingFieldNames.some(name => {
+                const field =
+                    form?.querySelector(`[name="${name}"]`);
+
+                if (!field) return false;
+
+                if (field instanceof HTMLInputElement
+                    && field.type === "checkbox") {
+                    return field.checked;
+                }
+
+                const value =
+                    String(field.value ?? "").trim();
+
+                if (!value) return false;
+
+                return typeof field.checkValidity !== "function"
+                    || field.checkValidity();
+            });
+
+        const syncTrackingCompletion = () => {
+            if (!bodyStatus) return;
+
+            const complete =
+                hasValidTrackingEntry();
+
+            bodyStatus.classList.toggle(
+                "is-complete",
+                complete);
+
+            const state =
+                bodyStatus.querySelector("em");
+
+            if (state) {
+                state.textContent =
+                    complete
+                        ? "Complete"
+                        : "Open";
+            }
+        };
+
+        if (form) {
+            form.addEventListener(
+                "input",
+                event => {
+                    const name =
+                        event.target?.getAttribute?.("name");
+
+                    if (trackingFieldNames.includes(name)) {
+                        syncTrackingCompletion();
+                    }
+                });
+
+            form.addEventListener(
+                "change",
+                event => {
+                    const name =
+                        event.target?.getAttribute?.("name");
+
+                    if (trackingFieldNames.includes(name)) {
+                        syncTrackingCompletion();
+                    }
+                });
+        }
+
+        syncTrackingCompletion();
 
         if (form && !page.querySelector(".journey-daily-endcap")) {
             const endcap = createElement(
