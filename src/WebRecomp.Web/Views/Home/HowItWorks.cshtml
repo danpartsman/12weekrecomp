@@ -4,137 +4,239 @@
 }
 
 <style>
-    .how-page{max-width:1180px;margin:0 auto;padding:3rem 1.25rem 4rem;color:var(--text-color,#eef6ff)}
-    .how-hero{text-align:center;max-width:900px;margin:0 auto 2rem}
-    .how-kicker{font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:#48d7ff;font-size:.85rem;margin:0 0 .7rem}
-    .how-hero h1{font-size:clamp(2.4rem,6vw,5.6rem);line-height:.94;margin:.15rem 0 .9rem;font-weight:950;letter-spacing:-.045em}
-    .how-hero h1 span{color:#55e890}
-    .how-hero p{font-size:clamp(1.05rem,2vw,1.35rem);line-height:1.6;opacity:.86;max-width:760px;margin:0 auto}
-    .how-setup{display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:center;padding:1.2rem 1.4rem;margin:2rem auto 2.1rem;max-width:930px;border:1px solid rgba(81,217,255,.34);background:linear-gradient(135deg,rgba(30,102,164,.22),rgba(39,201,137,.10));border-radius:22px}
-    .how-setup-icon{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:rgba(65,208,255,.14);font-size:1.8rem}
-    .how-setup strong{display:block;font-size:1.12rem;margin-bottom:.25rem}
-    .how-setup span{opacity:.82;line-height:1.5}
-    .how-steps{display:grid;gap:1rem;margin:0 auto 2.8rem;max-width:980px}
-    .how-step{display:grid;grid-template-columns:72px 110px 1fr;gap:1.15rem;align-items:center;padding:1.2rem 1.25rem;border-radius:24px;border:1px solid rgba(116,178,229,.28);background:linear-gradient(180deg,rgba(17,48,83,.82),rgba(8,27,47,.92));box-shadow:0 18px 50px rgba(0,0,0,.16)}
-    .how-number{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:1.7rem;font-weight:950;background:linear-gradient(135deg,#2cb9ff,#50e68b);color:#061626;box-shadow:0 0 28px rgba(61,211,218,.24)}
-    .how-icon{width:100px;height:82px;border-radius:20px;background:rgba(255,255,255,.06);display:grid;place-items:center}
-    .how-icon svg{width:64px;height:64px;stroke:#58dfff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-    .how-step:nth-child(2) .how-icon svg{stroke:#65e19a}
-    .how-step:nth-child(3) .how-icon svg{stroke:#b98cff}
-    .how-copy h2{font-size:clamp(1.3rem,2.6vw,1.75rem);margin:0 0 .35rem}
-    .how-copy p{margin:0;line-height:1.55;opacity:.84;font-size:1.03rem}
-    .how-prescription{max-width:1040px;margin:0 auto;padding:clamp(1.4rem,4vw,2.4rem);border:1px solid rgba(81,232,144,.34);border-radius:28px;background:radial-gradient(circle at 50% 0,rgba(51,173,227,.16),transparent 45%),rgba(8,24,43,.88)}
-    .how-prescription-header{text-align:center;max-width:820px;margin:0 auto 1.6rem}
-    .how-prescription-header small{display:block;font-weight:900;letter-spacing:.15em;color:#59e58f;text-transform:uppercase;margin-bottom:.45rem}
-    .how-prescription-header h2{font-size:clamp(2rem,4vw,3.3rem);line-height:1;margin:.2rem 0 .8rem}
-    .how-prescription-header p{font-size:1.08rem;line-height:1.62;opacity:.85;margin:0}
-    .how-points{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem;margin:1.25rem 0 1.8rem}
-    .how-point{padding:1rem 1.05rem;border-radius:18px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);line-height:1.5}
-    .how-point strong{color:#74e6ff}
-    .how-diagram{margin:1.7rem auto 0;background:#f8fcff;padding:.7rem;border-radius:22px;box-shadow:0 18px 60px rgba(0,0,0,.22)}
-    .how-diagram img{display:block;width:100%;height:auto;border-radius:15px;aspect-ratio:4/3;object-fit:contain;background:#fff}
-    .how-finish{max-width:850px;margin:2rem auto 0;text-align:center;padding:1.7rem 1.4rem;border-radius:24px;background:linear-gradient(135deg,rgba(43,187,255,.15),rgba(75,231,137,.12));border:1px solid rgba(84,213,255,.22)}
-    .how-finish strong{display:block;font-size:clamp(1.8rem,4vw,2.8rem);margin-bottom:.5rem}
-    .how-finish p{margin:.25rem auto;line-height:1.6;max-width:720px;opacity:.87}
-    .how-actions{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin-top:1.1rem}
-    .how-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:.75rem 1.15rem;border-radius:14px;text-decoration:none;font-weight:850}
-    .how-actions .primary{background:linear-gradient(135deg,#2ebcff,#4ee68a);color:#061522}
-    .how-actions .secondary{border:1px solid rgba(127,211,255,.34);color:inherit;background:rgba(255,255,255,.05)}
-    @@media(max-width:720px){.how-page{padding-top:2rem}.how-step{grid-template-columns:54px 76px 1fr;gap:.75rem;padding:1rem}.how-number{width:48px;height:48px;font-size:1.4rem}.how-icon{width:72px;height:66px}.how-icon svg{width:48px;height:48px}.how-points{grid-template-columns:1fr}}
-    @@media(max-width:520px){.how-step{grid-template-columns:48px 1fr}.how-icon{grid-column:2;width:100%;height:74px}.how-copy{grid-column:2}.how-setup{grid-template-columns:1fr;text-align:center}.how-setup-icon{margin:auto}}
+    .hiw-shell{
+        --cyan:#19ddff;
+        --green:#7dff24;
+        --violet:#a865ff;
+        --gold:#f3ff31;
+        --ink:#020508;
+        --panel:rgba(4,15,22,.78);
+        --muted:#b9cbd2;
+        position:relative;
+        width:100vw;
+        margin-left:calc(50% - 50vw);
+        overflow:hidden;
+        color:#fff;
+        background:#020508;
+        isolation:isolate;
+    }
+    .hiw-shell *{box-sizing:border-box}
+    .hiw-bg{
+        position:absolute;inset:0 0 auto 0;height:850px;z-index:-5;
+        background-image:url('/images/marketing-v13/evidence-gym-group-clean.jpg');
+        background-size:cover;background-position:center 40%;
+        filter:saturate(1.12) contrast(1.08) brightness(.55);
+        transform:scale(1.02);
+    }
+    .hiw-vignette{position:absolute;inset:0 0 auto 0;height:920px;z-index:-4;pointer-events:none;background:linear-gradient(180deg,rgba(2,5,8,.16),rgba(2,5,8,.44) 48%,#020508 94%),linear-gradient(90deg,rgba(0,0,0,.74),rgba(0,0,0,.18) 42%,rgba(0,0,0,.4))}
+    .hiw-gridfx{position:absolute;inset:0;z-index:-3;opacity:.13;pointer-events:none;background-image:linear-gradient(rgba(25,221,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(25,221,255,.16) 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to bottom,#000 0,transparent 42%)}
+    .hiw-orb{position:absolute;border-radius:50%;filter:blur(64px);opacity:.17;pointer-events:none;z-index:-2;animation:hiwFloat 8s ease-in-out infinite alternate}
+    .hiw-orb.c{width:360px;height:360px;background:var(--cyan);left:-80px;top:240px}
+    .hiw-orb.g{width:320px;height:320px;background:var(--green);right:-80px;top:490px;animation-delay:-3s}
+    .hiw-orb.v{width:300px;height:300px;background:var(--violet);left:47%;top:1060px;animation-delay:-5s}
+    .hiw-beam{position:absolute;height:2px;width:48vw;background:linear-gradient(90deg,transparent,var(--cyan),var(--green),transparent);filter:drop-shadow(0 0 8px var(--cyan));opacity:.34;z-index:-1;animation:hiwBeam 6.2s linear infinite}
+    .hiw-beam.one{top:530px;left:-28vw}.hiw-beam.two{top:1440px;right:-28vw;animation-direction:reverse;animation-duration:7.6s}
+
+    .hiw-wrap{width:min(1220px,calc(100% - 36px));margin:0 auto}
+    .hiw-hero{min-height:560px;display:flex;align-items:center;padding:92px 0 54px;position:relative}
+    .hiw-hero-copy{max-width:790px;text-shadow:0 14px 38px rgba(0,0,0,.72)}
+    .hiw-eyebrow{display:flex;align-items:center;gap:10px;margin:0 0 15px;color:var(--cyan);font-size:12px;font-weight:1000;letter-spacing:.30em;text-transform:uppercase}
+    .hiw-eyebrow::before{content:"";width:44px;height:2px;background:linear-gradient(90deg,var(--cyan),var(--green));box-shadow:0 0 12px rgba(25,221,255,.55)}
+    .hiw-hero h1{margin:0;font-size:clamp(60px,8vw,118px);font-style:italic;font-weight:1000;line-height:.78;letter-spacing:-.055em;text-transform:uppercase}
+    .hiw-hero h1 .cyan{color:var(--cyan)}.hiw-hero h1 .green{color:var(--green)}
+    .hiw-hero-sub{margin:24px 0 0;max-width:690px;font-size:clamp(17px,1.55vw,23px);font-weight:750;line-height:1.38;color:#eef7fa}
+    .hiw-hero-sub strong{color:#fff}
+    .hiw-hero-badge{position:absolute;right:0;bottom:72px;width:180px;height:180px;border-radius:50%;display:grid;place-items:center;text-align:center;border:1px solid rgba(125,255,36,.6);background:radial-gradient(circle,rgba(24,81,37,.66),rgba(2,8,11,.86));box-shadow:0 0 45px rgba(125,255,36,.16),inset 0 0 30px rgba(125,255,36,.08);animation:hiwPulse 3s ease-in-out infinite}
+    .hiw-hero-badge strong{display:block;font-size:31px;line-height:.9;font-style:italic}.hiw-hero-badge span{display:block;margin-top:7px;color:#c9d9df;font-size:9px;font-weight:950;letter-spacing:.18em;text-transform:uppercase}
+
+    .hiw-setup{position:relative;margin:-26px auto 54px;padding:18px 20px 18px 86px;border:1px solid rgba(25,221,255,.28);border-radius:20px;background:rgba(2,11,16,.76);backdrop-filter:blur(18px);box-shadow:0 22px 60px rgba(0,0,0,.34)}
+    .hiw-setup-icon{position:absolute;left:18px;top:50%;transform:translateY(-50%);width:50px;height:50px;border-radius:15px;display:grid;place-items:center;border:1px solid rgba(125,255,36,.5);background:rgba(125,255,36,.08);font-size:25px;box-shadow:0 0 22px rgba(125,255,36,.10)}
+    .hiw-setup small{display:block;margin-bottom:3px;color:var(--green);font-size:9px;font-weight:1000;letter-spacing:.18em;text-transform:uppercase}.hiw-setup strong{font-size:17px}.hiw-setup span{color:#bfcdd2;font-size:14px;line-height:1.45}
+
+    .hiw-section-label{text-align:center;margin:0 0 28px}.hiw-section-label small{display:block;color:var(--cyan);font-size:10px;font-weight:1000;letter-spacing:.25em;text-transform:uppercase}.hiw-section-label h2{margin:8px 0 6px;font-size:clamp(34px,5vw,64px);line-height:.9;font-style:italic;text-transform:uppercase}.hiw-section-label p{margin:0 auto;max-width:660px;color:var(--muted);font-size:15px;line-height:1.55}
+
+    .hiw-portals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:72px;perspective:1200px}
+    .hiw-portal{--a:var(--cyan);position:relative;min-height:390px;padding:20px;border:1px solid color-mix(in srgb,var(--a) 66%,transparent);border-radius:24px;overflow:hidden;background:linear-gradient(180deg,rgba(7,20,27,.72),rgba(2,8,12,.96));box-shadow:0 22px 60px rgba(0,0,0,.38),0 0 34px color-mix(in srgb,var(--a) 10%,transparent);transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease;cursor:pointer;isolation:isolate}
+    .hiw-portal:nth-child(2){--a:var(--green)}.hiw-portal:nth-child(3){--a:var(--violet)}
+    .hiw-portal::before{content:"";position:absolute;inset:-1px;background:radial-gradient(circle at var(--mx,50%) var(--my,35%),color-mix(in srgb,var(--a) 19%,transparent),transparent 34%);opacity:.45;z-index:-1;transition:opacity .25s}
+    .hiw-portal::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,transparent,var(--a),transparent);box-shadow:0 0 18px var(--a);transform:scaleX(.28);transition:.28s}
+    .hiw-portal:hover,.hiw-portal.active{transform:translateY(-10px) rotateX(1.5deg);border-color:var(--a);box-shadow:0 30px 85px rgba(0,0,0,.5),0 0 44px color-mix(in srgb,var(--a) 22%,transparent)}
+    .hiw-portal:hover::after,.hiw-portal.active::after{transform:scaleX(.92)}.hiw-portal:hover::before,.hiw-portal.active::before{opacity:1}
+    .hiw-portal-top{display:flex;justify-content:space-between;align-items:flex-start}.hiw-num{font-size:11px;color:var(--a);font-weight:1000;letter-spacing:.18em;text-transform:uppercase}.hiw-status{padding:6px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--a) 42%,transparent);color:var(--a);font-size:8px;font-weight:1000;letter-spacing:.13em;text-transform:uppercase;background:color-mix(in srgb,var(--a) 7%,transparent)}
+    .hiw-portal-icon{width:108px;height:108px;margin:26px auto 22px;border-radius:28px;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--a) 38%,transparent);background:radial-gradient(circle at 35% 25%,color-mix(in srgb,var(--a) 24%,transparent),rgba(255,255,255,.025));box-shadow:inset 0 0 30px color-mix(in srgb,var(--a) 7%,transparent),0 0 30px color-mix(in srgb,var(--a) 8%,transparent);transition:.28s}
+    .hiw-portal:hover .hiw-portal-icon,.hiw-portal.active .hiw-portal-icon{transform:scale(1.06) rotate(-2deg);box-shadow:inset 0 0 34px color-mix(in srgb,var(--a) 13%,transparent),0 0 36px color-mix(in srgb,var(--a) 18%,transparent)}
+    .hiw-portal-icon svg{width:70px;height:70px;stroke:var(--a);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--a) 34%,transparent))}
+    .hiw-portal h3{margin:0;font-size:31px;line-height:.92;font-style:italic;text-transform:uppercase}.hiw-portal .quick{margin:9px 0 0;color:#d7e4e8;font-size:14px;line-height:1.4}.hiw-more{max-height:0;overflow:hidden;opacity:0;margin-top:0;color:#afc1c7;font-size:13px;line-height:1.5;transition:max-height .35s ease,opacity .3s ease,margin .3s ease}.hiw-portal:hover .hiw-more,.hiw-portal.active .hiw-more{max-height:120px;opacity:1;margin-top:12px}.hiw-open{position:absolute;right:18px;bottom:14px;color:var(--a);font-size:9px;font-weight:1000;letter-spacing:.16em;text-transform:uppercase}
+
+    .hiw-flow{position:relative;padding:70px 0 62px;border-top:1px solid rgba(25,221,255,.13);border-bottom:1px solid rgba(125,255,36,.13);background:linear-gradient(180deg,rgba(1,8,12,.65),rgba(5,18,25,.72));overflow:hidden}
+    .hiw-flow::before{content:"";position:absolute;left:50%;top:145px;bottom:120px;width:2px;transform:translateX(-50%);background:linear-gradient(var(--cyan),var(--green),var(--violet));opacity:.34;box-shadow:0 0 16px var(--cyan)}
+    .hiw-flow-grid{position:relative;display:grid;grid-template-columns:1fr minmax(320px,1.2fr) 1fr;gap:34px;align-items:center}
+    .hiw-input-stack,.hiw-output-stack{display:grid;gap:12px}.hiw-signal{position:relative;padding:15px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);backdrop-filter:blur(12px);transition:.22s}.hiw-signal:hover{transform:translateX(6px);border-color:rgba(25,221,255,.42);background:rgba(25,221,255,.06)}.hiw-output-stack .hiw-signal:hover{transform:translateX(-6px);border-color:rgba(125,255,36,.44);background:rgba(125,255,36,.06)}.hiw-signal small{display:block;color:#8ba0a8;font-size:8px;font-weight:950;letter-spacing:.16em;text-transform:uppercase}.hiw-signal strong{display:block;margin-top:3px;font-size:16px}
+    .hiw-engine{position:relative;min-height:330px;padding:30px;border-radius:30px;display:flex;flex-direction:column;justify-content:center;text-align:center;border:1px solid rgba(25,221,255,.55);background:radial-gradient(circle at 50% 30%,rgba(16,119,160,.28),transparent 55%),linear-gradient(180deg,rgba(3,35,52,.96),rgba(1,16,26,.98));box-shadow:0 30px 90px rgba(0,0,0,.5),0 0 50px rgba(25,221,255,.13),inset 0 0 45px rgba(25,221,255,.05)}
+    .hiw-engine::before,.hiw-engine::after{content:"";position:absolute;top:50%;width:62px;height:2px;background:linear-gradient(90deg,var(--cyan),var(--green));box-shadow:0 0 12px var(--cyan)}.hiw-engine::before{left:-62px}.hiw-engine::after{right:-62px;transform:scaleX(-1)}
+    .hiw-gear{width:84px;height:84px;margin:0 auto 18px;border:3px dashed var(--cyan);border-radius:50%;display:grid;place-items:center;color:var(--green);font-size:36px;font-weight:1000;animation:hiwSpin 12s linear infinite;box-shadow:0 0 28px rgba(25,221,255,.18)}
+    .hiw-engine small{color:var(--cyan);font-size:9px;font-weight:1000;letter-spacing:.22em;text-transform:uppercase}.hiw-engine h2{margin:8px 0 8px;font-size:clamp(34px,4vw,52px);line-height:.88;font-style:italic;text-transform:uppercase}.hiw-engine p{margin:0 auto;max-width:430px;color:#c6d7dc;font-size:14px;line-height:1.5}.hiw-engine p strong{color:#fff}
+
+    .hiw-rules{padding:70px 0 76px}.hiw-rule-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.hiw-rule{--a:var(--cyan);position:relative;min-height:210px;padding:20px;border-radius:20px;border:1px solid rgba(255,255,255,.11);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018));overflow:hidden;transition:.25s}.hiw-rule:nth-child(2){--a:var(--green)}.hiw-rule:nth-child(3){--a:var(--violet)}.hiw-rule:nth-child(4){--a:var(--gold)}.hiw-rule::before{content:"";position:absolute;inset:auto -20% -55% -20%;height:150px;background:radial-gradient(circle,var(--a),transparent 62%);opacity:.08;transition:.25s}.hiw-rule:hover{transform:translateY(-8px);border-color:color-mix(in srgb,var(--a) 55%,transparent);box-shadow:0 24px 55px rgba(0,0,0,.3),0 0 30px color-mix(in srgb,var(--a) 10%,transparent)}.hiw-rule:hover::before{opacity:.16}.hiw-rule .mark{color:var(--a);font-size:10px;font-weight:1000;letter-spacing:.16em;text-transform:uppercase}.hiw-rule h3{margin:12px 0 10px;font-size:25px;line-height:.94;font-style:italic;text-transform:uppercase}.hiw-rule p{margin:0;color:#b9c9ce;font-size:13px;line-height:1.48}
+
+    .hiw-payoff{padding:10px 0 82px}.hiw-diagram-frame{position:relative;margin:28px auto 0;padding:9px;border:1px solid rgba(25,221,255,.42);border-radius:28px;background:linear-gradient(135deg,rgba(25,221,255,.11),rgba(125,255,36,.06));box-shadow:0 34px 100px rgba(0,0,0,.5),0 0 55px rgba(25,221,255,.10);transition:.35s;overflow:hidden}.hiw-diagram-frame:hover{transform:translateY(-5px) scale(1.006);border-color:rgba(125,255,36,.58);box-shadow:0 40px 110px rgba(0,0,0,.56),0 0 70px rgba(125,255,36,.12)}.hiw-diagram-frame::before{content:"SYSTEM MAP";position:absolute;left:23px;top:21px;z-index:2;padding:7px 10px;border-radius:999px;background:rgba(2,8,11,.78);border:1px solid rgba(25,221,255,.34);color:var(--cyan);font-size:8px;font-weight:1000;letter-spacing:.18em;backdrop-filter:blur(10px)}.hiw-diagram-frame img{display:block;width:100%;height:auto;border-radius:20px;background:#fff;aspect-ratio:4/3;object-fit:contain}
+    .hiw-last{margin:34px auto 0;text-align:center}.hiw-last .easy{font-size:clamp(42px,6vw,76px);line-height:.85;font-weight:1000;font-style:italic;text-transform:uppercase}.hiw-last .easy span{color:var(--green)}.hiw-last p{max-width:680px;margin:18px auto 0;color:#bdcdd2;font-size:16px;line-height:1.55}.hiw-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:22px}.hiw-actions a{display:inline-flex;align-items:center;justify-content:center;padding:14px 18px;border-radius:12px;text-decoration:none;font-size:10px;font-weight:1000;letter-spacing:.13em;text-transform:uppercase}.hiw-actions .primary{background:linear-gradient(90deg,#75ff22,#c8ff36);color:#061008;box-shadow:0 0 28px rgba(125,255,36,.18)}.hiw-actions .secondary{border:1px solid rgba(25,221,255,.32);background:rgba(25,221,255,.05);color:#dffaff}
+
+    @@keyframes hiwFloat{to{transform:translate(36px,-28px) scale(1.12)}}
+    @@keyframes hiwBeam{50%{transform:translateX(78vw)}}
+    @@keyframes hiwPulse{50%{transform:scale(1.05);box-shadow:0 0 58px rgba(125,255,36,.22),inset 0 0 34px rgba(125,255,36,.11)}}
+    @@keyframes hiwSpin{to{transform:rotate(360deg)}}
+    @@media(max-width:980px){.hiw-hero-badge{display:none}.hiw-portals{grid-template-columns:1fr}.hiw-portal{min-height:300px}.hiw-portal-icon{margin:18px 0}.hiw-flow-grid{grid-template-columns:1fr;gap:18px}.hiw-flow::before,.hiw-engine::before,.hiw-engine::after{display:none}.hiw-input-stack,.hiw-output-stack{grid-template-columns:repeat(3,1fr)}.hiw-rule-grid{grid-template-columns:repeat(2,1fr)}}
+    @@media(max-width:680px){.hiw-wrap{width:min(100% - 22px,1220px)}.hiw-hero{min-height:500px;padding-top:72px}.hiw-hero h1{font-size:clamp(54px,17vw,82px)}.hiw-setup{padding:68px 16px 16px}.hiw-setup-icon{left:16px;top:14px;transform:none}.hiw-portals{gap:10px}.hiw-portal{min-height:330px}.hiw-input-stack,.hiw-output-stack{grid-template-columns:1fr}.hiw-rule-grid{grid-template-columns:1fr}.hiw-flow{padding-top:52px}.hiw-rules{padding-top:54px}.hiw-diagram-frame::before{display:none}}
+    @@media(prefers-reduced-motion:reduce){.hiw-shell *{animation:none!important;transition:none!important}}
 </style>
 
-<main class="how-page">
-    <section class="how-hero">
-        <p class="how-kicker">HOW 12 WEEK RECOMP WORKS</p>
-        <h1>Set it up once.<br><span>Then just track.</span></h1>
-        <p>
-            Start with a basic weight and activity profile, tell 12WR how you prefer to move during the week,
-            and the system builds the framework. After that, your daily job is remarkably simple.
-        </p>
-    </section>
+<div class="hiw-shell" id="hiw-shell">
+    <div class="hiw-bg" aria-hidden="true"></div>
+    <div class="hiw-vignette" aria-hidden="true"></div>
+    <div class="hiw-gridfx" aria-hidden="true"></div>
+    <div class="hiw-orb c" aria-hidden="true"></div>
+    <div class="hiw-orb g" aria-hidden="true"></div>
+    <div class="hiw-orb v" aria-hidden="true"></div>
+    <div class="hiw-beam one" aria-hidden="true"></div>
+    <div class="hiw-beam two" aria-hidden="true"></div>
 
-    <section class="how-setup" aria-label="Initial setup">
-        <div class="how-setup-icon" aria-hidden="true">⚙️</div>
-        <div>
-            <strong>First, give 12WR the basics.</strong>
-            <span>Your starting body data, normal activity level, goal, and preferred weekly movement schedule give the engine the baseline it needs. You can change the schedule later. Once that is set, 12WR does the calculations.</span>
+    <section class="hiw-hero">
+        <div class="hiw-wrap">
+            <div class="hiw-hero-copy">
+                <p class="hiw-eyebrow">HOW 12 WEEK RECOMP WORKS</p>
+                <h1>SET IT UP.<br><span class="cyan">TRACK IT.</span><br><span class="green">LIVE IT.</span></h1>
+                <p class="hiw-hero-sub">Give 12WR your starting profile and the way you prefer to move each week. Then your daily job becomes <strong>three simple actions.</strong></p>
+            </div>
+            <div class="hiw-hero-badge" aria-hidden="true"><div><strong>3</strong><span>daily inputs<br>that's it</span></div></div>
         </div>
     </section>
 
-    <section class="how-steps" aria-label="Three daily steps">
-        <article class="how-step">
-            <div class="how-number">1</div>
-            <div class="how-icon" aria-hidden="true">
-                <svg viewBox="0 0 64 64"><rect x="10" y="10" width="44" height="44" rx="9"/><path d="M22 25h20"/><path d="M32 25v9"/><path d="M26 19h12"/><path d="M21 44c4-4 18-4 22 0"/></svg>
-            </div>
-            <div class="how-copy">
-                <h2>Morning weigh-in</h2>
-                <p>Step on the scale and enter your weight in <strong>Recomp Tracking</strong>. If your scale gives body-fat, skeletal-muscle, water, waist, or visceral-fat data, add those too—but weight alone is enough to keep the daily trend moving.</p>
-            </div>
-        </article>
+    <div class="hiw-wrap">
+        <section class="hiw-setup" aria-label="Initial setup">
+            <div class="hiw-setup-icon" aria-hidden="true">⚙</div>
+            <div><small>ONE-TIME SETUP</small><strong>Body + activity + goal + preferred weekly movement.</strong><br><span>Tell 12WR where you are and how you like to train. You can change it later. The engine handles the math from there.</span></div>
+        </section>
 
-        <article class="how-step">
-            <div class="how-number">2</div>
-            <div class="how-icon" aria-hidden="true">
-                <svg viewBox="0 0 64 64"><path d="M14 34h36c-1 11-8 17-18 17s-17-6-18-17Z"/><path d="M20 29c4-8 8-11 12-11 3 0 5 2 6 5 4-3 8-2 11 2"/><path d="M25 16c0 5-2 9-6 12"/><path d="M39 13c-1 5 0 9 4 12"/></svg>
-            </div>
-            <div class="how-copy">
-                <h2>Track what you eat</h2>
-                <p>Use the <strong>Nutrition Logger</strong> during the day. 12WR cares most about where your protein, fat, and carbohydrate totals land. You do not have to eat perfectly “clean” all the time—the goal is to stay at or reasonably close to your prescribed macros.</p>
-            </div>
-        </article>
-
-        <article class="how-step">
-            <div class="how-number">3</div>
-            <div class="how-icon" aria-hidden="true">
-                <svg viewBox="0 0 64 64"><path d="M22 24v16M42 24v16M16 27v10M48 27v10M10 30v4M54 30v4M22 32h20"/></svg>
-            </div>
-            <div class="how-copy">
-                <h2>Enter your workout</h2>
-                <p>Log the workout you actually did in the <strong>Workout Tracker</strong>. You do not need to beat yourself up or be sore every day. Challenge your muscles a few days each week—and more when your plan and recovery support it—then record what really happened.</p>
-            </div>
-        </article>
-    </section>
-
-    <section class="how-prescription">
-        <div class="how-prescription-header">
-            <small>YOUR DATA → YOUR PRESCRIPTION</small>
-            <h2>12WR takes over from there.</h2>
-            <p>
-                The system combines your profile, preferred schedule, scale trend, nutrition, completed workouts,
-                and recovery information to calculate your daily <strong>movement and macro prescription</strong>.
-                The result is waiting on your Dashboard: what to do, how hard to do it, and the protein, fat,
-                and carbohydrate targets that fit that day.
-            </p>
+        <div class="hiw-section-label">
+            <small>YOUR DAILY LOOP</small>
+            <h2>Three things. Every day.</h2>
+            <p>Hover or tap the portals. This is the part you actually do. Everything else is calculation.</p>
         </div>
 
-        <div class="how-points">
-            <div class="how-point"><strong>You do not have to follow it perfectly.</strong> The closer you stay to the prescription, the more closely you are applying the science-based mechanics the program was designed around.</div>
-            <div class="how-point"><strong>Macros matter more than perfection.</strong> An imperfect meal does not ruin the day. Track it, see where your totals are headed, and make the next choice fit.</div>
-            <div class="how-point"><strong>Training should be productive, not punishing.</strong> Give your muscles a real reason to adapt several times each week, while letting recovery determine how much more is appropriate.</div>
-            <div class="how-point"><strong>Track every day and watch the trend.</strong> If results begin to slip away from the direction you want, tighten things up a little. The system keeps recalculating from what you actually do.</div>
-        </div>
+        <section class="hiw-portals" aria-label="Three daily actions">
+            <article class="hiw-portal active" tabindex="0">
+                <div class="hiw-portal-top"><span class="hiw-num">01 · TRACK</span><span class="hiw-status">morning</span></div>
+                <div class="hiw-portal-icon" aria-hidden="true"><svg viewBox="0 0 64 64"><rect x="10" y="10" width="44" height="44" rx="9"/><path d="M20 25h24"/><path d="M32 25v9"/><path d="M25 18h14"/><path d="M19 44c5-5 21-5 26 0"/></svg></div>
+                <h3>Weigh in</h3>
+                <p class="quick">Step on the scale. Enter your weight in Recomp Tracking.</p>
+                <div class="hiw-more">Have body-fat, muscle, water or waist data too? Great—add it. But weight alone keeps the trend alive.</div>
+                <span class="hiw-open">hover / tap ↗</span>
+            </article>
 
-        <figure class="how-diagram">
-            <img id="how-12wr-infographic"
-                 width="400"
-                 height="300"
-                 alt="12 Week Recomp prescription system showing scale tracking, workout tracking and nutrition tracking flowing into the prescription engine and back into a personalized daily movement and macro plan." />
-        </figure>
+            <article class="hiw-portal" tabindex="0">
+                <div class="hiw-portal-top"><span class="hiw-num">02 · FUEL</span><span class="hiw-status">all day</span></div>
+                <div class="hiw-portal-icon" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M14 34h36c-1 11-8 17-18 17s-17-6-18-17Z"/><path d="M20 29c4-8 8-11 12-11 3 0 5 2 6 5 4-3 8-2 11 2"/><path d="M25 16c0 5-2 9-6 12"/><path d="M39 13c-1 5 0 9 4 12"/></svg></div>
+                <h3>Track food</h3>
+                <p class="quick">Use the Nutrition Logger and watch protein, fat and carbs.</p>
+                <div class="hiw-more">You do not have to “eat clean” every minute. Log honestly and stay at—or reasonably close to—the macro targets.</div>
+                <span class="hiw-open">hover / tap ↗</span>
+            </article>
+
+            <article class="hiw-portal" tabindex="0">
+                <div class="hiw-portal-top"><span class="hiw-num">03 · MOVE</span><span class="hiw-status">training</span></div>
+                <div class="hiw-portal-icon" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M22 24v16M42 24v16M16 27v10M48 27v10M10 30v4M54 30v4M22 32h20"/></svg></div>
+                <h3>Log training</h3>
+                <p class="quick">Enter the workout you actually did in the Workout Tracker.</p>
+                <div class="hiw-more">You do not need to destroy yourself daily. Give muscle a real reason to adapt several days a week—or as much as your life and recovery allow.</div>
+                <span class="hiw-open">hover / tap ↗</span>
+            </article>
+        </section>
+    </div>
+
+    <section class="hiw-flow">
+        <div class="hiw-wrap">
+            <div class="hiw-section-label">
+                <small>THE INTELLIGENCE LAYER</small>
+                <h2>You give it reality.<br>12WR gives you the prescription.</h2>
+            </div>
+
+            <div class="hiw-flow-grid">
+                <div class="hiw-input-stack" aria-label="Inputs">
+                    <div class="hiw-signal"><small>INPUT 01</small><strong>Scale trend</strong></div>
+                    <div class="hiw-signal"><small>INPUT 02</small><strong>Food + macros</strong></div>
+                    <div class="hiw-signal"><small>INPUT 03</small><strong>Actual training</strong></div>
+                </div>
+
+                <div class="hiw-engine">
+                    <div class="hiw-gear" aria-hidden="true">✦</div>
+                    <small>12 WEEK RECOMP ENGINE</small>
+                    <h2>Calculate.<br>Adapt.<br>Prescribe.</h2>
+                    <p>Your real data is combined with your profile, schedule and recovery to create a <strong>daily movement + macro prescription</strong>.</p>
+                </div>
+
+                <div class="hiw-output-stack" aria-label="Outputs">
+                    <div class="hiw-signal"><small>DASHBOARD</small><strong>Today's movement</strong></div>
+                    <div class="hiw-signal"><small>DASHBOARD</small><strong>Protein · Fat · Carbs</strong></div>
+                    <div class="hiw-signal"><small>DASHBOARD</small><strong>Updated direction</strong></div>
+                </div>
+            </div>
+        </div>
     </section>
 
-    <section class="how-finish">
-        <strong>That’s really it.</strong>
-        <p>
-            12WR does the calculations. You move, track your food, record your workouts, and watch the results.
-            Keep feeding the system real data and it keeps giving you a current plan instead of a generic population-average target.
-        </p>
-        <div class="how-actions">
-            <a class="primary" href="/trial/start">Start Free</a>
-            <a class="secondary" href="/GuidedDemo">See the Guided Demo</a>
+    <section class="hiw-rules">
+        <div class="hiw-wrap">
+            <div class="hiw-section-label">
+                <small>REAL LIFE RULES</small>
+                <h2>Close beats perfect.</h2>
+                <p>The prescription is a target—not a prison. The closer you stay, the closer you stay to the mechanics 12WR is trying to create.</p>
+            </div>
+
+            <div class="hiw-rule-grid">
+                <article class="hiw-rule"><span class="mark">01 · FOOD</span><h3>Macros over perfection</h3><p>One imperfect meal changes nothing. Track it. See where the day is headed. Adjust the next choice.</p></article>
+                <article class="hiw-rule"><span class="mark">02 · TRAINING</span><h3>Stimulate. Don't punish.</h3><p>You do not need to be sore every day. Train hard enough to create adaptation, then let recovery do its job.</p></article>
+                <article class="hiw-rule"><span class="mark">03 · DATA</span><h3>Track every day</h3><p>The engine gets smarter when you give it reality. Missing data is guesswork. Real data creates a real trend.</p></article>
+                <article class="hiw-rule"><span class="mark">04 · COURSE CORRECT</span><h3>See drift? Tighten up.</h3><p>If results start slipping, get a little closer to the targets. No drama. No restart. Just correct the course.</p></article>
+            </div>
         </div>
     </section>
-</main>
 
+    <section class="hiw-payoff">
+        <div class="hiw-wrap">
+            <div class="hiw-section-label">
+                <small>THE WHOLE SYSTEM</small>
+                <h2>Track → learn → adapt → repeat.</h2>
+            </div>
+
+            <figure class="hiw-diagram-frame">
+                <img id="how-12wr-infographic" width="400" height="300" alt="12 Week Recomp prescription system showing tracking, nutrition and workouts flowing into the prescription engine and returning a personalized daily movement and macro plan." />
+            </figure>
+
+            <div class="hiw-last">
+                <div class="easy">That's it. <span>Pretty easy.</span></div>
+                <p>The calculations are done for you. Your job is to move, track your macros, record what happened, and watch the results. Keep feeding 12WR real life and it keeps giving you a current plan.</p>
+                <div class="hiw-actions"><a class="primary" href="/trial/start">Start free →</a><a class="secondary" href="/GuidedDemo">Open guided demo</a></div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+(() => {
+    const cards = [...document.querySelectorAll('.hiw-portal')];
+    cards.forEach(card => {
+        const activate = () => {
+            cards.forEach(x => x.classList.remove('active'));
+            card.classList.add('active');
+        };
+        card.addEventListener('click', activate);
+        card.addEventListener('focus', activate);
+        card.addEventListener('pointermove', event => {
+            const r = card.getBoundingClientRect();
+            card.style.setProperty('--mx', `${((event.clientX-r.left)/r.width)*100}%`);
+            card.style.setProperty('--my', `${((event.clientY-r.top)/r.height)*100}%`);
+        });
+    });
+})();
+</script>
 <script src="~/js/how-it-works-infographic.js" asp-append-version="true"></script>
