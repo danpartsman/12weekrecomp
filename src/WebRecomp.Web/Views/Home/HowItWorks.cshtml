@@ -32,7 +32,7 @@
     .how-point{padding:1rem 1.05rem;border-radius:18px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);line-height:1.5}
     .how-point strong{color:#74e6ff}
     .how-diagram{margin:1.7rem auto 0;background:#f8fcff;padding:.7rem;border-radius:22px;box-shadow:0 18px 60px rgba(0,0,0,.22)}
-    .how-diagram img{display:block;width:100%;height:auto;border-radius:15px}
+    .how-diagram img{display:block;width:100%;height:auto;border-radius:15px;aspect-ratio:4/3;object-fit:contain;background:#fff}
     .how-finish{max-width:850px;margin:2rem auto 0;text-align:center;padding:1.7rem 1.4rem;border-radius:24px;background:linear-gradient(135deg,rgba(43,187,255,.15),rgba(75,231,137,.12));border:1px solid rgba(84,213,255,.22)}
     .how-finish strong{display:block;font-size:clamp(1.8rem,4vw,2.8rem);margin-bottom:.5rem}
     .how-finish p{margin:.25rem auto;line-height:1.6;max-width:720px;opacity:.87}
@@ -117,7 +117,9 @@
         </div>
 
         <figure class="how-diagram">
-            <img src="/images/recomp/how-12wr-works-infographic.webp"
+            <img id="how-12wr-infographic"
+                 width="400"
+                 height="300"
                  alt="12 Week Recomp prescription system showing scale tracking, workout tracking and nutrition tracking flowing into the prescription engine and back into a personalized daily movement and macro plan." />
         </figure>
     </section>
@@ -134,3 +136,5 @@
         </div>
     </section>
 </main>
+
+<script src="~/js/how-it-works-infographic.js" asp-append-version="true"></script>
