@@ -60,10 +60,16 @@
     img.alt =
         "The 12 Week Recomp System showing morning weigh-in, nutrition logging, workout tracking, the personalized prescription engine, and the daily dashboard prescription.";
 
-    const chunkUrls = [1, 2, 3, 4, 5].map(
-        part =>
-            `/images/recomp/how-it-works-refresh-${String(part).padStart(2, "0")}.txt?v=4`
-    );
+    const chunkUrls = [
+        ...[1, 2, 3, 4, 5, 6].map(
+            part =>
+                `/images/recomp/how-it-works-v7-${String(part).padStart(2, "0")}.txt?v=9`
+        ),
+        ...[7, 8, 9, 10, 11, 12, 13].map(
+            part =>
+                `/images/recomp/how-it-works-v9-${String(part).padStart(2, "0")}.txt?v=9`
+        )
+    ];
 
     Promise.all(
         chunkUrls.map(url =>
@@ -79,8 +85,8 @@
         .then(parts => {
             const data = parts.join("").replace(/\s+/g, "");
             img.src = `data:image/webp;base64,${data}`;
-            img.width = 720;
-            img.height = 540;
+            img.width = 900;
+            img.height = 675;
         })
         .catch(error => {
             console.error("How It Works infographic load failed", error);
