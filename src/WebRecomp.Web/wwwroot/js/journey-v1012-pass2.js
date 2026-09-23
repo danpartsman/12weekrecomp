@@ -176,8 +176,8 @@
             page.querySelector("#body-recovery"),
             "recover",
             "STEP 1",
-            "RECOVER",
-            "Restore. Reset. Ready."
+            "TRACK",
+            "Measure. Build. Progress."
         );
 
         makeStepBanner(
