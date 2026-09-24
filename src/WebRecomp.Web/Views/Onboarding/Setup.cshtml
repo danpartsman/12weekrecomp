@@ -1,0 +1,227 @@
+@model OnboardingSetupViewModel
+@{
+    ViewData["Title"] = "Finish Setup";
+    ViewData["OnboardingPage"] = true;
+}
+
+<style>
+    .ob-shell{min-height:calc(100vh - 100px);display:grid;place-items:center;padding:32px 16px 56px;background:radial-gradient(circle at 15% 15%,rgba(24,185,255,.16),transparent 34%),radial-gradient(circle at 85% 22%,rgba(80,255,156,.12),transparent 32%),linear-gradient(160deg,#04101d 0%,#071827 48%,#050b14 100%);color:#f4f8ff}
+    .ob-wrap{width:min(760px,100%)}
+    .ob-brand{text-align:center;margin-bottom:18px}.ob-kicker{font-size:.78rem;letter-spacing:.22em;font-weight:900;color:#50d8ff}.ob-brand h1{margin:6px 0 8px;font-size:clamp(1.9rem,5vw,3.3rem);line-height:1;font-weight:950}.ob-brand p{margin:0 auto;max-width:630px;color:#b9c8d8;font-size:1rem}
+    .ob-progress{display:flex;gap:8px;margin:20px auto 14px;max-width:520px}.ob-progress span{height:5px;flex:1;border-radius:99px;background:#263b4d;transition:.25s}.ob-progress span.active{background:linear-gradient(90deg,#27c9ff,#46ef9d);box-shadow:0 0 16px rgba(39,201,255,.35)}
+    .ob-card{display:none;background:linear-gradient(145deg,rgba(14,35,55,.96),rgba(7,18,31,.98));border:1px solid rgba(78,205,255,.32);border-radius:24px;padding:clamp(22px,5vw,38px);box-shadow:0 28px 80px rgba(0,0,0,.38),inset 0 1px rgba(255,255,255,.04)}.ob-card.active{display:block;animation:obIn .25s ease-out}@keyframes obIn{from{opacity:0;transform:translateY(10px) scale(.99)}to{opacity:1;transform:none}}
+    .ob-step-label{font-size:.72rem;letter-spacing:.18em;font-weight:900;color:#50d8ff}.ob-card h2{font-size:clamp(1.55rem,4vw,2.35rem);margin:6px 0 6px}.ob-sub{color:#aebfd0;margin:0 0 24px;line-height:1.5}
+    .ob-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.ob-field{display:flex;flex-direction:column;gap:7px}.ob-field.full{grid-column:1/-1}.ob-field label,.ob-label{font-size:.85rem;font-weight:800;color:#e9f4ff}.ob-required{color:#62ed9c}.ob-help{font-size:.78rem;color:#8fa5b9;line-height:1.35}
+    .ob-field input,.ob-field select{width:100%;box-sizing:border-box;border:1px solid #315874;background:#071829;color:#f7fbff;border-radius:12px;padding:13px 14px;font:inherit;outline:none;transition:.2s}.ob-field input:focus,.ob-field select:focus{border-color:#42d5ff;box-shadow:0 0 0 3px rgba(66,213,255,.12)}
+    .ob-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px}.ob-plan{position:relative;display:block;cursor:pointer}.ob-plan input{position:absolute;opacity:0;pointer-events:none}.ob-plan-body{height:100%;box-sizing:border-box;padding:15px;border-radius:14px;border:1px solid #294b64;background:#091c2c;transition:.2s}.ob-plan strong{display:block;font-size:1rem}.ob-plan small{display:block;color:#97aec1;margin-top:5px;line-height:1.35}.ob-plan input:checked + .ob-plan-body{border-color:#53f29e;background:linear-gradient(145deg,rgba(30,102,84,.35),rgba(8,34,45,.95));box-shadow:0 0 0 2px rgba(83,242,158,.12),0 0 24px rgba(83,242,158,.1)}
+    .ob-optional{border-left:3px solid #9c7dff;padding-left:13px;margin-bottom:20px}.ob-optional strong{display:block}.ob-optional span{color:#a9b8c8;font-size:.86rem}
+    .ob-callout{background:rgba(70,239,157,.08);border:1px solid rgba(70,239,157,.2);border-radius:14px;padding:14px 15px;margin:18px 0;color:#cfeede}.ob-callout strong{color:#66f3a7}
+    .ob-actions{display:flex;justify-content:space-between;gap:12px;margin-top:26px}.ob-btn{border:1px solid #35566f;border-radius:999px;padding:12px 20px;background:#0a2033;color:#eef8ff;font-weight:900;cursor:pointer}.ob-btn.primary{margin-left:auto;border:0;background:linear-gradient(90deg,#2ecbff,#43eb96);color:#031019;box-shadow:0 10px 30px rgba(46,203,255,.18)}.ob-btn:hover{transform:translateY(-1px)}
+    .ob-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.ob-summary div{background:#081a29;border:1px solid #233f55;border-radius:12px;padding:12px}.ob-summary span{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#7892a8}.ob-summary strong{display:block;margin-top:4px}
+    .validation-summary-errors{background:rgba(255,78,94,.1);border:1px solid rgba(255,78,94,.4);border-radius:12px;padding:12px 16px;margin-bottom:16px;color:#ffb9c0}.field-validation-error{color:#ff9aa6;font-size:.78rem}.input-validation-error{border-color:#ff6676!important}
+    .ob-age{font-size:.8rem;color:#5ce8a4;font-weight:800;min-height:1.1em}
+    @media(max-width:640px){.ob-shell{padding:20px 10px 44px}.ob-grid,.ob-plans,.ob-summary{grid-template-columns:1fr}.ob-card{border-radius:18px;padding:22px 17px}.ob-actions{position:sticky;bottom:8px;background:linear-gradient(180deg,transparent,#071523 28%);padding-top:20px}}
+</style>
+
+<div class="ob-shell">
+    <div class="ob-wrap">
+        <div class="ob-brand">
+            <div class="ob-kicker">THE 12 WEEK RECOMP SYSTEM</div>
+            <h1>Just enough to calculate your first prescription.</h1>
+            <p>Your Microsoft account is ready. Give us the few body and plan details the engine cannot safely guess, then we take it from there.</p>
+        </div>
+
+        <div class="ob-progress" aria-label="Setup progress"><span class="active"></span><span></span><span></span><span></span></div>
+
+        <form asp-controller="Onboarding" asp-action="Index" method="post" id="onboarding-form">
+            <div asp-validation-summary="All"></div>
+            <input asp-for="TimeZone" type="hidden" />
+
+            <section class="ob-card active" data-step="0">
+                <div class="ob-step-label">STEP 1 OF 4 · REQUIRED</div>
+                <h2>Your starting point</h2>
+                <p class="ob-sub">These are the minimum body inputs used to anchor energy, macro and progress calculations. We will not invent them for you.</p>
+                <div class="ob-grid">
+                    <div class="ob-field full">
+                        <label asp-for="ClientName">Name <span class="ob-required">*</span></label>
+                        <input asp-for="ClientName" autocomplete="name" data-required-step />
+                        <span asp-validation-for="ClientName"></span>
+                    </div>
+                    <div class="ob-field">
+                        <label asp-for="StartingWeightLb">Current weight (lb) <span class="ob-required">*</span></label>
+                        <input asp-for="StartingWeightLb" type="number" step="0.1" inputmode="decimal" data-required-step />
+                        <div class="ob-help">Weight anchors the daily energy and macro prescription.</div>
+                        <span asp-validation-for="StartingWeightLb"></span>
+                    </div>
+                    <div class="ob-field">
+                        <label asp-for="HeightIn">Height (inches) <span class="ob-required">*</span></label>
+                        <input asp-for="HeightIn" type="number" step="0.1" inputmode="decimal" data-required-step />
+                        <span asp-validation-for="HeightIn"></span>
+                    </div>
+                    <div class="ob-field">
+                        <label asp-for="DateOfBirth">Date of birth / age <span class="ob-required">*</span></label>
+                        <input asp-for="DateOfBirth" type="date" data-required-step />
+                        <div class="ob-age" id="age-preview"></div>
+                        <div class="ob-help">Age affects energy and recovery estimates.</div>
+                        <span asp-validation-for="DateOfBirth"></span>
+                    </div>
+                    <div class="ob-field">
+                        <label asp-for="SexCode">Sex used for calculations <span class="ob-required">*</span></label>
+                        <select asp-for="SexCode" data-required-step>
+                            <option value="">Choose…</option>
+                            <option value="FEMALE">Female</option>
+                            <option value="MALE">Male</option>
+                        </select>
+                        <div class="ob-help">Used only where physiology calculations require sex-based reference values.</div>
+                        <span asp-validation-for="SexCode"></span>
+                    </div>
+                </div>
+                <div class="ob-actions"><button class="ob-btn primary" type="button" data-next>Next →</button></div>
+            </section>
+
+            <section class="ob-card" data-step="1">
+                <div class="ob-step-label">STEP 2 OF 4 · REQUIRED</div>
+                <h2>What are we optimizing for?</h2>
+                <p class="ob-sub">Pick the direction for this 12-week block. This drives the initial nutrition, fueling and movement strategy.</p>
+                <div class="ob-plans">
+                    <label class="ob-plan"><input asp-for="GoalCode" type="radio" value="MUSCLE_BUILD" data-required-step /><span class="ob-plan-body"><strong>Build Muscle</strong><small>Muscle focus with fat loss as a secondary objective.</small></span></label>
+                    <label class="ob-plan"><input asp-for="GoalCode" type="radio" value="FAT_LOSS_RECOMP" data-required-step /><span class="ob-plan-body"><strong>Lose Fat + Recomp</strong><small>Fat-loss focus while building or protecting useful lean mass.</small></span></label>
+                    <label class="ob-plan"><input asp-for="GoalCode" type="radio" value="ATHLETIC_RECOMP" data-required-step /><span class="ob-plan-body"><strong>Athletic Recomp</strong><small>Performance, conditioning and body composition together.</small></span></label>
+                    <label class="ob-plan"><input asp-for="GoalCode" type="radio" value="HEALTH_RESET" data-required-step /><span class="ob-plan-body"><strong>Health Reset</strong><small>Build sustainable movement and nutrition habits first.</small></span></label>
+                    <label class="ob-plan"><input asp-for="GoalCode" type="radio" value="PAIN_LIMITED" data-required-step /><span class="ob-plan-body"><strong>Mobility / Pain-Limited</strong><small>Work within current movement limitations and build capacity.</small></span></label>
+                </div>
+                <span asp-validation-for="GoalCode"></span>
+                <div class="ob-grid" style="margin-top:18px">
+                    <div class="ob-field">
+                        <label asp-for="AvailableTrainingDaysWeek">Days you can realistically move/train each week <span class="ob-required">*</span></label>
+                        <input asp-for="AvailableTrainingDaysWeek" type="number" min="1" max="7" data-required-step />
+                        <div class="ob-help">Use a normal week, not a perfect week. You can rearrange individual days next.</div>
+                    </div>
+                    <div class="ob-field">
+                        <label asp-for="TrainingExperienceCode">Resistance-training experience <span class="ob-required">*</span></label>
+                        <select asp-for="TrainingExperienceCode" data-required-step>
+                            <option value="BEGINNER">Beginner</option>
+                            <option value="INTERMEDIATE">Intermediate</option>
+                            <option value="ADVANCED">Advanced</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="ob-actions"><button class="ob-btn" type="button" data-back>← Back</button><button class="ob-btn primary" type="button" data-next>Next →</button></div>
+            </section>
+
+            <section class="ob-card" data-step="2">
+                <div class="ob-step-label">STEP 3 OF 4 · OPTIONAL</div>
+                <h2>Help us understand your real life</h2>
+                <div class="ob-optional"><strong>You can skip every field on this screen.</strong><span>They improve context and trend interpretation, but they are not required to start.</span></div>
+                <div class="ob-grid">
+                    <div class="ob-field full">
+                        <label asp-for="LifestyleActivityCode">Typical workday / occupation activity</label>
+                        <select asp-for="LifestyleActivityCode">
+                            <option value="">Skip for now</option>
+                            <option value="MINIMAL">Mostly seated</option>
+                            <option value="LIGHT">Some walking / standing</option>
+                            <option value="MODERATE">Active job or frequent movement</option>
+                            <option value="VERY_ACTIVE">Very physical workday</option>
+                        </select>
+                        <div class="ob-help">Your job title itself is less useful than how much your occupation makes you move. This helps estimate habitual activity outside workouts.</div>
+                    </div>
+                    <div class="ob-field"><label asp-for="BaselineStepsDay">Typical steps per day</label><input asp-for="BaselineStepsDay" type="number" inputmode="numeric" placeholder="Optional" /></div>
+                    <div class="ob-field"><label asp-for="BaselineSleepHours">Typical sleep (hours)</label><input asp-for="BaselineSleepHours" type="number" step="0.1" inputmode="decimal" placeholder="Optional" /></div>
+                    <div class="ob-field"><label asp-for="StartingBodyFatPercent">Body fat (%)</label><input asp-for="StartingBodyFatPercent" type="number" step="0.1" inputmode="decimal" placeholder="Optional" /></div>
+                    <div class="ob-field"><label asp-for="StartingMuscleMassLb">Skeletal muscle / muscle mass (lb)</label><input asp-for="StartingMuscleMassLb" type="number" step="0.1" inputmode="decimal" placeholder="Optional" /></div>
+                    <div class="ob-field"><label asp-for="StartingWaistIn">Waist (in)</label><input asp-for="StartingWaistIn" type="number" step="0.1" inputmode="decimal" placeholder="Optional" /></div>
+                    <div class="ob-field"><label asp-for="StartingVisceralFatRating">Visceral-fat rating</label><input asp-for="StartingVisceralFatRating" type="number" step="0.1" inputmode="decimal" placeholder="Optional" /></div>
+                    <input asp-for="StartingBodyWaterLb" type="hidden" />
+                    <input asp-for="StartingHipsIn" type="hidden" />
+                </div>
+                <div class="ob-callout"><strong>Why ask?</strong> Recomp works with the information you have. More real context can make interpretation better; leaving an unknown field blank is always better than guessing.</div>
+                <div class="ob-actions"><button class="ob-btn" type="button" data-back>← Back</button><button class="ob-btn primary" type="button" data-next>Almost done →</button></div>
+            </section>
+
+            <section class="ob-card" data-step="3">
+                <div class="ob-step-label">STEP 4 OF 4</div>
+                <h2>That’s enough to start.</h2>
+                <p class="ob-sub">We now have the minimum real data required to calculate safely. Next, we will build your recommended starting week and let you move the days around to fit your life.</p>
+                <div class="ob-summary">
+                    <div><span>Current weight</span><strong id="summary-weight">—</strong></div>
+                    <div><span>Plan</span><strong id="summary-plan">—</strong></div>
+                    <div><span>Movement days</span><strong id="summary-days">—</strong></div>
+                    <div><span>Then</span><strong>Dashboard prescription</strong></div>
+                </div>
+                <div class="ob-callout"><strong>The system takes over from here.</strong> Your starting profile + preferred weekly movement schedule create the first prescription. Your daily weigh-ins, nutrition and completed workouts then keep replacing estimates with real evidence.</div>
+                <div class="ob-actions"><button class="ob-btn" type="button" data-back>← Back</button><button class="ob-btn primary" type="submit">Create my plan & choose my week →</button></div>
+            </section>
+        </form>
+    </div>
+</div>
+
+<script>
+(() => {
+    const cards = [...document.querySelectorAll('.ob-card')];
+    const bars = [...document.querySelectorAll('.ob-progress span')];
+    const form = document.getElementById('onboarding-form');
+    let step = 0;
+
+    const show = (n) => {
+        step = Math.max(0, Math.min(cards.length - 1, n));
+        cards.forEach((card, i) => card.classList.toggle('active', i === step));
+        bars.forEach((bar, i) => bar.classList.toggle('active', i <= step));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (step === 3) updateSummary();
+    };
+
+    const validateCurrent = () => {
+        const required = [...cards[step].querySelectorAll('[data-required-step]')];
+        const radioNames = new Set();
+        for (const el of required) {
+            if (el.type === 'radio') { radioNames.add(el.name); continue; }
+            if (!el.value || !el.checkValidity()) { el.reportValidity(); el.focus(); return false; }
+        }
+        for (const name of radioNames) {
+            if (!form.querySelector(`input[name="${name}"]:checked`)) {
+                const first = form.querySelector(`input[name="${name}"]`);
+                first?.focus();
+                alert('Choose the plan you want the system to optimize for.');
+                return false;
+            }
+        }
+        return true;
+    };
+
+    document.querySelectorAll('[data-next]').forEach(btn => btn.addEventListener('click', () => { if (validateCurrent()) show(step + 1); }));
+    document.querySelectorAll('[data-back]').forEach(btn => btn.addEventListener('click', () => show(step - 1)));
+
+    const dob = document.getElementById('DateOfBirth');
+    const agePreview = document.getElementById('age-preview');
+    const renderAge = () => {
+        if (!dob?.value) { if (agePreview) agePreview.textContent = ''; return; }
+        const birth = new Date(`${dob.value}T12:00:00`); const now = new Date();
+        let age = now.getFullYear() - birth.getFullYear();
+        const m = now.getMonth() - birth.getMonth();
+        if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+        if (agePreview) agePreview.textContent = age >= 0 ? `Age ${age}` : '';
+    };
+    dob?.addEventListener('change', renderAge); renderAge();
+
+    const tz = document.getElementById('TimeZone');
+    try { if (tz) tz.value = Intl.DateTimeFormat().resolvedOptions().timeZone || tz.value; } catch (_) {}
+
+    const updateSummary = () => {
+        const weight = document.getElementById('StartingWeightLb')?.value;
+        const days = document.getElementById('AvailableTrainingDaysWeek')?.value;
+        const selected = form.querySelector('input[name="GoalCode"]:checked');
+        const labels = { MUSCLE_BUILD:'Build Muscle', FAT_LOSS_RECOMP:'Lose Fat + Recomp', ATHLETIC_RECOMP:'Athletic Recomp', HEALTH_RESET:'Health Reset', PAIN_LIMITED:'Mobility / Pain-Limited' };
+        document.getElementById('summary-weight').textContent = weight ? `${weight} lb` : '—';
+        document.getElementById('summary-days').textContent = days ? `${days} days / week` : '—';
+        document.getElementById('summary-plan').textContent = selected ? (labels[selected.value] || selected.value) : '—';
+    };
+
+    // When MVC returns a validation error, take the user directly to the step containing it.
+    const invalid = document.querySelector('.input-validation-error');
+    if (invalid) {
+        const invalidCard = invalid.closest('.ob-card');
+        const idx = cards.indexOf(invalidCard);
+        if (idx >= 0) show(idx);
+    }
+})();
+</script>
