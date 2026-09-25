@@ -59,7 +59,7 @@ BEGIN
         UpdatedAtUtc datetime2(3) NOT NULL,
         CONSTRAINT PK_LocalAuthCredentials PRIMARY KEY (UserId),
         CONSTRAINT FK_LocalAuthCredentials_UserAccounts
-            FOREIGN KEY (UserId) REFERENCES app.UserAccounts(UserId)
+            FOREIGN KEY (UserId) REFERENCES app.UserAccounts(user_id)
     );
 END;
 
