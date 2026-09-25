@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;
 using System.Threading.RateLimiting;
@@ -8,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Middleware;
+using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Engine30;
 using WebRecomp.Web.Services.WorkoutIntelligence;
@@ -45,10 +48,33 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.AllowedHosts.Add("test.12weekrecomp.com");
 });
 
+// Native 12WR cookie authentication is now the normal customer path. Entra
+// remains registered only as a compatibility/staff sign-in option while
+// existing external accounts are migrated deliberately.
 builder.Services
-    .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+    .AddAuthentication(options =>
+    {
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    })
     .AddMicrosoftIdentityWebApp(
         builder.Configuration.GetSection("AzureAd"));
+
+builder.Services.Configure<CookieAuthenticationOptions>(
+    CookieAuthenticationDefaults.AuthenticationScheme,
+    options =>
+    {
+        options.LoginPath = "/Account/SignIn";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.Cookie.Name = "12WR.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+    });
 
 builder.Services.Configure<OpenIdConnectOptions>(
     OpenIdConnectDefaults.AuthenticationScheme,
@@ -98,11 +124,35 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             });
     });
+
+    options.AddPolicy("local-auth", httpContext =>
+    {
+        var subject =
+            httpContext.Connection.RemoteIpAddress?.ToString()
+            ?? "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: subject,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 12,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
 });
 
 builder.Services.AddDbContext<RecompDbContext>(options =>
     options.UseSqlServer(connectionString, sql =>
         sql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null)));
+
+// The idempotent local-auth schema bootstrap must run before TEST seeders that
+// query customer records. It only adds the credential table; existing customer,
+// client, program, workout and nutrition data are untouched.
+builder.Services.AddHostedService<LocalAuthSchemaHostedService>();
+builder.Services.AddScoped<IPasswordHasher<UserAccount>, PasswordHasher<UserAccount>>();
+builder.Services.AddScoped<LocalAuthService>();
 
 // v1011 Nutrition Intelligence composition root.
 // Nutrition Intelligence remains independent; Web owns provider wiring.
@@ -225,8 +275,8 @@ app.UseRouting();
 
 app.UseAuthentication();
 
-// Permanent Entra/OIDC identity wins. Only anonymous requests are eligible
-// for restoration from temporary TEST/demo cookies.
+// A permanent 12WR cookie or a legacy Entra cookie wins. Only anonymous
+// requests are eligible for restoration from temporary TEST/demo cookies.
 app.UseMiddleware<DemoSessionMiddleware>();
 app.UseMiddleware<TestPersonaMiddleware>();
 
