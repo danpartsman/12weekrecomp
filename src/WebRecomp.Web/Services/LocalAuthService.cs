@@ -96,24 +96,35 @@ public sealed class LocalAuthService(
         var passwordHash = passwordHasher.HashPassword(user, password);
         const string roleCode = "CLIENT";
 
-        await using var transaction =
-            await db.Database.BeginTransactionAsync(cancellationToken);
+        // RecompDbContext uses SqlServerRetryingExecutionStrategy. A manually
+        // started transaction must therefore run inside that strategy or EF
+        // can reject the unit of work and roll it back. Keep the user row and
+        // credential row atomic, while allowing SQL Azure transient retries.
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction =
+                await db.Database.BeginTransactionAsync(cancellationToken);
 
-        db.UserAccounts.Add(user);
-        await db.SaveChangesAsync(cancellationToken);
+            // Mark Added on every execution-strategy attempt. If SQL Server
+            // retries after a transient failure, a prior SaveChanges may have
+            // changed the tracked state even though its transaction rolled back.
+            db.UserAccounts.Add(user);
+            await db.SaveChangesAsync(cancellationToken);
 
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            INSERT INTO app.LocalAuthCredentials
-                (UserId, PasswordHash, GlobalRoleCode, FailedSignInCount,
-                 LockoutEndUtc, LastSignInAtUtc, CreatedAtUtc, UpdatedAtUtc)
-            VALUES
-                ({user.UserId}, {passwordHash}, {roleCode}, 0,
-                 NULL, NULL, {now}, {now});
-            """,
-            cancellationToken);
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT INTO app.LocalAuthCredentials
+                    (UserId, PasswordHash, GlobalRoleCode, FailedSignInCount,
+                     LockoutEndUtc, LastSignInAtUtc, CreatedAtUtc, UpdatedAtUtc)
+                VALUES
+                    ({user.UserId}, {passwordHash}, {roleCode}, 0,
+                     NULL, NULL, {now}, {now});
+                """,
+                cancellationToken);
 
-        await transaction.CommitAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        });
 
         // Account creation must not depend on mail delivery. The existing
         // welcome service already treats transport failures as non-fatal.
