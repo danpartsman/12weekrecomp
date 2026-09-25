@@ -9,182 +9,21 @@ namespace WebRecomp.Web.Controllers;
 
 public sealed class IntakeController(
     RecompDbContext db,
-    AppUserContextService userContext,
-    ConfigurationService configuration,
-    WeeklyPlanService weeklyPlans) : Controller
+    AppUserContextService userContext) : Controller
 {
+    // The original full intake page is now a legacy route. New and interrupted
+    // accounts must use the compact Onboarding flow so they cannot create a
+    // partial profile and then reach calculation surfaces with missing data.
     [HttpGet]
-    public async Task<IActionResult> Index(
-        CancellationToken cancellationToken)
-    {
-        var context =
-            await userContext.GetAsync(HttpContext, cancellationToken);
-
-        if (context.Client is not null && context.Program is not null)
-            return RedirectToAction("Index", "Dashboard");
-
-        return View(new IntakeViewModel());
-    }
+    public IActionResult Index()
+        => RedirectToAction("Index", "Onboarding");
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(
+    public IActionResult Index(
         IntakeViewModel model,
         CancellationToken cancellationToken)
-    {
-        var context =
-            await userContext.GetAsync(HttpContext, cancellationToken);
-
-        if (!ModelState.IsValid)
-            return View(model);
-
-        if (context.Client is not null)
-        {
-            ModelState.AddModelError(
-                "",
-                "This account already has a client profile.");
-
-            return View(model);
-        }
-
-        var configVersion =
-            await configuration.GetActiveVersionAsync(cancellationToken);
-
-        var selectedPlanCode = GoalToPlan(model.GoalCode);
-
-        var client = new Client
-        {
-            ClientId = Guid.NewGuid(),
-            ClientName = model.ClientName.Trim(),
-            DateOfBirth = model.DateOfBirth,
-            SexCode = model.SexCode,
-            HeightIn = model.HeightIn,
-            TimeZone = model.TimeZone,
-            UnitSystemCode = "US",
-            TrainingExperienceCode = model.TrainingExperienceCode,
-            ClientStatusCode = "ACTIVE",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
-        };
-
-        // The initial body measurement belongs to the day the
-        // customer actually enters it, not necessarily the future
-        // program start date.
-
-
-        var intakeDate = AppUserContextService.GetClientToday(client);
-
-        var program = new ProgramRecord
-        {
-            ProgramId = Guid.NewGuid(),
-            ClientId = client.ClientId,
-            ConfigVersionId = configVersion.ConfigVersionId,
-            SelectedPlanCode = selectedPlanCode,
-            GoalCode = model.GoalCode,
-            StartDate = model.StartDate,
-            DurationWeeks = 12,
-            AvailableTrainingDaysWeek =
-                model.AvailableTrainingDaysWeek,
-            // TEST v1012: full tracking is the default for new programs.
-            // Existing users keep their saved choices and can turn either
-            // setting off independently from Profile > Settings.
-            DetailedWorkoutEntryEnabled = true,
-            NutritionFoodLogEnabled = true,
-            ProgramStatusCode = "ACTIVE",
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow
-        };
-
-        var measurement = new Measurement
-        {
-            MeasurementId = Guid.NewGuid(),
-            ClientId = client.ClientId,
-            ProgramId = program.ProgramId,
-            MeasurementAtUtc = DateTime.UtcNow,
-
-            // v1005 fix:
-            // baseline measurement is available immediately.
-            LocalMeasurementDate = intakeDate,
-
-            WeightLb = model.StartingWeightLb,
-
-            BodyFatPct =
-                model.StartingBodyFatPercent.HasValue
-                    ? model.StartingBodyFatPercent.Value / 100m
-                    : null,
-
-            MuscleMassLb = model.StartingMuscleMassLb,
-            BodyWaterLb = model.StartingBodyWaterLb,
-            VisceralFatRating = model.StartingVisceralFatRating,
-            WaistIn = model.StartingWaistIn,
-            HipsIn = model.StartingHipsIn,
-            MeasurementSourceCode = "INTAKE",
-            SourceRecordId = $"PROGRAM:{program.ProgramId:D}:BASELINE",
-            CreatedAtUtc = DateTime.UtcNow
-        };
-
-        var goal = new ProgramGoal
-        {
-            ProgramGoalId = Guid.NewGuid(),
-            ProgramId = program.ProgramId,
-            TargetWeightLowLb = model.TargetWeightLowLb,
-            TargetWeightHighLb = model.TargetWeightHighLb,
-            TargetWaistIn = model.TargetWaistIn,
-            GoalNotes = model.GoalNotes
-        };
-
-        var access = new UserClientAccess
-        {
-            UserClientAccessId = Guid.NewGuid(),
-            UserId = context.User.UserId,
-            ClientId = client.ClientId,
-            AccessRoleCode = "OWNER",
-            GrantedAtUtc = DateTime.UtcNow
-        };
-
-        var strategy = db.Database.CreateExecutionStrategy();
-
-        await strategy.ExecuteAsync(async () =>
-        {
-            await using var transaction =
-                await db.Database.BeginTransactionAsync(
-                    cancellationToken);
-
-            // Client must exist before records that reference it.
-            db.Clients.Add(client);
-            await db.SaveChangesAsync(cancellationToken);
-
-            // These depend on the client.
-            db.UserClientAccess.Add(access);
-            db.Programs.Add(program);
-            await db.SaveChangesAsync(cancellationToken);
-
-            // These depend on the program.
-            db.ProgramGoals.Add(goal);
-            db.Measurements.Add(measurement);
-            await db.SaveChangesAsync(cancellationToken);
-
-            await transaction.CommitAsync(cancellationToken);
-        });
-
-        var firstWeekStart =
-            WeeklyStrategyService.WeekStart(program.StartDate);
-
-        await weeklyPlans.SeedRecommendedWeekIfBlankAsync(
-            client,
-            program,
-            firstWeekStart,
-            cancellationToken);
-
-        return RedirectToAction(
-            "Index",
-            "Schedule",
-            new
-            {
-                weekStart =
-                    firstWeekStart.ToString("yyyy-MM-dd")
-            });
-    }
+        => RedirectToAction("Index", "Onboarding");
 
     [HttpGet]
     public async Task<IActionResult> Review(
@@ -194,12 +33,23 @@ public sealed class IntakeController(
             await userContext.GetAsync(HttpContext, cancellationToken);
 
         if (context.Client is null || context.Program is null)
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction("Index", "Onboarding");
 
         var model =
             await BuildReviewModelAsync(
                 context,
                 cancellationToken);
+
+        // Older/interrupted accounts can legitimately have a Client/Program
+        // but no usable baseline weight. Do not throw an application error;
+        // send them through Quick Start so the missing physiology is repaired.
+        if (model is null)
+        {
+            TempData["StatusMessage"] =
+                "Finish the short setup first. Recomp needs a current weight and the other required starting details before setup can be reviewed.";
+
+            return RedirectToAction("Index", "Onboarding");
+        }
 
         return View("Index", model);
     }
@@ -214,7 +64,7 @@ public sealed class IntakeController(
             await userContext.GetAsync(HttpContext, cancellationToken);
 
         if (context.Client is null || context.Program is null)
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction("Index", "Onboarding");
 
         model.ReviewMode = true;
         model.OriginalGoalCode = context.Program.GoalCode;
@@ -360,7 +210,7 @@ public sealed class IntakeController(
         return RedirectToAction("Index", "Profile");
     }
 
-    private async Task<IntakeViewModel> BuildReviewModelAsync(
+    private async Task<IntakeViewModel?> BuildReviewModelAsync(
         AppClientContext context,
         CancellationToken cancellationToken)
     {
@@ -370,16 +220,15 @@ public sealed class IntakeController(
         var baseline = await db.Measurements
             .Where(x =>
                 x.ProgramId == program.ProgramId &&
-                !x.IsDeleted)
+                !x.IsDeleted &&
+                x.WeightLb.HasValue &&
+                x.WeightLb.Value > 0m)
             .OrderBy(x => x.LocalMeasurementDate)
             .ThenBy(x => x.MeasurementAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (baseline?.WeightLb is null)
-        {
-            throw new InvalidOperationException(
-                "A starting-weight measurement is required.");
-        }
+        if (baseline is null)
+            return null;
 
         var goal = await db.ProgramGoals
             .SingleOrDefaultAsync(
@@ -400,7 +249,7 @@ public sealed class IntakeController(
                 client.TrainingExperienceCode
                 ?? "INTERMEDIATE",
 
-            StartingWeightLb = baseline.WeightLb.Value,
+            StartingWeightLb = baseline.WeightLb!.Value,
 
             StartingBodyFatPercent =
                 baseline.BodyFatPct * 100m,
@@ -452,5 +301,3 @@ public sealed class IntakeController(
             _ => "PLAN_4"
         };
 }
-
-
