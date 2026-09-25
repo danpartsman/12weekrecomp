@@ -66,6 +66,7 @@ jobs:
           }
 
           "RECOMP_TEST_RG=$resourceGroup" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RECOMP_TEMP_SQL_ADMIN_CREATED=false" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
           az webapp log config `
               --name recomp-test `
@@ -99,6 +100,53 @@ jobs:
               throw "Could not resolve the recomp-test RecompDatabase connection string."
           }
 
+          $serverMatch = [regex]::Match(
+              $runtimeConnectionString,
+              '(?i)(?:Server|Data Source)\s*=\s*(?:tcp:)?([^,;]+)')
+
+          if (-not $serverMatch.Success) {
+              throw "Could not resolve the Azure SQL server from the runtime connection string."
+          }
+
+          $sqlServerFqdn = $serverMatch.Groups[1].Value.Trim()
+          $sqlServerName = $sqlServerFqdn.Split('.')[0]
+          "RECOMP_SQL_SERVER=$sqlServerName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          $entraAdmins = az sql server ad-admin list `
+              --resource-group $env:RECOMP_TEST_RG `
+              --server $sqlServerName | ConvertFrom-Json
+
+          if (@($entraAdmins).Count -eq 0) {
+              $clientId = az account show --query user.name -o tsv
+              if ([string]::IsNullOrWhiteSpace($clientId)) {
+                  throw "Could not resolve the Azure deployment service principal client ID."
+              }
+
+              $servicePrincipal = az ad sp show --id $clientId | ConvertFrom-Json
+              if ($null -eq $servicePrincipal -or
+                  [string]::IsNullOrWhiteSpace($servicePrincipal.id) -or
+                  [string]::IsNullOrWhiteSpace($servicePrincipal.displayName)) {
+                  throw "Could not resolve the Azure deployment service principal object."
+              }
+
+              Write-Host "No SQL Entra administrator is configured. Creating a temporary migration administrator."
+              az sql server ad-admin create `
+                  --resource-group $env:RECOMP_TEST_RG `
+                  --server $sqlServerName `
+                  --display-name $servicePrincipal.displayName `
+                  --object-id $servicePrincipal.id | Out-Null
+
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Could not create the temporary SQL Entra migration administrator."
+              }
+
+              "RECOMP_TEMP_SQL_ADMIN_CREATED=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+              Start-Sleep -Seconds 15
+          }
+          else {
+              Write-Host "An SQL Entra administrator already exists. It will not be replaced."
+          }
+
           $accessToken = az account get-access-token `
               --resource https://database.windows.net/ `
               --query accessToken `
@@ -118,6 +166,24 @@ jobs:
 
           if ($LASTEXITCODE -ne 0) {
               throw "TEST local-auth schema migration failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Remove temporary TEST SQL administrator
+        if: always() && env.RECOMP_TEMP_SQL_ADMIN_CREATED == 'true'
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RECOMP_SQL_SERVER)) {
+              throw "Temporary SQL administrator cleanup could not resolve the SQL server."
+          }
+
+          Write-Host "Removing the temporary SQL Entra migration administrator."
+          az sql server ad-admin delete `
+              --resource-group $env:RECOMP_TEST_RG `
+              --server $env:RECOMP_SQL_SERVER `
+              --yes
+
+          if ($LASTEXITCODE -ne 0) {
+              throw "Failed to remove the temporary SQL Entra migration administrator."
           }
 
       - name: Deploy to Azure Web App
