@@ -136,8 +136,11 @@ public sealed class LocalAuthService(
             return new(false);
 
         var now = DateTime.UtcNow;
-        if (credential.LockoutEndUtc is > var lockoutEnd && lockoutEnd > now)
+        if (credential.LockoutEndUtc is DateTime lockoutEnd
+            && lockoutEnd > now)
+        {
             return new(false, LockedOut: true);
+        }
 
         if (credential.LockoutEndUtc.HasValue
             && credential.LockoutEndUtc.Value <= now)
