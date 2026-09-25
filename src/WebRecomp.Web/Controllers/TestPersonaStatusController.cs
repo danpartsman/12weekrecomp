@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -142,6 +143,119 @@ public sealed class TestPersonaStatusController(
             ready = rows.Count == TestPersonaCatalog.All.Count && rows.All(x => x.Ready),
             personas = rows
         });
+    }
+
+    // Temporary TEST-only auth diagnostic. It is deliberately limited to the
+    // synthetic test.com namespace and never returns password/hash material.
+    [HttpGet("local-auth-check")]
+    public async Task<IActionResult> LocalAuthCheck(
+        string email,
+        CancellationToken cancellationToken)
+    {
+        if (!sessions.IsEnabled)
+            return NotFound();
+
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        if (!normalizedEmail.EndsWith("@test.com", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "TEST-domain accounts only." });
+
+        var matching = await db.UserAccounts
+            .AsNoTracking()
+            .Where(x => x.EmailNormalized == normalizedEmail)
+            .OrderBy(x => x.CreatedAtUtc)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        if (matching.Count != 1)
+        {
+            return Ok(new
+            {
+                environment = "TEST",
+                email = normalizedEmail,
+                userCount = matching.Count,
+                credentialExists = false
+            });
+        }
+
+        var user = matching[0];
+        var connection = db.Database.GetDbConnection();
+        var closeWhenDone = connection.State != ConnectionState.Open;
+
+        if (closeWhenDone)
+            await connection.OpenAsync(cancellationToken);
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT PasswordHash,
+                       GlobalRoleCode,
+                       FailedSignInCount,
+                       LockoutEndUtc,
+                       LastSignInAtUtc
+                FROM app.LocalAuthCredentials
+                WHERE UserId = @userId;
+                """;
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@userId";
+            parameter.Value = user.UserId;
+            command.Parameters.Add(parameter);
+
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                return Ok(new
+                {
+                    environment = "TEST",
+                    email = normalizedEmail,
+                    userCount = 1,
+                    active = string.Equals(user.AccountStatusCode, "ACTIVE", StringComparison.OrdinalIgnoreCase),
+                    externalSubjectKind = user.ExternalSubject.StartsWith("local:", StringComparison.OrdinalIgnoreCase) ? "local" : "external",
+                    credentialExists = false
+                });
+            }
+
+            var passwordHash = reader.GetString(0);
+            var roleCode = reader.GetString(1);
+            var failedSignInCount = reader.GetInt32(2);
+            var lockoutEndUtc = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3);
+            var lastSignInAtUtc = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4);
+
+            int? passwordHashFormatMarker = null;
+            try
+            {
+                var decoded = Convert.FromBase64String(passwordHash);
+                if (decoded.Length > 0)
+                    passwordHashFormatMarker = decoded[0];
+            }
+            catch (FormatException)
+            {
+                // Structural signal only; no credential material is returned.
+            }
+
+            return Ok(new
+            {
+                environment = "TEST",
+                email = normalizedEmail,
+                userCount = 1,
+                active = string.Equals(user.AccountStatusCode, "ACTIVE", StringComparison.OrdinalIgnoreCase),
+                externalSubjectKind = user.ExternalSubject.StartsWith("local:", StringComparison.OrdinalIgnoreCase) ? "local" : "external",
+                credentialExists = true,
+                passwordHashLength = passwordHash.Length,
+                passwordHashIsBase64 = passwordHashFormatMarker.HasValue,
+                passwordHashFormatMarker,
+                roleCode,
+                failedSignInCount,
+                lockoutEndUtc,
+                lastSignInAtUtc
+            });
+        }
+        finally
+        {
+            if (closeWhenDone)
+                await connection.CloseAsync();
+        }
     }
 
     private static TestPersonaStatusRow Empty(string email)
