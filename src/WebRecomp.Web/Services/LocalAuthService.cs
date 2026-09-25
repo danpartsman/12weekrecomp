@@ -12,7 +12,8 @@ public enum LocalRegistrationStatus
     Created,
     ExistingLocalAccount,
     ExistingExternalAccount,
-    EmailConflict
+    EmailConflict,
+    Unavailable
 }
 
 public sealed record LocalRegistrationResult(
@@ -24,19 +25,36 @@ public sealed record LocalSignInResult(
     bool Success,
     UserAccount? User = null,
     string RoleCode = "CLIENT",
-    bool LockedOut = false);
+    bool LockedOut = false,
+    bool Unavailable = false);
+
+internal static class LocalAuthSchemaReadiness
+{
+    private static int _isReady;
+
+    public static bool IsReady
+    {
+        get => Volatile.Read(ref _isReady) == 1;
+        set => Volatile.Write(ref _isReady, value ? 1 : 0);
+    }
+}
 
 public sealed class LocalAuthService(
     RecompDbContext db,
     IPasswordHasher<UserAccount> passwordHasher,
     FirstSignInWelcomeEmailService welcomeEmail)
 {
+    public bool IsAvailable => LocalAuthSchemaReadiness.IsReady;
+
     public async Task<LocalRegistrationResult> RegisterAsync(
         string displayName,
         string email,
         string password,
         CancellationToken cancellationToken = default)
     {
+        if (!IsAvailable)
+            return new(LocalRegistrationStatus.Unavailable);
+
         var normalizedEmail = NormalizeEmail(email);
 
         var matching = await db.UserAccounts
@@ -109,6 +127,9 @@ public sealed class LocalAuthService(
         string password,
         CancellationToken cancellationToken = default)
     {
+        if (!IsAvailable)
+            return new(false, Unavailable: true);
+
         var normalizedEmail = NormalizeEmail(email);
 
         var matching = await db.UserAccounts
@@ -315,33 +336,57 @@ public sealed class LocalAuthSchemaHostedService(
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await using var scope = services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<RecompDbContext>();
+        LocalAuthSchemaReadiness.IsReady = false;
 
-        const string sql = """
-        IF OBJECT_ID(N'app.LocalAuthCredentials', N'U') IS NULL
-        BEGIN
-            CREATE TABLE app.LocalAuthCredentials
-            (
-                UserId uniqueidentifier NOT NULL,
-                PasswordHash nvarchar(512) NOT NULL,
-                GlobalRoleCode varchar(20) NOT NULL
-                    CONSTRAINT DF_LocalAuthCredentials_GlobalRoleCode DEFAULT ('CLIENT'),
-                FailedSignInCount int NOT NULL
-                    CONSTRAINT DF_LocalAuthCredentials_FailedSignInCount DEFAULT (0),
-                LockoutEndUtc datetime2(3) NULL,
-                LastSignInAtUtc datetime2(3) NULL,
-                CreatedAtUtc datetime2(3) NOT NULL,
-                UpdatedAtUtc datetime2(3) NOT NULL,
-                CONSTRAINT PK_LocalAuthCredentials PRIMARY KEY (UserId),
-                CONSTRAINT FK_LocalAuthCredentials_UserAccounts
-                    FOREIGN KEY (UserId) REFERENCES app.UserAccounts(UserId)
-            );
-        END;
-        """;
+        try
+        {
+            await using var scope = services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<RecompDbContext>();
+            var connection = db.Database.GetDbConnection();
+            var closeWhenDone = connection.State != ConnectionState.Open;
 
-        await db.Database.ExecuteSqlRawAsync(sql, cancellationToken);
-        logger.LogInformation("12WR local-auth database schema is ready.");
+            if (closeWhenDone)
+                await connection.OpenAsync(cancellationToken);
+
+            try
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    SELECT CASE
+                        WHEN OBJECT_ID(N'app.LocalAuthCredentials', N'U') IS NULL THEN 0
+                        ELSE 1
+                    END;
+                    """;
+
+                var scalar = await command.ExecuteScalarAsync(cancellationToken);
+                LocalAuthSchemaReadiness.IsReady =
+                    scalar is not null && scalar is not DBNull && Convert.ToInt32(scalar) == 1;
+            }
+            finally
+            {
+                if (closeWhenDone)
+                    await connection.CloseAsync();
+            }
+
+            if (LocalAuthSchemaReadiness.IsReady)
+            {
+                logger.LogInformation(
+                    "12WR local-auth database schema is present; native auth is enabled.");
+            }
+            else
+            {
+                logger.LogWarning(
+                    "12WR local-auth database schema is not present. Native auth is disabled, but application startup will continue.");
+            }
+        }
+        catch (Exception exception) when (
+            exception is DbException or InvalidOperationException)
+        {
+            LocalAuthSchemaReadiness.IsReady = false;
+            logger.LogError(
+                exception,
+                "Could not verify the 12WR local-auth schema. Native auth is disabled, but application startup will continue.");
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
