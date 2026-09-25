@@ -1,50 +1,54 @@
+@model LocalSignInViewModel
 @{
     ViewData["Title"] = "Sign In";
-    var returnUrl = ViewData["ReturnUrl"] as string ?? string.Empty;
-    var entraHref = string.IsNullOrWhiteSpace(returnUrl)
-        ? Url.Action("EntraSignIn", "Account")
-        : Url.Action("EntraSignIn", "Account", new { returnUrl });
-    entraHref ??= "/Account/EntraSignIn";
+    ViewData["PublicPage"] = true;
 }
 
-<div style="max-width:980px;margin:2.5rem auto;padding:1.5rem;">
-    <div style="margin-bottom:1.5rem;">
-        <p style="font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.72;margin-bottom:.4rem;">12 Week Recomp TEST</p>
-        <h1 style="margin-bottom:.6rem;">Choose how you want to sign in</h1>
-        <p style="max-width:760px;opacity:.82;">
-            Real users continue through Microsoft Entra. Synthetic TEST users sign in directly to 12 Week Recomp and do not need a real email account.
-        </p>
-    </div>
+<style>
+.auth-shell{min-height:calc(100vh - 80px);display:grid;place-items:center;padding:28px 16px;background:radial-gradient(circle at 18% 18%,rgba(42,199,255,.13),transparent 32%),radial-gradient(circle at 82% 20%,rgba(66,235,150,.10),transparent 30%),linear-gradient(160deg,#04101d 0%,#071827 52%,#050b14 100%);color:#f5f9ff}.auth-card{width:min(470px,100%);background:rgba(8,25,41,.96);border:1px solid rgba(74,196,240,.3);border-radius:24px;padding:30px;box-shadow:0 30px 80px rgba(0,0,0,.35)}.auth-kicker{font-size:.75rem;letter-spacing:.2em;font-weight:900;color:#53d9ff}.auth-card h1{margin:.45rem 0 .55rem;font-size:2.1rem}.auth-card p{color:#aebfd0;line-height:1.5}.auth-field{display:flex;flex-direction:column;gap:7px;margin-top:16px}.auth-field label{font-weight:800;font-size:.88rem}.auth-field input{width:100%;box-sizing:border-box;border:1px solid #315874;background:#061726;color:#fff;border-radius:12px;padding:13px 14px;font:inherit}.auth-check{display:flex;gap:8px;align-items:center;margin:16px 0;color:#c5d5e3}.auth-button{width:100%;border:0;border-radius:999px;padding:13px 18px;background:linear-gradient(90deg,#2ecbff,#43eb96);color:#031019;font-weight:950;cursor:pointer;font-size:1rem}.auth-links{text-align:center;margin-top:18px;color:#9fb2c4}.auth-links a{color:#55ddff;font-weight:800}.auth-errors{margin:14px 0;color:#ffadb7}.auth-legacy{margin-top:24px;padding-top:18px;border-top:1px solid #20384b;text-align:center;font-size:.88rem;color:#7992a7}.auth-legacy a{color:#9cc8e8}.field-validation-error{color:#ff9aa6;font-size:.8rem}.input-validation-error{border-color:#ff6676!important}
+</style>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;align-items:stretch;">
-        <section style="padding:1.5rem;border:1px solid rgba(120,170,220,.35);border-radius:18px;display:flex;flex-direction:column;gap:.85rem;">
-            <div style="font-size:2rem;">🔐</div>
-            <h2 style="margin:0;">Normal Sign In</h2>
-            <p style="margin:0;opacity:.8;flex:1;">
-                Use this for a real 12 Week Recomp account. Authentication is handled by Microsoft Entra.
-            </p>
-            <a class="button primary"
-               href="@entraHref"
-               style="text-align:center;text-decoration:none;">
-                Continue with Microsoft / Entra
-            </a>
-        </section>
+<div class="auth-shell">
+    <section class="auth-card">
+        <div class="auth-kicker">12 WEEK RECOMP</div>
+        <h1>Welcome back.</h1>
+        <p>Sign in directly to 12 Week Recomp. No Microsoft account is required.</p>
 
-        <section style="padding:1.5rem;border:1px solid rgba(104,211,145,.48);border-radius:18px;display:flex;flex-direction:column;gap:.85rem;box-shadow:0 0 30px rgba(104,211,145,.08);">
-            <div style="font-size:2rem;">🧪</div>
-            <h2 style="margin:0;">TEST User Sign In</h2>
-            <p style="margin:0;opacity:.8;flex:1;">
-                Use one of the preloaded synthetic personas. These accounts authenticate inside the TEST application and bypass Entra completely.
-            </p>
-            <a class="button primary"
-               href="/test-persona"
-               style="text-align:center;text-decoration:none;">
-                Open TEST User Sign In
-            </a>
-        </section>
-    </div>
+        <form asp-controller="Account" asp-action="SignIn" method="post">
+            <input asp-for="ReturnUrl" type="hidden" />
+            <div asp-validation-summary="ModelOnly" class="auth-errors"></div>
 
-    <p style="margin-top:1.25rem;opacity:.65;font-size:.92rem;">
-        The TEST User option exists only in the TEST environment and is not exposed on the LIVE site.
-    </p>
+            <div class="auth-field">
+                <label asp-for="Email">Email</label>
+                <input asp-for="Email" type="email" autocomplete="email" autofocus />
+                <span asp-validation-for="Email"></span>
+            </div>
+
+            <div class="auth-field">
+                <label asp-for="Password">Password</label>
+                <input asp-for="Password" type="password" autocomplete="current-password" />
+                <span asp-validation-for="Password"></span>
+            </div>
+
+            <label class="auth-check">
+                <input asp-for="RememberMe" />
+                <span>Keep me signed in</span>
+            </label>
+
+            <button class="auth-button" type="submit">Sign in →</button>
+        </form>
+
+        <div class="auth-links">
+            New to 12WR? <a asp-controller="Account" asp-action="CreateAccount" asp-route-returnUrl="@Model.ReturnUrl">Create an account</a>
+        </div>
+
+        <div class="auth-legacy">
+            Existing TEST account created through Microsoft?
+            <a asp-controller="Account" asp-action="MicrosoftSignIn" asp-route-returnUrl="@Model.ReturnUrl">Use legacy Microsoft sign-in</a>
+            @if (ViewData["PublicPage"] is not null)
+            {
+                <span> · </span><a href="/test-persona">TEST personas</a>
+            }
+        </div>
+    </section>
 </div>
