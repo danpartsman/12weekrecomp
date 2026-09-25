@@ -23,7 +23,7 @@ public sealed class AccountController(
         if (User.Identity?.IsAuthenticated == true)
             return RedirectToAction("AfterSignIn", "Home");
 
-        ViewData["PublicPage"] = true;
+        SetPublicAuthViewData();
         return View(new LocalSignInViewModel
         {
             ReturnUrl = SafeReturnUrl(returnUrl)
@@ -37,8 +37,14 @@ public sealed class AccountController(
         LocalSignInViewModel model,
         CancellationToken cancellationToken)
     {
-        ViewData["PublicPage"] = true;
+        SetPublicAuthViewData();
         model.ReturnUrl = SafeReturnUrl(model.ReturnUrl);
+
+        if (!localAuth.IsAvailable)
+        {
+            AddNativeAuthUnavailableError();
+            return View(model);
+        }
 
         if (!ModelState.IsValid)
             return View(model);
@@ -52,9 +58,11 @@ public sealed class AccountController(
         {
             ModelState.AddModelError(
                 "",
-                result.LockedOut
-                    ? "Too many sign-in attempts. Wait about 15 minutes and try again."
-                    : "The email or password is not correct.");
+                result.Unavailable
+                    ? NativeAuthUnavailableMessage
+                    : result.LockedOut
+                        ? "Too many sign-in attempts. Wait about 15 minutes and try again."
+                        : "The email or password is not correct.");
 
             return View(model);
         }
@@ -73,7 +81,7 @@ public sealed class AccountController(
         if (User.Identity?.IsAuthenticated == true)
             return RedirectToAction("AfterSignIn", "Home");
 
-        ViewData["PublicPage"] = true;
+        SetPublicAuthViewData();
         return View(new LocalRegisterViewModel
         {
             ReturnUrl = SafeReturnUrl(returnUrl)
@@ -87,8 +95,14 @@ public sealed class AccountController(
         LocalRegisterViewModel model,
         CancellationToken cancellationToken)
     {
-        ViewData["PublicPage"] = true;
+        SetPublicAuthViewData();
         model.ReturnUrl = SafeReturnUrl(model.ReturnUrl);
+
+        if (!localAuth.IsAvailable)
+        {
+            AddNativeAuthUnavailableError();
+            return View(model);
+        }
 
         if (!ModelState.IsValid)
             return View(model);
@@ -118,6 +132,10 @@ public sealed class AccountController(
                     nameof(model.Email),
                     "That email needs account support before it can be used. No new account was created.");
                 return View(model);
+
+            case LocalRegistrationStatus.Unavailable:
+                AddNativeAuthUnavailableError();
+                return View(model);
         }
 
         if (result.User is null)
@@ -135,7 +153,8 @@ public sealed class AccountController(
     }
 
     // Compatibility path for existing externally authenticated TEST accounts.
-    // New customers no longer need Microsoft/Entra to create a 12WR account.
+    // New customers no longer need Microsoft/Entra once the native credential
+    // schema has been provisioned through the database migration path.
     [HttpGet]
     public IActionResult MicrosoftSignIn(string? returnUrl = null)
         => StartEntraSignIn(returnUrl);
@@ -246,6 +265,18 @@ public sealed class AccountController(
             },
             OpenIdConnectDefaults.AuthenticationScheme);
     }
+
+    private void SetPublicAuthViewData()
+    {
+        ViewData["PublicPage"] = true;
+        ViewData["NativeAuthAvailable"] = localAuth.IsAvailable;
+    }
+
+    private void AddNativeAuthUnavailableError()
+        => ModelState.AddModelError("", NativeAuthUnavailableMessage);
+
+    private const string NativeAuthUnavailableMessage =
+        "Native 12WR sign-in is temporarily unavailable while the TEST credential database migration is completed. Existing TEST accounts can use the legacy Microsoft sign-in below.";
 
     private string? SafeReturnUrl(string? returnUrl)
         => !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
