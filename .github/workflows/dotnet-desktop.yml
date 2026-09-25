@@ -77,6 +77,133 @@ jobs:
           slot-name: Production
           package: ./publish
 
+      # TEMPORARY end-to-end regression proof for native registration. This
+      # uses the real public forms, restarts TEST, and then signs in from a new
+      # browser session. The generated password is never printed or persisted.
+      - name: Smoke-test native account create restart and return login
+        shell: pwsh
+        run: |
+          $base = "https://test.12weekrecomp.com"
+          $email = "authdiag-$('${{ github.sha }}'.Substring(0, 12))@test.com"
+          $password = "Diag9!" + [Guid]::NewGuid().ToString("N") + "Aa"
+
+          function Get-Token([string]$html) {
+              $match = [regex]::Match($html, 'name="__RequestVerificationToken"[^>]*value="([^"]+)"')
+              if (-not $match.Success) {
+                  $match = [regex]::Match($html, 'value="([^"]+)"[^>]*name="__RequestVerificationToken"')
+              }
+              if (-not $match.Success) {
+                  throw "Could not find the antiforgery token."
+              }
+              return $match.Groups[1].Value
+          }
+
+          function Wait-TestSite {
+              for ($attempt = 1; $attempt -le 15; $attempt++) {
+                  try {
+                      Invoke-WebRequest -Uri "$base/Account/CreateAccount" -Method Get -TimeoutSec 20 -SkipHttpErrorCheck | Out-Null
+                      return
+                  }
+                  catch {
+                      Write-Host "Waiting for TEST after restart ($attempt/15)..."
+                      Start-Sleep -Seconds 4
+                  }
+              }
+              throw "TEST did not become reachable after restart."
+          }
+
+          Wait-TestSite
+
+          $registerSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+          $registerPage = Invoke-WebRequest -Uri "$base/Account/CreateAccount" -WebSession $registerSession -TimeoutSec 30
+          $registerToken = Get-Token $registerPage.Content
+
+          $registerBody = @{
+              DisplayName = "Native Auth Diagnostic"
+              Email = $email
+              Password = $password
+              ConfirmPassword = $password
+              ReturnUrl = ""
+              __RequestVerificationToken = $registerToken
+          }
+
+          $registerResponse = Invoke-WebRequest `
+              -Uri "$base/Account/CreateAccount" `
+              -Method Post `
+              -Body $registerBody `
+              -WebSession $registerSession `
+              -TimeoutSec 30
+
+          if ($registerResponse.StatusCode -ne 200) {
+              throw "Native registration did not complete successfully. HTTP $($registerResponse.StatusCode)."
+          }
+
+          $encodedEmail = [uri]::EscapeDataString($email)
+          $diagUrl = "$base/test-persona/status/local-auth-check?email=$encodedEmail"
+          $created = Invoke-RestMethod -Uri $diagUrl -Method Get -TimeoutSec 30
+
+          if ($created.userCount -ne 1 -or -not $created.credentialExists) {
+              $created | ConvertTo-Json -Depth 8
+              throw "Native registration did not persist both the user and credential rows."
+          }
+
+          Write-Host "Native registration persisted successfully. Restarting TEST to prove durability."
+          az webapp restart --name recomp-test --resource-group $env:RECOMP_TEST_RG | Out-Null
+          Wait-TestSite
+
+          $afterRestart = $null
+          for ($attempt = 1; $attempt -le 12; $attempt++) {
+              try {
+                  $afterRestart = Invoke-RestMethod -Uri $diagUrl -Method Get -TimeoutSec 30
+                  if ($afterRestart.userCount -eq 1 -and $afterRestart.credentialExists) {
+                      break
+                  }
+              }
+              catch {
+                  $null = $_
+              }
+              Start-Sleep -Seconds 4
+          }
+
+          if ($null -eq $afterRestart -or $afterRestart.userCount -ne 1 -or -not $afterRestart.credentialExists) {
+              if ($null -ne $afterRestart) {
+                  $afterRestart | ConvertTo-Json -Depth 8
+              }
+              throw "Native account did not survive the TEST restart."
+          }
+
+          $loginSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+          $loginPage = Invoke-WebRequest -Uri "$base/Account/SignIn" -WebSession $loginSession -TimeoutSec 30
+          $loginToken = Get-Token $loginPage.Content
+
+          $loginBody = @{
+              Email = $email
+              Password = $password
+              RememberMe = "false"
+              ReturnUrl = ""
+              __RequestVerificationToken = $loginToken
+          }
+
+          $loginResponse = Invoke-WebRequest `
+              -Uri "$base/Account/SignIn" `
+              -Method Post `
+              -Body $loginBody `
+              -WebSession $loginSession `
+              -TimeoutSec 30
+
+          if ($loginResponse.StatusCode -ne 200) {
+              throw "Native return login did not complete successfully. HTTP $($loginResponse.StatusCode)."
+          }
+
+          $afterLogin = Invoke-RestMethod -Uri $diagUrl -Method Get -TimeoutSec 30
+          if ($null -eq $afterLogin.lastSignInAtUtc -or $afterLogin.failedSignInCount -ne 0) {
+              $afterLogin | ConvertTo-Json -Depth 8
+              throw "Native password validation did not record a successful return login."
+          }
+
+          Write-Host "Native account passed create -> restart -> new-session login."
+          $afterLogin | ConvertTo-Json -Depth 8
+
       # TEMPORARY TEST-ONLY diagnostic for the native account reported by the
       # current tester. The endpoint returns only structural credential state;
       # it never returns the password or stored hash.
