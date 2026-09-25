@@ -33,8 +33,14 @@ jobs:
       - name: Restore test project
         run: dotnet restore tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj
 
+      - name: Restore database migrator
+        run: dotnet restore tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj
+
       - name: Build web project
         run: dotnet build src/WebRecomp.Web/WebRecomp.Web.csproj --configuration Release --no-restore
+
+      - name: Build database migrator
+        run: dotnet build tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj --configuration Release --no-restore
 
       - name: Run automated tests
         run: dotnet test tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj --configuration Release --no-restore
@@ -67,6 +73,52 @@ jobs:
               --application-logging filesystem `
               --level information `
               --web-server-logging filesystem | Out-Null
+
+      - name: Migrate TEST local-auth schema
+        shell: pwsh
+        run: |
+          $connectionEntries = az webapp config connection-string list `
+              --name recomp-test `
+              --resource-group $env:RECOMP_TEST_RG | ConvertFrom-Json
+
+          $runtimeConnectionString = ($connectionEntries |
+              Where-Object { $_.name -eq "RecompDatabase" } |
+              Select-Object -First 1).value
+
+          if ([string]::IsNullOrWhiteSpace($runtimeConnectionString)) {
+              $appSettings = az webapp config appsettings list `
+                  --name recomp-test `
+                  --resource-group $env:RECOMP_TEST_RG | ConvertFrom-Json
+
+              $runtimeConnectionString = ($appSettings |
+                  Where-Object { $_.name -eq "ConnectionStrings__RecompDatabase" } |
+                  Select-Object -First 1).value
+          }
+
+          if ([string]::IsNullOrWhiteSpace($runtimeConnectionString)) {
+              throw "Could not resolve the recomp-test RecompDatabase connection string."
+          }
+
+          $accessToken = az account get-access-token `
+              --resource https://database.windows.net/ `
+              --query accessToken `
+              -o tsv
+
+          if ([string]::IsNullOrWhiteSpace($accessToken)) {
+              throw "Could not acquire an Azure SQL access token for the deployment identity."
+          }
+
+          $env:RECOMP_RUNTIME_CONNECTION_STRING = $runtimeConnectionString
+          $env:AZURE_SQL_ACCESS_TOKEN = $accessToken
+
+          dotnet run `
+              --project tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj `
+              --configuration Release `
+              --no-build
+
+          if ($LASTEXITCODE -ne 0) {
+              throw "TEST local-auth schema migration failed with exit code $LASTEXITCODE."
+          }
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
