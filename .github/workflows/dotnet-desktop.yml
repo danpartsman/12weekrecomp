@@ -51,6 +51,23 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_91AF6C5B8085425781068E9B0080051C }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_28C36820998A4A0AB8C5EBB50A54AE0E }}
 
+      - name: Enable TEST startup diagnostics
+        shell: pwsh
+        run: |
+          $resourceGroup = az webapp list --query "[?name=='recomp-test'].resourceGroup | [0]" -o tsv
+          if ([string]::IsNullOrWhiteSpace($resourceGroup)) {
+              throw "Could not resolve the recomp-test resource group."
+          }
+
+          "RECOMP_TEST_RG=$resourceGroup" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          az webapp log config `
+              --name recomp-test `
+              --resource-group $resourceGroup `
+              --application-logging filesystem `
+              --level information `
+              --web-server-logging filesystem | Out-Null
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
@@ -93,3 +110,56 @@ jobs:
           }
 
           throw "TEST persona database verification failed."
+
+      - name: Capture TEST startup diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RECOMP_TEST_RG)) {
+              Write-Host "Resource group was not resolved; startup log capture skipped."
+              exit 0
+          }
+
+          $zipPath = Join-Path $env:RUNNER_TEMP "recomp-test-logs.zip"
+          $extractPath = Join-Path $env:RUNNER_TEMP "recomp-test-logs"
+
+          try {
+              az webapp log download `
+                  --name recomp-test `
+                  --resource-group $env:RECOMP_TEST_RG `
+                  --log-file $zipPath | Out-Null
+
+              if (Test-Path $extractPath) {
+                  Remove-Item $extractPath -Recurse -Force
+              }
+
+              Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+
+              $pattern = "Unhandled exception|fail:|crit:|SqlException|LocalAuth|Scheme already exists|permission|CREATE TABLE|startup"
+              $matches = Get-ChildItem $extractPath -Recurse -File |
+                  ForEach-Object {
+                      try {
+                          Select-String -Path $_.FullName -Pattern $pattern -CaseSensitive:$false -ErrorAction Stop
+                      }
+                      catch {
+                          $null
+                      }
+                  } |
+                  Select-Object -Last 200
+
+              if ($matches) {
+                  Write-Host "Relevant Azure startup diagnostics:"
+                  $matches | ForEach-Object {
+                      Write-Host ("{0}:{1}: {2}" -f $_.Path, $_.LineNumber, $_.Line.Trim())
+                  }
+              }
+              else {
+                  Write-Host "No matching startup exception lines were found in the downloaded App Service logs."
+                  Get-ChildItem $extractPath -Recurse -File |
+                      Select-Object -First 50 FullName, Length |
+                      Format-Table -AutoSize
+              }
+          }
+          catch {
+              Write-Host "Azure startup diagnostic capture failed: $($_.Exception.Message)"
+          }
