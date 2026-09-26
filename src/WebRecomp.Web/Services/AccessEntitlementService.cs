@@ -185,6 +185,11 @@ public sealed class AccessEntitlementService(
         string codeValue,
         CancellationToken cancellationToken)
     {
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+        // A retried attempt must reload database state after a rolled-back save.
+        db.ChangeTracker.Clear();
         await using var transaction =
             await db.Database.BeginTransactionAsync(
                 IsolationLevel.Serializable,
@@ -206,9 +211,11 @@ public sealed class AccessEntitlementService(
 
         if (code.StatusCode == "REDEEMED")
         {
-            return new AccessRedemptionResult(
-                false,
-                "That access code has already been used.");
+            // A transient failure after commit may retry this same redemption.
+            if (code.RedeemedByUserId == user.UserId)
+                return new AccessRedemptionResult(true, "Access is already active for your account.", code.AccessExpiresAtUtc);
+
+            return new AccessRedemptionResult(false, "That access code has already been used.");
         }
 
         if (code.StatusCode == "REVOKED")
@@ -273,6 +280,7 @@ public sealed class AccessEntitlementService(
             true,
             $"Access activated for {code.AccessDurationDays} days.",
             accessEnds);
+        });
     }
 
     private async Task<AccessRedemptionResult> RedeemPromotionAsync(
@@ -280,6 +288,11 @@ public sealed class AccessEntitlementService(
         string codeValue,
         CancellationToken cancellationToken)
     {
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+        // A retried attempt must reload database state after a rolled-back save.
+        db.ChangeTracker.Clear();
         await using var transaction =
             await db.Database.BeginTransactionAsync(
                 IsolationLevel.Serializable,
@@ -299,18 +312,20 @@ public sealed class AccessEntitlementService(
                 "That promotion code is not valid.");
         }
 
-        var alreadyRedeemed = await db.PromoCodeRedemptions
-            .AnyAsync(
-                x =>
-                    x.PromoCodeId == promo.PromoCodeId
-                    && x.UserId == user.UserId,
+        var existingRedemption = await db.PromoCodeRedemptions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                x => x.PromoCodeId == promo.PromoCodeId && x.UserId == user.UserId,
                 cancellationToken);
 
-        if (alreadyRedeemed)
+        if (existingRedemption is not null)
         {
+            var existingEntitlement = await db.UserEntitlements.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.UserEntitlementId == existingRedemption.UserEntitlementId, cancellationToken);
             return new AccessRedemptionResult(
-                false,
-                "You have already redeemed this promotion.");
+                true,
+                "This promotion is already active for your account.",
+                existingEntitlement?.EndsAtUtc);
         }
 
         if (promo.StatusCode == "DISABLED")
@@ -401,5 +416,6 @@ public sealed class AccessEntitlementService(
             true,
             $"Access activated for {promo.AccessDurationDays} days.",
             accessEnds);
+        });
     }
 }
