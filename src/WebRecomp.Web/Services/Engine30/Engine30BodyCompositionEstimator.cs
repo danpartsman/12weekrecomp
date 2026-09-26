@@ -60,10 +60,10 @@ public sealed class Engine30BodyCompositionEstimator
         Saboor et al. 2023 anthropometric FFM equation:
 
         FFM kg =
-            0.28 × weight kg
-          + 0.57 × height cm
-          + 7.35 × sex
-          + 0.03 × age
+            0.28 Ã— weight kg
+          + 0.57 Ã— height cm
+          + 7.35 Ã— sex
+          + 0.03 Ã— age
           - 70.61
 
         sex:
@@ -174,6 +174,17 @@ public sealed class Engine30BodyCompositionEstimator
 
             formulaCode =
                 "SABOOR_FFM_2023";
+
+            // The regression can exceed total weight for some height/weight
+            // combinations. Bound only that impossible *estimated* result;
+            // do not invent or store a body-fat percentage for the user.
+            if (fatFreeMassKg >= weightKg)
+            {
+                fatFreeMassKg = weightKg * 0.95m;
+                sourceCode = "ANTHROPOMETRIC_BOUNDED";
+                confidenceCode = "LOW";
+                formulaCode = "SABOOR_FFM_2023_BOUNDED";
+            }
         }
 
         ValidateCalculatedFfm(

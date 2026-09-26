@@ -72,7 +72,7 @@ public sealed class Engine30BodyCompositionEstimatorTests
 
         _output.WriteLine("");
         _output.WriteLine(
-            "ENGINE 3.0 — FAT-FREE MASS PLAUSIBILITY TABLE");
+            "ENGINE 3.0 â€” FAT-FREE MASS PLAUSIBILITY TABLE");
 
         _output.WriteLine(
             "Body-fat-derived FFM is used when BF% exists; otherwise anthropometric fallback.");
@@ -284,6 +284,22 @@ public sealed class Engine30BodyCompositionEstimatorTests
         Assert.Equal(
             "LOW",
             result.ConfidenceCode);
+    }
+
+    [Fact]
+    public void MissingBodyFat_ImpossibleAnthropometricFfmIsBoundedWithoutInventingBodyFat()
+    {
+        // A tall, light adult makes the regression exceed total body weight.
+        var result = _estimator.Calculate(new Engine30BodyCompositionInput(
+            AgeYears: 45, SexCode: "MALE", HeightIn: 73m,
+            WeightLb: 100m, BodyFatFraction: null));
+
+        Assert.Null(result.BodyFatFraction);
+        Assert.Null(result.BodyFatPercent);
+        Assert.Equal(0.95m, result.FatFreeMassFraction);
+        Assert.Equal(95m, result.FatFreeMassLb);
+        Assert.Equal("ANTHROPOMETRIC_BOUNDED", result.BodyCompositionSourceCode);
+        Assert.Equal("LOW", result.ConfidenceCode);
     }
 
     private static string HeightDisplay(
