@@ -214,7 +214,9 @@ jobs:
           $setupBody = @{
               ClientName = "Native Auth Diagnostic"
               StartingWeightLb = "210"
-              Age = "45"
+              BirthYear = "1981"
+              PreferredTrainingDays = "5"
+              PreferredRestDays = "3"
               SexCode = "MALE"
               HeightIn = "73"
               GoalCode = "FAT_LOSS_RECOMP"

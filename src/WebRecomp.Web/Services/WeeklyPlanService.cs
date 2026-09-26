@@ -68,11 +68,45 @@ public sealed class WeeklyPlanService(
         return template;
     }
 
+    /// <summary>Move the existing workout mix to selected weekdays without changing its dose.</summary>
+    public static IReadOnlyList<string> ApplyDayPreferences(
+        IReadOnlyList<string> template,
+        IReadOnlyCollection<int>? preferredTrainingDays,
+        IReadOnlyCollection<int>? preferredRestDays)
+    {
+        if ((preferredTrainingDays is null || preferredTrainingDays.Count == 0)
+            && (preferredRestDays is null || preferredRestDays.Count == 0))
+            return template;
+
+        var training = preferredTrainingDays?.ToHashSet() ?? [];
+        var rest = preferredRestDays?.ToHashSet() ?? [];
+        var workouts = template.Where(code => code != Recovery).ToArray();
+        if (template.Count != 7 || training.Any(day => day is < 0 or > 6)
+            || rest.Any(day => day is < 0 or > 6) || training.Overlaps(rest)
+            || training.Count > workouts.Length || rest.Count > 7 - workouts.Length)
+            throw new ArgumentException("Day preferences cannot fit the recommended workout mix.");
+
+        var selected = new HashSet<int>(training);
+        // Keep the plan's original active weekdays where they remain flexible.
+        for (var day = 0; day < 7 && selected.Count < workouts.Length; day++)
+            if (template[day] != Recovery && !rest.Contains(day)) selected.Add(day);
+        for (var day = 0; day < 7 && selected.Count < workouts.Length; day++)
+            if (!rest.Contains(day)) selected.Add(day);
+
+        var result = Enumerable.Repeat(Recovery, 7).ToArray();
+        var position = 0;
+        foreach (var day in selected.Order())
+            result[day] = workouts[position++];
+        return result;
+    }
+
     public async Task<int> SeedRecommendedWeekIfBlankAsync(
         Client client,
         ProgramRecord program,
         DateOnly weekStart,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyCollection<int>? preferredTrainingDays = null,
+        IReadOnlyCollection<int>? preferredRestDays = null)
     {
         weekStart = WeeklyStrategyService.WeekStart(weekStart);
         var weekEnd = weekStart.AddDays(6);
@@ -87,10 +121,10 @@ public sealed class WeeklyPlanService(
             return 0;
 
         var validCodes = await GetValidCodesAsync(program.ConfigVersionId, cancellationToken);
-        var template = BuildRecommendedTemplate(
-            program.SelectedPlanCode,
-            program.AvailableTrainingDaysWeek,
-            client.TrainingExperienceCode);
+        var template = ApplyDayPreferences(
+            BuildRecommendedTemplate(program.SelectedPlanCode,
+                program.AvailableTrainingDaysWeek, client.TrainingExperienceCode),
+            preferredTrainingDays, preferredRestDays);
 
         var now = DateTime.UtcNow;
         for (var i = 0; i < 7; i++)

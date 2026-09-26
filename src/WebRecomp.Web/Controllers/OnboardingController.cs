@@ -64,13 +64,34 @@ public sealed class OnboardingController(
             return View("Setup", model);
         }
 
-        var configVersion = await configuration.GetActiveVersionAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var entryDate = GetEntryDate(now, model.TimeZone);
-        // The person reports age, not an exact birthday. Anchor the engine's
-        // estimated date of birth to the local day they completed setup.
-        var assumedDateOfBirth = entryDate.AddYears(-model.Age!.Value);
+        // With only a year, use the month and day of the local setup date.
+        // Optional exact month/day are honored when both are supplied.
+        var birthYear = model.BirthYear!.Value;
+        var birthMonth = model.BirthMonth ?? entryDate.Month;
+        var birthDay = model.BirthDay ?? Math.Min(entryDate.Day, DateTime.DaysInMonth(birthYear, birthMonth));
+        var birthDate = new DateOnly(birthYear, birthMonth, birthDay);
+        if (birthDate > entryDate.AddYears(-18))
+        {
+            ModelState.AddModelError(nameof(model.BirthYear), "You must be at least 18 to start this program.");
+            ViewData["OnboardingPage"] = true;
+            return View("Setup", model);
+        }
+
+        var configVersion = await configuration.GetActiveVersionAsync(cancellationToken);
         var selectedPlanCode = GoalToPlan(model.GoalCode);
+        var startingTemplate = weeklyPlans.BuildRecommendedTemplate(
+            selectedPlanCode, model.AvailableTrainingDaysWeek, model.TrainingExperienceCode);
+        var workoutDays = startingTemplate.Count(code => code != "REST");
+        if (model.PreferredTrainingDays.Length > workoutDays
+            || model.PreferredRestDays.Length > 7 - workoutDays)
+        {
+            ModelState.AddModelError(nameof(model.PreferredTrainingDays),
+                $"This goal starts with {workoutDays} training days and {7 - workoutDays} rest days. Adjust the preferences to fit.");
+            ViewData["OnboardingPage"] = true;
+            return View("Setup", model);
+        }
 
         Client? client = context.Client;
         ProgramRecord? program = context.Program;
@@ -88,7 +109,7 @@ public sealed class OnboardingController(
                 {
                     ClientId = Guid.NewGuid(),
                     ClientName = model.ClientName.Trim(),
-                    DateOfBirth = assumedDateOfBirth,
+                    DateOfBirth = birthDate,
                     SexCode = model.SexCode,
                     HeightIn = model.HeightIn!.Value,
                     TimeZone = model.TimeZone,
@@ -117,7 +138,7 @@ public sealed class OnboardingController(
             else
             {
                 client.ClientName = model.ClientName.Trim();
-                client.DateOfBirth = assumedDateOfBirth;
+                client.DateOfBirth = birthDate;
                 client.SexCode = model.SexCode;
                 client.HeightIn = model.HeightIn!.Value;
                 client.TimeZone = model.TimeZone;
@@ -231,7 +252,9 @@ public sealed class OnboardingController(
             client!,
             program!,
             planWeekStart,
-            cancellationToken);
+            cancellationToken,
+            model.PreferredTrainingDays,
+            model.PreferredRestDays);
 
         TempData["StatusMessage"] =
             "Setup complete. Recomp now has the minimum real data required to calculate your prescription. Review the starting week and make it fit your life.";
@@ -278,9 +301,9 @@ public sealed class OnboardingController(
         return new OnboardingSetupViewModel
         {
             ClientName = string.IsNullOrWhiteSpace(client.ClientName) ? fallbackName : client.ClientName,
-            Age = client.DateOfBirth is DateOnly birthDate
-                ? GetAge(birthDate, today)
-                : null,
+            BirthYear = client.DateOfBirth?.Year,
+            BirthMonth = client.DateOfBirth?.Month,
+            BirthDay = client.DateOfBirth?.Day,
             SexCode = client.SexCode ?? string.Empty,
             HeightIn = client.HeightIn > 0 ? client.HeightIn : null,
             StartingWeightLb = latestMeasurement?.WeightLb,
@@ -364,12 +387,6 @@ public sealed class OnboardingController(
         {
             return DateOnly.FromDateTime(utcNow);
         }
-    }
-
-    private static int GetAge(DateOnly birthDate, DateOnly today)
-    {
-        var age = today.Year - birthDate.Year;
-        return birthDate.AddYears(age) > today ? age - 1 : age;
     }
 
     private static string GoalToPlan(string goalCode)
