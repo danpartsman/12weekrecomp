@@ -1743,11 +1743,16 @@ public sealed class Engine30DashboardProjectionService(
     private static Measurement ResolveMeasurement(
         IEnumerable<Measurement> measurements,
         DateOnly date)
-        =>
-            measurements.FirstOrDefault(
-                x => x.LocalMeasurementDate <= date)
+    {
+        // Weekly projections begin on Monday even when the client first signs up
+        // later in the week. Use the first real measurement for those earlier
+        // projected days; never write or claim an earlier scale reading.
+        // Measurements are loaded newest first and capped at the knowledge date.
+        return measurements.FirstOrDefault(x => x.LocalMeasurementDate <= date)
+            ?? measurements.LastOrDefault()
             ?? throw new InvalidOperationException(
-                $"Engine 3.0 Dashboard needs at least one valid weight on or before {date:yyyy-MM-dd}.");
+                $"Engine 3.0 Dashboard needs a valid weight by {date:yyyy-MM-dd}.");
+    }
 
     private static void ValidateClientProfile(Client client)
     {
