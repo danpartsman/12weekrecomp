@@ -66,6 +66,10 @@ public sealed class OnboardingController(
 
         var configVersion = await configuration.GetActiveVersionAsync(cancellationToken);
         var now = DateTime.UtcNow;
+        var entryDate = GetEntryDate(now, model.TimeZone);
+        // The person reports age, not an exact birthday. Anchor the engine's
+        // estimated date of birth to the local day they completed setup.
+        var assumedDateOfBirth = entryDate.AddYears(-model.Age!.Value);
         var selectedPlanCode = GoalToPlan(model.GoalCode);
 
         Client? client = context.Client;
@@ -84,7 +88,7 @@ public sealed class OnboardingController(
                 {
                     ClientId = Guid.NewGuid(),
                     ClientName = model.ClientName.Trim(),
-                    DateOfBirth = model.DateOfBirth,
+                    DateOfBirth = assumedDateOfBirth,
                     SexCode = model.SexCode,
                     HeightIn = model.HeightIn!.Value,
                     TimeZone = model.TimeZone,
@@ -113,7 +117,7 @@ public sealed class OnboardingController(
             else
             {
                 client.ClientName = model.ClientName.Trim();
-                client.DateOfBirth = model.DateOfBirth;
+                client.DateOfBirth = assumedDateOfBirth;
                 client.SexCode = model.SexCode;
                 client.HeightIn = model.HeightIn!.Value;
                 client.TimeZone = model.TimeZone;
@@ -274,7 +278,9 @@ public sealed class OnboardingController(
         return new OnboardingSetupViewModel
         {
             ClientName = string.IsNullOrWhiteSpace(client.ClientName) ? fallbackName : client.ClientName,
-            DateOfBirth = client.DateOfBirth,
+            Age = client.DateOfBirth is DateOnly birthDate
+                ? GetAge(birthDate, today)
+                : null,
             SexCode = client.SexCode ?? string.Empty,
             HeightIn = client.HeightIn > 0 ? client.HeightIn : null,
             StartingWeightLb = latestMeasurement?.WeightLb,
@@ -341,6 +347,29 @@ public sealed class OnboardingController(
         model.LifestyleActivityCode = string.IsNullOrWhiteSpace(model.LifestyleActivityCode)
             ? null
             : model.LifestyleActivityCode.Trim().ToUpperInvariant();
+    }
+
+    private static DateOnly GetEntryDate(DateTime utcNow, string zoneId)
+    {
+        try
+        {
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(zoneId);
+            return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utcNow, zone));
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return DateOnly.FromDateTime(utcNow);
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return DateOnly.FromDateTime(utcNow);
+        }
+    }
+
+    private static int GetAge(DateOnly birthDate, DateOnly today)
+    {
+        var age = today.Year - birthDate.Year;
+        return birthDate.AddYears(age) > today ? age - 1 : age;
     }
 
     private static string GoalToPlan(string goalCode)

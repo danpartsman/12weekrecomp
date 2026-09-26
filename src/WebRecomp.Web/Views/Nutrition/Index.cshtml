@@ -224,6 +224,7 @@
                         type="date"
                         onchange="this.form.submit()" />
                 </label>
+                <div class="app-adjacent-days" style="display:flex;justify-content:space-between;gap:12px;margin-top:7px;font-size:.88rem;font-weight:700"><a asp-action="Index" asp-route-date="@(manual.Date.AddDays(-1).ToString("yyyy-MM-dd"))" aria-label="Previous day">← Previous day</a><a asp-action="Index" asp-route-date="@(manual.Date.AddDays(1).ToString("yyyy-MM-dd"))" aria-label="Next day">Next day →</a></div>
             </form>
         </div>
     </header>

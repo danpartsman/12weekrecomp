@@ -204,6 +204,38 @@ jobs:
           Write-Host "Native account passed create -> restart -> new-session login."
           $afterLogin | ConvertTo-Json -Depth 8
 
+          # A new account must finish the three-step intake and reach Dashboard
+          # with today's first weight, even when signup is later in the week.
+          $setupPage = Invoke-WebRequest -Uri "$base/Onboarding" -WebSession $loginSession -TimeoutSec 30
+          if ($setupPage.Content -notmatch 'Three short steps to get started') {
+              throw "New account was not offered the three-step setup."
+          }
+          $setupToken = Get-Token $setupPage.Content
+          $setupBody = @{
+              ClientName = "Native Auth Diagnostic"
+              StartingWeightLb = "210"
+              Age = "45"
+              SexCode = "MALE"
+              HeightIn = "73"
+              GoalCode = "FAT_LOSS_RECOMP"
+              TrainingExperienceCode = "INTERMEDIATE"
+              AvailableTrainingDaysWeek = "4"
+              TimeZone = "America/Los_Angeles"
+              MedicalAcknowledged = "true"
+              TrainingAcknowledged = "true"
+              TrackingAcknowledged = "true"
+              __RequestVerificationToken = $setupToken
+          }
+          $setupResponse = Invoke-WebRequest -Uri "$base/Onboarding" -Method Post -Body $setupBody -WebSession $loginSession -TimeoutSec 60
+          if ($setupResponse.Content -match 'Three short steps to get started' -or $setupResponse.StatusCode -ne 200) {
+              throw "Three-step setup did not save; the form was returned or an HTTP error occurred."
+          }
+          $dashboardResponse = Invoke-WebRequest -Uri "$base/Dashboard" -WebSession $loginSession -TimeoutSec 60
+          if ($dashboardResponse.StatusCode -ne 200 -or $dashboardResponse.Content -match 'TEST ERROR DIAGNOSTICS|Three short steps to get started') {
+              throw "New account could not reach the Dashboard after today's first weight."
+          }
+          Write-Host "New-account three-step setup and Dashboard passed."
+
       # TEMPORARY TEST-ONLY diagnostic for the native account reported by the
       # current tester. The endpoint returns only structural credential state;
       # it never returns the password or stored hash.
