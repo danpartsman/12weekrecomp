@@ -392,6 +392,21 @@
                     }
                 </div>
 
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;margin:.75rem 0">
+                    <button type="button"
+                            class="nutrition-picker-custom-link"
+                            data-food-picker-open
+                            data-picker-mode="pastMeal"
+                            data-meal-slot="BREAKFAST">
+                        + Add a previous meal
+                    </button>
+                    <button type="button"
+                            class="nutrition-picker-custom-link"
+                            onclick="document.getElementById('nutrition-meal-prep-dialog').showModal()">
+                        + Add daily meal prep
+                    </button>
+                </div>
+
                 <div class="nutrition-meal-summary-grid">
                     @foreach (var mealSlot in mealOrder)
                     {
@@ -552,6 +567,64 @@
                 </details>
             }
         </section>
+
+        <dialog id="nutrition-meal-prep-dialog"
+                class="nutrition-picker-dialog">
+            <form asp-action="AddDailyMealPrep"
+                  method="post"
+                  class="nutrition-picker-shell">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="date" value="@manual.Date.ToString("yyyy-MM-dd")" />
+                <header class="nutrition-picker-head">
+                    <h2>Add daily meal prep</h2>
+                    <button type="button"
+                            class="nutrition-picker-head-close"
+                            onclick="this.closest('dialog').close()"
+                            aria-label="Close meal prep">×</button>
+                </header>
+                <div style="padding:1rem;overflow-y:auto">
+                    <p class="small">Add the prepared meal to this date's Food Log, then choose when to repeat it. Existing foods are kept.</p>
+                    <button type="button" class="secondary" onclick="this.closest('dialog').close();document.querySelector('[data-food-picker-open][data-meal-slot=BREAKFAST]').click()">+ Add a meal</button>
+                    <label>Prepared meal
+                        <select name="sourceMealSlotCode" required>
+                            <option value="">Choose a logged meal</option>
+                            @foreach (var slot in mealOrder)
+                            {
+                                var items = Model.LoggedItems.Where(x => x.MealSlotCode == slot).ToList();
+                                if (items.Count == 0) { continue; }
+                                <option value="@slot">@(
+                                    slot == "SNACK" ? "Snack" :
+                                    System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(slot.ToLowerInvariant())
+                                ) (@items.Count foods)</option>
+                            }
+                        </select>
+                    </label>
+                    <fieldset style="margin-top:1rem">
+                        <legend>Days to eat this meal</legend>
+                        @for (var offset = 1; offset <= 7; offset++)
+                        {
+                            var day = manual.Date.AddDays(offset);
+                            <label style="display:block;margin:.4rem 0">
+                                <input type="checkbox" name="targetDates" value="@day.ToString("yyyy-MM-dd")" />
+                                @day.ToString("dddd, MMMM d")
+                            </label>
+                        }
+                    </fieldset>
+                    <label style="display:block;margin-top:1rem">Meal slot on those days
+                        <select name="targetMealSlotCode" required>
+                            <option value="BREAKFAST">Breakfast</option>
+                            <option value="LUNCH">Lunch</option>
+                            <option value="DINNER">Dinner</option>
+                            <option value="SNACK">Snack</option>
+                        </select>
+                    </label>
+                    <div style="display:flex;gap:.75rem;margin-top:1.2rem">
+                        <button type="submit" @(Model.LoggedItems.Count == 0 ? "disabled" : null)>Add to selected days</button>
+                        <button type="button" class="secondary" onclick="this.closest('dialog').close()">Cancel</button>
+                    </div>
+                </div>
+            </form>
+        </dialog>
 
         <dialog id="nutrition-food-picker-dialog"
                 class="nutrition-picker-dialog"

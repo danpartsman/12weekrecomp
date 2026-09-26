@@ -879,6 +879,113 @@ public sealed class NutritionController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddDailyMealPrep(
+        DateOnly date,
+        string sourceMealSlotCode,
+        string targetMealSlotCode,
+        List<DateOnly> targetDates,
+        CancellationToken cancellationToken)
+    {
+        var context =
+            await userContext.GetAsync(HttpContext, cancellationToken);
+
+        if (context.Client is null || context.Program is null)
+            return RedirectToAction("Index", "Intake");
+
+        if (!context.Program.NutritionFoodLogEnabled)
+            return Forbid();
+
+        if (!MealSlots.Contains(sourceMealSlotCode)
+            || !MealSlots.Contains(targetMealSlotCode)
+            || targetDates is null
+            || targetDates.Count is < 1 or > 7
+            || targetDates.Distinct().Count() != targetDates.Count
+            || targetDates.Any(day =>
+                day <= date || day > date.AddDays(7)))
+        {
+            TempData["NutritionError"] =
+                "Choose a logged meal, a meal slot, and days within the next week.";
+            return RedirectToNutrition(date);
+        }
+
+        try
+        {
+            var source =
+                await nutritionStore.GetDailyLogAsync(
+                    context.Client.ClientId,
+                    date,
+                    cancellationToken);
+
+            if (source.DailyLogId is not Guid sourceId)
+                throw new InvalidOperationException(
+                    "Add the prepared meal to this day's Food Log first.");
+
+            var history =
+                new NutritionFoodPickerHistoryStore(configuration);
+            var items =
+                await history.GetPastMealItemsAsync(
+                    context.Client.ClientId,
+                    sourceId,
+                    date.AddDays(1),
+                    sourceMealSlotCode,
+                    cancellationToken);
+
+            if (items.Count == 0
+                || source.Items.Count(item =>
+                    item.MealSlotCode == sourceMealSlotCode) != items.Count)
+                throw new InvalidOperationException(
+                    "Add a complete meal with calories and macros before scheduling it.");
+
+            // Validate every destination before making any changes.
+            foreach (var day in targetDates)
+            {
+                var existing =
+                    await nutritionStore.GetDailyLogAsync(
+                        context.Client.ClientId,
+                        day,
+                        cancellationToken);
+
+                if (existing.Items.Any(item =>
+                    item.MealSlotCode == targetMealSlotCode))
+                {
+                    throw new InvalidOperationException(
+                        $"{MealSlotLabel(targetMealSlotCode)} on {day:MMM d} already has food. Choose an empty meal slot.");
+                }
+            }
+
+            foreach (var day in targetDates.Order())
+            {
+                foreach (var item in items)
+                {
+                    await nutritionStore.AddDailyLogItemAsync(
+                        context.Client.ClientId,
+                        day,
+                        context.Client.TimeZone,
+                        item.ToWriteModel(targetMealSlotCode),
+                        cancellationToken);
+                }
+
+                await SyncFoodLogToDailyEntryAsync(
+                    context,
+                    day,
+                    cancellationToken);
+            }
+
+            TempData["StatusMessage"] =
+                $"Meal prep added to {targetDates.Count} day" +
+                (targetDates.Count == 1 ? "." : "s.");
+        }
+        catch (Exception ex)
+        {
+            TempData["NutritionError"] =
+                SafeUiError(ex, "Unable to schedule that meal.");
+        }
+
+        return RedirectToNutrition(date);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(
         NutritionViewModel model,
         bool nutritionManualOverride,
