@@ -392,21 +392,6 @@
                     }
                 </div>
 
-                <div style="display:flex;gap:1rem;flex-wrap:wrap;margin:.75rem 0">
-                    <button type="button"
-                            class="nutrition-picker-custom-link"
-                            data-food-picker-open
-                            data-picker-mode="pastMeal"
-                            data-meal-slot="BREAKFAST">
-                        + Add a previous meal
-                    </button>
-                    <button type="button"
-                            class="nutrition-picker-custom-link"
-                            onclick="document.getElementById('nutrition-meal-prep-dialog').showModal()">
-                        + Add daily meal prep
-                    </button>
-                </div>
-
                 <div class="nutrition-meal-summary-grid">
                     @foreach (var mealSlot in mealOrder)
                     {
@@ -675,6 +660,7 @@
                             <div class="nutrition-picker-results-heading">
                                 <strong>Past meals</strong>
                                 <span class="small">Earlier meals for the selected meal</span>
+                                <button type="button" class="nutrition-picker-custom-link" data-picker-food-open>Back to foods</button>
                             </div>
 
                             <div class="nutrition-picker-choice-list"
@@ -691,11 +677,17 @@
                                     <span class="small">Most-used matching foods appear first</span>
                                 </div>
 
-                                <button type="button"
-                                        class="nutrition-picker-custom-link"
-                                        data-picker-custom-open>
-                                    + Add custom food
-                                </button>
+                                <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+                                    <button type="button"
+                                            class="nutrition-picker-custom-link"
+                                            data-picker-custom-open>+ Add custom food</button>
+                                    <button type="button"
+                                            class="nutrition-picker-custom-link"
+                                            data-picker-past-open>+ Add a previous meal</button>
+                                    <button type="button"
+                                            class="nutrition-picker-custom-link"
+                                            data-picker-prep-open>+ Add a prep meal</button>
+                                </div>
                             </div>
 
                             <div class="nutrition-picker-choice-list"
@@ -1265,6 +1257,13 @@
     const customFoodOpen =
         dialog.querySelector(
             "[data-picker-custom-open]");
+    const pastMealOpen =
+        dialog.querySelector(
+            "[data-picker-past-open]");
+
+    const prepMealOpen =
+        dialog.querySelector(
+            "[data-picker-prep-open]");
 
     const customFoodMeal =
         customDialog?.querySelector(
@@ -2271,6 +2270,31 @@
         "close",
         () => setActiveMealOpener(
             null));
+
+    pastMealOpen?.addEventListener(
+        "click",
+        () => {
+            pickerMode = "pastMeal";
+            clearSelection();
+            syncPickerMode();
+            loadPickerData();
+        });
+
+    dialog.querySelector("[data-picker-food-open]")?.addEventListener(
+        "click",
+        () => {
+            pickerMode = "food";
+            clearSelection();
+            syncPickerMode();
+            searchInput.focus();
+        });
+
+    prepMealOpen?.addEventListener(
+        "click",
+        () => {
+            dialog.close();
+            document.getElementById("nutrition-meal-prep-dialog")?.showModal();
+        });
 
     customFoodOpen?.addEventListener(
         "click",
