@@ -181,8 +181,8 @@
                         <span>Workout time</span>
                         <strong data-live-workout-elapsed>00:00:00</strong>
                     </div>
-                    <section class="wi-set-timer" data-set-timer data-workout-id="@Model.WorkoutSessionId.Value" aria-label="Set timer">
-                        <div class="wi-set-timer__title">Set Timer</div>
+                    <section class="wi-set-timer" data-set-timer data-draggable-panel="set-timer" data-workout-id="@Model.WorkoutSessionId.Value" aria-label="Set timer">
+                        <div class="wi-set-timer__title" data-draggable-handle>Set Timer <span aria-hidden="true">✥</span></div>
                         <label class="wi-set-timer__entry">
                             <span class="sr-only">Set countdown time in minutes and seconds</span>
                             <input data-set-timer-duration type="text" inputmode="numeric" value="01:00" aria-label="Set timer duration minutes colon seconds" />
@@ -205,6 +205,14 @@
                 </a>
             }
         </div>
+
+        @if (isLive && Model.WorkoutSessionId.HasValue)
+        {
+            <figure class="wi-live-motivation">
+                <img src="~/images/workout-lifting-gym.png"
+                     alt="Athletes lifting weights in a gym" />
+            </figure>
+        }
 
         @if (Model.FeatureEnabled)
         {
@@ -2019,3 +2027,4 @@
 
 <script src="~/js/live-workout-v1012.js" asp-append-version="true"></script>
 <script src="~/js/set-timer-v1012.js" asp-append-version="true"></script>
+<script src="~/js/draggable-panels-v1012.js" asp-append-version="true"></script>
