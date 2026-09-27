@@ -1000,3 +1000,40 @@
 .nutrition-picker-food-actions .nutrition-picker-results-heading {
     display: block;
 }
+
+/* Food Log header illustration sits between the title and the date controls. */
+.app-page-nutrition .nutrition-header-photo {
+    flex: 1 1 30rem;
+    min-width: 0;
+    max-width: 42rem;
+    height: 13.25rem;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid #2c6085;
+    border-radius: .9rem;
+    background: #10233c;
+}
+.app-page-nutrition .nutrition-header-photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 55%;
+}
+.app-page-nutrition .nutrition-intel-header-actions {
+    flex: 0 0 auto;
+    align-self: center;
+}
+@media (max-width: 900px) {
+    .app-page-nutrition .app-page-head {
+        flex-wrap: wrap;
+    }
+    .app-page-nutrition .nutrition-header-photo {
+        flex: 1 1 100%;
+        max-width: none;
+        height: 11rem;
+    }
+    .app-page-nutrition .nutrition-intel-header-actions {
+        align-self: stretch;
+    }
+}

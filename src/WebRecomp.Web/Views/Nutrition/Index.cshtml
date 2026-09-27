@@ -208,14 +208,15 @@
             <p class="lede app-date-heading">@manual.Date.ToString("dddd, MMMM d")</p>
         </div>
 
-        <div class="nutrition-intel-header-actions">
-            <a asp-controller="DailyEntry"
-               asp-action="Index"
-               asp-route-date="@manual.Date.ToString("yyyy-MM-dd")"
-               class="button secondary app-daily-entry-button">
-                Daily Entry
-            </a>
+        <figure class="nutrition-header-photo">
+            <img src="~/images/nutrition-meal-prep-trainer.png"
+                 asp-append-version="true"
+                 alt="Athletic trainer preparing a week of balanced meals in a kitchen"
+                 width="2048"
+                 height="768" />
+        </figure>
 
+        <div class="nutrition-intel-header-actions">
             <form asp-action="Index" method="get" class="app-date-picker">
                 <label>Date
                     <input
