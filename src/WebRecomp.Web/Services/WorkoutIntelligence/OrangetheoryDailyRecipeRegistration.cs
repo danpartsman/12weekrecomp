@@ -10,19 +10,19 @@ namespace WebRecomp.Web.Services.WorkoutIntelligence;
 ///
 /// SystemWorkoutRecipeCatalog currently exposes a fixed presentation array, so
 /// the dated OTF recipe replaces the generic Orangetheory presentation card
-/// while retaining the generic ORANGETHEORY engine physiology. The dated recipe
-/// is also added to the catalog lookup so selecting the card resolves the same
-/// recipe that was displayed.
+/// while retaining the stable ORANGETHEORY system key and calibrated engine
+/// physiology. The lookup entry is replaced with the same dated recipe so
+/// selecting the displayed card resolves the workout that was displayed.
 /// </summary>
 internal static class OrangetheoryDailyRecipeRegistration
 {
-    private const string DatedSystemCode = "SYS_OTF_2G_2026_09_27";
+    private const string OrangetheorySystemCode = "ORANGETHEORY";
 
     [ModuleInitializer]
     internal static void Register()
     {
         var recipe = new SystemWorkoutRecipe(
-            DatedSystemCode,
+            OrangetheorySystemCode,
             "OTF 2G - 2026-09-27",
             "ORANGETHEORY",
             "Orangetheory 2G template for September 27, 2026. Fixed floor reps are preserved directly; timed work and the 250 m row are preserved in the exercise notes while Engine 3.0 retains the calibrated Orangetheory composite physiology.",
@@ -61,7 +61,7 @@ internal static class OrangetheoryDailyRecipeRegistration
             var genericIndex = Array.FindIndex(
                 presentation,
                 candidate => candidate.SystemCode.Equals(
-                    "ORANGETHEORY",
+                    OrangetheorySystemCode,
                     StringComparison.OrdinalIgnoreCase));
 
             if (genericIndex >= 0)
@@ -69,13 +69,14 @@ internal static class OrangetheoryDailyRecipeRegistration
         }
 
         // TryGet() resolves selections through the catalog's private dictionary.
-        // Add the dated key without changing or removing the generic engine entry.
+        // Replace the stable OTF key with the dated recipe so the displayed card
+        // and the selection lookup remain in sync.
         var byCodeField = typeof(SystemWorkoutRecipeCatalog).GetField(
             "ByCode",
             BindingFlags.NonPublic | BindingFlags.Static);
 
         if (byCodeField?.GetValue(null) is IDictionary<string, SystemWorkoutRecipe> byCode)
-            byCode[DatedSystemCode] = recipe;
+            byCode[OrangetheorySystemCode] = recipe;
     }
 
     private static SystemWorkoutExerciseSlot Slot(
