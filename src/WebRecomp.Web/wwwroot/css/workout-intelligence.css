@@ -3771,3 +3771,9 @@ body.test-live-preview
         transform: none;
     }
 }
+
+.workout-intelligence-page.wi-live-page-minimal .wi-simple-head > :not(.wi-live-motivation) {
+    position: relative;
+    z-index: 1;
+}
+.workout-intelligence-page .wi-live-motivation { z-index: 0; }
