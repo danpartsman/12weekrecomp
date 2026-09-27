@@ -3669,16 +3669,18 @@ body.test-live-preview
     gap: .55rem;
     width: 190px;
     padding: 1rem;
-    border: 1px solid rgba(255, 194, 87, .48);
+    border: 1px solid rgba(205, 255, 77, .68);
     border-radius: 16px;
-    background: rgba(10, 27, 39, .94);
+    background: linear-gradient(145deg, rgba(22, 65, 39, .68), rgba(13, 47, 32, .62));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     box-shadow: 0 12px 36px rgba(0, 0, 0, .22);
     color: #fff;
     text-align: center;
     font-variant-numeric: tabular-nums;
 }
 .wi-set-timer__title {
-    color: #ffdb84;
+    color: #eaff71;
     font-size: .77rem;
     font-weight: 900;
     letter-spacing: .12em;
@@ -3688,7 +3690,7 @@ body.test-live-preview
 .workout-intelligence-page .wi-set-timer__entry input {
     width: 100%;
     padding: .28rem;
-    border: 1px solid rgba(255, 218, 137, .55);
+    border: 1px solid rgba(220, 255, 108, .6);
     border-radius: 9px;
     background: rgba(255, 255, 255, .08);
     color: #fff;
@@ -3698,13 +3700,13 @@ body.test-live-preview
     font-variant-numeric: tabular-nums;
 }
 .wi-set-timer__entry input:focus-visible,
-.wi-set-timer__button:focus-visible { outline: 3px solid #ffdc83; outline-offset: 2px; }
+.wi-set-timer__button:focus-visible { outline: 3px solid #d7ff59; outline-offset: 2px; }
 .wi-set-timer output { font-size: 2.15rem; font-weight: 900; line-height: 1; }
-.wi-set-timer.is-running output { color: #ffdc83; }
+.wi-set-timer.is-running output { color: #eaff71; }
 .workout-intelligence-page .wi-set-timer__button {
     min-height: 40px;
-    background: #ffb54d;
-    color: #321707;
+    background: linear-gradient(100deg, #c2ff4d, #fff079);
+    color: #17391c;
     font-weight: 900;
 }
 .workout-intelligence-page .wi-set-timer__cycle {
@@ -3716,10 +3718,56 @@ body.test-live-preview
     cursor: pointer;
 }
 .workout-intelligence-page .wi-set-timer__cycle input { width: auto; margin: 0; }
-@media (max-width: 1350px) {
+@media (max-width: 650px) {
     .workout-intelligence-page .wi-set-timer {
         position: static;
         width: min(100%, 330px);
         margin: 1rem auto;
+    }
+}
+
+.workout-intelligence-page .wi-set-timer__title {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+.workout-intelligence-page .wi-set-timer__title:active { cursor: grabbing; }
+.workout-intelligence-page.wi-live-page-minimal .wi-simple-head { position: relative; overflow: hidden; }
+.workout-intelligence-page .wi-live-motivation {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(43%, 560px);
+    height: min(78%, 205px);
+    margin: 0;
+    transform: translate(-50%, -50%);
+    overflow: hidden;
+    border: 1px solid rgba(209, 255, 109, .34);
+    border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .22);
+    pointer-events: none;
+}
+.workout-intelligence-page .wi-live-motivation img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+.workout-intelligence-page .wi-live-motivation::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(8, 28, 31, .28), transparent 35%, rgba(8, 28, 31, .18));
+}
+@media (max-width: 900px) {
+    .workout-intelligence-page .wi-live-motivation {
+        position: relative;
+        left: auto;
+        top: auto;
+        width: 100%;
+        height: 145px;
+        margin: .8rem 0;
+        transform: none;
     }
 }
