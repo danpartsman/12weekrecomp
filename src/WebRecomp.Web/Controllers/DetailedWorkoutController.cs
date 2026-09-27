@@ -4900,40 +4900,79 @@ public sealed class DetailedWorkoutController(
         var selectedIds =
             new HashSet<Guid>();
 
-        foreach (var slot in slots)
+        // Dated OTF recipes are a transcription of a specific published class.
+        // Keep every movement in order, including repeated finishers. Catalog
+        // search cannot be allowed to silently drop unfamiliar exercise names
+        // or substitute another movement just because its name is similar.
+        if (string.Equals(
+                recipe?.GroupName,
+                "Orangetheory",
+                StringComparison.OrdinalIgnoreCase)
+            && slots.Count > 0)
         {
-            var match =
-                candidates
-                    .Where(
+            foreach (var slot in slots)
+            {
+                var publishedName =
+                    slot.PreferredNameTerms.First();
+
+                var exact =
+                    candidates.FirstOrDefault(
                         candidate =>
-                            !selectedIds.Contains(
-                                candidate.ExerciseCatalogItemId))
-                    .Select(
-                        candidate =>
-                            new
-                            {
-                                Exercise = candidate,
-                                Score =
-                                    SystemRecipeExerciseScore(
-                                        candidate,
-                                        slot,
-                                        candidatePreferences,
-                                        candidateUseCounts,
-                                        candidateGlobalFavoriteCounts)
-                            })
-                    .Where(x => x.Score > int.MinValue)
-                    .OrderByDescending(x => x.Score)
-                    .ThenBy(x => x.Exercise.Name)
-                    .FirstOrDefault();
+                            string.Equals(
+                                candidate.Name,
+                                publishedName,
+                                StringComparison.OrdinalIgnoreCase)
+                            && candidate.SourceCode
+                                != CsvUnmappedExerciseSourceCode);
 
-            if (match is null)
-                continue;
+                var exercise =
+                    exact
+                    ?? await ResolveCsvUnmappedExerciseAsync(
+                        clientId,
+                        publishedName,
+                        cancellationToken);
 
-            selected.Add(
-                (match.Exercise, slot));
-
-            selectedIds.Add(
-                match.Exercise.ExerciseCatalogItemId);
+                selected.Add((exercise, slot));
+            }
+        }
+        else
+        {
+            foreach (var slot in slots)
+            {
+                var match =
+                    candidates
+                        .Where(
+                            candidate =>
+                                !selectedIds.Contains(
+                                    candidate.ExerciseCatalogItemId))
+                        .Select(
+                            candidate =>
+                                new
+                                {
+                                    Exercise = candidate,
+                                    Score =
+                                        SystemRecipeExerciseScore(
+                                            candidate,
+                                            slot,
+                                            candidatePreferences,
+                                            candidateUseCounts,
+                                            candidateGlobalFavoriteCounts)
+                                })
+                        .Where(x => x.Score > int.MinValue)
+                        .OrderByDescending(x => x.Score)
+                        .ThenBy(x => x.Exercise.Name)
+                        .FirstOrDefault();
+    
+                if (match is null)
+                    continue;
+    
+                selected.Add(
+                    (match.Exercise, slot));
+    
+                selectedIds.Add(
+                    match.Exercise.ExerciseCatalogItemId);
+            }
+    
         }
 
         var exercises =
