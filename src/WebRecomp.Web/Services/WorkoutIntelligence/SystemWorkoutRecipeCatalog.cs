@@ -521,7 +521,7 @@ public static class SystemWorkoutRecipeCatalog
         CoreRecipe("MIXED_CONDITIONING") with { GroupName = "Hard", DisplayName = "Hard Mixed Conditioning" },
         CoreRecipe("TRUE_HIIT") with { GroupName = "Hard", DisplayName = "Hard HIIT / Sprint Intervals" },
 
-        CoreRecipe("ORANGETHEORY") with { GroupName = "Standard", DisplayName = "Standard Orangetheory" },
+        CoreRecipe("ORANGETHEORY") with { GroupName = "Orangetheory", DisplayName = "Orangetheory Class" },
         CoreRecipe("MIXED_GYM_SESSION") with { GroupName = "Standard", DisplayName = "Standard Mixed Gym Session" },
         CoreRecipe("CUSTOM_COMPOSITE") with { GroupName = "Standard", DisplayName = "Standard Custom Multi-Block" }
     ];
@@ -540,11 +540,12 @@ public static class SystemWorkoutRecipeCatalog
         {
             "Set A" => 0,
             "Set B" => 1,
-            "Easy" => 2,
-            "Standard" => 3,
-            "Hard" => 4,
-            "Recovery" => 5,
-            _ => 6
+            "Orangetheory" => 2,
+            "Easy" => 3,
+            "Standard" => 4,
+            "Hard" => 5,
+            "Recovery" => 6,
+            _ => 7
         };
 
     private static readonly IReadOnlyDictionary<string, SystemWorkoutRecipe> ByCode =
@@ -568,6 +569,7 @@ public static class SystemWorkoutRecipeCatalog
     public static IReadOnlyList<string> PresentationCategoryOrder { get; } =
     [
         "Resistance",
+        "Orangetheory",
         "Conditioning",
         "Cardio",
         "Mixed / Composite",
@@ -611,13 +613,15 @@ public static class SystemWorkoutRecipeCatalog
                 or "SWIMMING" =>
                     "Cardio",
 
+            "ORANGETHEORY" =>
+                    "Orangetheory",
+
             "RESISTANCE_CIRCUIT"
                 or "RUNNING_INTERVALS"
                 or "CYCLING_INTERVALS"
                 or "ROWING_INTERVALS"
                 or "MIXED_CONDITIONING"
-                or "TRUE_HIIT"
-                or "ORANGETHEORY" =>
+                or "TRUE_HIIT" =>
                     "Conditioning",
 
             "MIXED_GYM_SESSION"

@@ -43,11 +43,13 @@
             .SystemWorkoutRecipeCatalog
             .PresentationCategoryOrder;
 
-    string SystemWorkoutCategory(string engineWorkoutTypeCode) =>
-        WebRecomp.Web.Services.WorkoutIntelligence
-            .SystemWorkoutRecipeCatalog
-            .PresentationCategoryForEngineWorkoutType(
-                engineWorkoutTypeCode);
+    string SystemWorkoutCategory(string groupName, string engineWorkoutTypeCode) =>
+        groupName.Equals("Orangetheory", StringComparison.OrdinalIgnoreCase)
+            ? "Orangetheory"
+            : WebRecomp.Web.Services.WorkoutIntelligence
+                .SystemWorkoutRecipeCatalog
+                .PresentationCategoryForEngineWorkoutType(
+                    engineWorkoutTypeCode);
 
     string SystemWorkoutTargets(string systemCode)
     {
@@ -1577,8 +1579,7 @@
                                         categoryName =>
                                             Model.WorkoutTypes.Any(
                                                 option =>
-                                                    SystemWorkoutCategory(
-                                                        option.EngineWorkoutTypeCode).Equals(
+                                                    SystemWorkoutCategory(option.GroupName, option.EngineWorkoutTypeCode).Equals(
                                                         categoryName,
                                                         StringComparison.OrdinalIgnoreCase)))
                                     .ToList();
@@ -1638,8 +1639,7 @@
                                 @foreach (
                                     var option in Model.WorkoutTypes
                                         .Where(
-                                            x => SystemWorkoutCategory(
-                                                x.EngineWorkoutTypeCode).Equals(
+                                            x => SystemWorkoutCategory(x.GroupName, x.EngineWorkoutTypeCode).Equals(
                                                 selectedSystemCategory,
                                                 StringComparison.OrdinalIgnoreCase))
                                         .OrderBy(

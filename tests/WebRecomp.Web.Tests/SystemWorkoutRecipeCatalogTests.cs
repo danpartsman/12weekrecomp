@@ -33,10 +33,11 @@ public sealed class SystemWorkoutRecipeCatalogTests
         {
             ["Set A"] = 0,
             ["Set B"] = 1,
-            ["Easy"] = 2,
-            ["Standard"] = 3,
-            ["Hard"] = 4,
-            ["Recovery"] = 5
+            ["Orangetheory"] = 2,
+            ["Easy"] = 3,
+            ["Standard"] = 4,
+            ["Hard"] = 5,
+            ["Recovery"] = 6
         };
 
         var expected = choices
@@ -54,6 +55,7 @@ public sealed class SystemWorkoutRecipeCatalogTests
     [InlineData("RUNNING", "Cardio")]
     [InlineData("ZONE2_CARDIO", "Cardio")]
     [InlineData("TRUE_HIIT", "Conditioning")]
+    [InlineData("ORANGETHEORY", "Orangetheory")]
     [InlineData("RESISTANCE_CIRCUIT", "Conditioning")]
     [InlineData("MIXED_GYM_SESSION", "Mixed / Composite")]
     [InlineData("CUSTOM_COMPOSITE", "Mixed / Composite")]
@@ -77,6 +79,7 @@ public sealed class SystemWorkoutRecipeCatalogTests
             new[]
             {
                 "Resistance",
+                "Orangetheory",
                 "Conditioning",
                 "Cardio",
                 "Mixed / Composite",
@@ -84,6 +87,15 @@ public sealed class SystemWorkoutRecipeCatalogTests
             },
             SystemWorkoutRecipeCatalog
                 .PresentationCategoryOrder);
+    }
+
+    [Fact]
+    public void OrangetheoryHasDedicatedSystemWorkoutCategory()
+    {
+        var recipe = SystemWorkoutRecipeCatalog.PresentationRecipes.Single(x => x.SystemCode == "ORANGETHEORY");
+        Assert.Equal("Orangetheory", recipe.GroupName);
+        Assert.Equal("ORANGETHEORY", recipe.EngineWorkoutTypeCode);
+        Assert.Contains("Orangetheory", SystemWorkoutRecipeCatalog.PresentationCategoryOrder);
     }
 
     [Fact]
