@@ -181,7 +181,7 @@
                         *insure the data is accurate for correct tracking.
                     </span>
                 </label>
-                <div class="app-adjacent-days" style="display:flex;justify-content:space-between;gap:12px;margin-top:7px;font-size:.88rem;font-weight:700"><a asp-action="Index" asp-route-date="@(Model.Date.AddDays(-1).ToString("yyyy-MM-dd"))" asp-route-mode="@mode" asp-route-returnContext="@Model.ReturnContext" aria-label="Previous day">← Previous day</a><a asp-action="Index" asp-route-date="@(Model.Date.AddDays(1).ToString("yyyy-MM-dd"))" asp-route-mode="@mode" asp-route-returnContext="@Model.ReturnContext" aria-label="Next day">Next day →</a></div>
+                <div class="app-adjacent-days"><a asp-action="Index" asp-route-date="@(Model.Date.AddDays(-1).ToString("yyyy-MM-dd"))" asp-route-mode="@mode" asp-route-returnContext="@Model.ReturnContext" aria-label="Previous day" class="button app-day-nav-button">← Previous day</a><a asp-action="Index" asp-route-date="@(Model.Date.AddDays(1).ToString("yyyy-MM-dd"))" asp-route-mode="@mode" asp-route-returnContext="@Model.ReturnContext" aria-label="Next day" class="button app-day-nav-button">Next day →</a></div>
             </form>
 
             <section class="wi-header-analysis"
@@ -322,11 +322,11 @@
                             <a asp-action="Index"
                                asp-route-date="@(Model.Date.AddDays(-1).ToString("yyyy-MM-dd"))"
                                asp-route-returnContext="@Model.ReturnContext"
-                               aria-label="Previous day">← Previous day</a>
+                               aria-label="Previous day" class="button app-day-nav-button">← Previous day</a>
                             <a asp-action="Index"
                                asp-route-date="@(Model.Date.AddDays(1).ToString("yyyy-MM-dd"))"
                                asp-route-returnContext="@Model.ReturnContext"
-                               aria-label="Next day">Next day →</a>
+                               aria-label="Next day" class="button app-day-nav-button">Next day →</a>
                         </div>
                     </form>
                 }

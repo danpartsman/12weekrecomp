@@ -5186,3 +5186,47 @@ html[data-theme="dark"] .learn12wr-recomp-emphasis p {
 .dash-adaptive-card small {
     opacity: 0.75;
 }
+
+/* Entry date controls: clear, tappable navigation on every entry surface. */
+.app-adjacent-days {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .45rem;
+    margin-top: .55rem;
+}
+.app-adjacent-days .app-day-nav-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.25rem;
+    padding: .42rem .55rem;
+    border: 1px solid #3974a0;
+    border-radius: .6rem;
+    background: #102a44;
+    color: #e8f7ff;
+    font-size: .79rem;
+    font-weight: 800;
+    line-height: 1.1;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.app-adjacent-days .app-day-nav-button:hover,
+.app-adjacent-days .app-day-nav-button:focus-visible {
+    border-color: #35d1e3;
+    background: #1a4261;
+    color: #fff;
+}
+.app-date-picker:has(.app-adjacent-days) { min-width: min(100%, 17.5rem); }
+.app-date-picker input[type="date"],
+.daily-entry-date-form input[type="date"] {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0e7490;
+}
+.app-date-heading {
+    font-size: 1.18rem;
+    font-weight: 800;
+    color: #0e7490;
+}
+.app-daily-entry-button { white-space: nowrap; }
