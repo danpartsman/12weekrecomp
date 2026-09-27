@@ -1,15 +1,131 @@
 <style>
-.free-use-splats{position:fixed;z-index:40;right:12px;bottom:12px;display:grid;justify-items:end;gap:0;max-width:180px;color:#081622;font-family:Arial,sans-serif;pointer-events:none}
-.free-use-splats>*{pointer-events:auto}
-.free-use-splats .splat{display:grid;place-items:center;text-align:center;width:100px;height:94px;margin-bottom:-19px;padding:16px;box-sizing:border-box;clip-path:polygon(50% 0,60% 13%,74% 4%,79% 20%,96% 19%,91% 38%,100% 50%,87% 61%,96% 79%,78% 81%,72% 97%,56% 86%,40% 100%,32% 83%,13% 91%,13% 70%,0 58%,12% 44%,3% 28%,22% 23%,26% 5%,42% 14%);background:#74ff40;filter:drop-shadow(0 3px 8px #0008);font-size:.8rem;font-weight:900;line-height:1.1;transform:rotate(8deg)}
-.free-use-splats .splat:nth-child(2){background:#40d9ff;transform:translateX(-63px) rotate(-8deg)}
-.free-use-splats .splat:nth-child(3){background:#ffe57b;transform:rotate(5deg)}
-.free-use-splats .free-use-link{display:block;text-align:center;max-width:175px;padding:.45rem .65rem;margin-top:1rem;border-radius:.7rem;background:#0d2634;color:#fff;font-size:.74rem;font-weight:800;line-height:1.2;text-decoration:underline;box-shadow:0 3px 10px #0008}
-@@media(max-width:650px){.free-use-splats{position:relative;max-width:none;right:auto;bottom:auto;display:flex;flex-wrap:wrap;justify-content:center;gap:0;padding:.6rem 1rem 1.5rem}.free-use-splats .splat{transform:none!important;margin:0 -5px;width:96px;height:90px}.free-use-splats .free-use-link{width:100%;max-width:none;margin:.2rem}}
+.free-use-panel {
+    position: fixed;
+    z-index: 40;
+    right: clamp(12px, 2vw, 28px);
+    bottom: clamp(12px, 2vw, 28px);
+    width: min(340px, calc(100vw - 24px));
+    overflow: hidden;
+    border: 1px solid rgba(161, 238, 215, .25);
+    border-radius: 22px;
+    background: linear-gradient(145deg, #123b43 0%, #0b2631 55%, #091d2a 100%);
+    box-shadow: 0 20px 55px rgba(0, 8, 19, .34), 0 3px 14px rgba(0, 8, 19, .18);
+    color: #f7fbfa;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.free-use-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 4px;
+    background: linear-gradient(90deg, #5eead4, #a3f38b, #d7f580);
+}
+.free-use-panel__content { padding: 24px 24px 22px; }
+.free-use-panel__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    color: #a8f3d1;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+}
+.free-use-panel__eyebrow::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #a3f38b;
+    box-shadow: 0 0 0 4px rgba(163, 243, 139, .13);
+}
+.free-use-panel h2 {
+    margin: 0;
+    max-width: 280px;
+    color: #fff;
+    font-size: clamp(1.45rem, 2.3vw, 1.72rem);
+    font-weight: 830;
+    letter-spacing: -.035em;
+    line-height: 1.14;
+}
+.free-use-panel h2 span { color: #b9f49a; }
+.free-use-panel__intro {
+    margin: 11px 0 17px;
+    color: #d1e4e6;
+    font-size: .88rem;
+    line-height: 1.48;
+}
+.free-use-panel__points {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 21px;
+    padding: 0;
+    list-style: none;
+}
+.free-use-panel__points li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: #eef8f7;
+    font-size: .84rem;
+    line-height: 1.35;
+}
+.free-use-panel__points li::before {
+    content: "✓";
+    display: grid;
+    flex: 0 0 19px;
+    place-items: center;
+    height: 19px;
+    border-radius: 50%;
+    background: rgba(163, 243, 139, .15);
+    color: #b9f49a;
+    font-size: .75rem;
+    font-weight: 900;
+}
+.free-use-panel__link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-height: 46px;
+    padding: 11px 14px;
+    border: 1px solid rgba(185, 244, 154, .35);
+    border-radius: 12px;
+    background: #c9f4a9;
+    color: #102d28;
+    font-size: .85rem;
+    font-weight: 800;
+    line-height: 1.25;
+    text-decoration: none;
+    transition: background .2s ease, transform .2s ease;
+}
+.free-use-panel__link::after { content: "↗"; font-size: 1.2rem; line-height: 1; }
+.free-use-panel__link:hover { background: #e0ffc4; transform: translateY(-2px); }
+.free-use-panel__link:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+@@media (max-width: 650px) {
+    .free-use-panel {
+        position: relative;
+        right: auto;
+        bottom: auto;
+        width: min(100%, 420px);
+        margin: 18px auto 26px;
+    }
+}
+@@media (prefers-reduced-motion: reduce) {
+    .free-use-panel__link { transition: none; }
+}
 </style>
-<aside class="free-use-splats" aria-label="Free-use announcement">
-    <div class="splat">Completely FREE to use!</div>
-    <div class="splat">No strings.<br />No marketing.<br />No credit cards.</div>
-    <div class="splat">No scams.<br />Use it. Enjoy it. Learn your body!</div>
-    <a class="free-use-link" href="/recomp/why-free">Why would I give this away for free?</a>
+<aside class="free-use-panel" aria-label="Free use announcement">
+    <div class="free-use-panel__content">
+        <p class="free-use-panel__eyebrow">An open invitation</p>
+        <h2>Completely <span>free</span> to use.</h2>
+        <p class="free-use-panel__intro">Explore your training and nutrition with tools designed to help you understand your body.</p>
+        <ul class="free-use-panel__points">
+            <li>No credit card or hidden fees</li>
+            <li>No marketing or strings attached</li>
+            <li>Just use it, learn, and keep moving</li>
+        </ul>
+        <a class="free-use-panel__link" href="/recomp/why-free">Why am I giving this away?</a>
+    </div>
 </aside>
