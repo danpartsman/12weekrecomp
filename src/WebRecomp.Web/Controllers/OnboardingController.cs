@@ -307,7 +307,7 @@ public sealed class OnboardingController(
             SexCode = client.SexCode ?? string.Empty,
             HeightIn = client.HeightIn > 0 ? client.HeightIn : null,
             StartingWeightLb = latestMeasurement?.WeightLb,
-            GoalCode = context.Program?.GoalCode ?? string.Empty,
+            GoalCode = context.Program?.GoalCode == "FAT_LOSS" ? "FAT_LOSS_RECOMP" : context.Program?.GoalCode ?? string.Empty,
             TrainingExperienceCode = client.TrainingExperienceCode ?? "INTERMEDIATE",
             AvailableTrainingDaysWeek = context.Program?.AvailableTrainingDaysWeek is > 0
                 ? context.Program.AvailableTrainingDaysWeek
@@ -395,6 +395,7 @@ public sealed class OnboardingController(
             "HEALTH" or "HEALTH_RESET" => "PLAN_1",
             "FAT_LOSS" or "FAT_LOSS_RECOMP" => "PLAN_2",
             "MUSCLE" or "MUSCLE_BUILD" => "PLAN_3",
+            "ATHLETIC_RECOMP" => "PLAN_4",
             "PAIN_LIMITED" or "MOBILITY" => "PLAN_5",
             _ => "PLAN_4"
         };

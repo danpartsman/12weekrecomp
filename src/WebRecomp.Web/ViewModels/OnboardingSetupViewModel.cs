@@ -30,7 +30,7 @@ public sealed class OnboardingSetupViewModel : IValidatableObject
     public decimal? StartingWeightLb { get; set; }
 
     [Required]
-    [RegularExpression("^(FAT_LOSS_RECOMP|FAT_LOSS|MUSCLE_BUILD)$", ErrorMessage = "Choose a primary goal.")]
+    [RegularExpression("^(FAT_LOSS_RECOMP|FAT_LOSS|MUSCLE_BUILD|ATHLETIC_RECOMP|HEALTH_RESET|PAIN_LIMITED)$", ErrorMessage = "Choose a primary goal.")]
     public string GoalCode { get; set; } = "";
 
     [Required]

@@ -31,10 +31,10 @@ public sealed class WeeklyPlanService(
     public static string FriendlyPlanGuidance(string? planCode)
         => NormalizePlan(planCode) switch
         {
-            "PLAN_2" => "Fat-loss Recomp starts with enough resistance training to protect muscle, adds conditioning for output, and preserves recovery so the calorie deficit stays productive.",
-            "PLAN_3" => "Muscle-focus Recomp protects three major strength exposures, adds accessory work when your schedule allows, and uses easier aerobic work and recovery to support growth.",
+            "PLAN_2" => "Fat-loss Recomp starts with enough resistance training to protect muscle, adds conditioning for output, and alternates demanding sessions with easier days or recovery so the calorie deficit stays productive.",
+            "PLAN_3" => "Muscle-focus Recomp protects three major strength exposures, adds accessory work when your schedule allows, and separates hard days with accessory work, easier aerobic work or recovery to support growth.",
             "PLAN_1" => "Health Reset emphasizes repeatable strength, easy aerobic work, and recovery. The goal is consistency first, not maximum training stress.",
-            "PLAN_4" => "Athletic Reconditioning keeps resistance training at the center, then layers in more conditioning, aerobic recovery, and at least one true recovery day.",
+            "PLAN_4" => "Athletic Reconditioning keeps resistance training at the center, then layers in more conditioning, aerobic recovery, and at least one true recovery day. Hard leg work is followed by a lighter day.",
             "PLAN_5" => "Pain-Limited / Mobility begins conservatively with mobility, lighter resistance work, easy aerobic work, and more recovery. Adjust around your real limitations.",
             _ => "Recomp builds a starting week from your plan and training availability. Change any day to fit your real life."
         };
@@ -68,16 +68,16 @@ public sealed class WeeklyPlanService(
         return template;
     }
 
-    /// <summary>Move the existing workout mix to selected weekdays without changing its dose.</summary>
+    /// <summary>
+    /// Keep the workout mix and explicit weekday choices, while placing demanding
+    /// sessions apart whenever the selected days make that possible.
+    /// Monday through Sunday repeats, so Sunday and Monday count as adjacent.
+    /// </summary>
     public static IReadOnlyList<string> ApplyDayPreferences(
         IReadOnlyList<string> template,
         IReadOnlyCollection<int>? preferredTrainingDays,
         IReadOnlyCollection<int>? preferredRestDays)
     {
-        if ((preferredTrainingDays is null || preferredTrainingDays.Count == 0)
-            && (preferredRestDays is null || preferredRestDays.Count == 0))
-            return template;
-
         var training = preferredTrainingDays?.ToHashSet() ?? [];
         var rest = preferredRestDays?.ToHashSet() ?? [];
         var workouts = template.Where(code => code != Recovery).ToArray();
@@ -86,20 +86,64 @@ public sealed class WeeklyPlanService(
             || training.Count > workouts.Length || rest.Count > 7 - workouts.Length)
             throw new ArgumentException("Day preferences cannot fit the recommended workout mix.");
 
-        var selected = new HashSet<int>(training);
-        // Keep the plan's original active weekdays where they remain flexible.
-        for (var day = 0; day < 7 && selected.Count < workouts.Length; day++)
-            if (template[day] != Recovery && !rest.Contains(day)) selected.Add(day);
-        for (var day = 0; day < 7 && selected.Count < workouts.Length; day++)
-            if (!rest.Contains(day)) selected.Add(day);
+        // Existing templates already provide the intended order when there are
+        // no fixed days; optimize only when preferences move sessions.
+        if (training.Count == 0 && rest.Count == 0)
+            return template;
 
-        var result = Enumerable.Repeat(Recovery, 7).ToArray();
-        var position = 0;
-        foreach (var day in selected.Order())
-            result[day] = workouts[position++];
-        return result;
+        string[]? best = null;
+        var bestPenalty = int.MaxValue;
+        var current = Enumerable.Repeat(Recovery, 7).ToArray();
+        var used = new bool[workouts.Length];
+
+        void Place(int day, int remaining, int displacement)
+        {
+            if (day == 7)
+            {
+                if (remaining != 0) return;
+                var penalty = displacement;
+                for (var i = 0; i < 7; i++)
+                {
+                    var next = current[(i + 1) % 7];
+                    if (IsHard(current[i]) && IsHard(next))
+                        penalty += 1000;
+                    if (current[i] == "MAJOR_LEGS" && IsHard(next))
+                        penalty += 250;
+                }
+                if (penalty < bestPenalty)
+                {
+                    bestPenalty = penalty;
+                    best = (string[])current.Clone();
+                }
+                return;
+            }
+
+            var mustTrain = training.Contains(day);
+            if (!mustTrain)
+            {
+                current[day] = Recovery;
+                Place(day + 1, remaining, displacement + (template[day] == Recovery ? 0 : 2));
+            }
+            if (rest.Contains(day) || remaining == 0) return;
+
+            for (var i = 0; i < workouts.Length; i++)
+            {
+                if (used[i]) continue;
+                used[i] = true;
+                current[day] = workouts[i];
+                Place(day + 1, remaining - 1,
+                    displacement + (template[day] == workouts[i] ? 0 : 2) + Math.Abs(day - i));
+                used[i] = false;
+            }
+        }
+
+        Place(0, workouts.Length, 0);
+        return best ?? throw new ArgumentException("Day preferences cannot fit the recommended workout mix.");
     }
 
+    private static bool IsHard(string code) => code is
+        "MAJOR_LEGS" or "MAJOR_PUSH" or "MAJOR_PULL" or
+        "FULL_BODY_STRENGTH" or "TRUE_HIIT" or "ORANGETHEORY";
     public async Task<int> SeedRecommendedWeekIfBlankAsync(
         Client client,
         ProgramRecord program,
@@ -417,9 +461,9 @@ public sealed class WeeklyPlanService(
         1 => ["FULL_BODY_STRENGTH", Recovery, Recovery, Recovery, Recovery, Recovery, Recovery],
         2 => ["FULL_BODY_STRENGTH", Recovery, "GENERAL_CARDIO", Recovery, Recovery, Recovery, Recovery],
         3 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", Recovery, "MAJOR_PULL", Recovery, Recovery],
-        4 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", "TRUE_HIIT", "MAJOR_PULL", Recovery, Recovery],
-        5 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", "TRUE_HIIT", "MAJOR_PULL", "ZONE2_CARDIO", Recovery],
-        _ => ["MAJOR_LEGS", "TRUE_HIIT", "MAJOR_PUSH", "ZONE2_CARDIO", "MAJOR_PULL", "ORANGETHEORY", Recovery]
+        4 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", "ZONE2_CARDIO", "MAJOR_PULL", Recovery, Recovery],
+        5 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", "ZONE2_CARDIO", "MAJOR_PULL", "ACCESSORY", Recovery],
+        _ => ["MAJOR_LEGS", "ZONE2_CARDIO", "MAJOR_PUSH", "ACCESSORY", "MAJOR_PULL", "ZONE2_CARDIO", Recovery]
     };
 
     private static string[] MuscleRecomp(int active) => active switch
@@ -437,9 +481,9 @@ public sealed class WeeklyPlanService(
         1 => ["FULL_BODY_STRENGTH", Recovery, Recovery, Recovery, Recovery, Recovery, Recovery],
         2 => ["FULL_BODY_STRENGTH", Recovery, "GENERAL_CARDIO", Recovery, Recovery, Recovery, Recovery],
         3 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", Recovery, "MAJOR_PULL", Recovery, Recovery],
-        4 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", "ORANGETHEORY", "MAJOR_PULL", Recovery, Recovery],
-        5 => ["MAJOR_LEGS", "ORANGETHEORY", "MAJOR_PUSH", Recovery, "MAJOR_PULL", "ZONE2_CARDIO", Recovery],
-        _ => ["MAJOR_LEGS", "ORANGETHEORY", "MAJOR_PUSH", "ZONE2_CARDIO", "MAJOR_PULL", "TRUE_HIIT", Recovery]
+        4 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", "ZONE2_CARDIO", "MAJOR_PULL", Recovery, Recovery],
+        5 => ["MAJOR_LEGS", "ZONE2_CARDIO", "MAJOR_PUSH", Recovery, "MAJOR_PULL", "ZONE2_CARDIO", Recovery],
+        _ => ["MAJOR_LEGS", "ZONE2_CARDIO", "MAJOR_PUSH", "ZONE2_CARDIO", "MAJOR_PULL", "ACCESSORY", Recovery]
     };
 
     private static string[] PainLimited(int active) => active switch
