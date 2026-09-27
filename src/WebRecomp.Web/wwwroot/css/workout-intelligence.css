@@ -3658,3 +3658,68 @@ body.test-live-preview
         justify-self: stretch;
     }
 }
+
+/* Per-workout set countdown. Kept to the right of the workout editor. */
+.workout-intelligence-page .wi-set-timer {
+    position: fixed;
+    z-index: 35;
+    top: 155px;
+    right: max(16px, calc((100vw - 1460px) / 2));
+    display: grid;
+    gap: .55rem;
+    width: 190px;
+    padding: 1rem;
+    border: 1px solid rgba(255, 194, 87, .48);
+    border-radius: 16px;
+    background: rgba(10, 27, 39, .94);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, .22);
+    color: #fff;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+.wi-set-timer__title {
+    color: #ffdb84;
+    font-size: .77rem;
+    font-weight: 900;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+.workout-intelligence-page .wi-set-timer__entry { display: block; }
+.workout-intelligence-page .wi-set-timer__entry input {
+    width: 100%;
+    padding: .28rem;
+    border: 1px solid rgba(255, 218, 137, .55);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .08);
+    color: #fff;
+    font-size: 1.45rem;
+    font-weight: 800;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+.wi-set-timer__entry input:focus-visible,
+.wi-set-timer__button:focus-visible { outline: 3px solid #ffdc83; outline-offset: 2px; }
+.wi-set-timer output { font-size: 2.15rem; font-weight: 900; line-height: 1; }
+.wi-set-timer.is-running output { color: #ffdc83; }
+.workout-intelligence-page .wi-set-timer__button {
+    min-height: 40px;
+    background: #ffb54d;
+    color: #321707;
+    font-weight: 900;
+}
+.workout-intelligence-page .wi-set-timer__cycle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: .4rem;
+    font-size: .75rem;
+    cursor: pointer;
+}
+.workout-intelligence-page .wi-set-timer__cycle input { width: auto; margin: 0; }
+@@media (max-width: 1350px) {
+    .workout-intelligence-page .wi-set-timer {
+        position: static;
+        width: min(100%, 330px);
+        margin: 1rem auto;
+    }
+}
