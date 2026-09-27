@@ -3716,7 +3716,7 @@ body.test-live-preview
     cursor: pointer;
 }
 .workout-intelligence-page .wi-set-timer__cycle input { width: auto; margin: 0; }
-@@media (max-width: 1350px) {
+@media (max-width: 1350px) {
     .workout-intelligence-page .wi-set-timer {
         position: static;
         width: min(100%, 330px);
