@@ -180,5 +180,5 @@
     <footer class="wi-footer"><div class="wi-shell wi-footer-inner"><a class="wi-brand wi-brand-footer" href="/welcome-ignite"><span class="wi-brand-12">12</span><span class="wi-brand-week">WEEK</span><span class="wi-brand-recomp">RECOMP</span></a><p>Train. Fuel. Recover. Adapt.</p><div><a asp-controller="Home" asp-action="Evidence">Evidence</a><a asp-controller="Contact" asp-action="Index">Contact</a><a asp-controller="Account" asp-action="SignIn">Sign In</a></div></div></footer>
 
     <script src="~/js/welcome-ignite-v1012.js" asp-append-version="true" defer></script>
-</body>
+@await Component.InvokeAsync("FreeUseOverlay")</body>
 </html>

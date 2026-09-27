@@ -39,6 +39,46 @@ public sealed class AdminController(
             )
             .CountAsync(cancellationToken);
 
+        ViewData["FreeUseOverlayEnabled"] =
+            await db.GlobalSettings.AsNoTracking()
+                .Where(x => x.SettingCode == "PUBLIC_FREE_OVERLAY_ENABLED")
+                .Select(x => x.DecimalValue)
+                .FirstOrDefaultAsync(cancellationToken) != 0m;
         return View();
+    }
+
+    [HttpPost("free-use-overlay")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetFreeUseOverlay(
+        bool enabled,
+        CancellationToken cancellationToken)
+    {
+        var setting = await db.GlobalSettings
+            .SingleOrDefaultAsync(
+                x => x.SettingCode == "PUBLIC_FREE_OVERLAY_ENABLED",
+                cancellationToken);
+        if (setting is null)
+        {
+            var configId = await db.ConfigVersions.AsNoTracking()
+                .Where(x => x.VersionCode == "CFG-3000.0")
+                .Select(x => (Guid?)x.ConfigVersionId)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (!configId.HasValue)
+                return Problem("Engine configuration is unavailable.");
+
+            setting = new WebRecomp.Web.Models.GlobalSetting
+            {
+                GlobalSettingId = Guid.NewGuid(),
+                ConfigVersionId = configId.Value,
+                SettingCode = "PUBLIC_FREE_OVERLAY_ENABLED",
+                Description = "Show the free-use announcement on public pages."
+            };
+            db.GlobalSettings.Add(setting);
+        }
+        setting.DecimalValue = enabled ? 1m : 0m;
+        await db.SaveChangesAsync(cancellationToken);
+        TempData["StatusMessage"] =
+            enabled ? "Free-use announcement enabled." : "Free-use announcement disabled.";
+        return RedirectToAction(nameof(Index));
     }
 }

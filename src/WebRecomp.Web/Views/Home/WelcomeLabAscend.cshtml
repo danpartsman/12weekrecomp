@@ -48,5 +48,5 @@
     <nav class="ws-dock" aria-label="Concept navigation"><a href="/welcome-lab/break-free">Poster</a><a href="/welcome-lab/hotspots">Hotspots</a><a href="/welcome-lab/cards">Cards</a><a href="/welcome-lab/ascend">Ascend</a></nav>
 </main>
 <script src="~/js/welcome-scenes-v1012.js" asp-append-version="true"></script>
-</body>
+@await Component.InvokeAsync("FreeUseOverlay")</body>
 </html>

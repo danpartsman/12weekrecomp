@@ -574,6 +574,53 @@
     }
 }
 </style>
+@{
+    var reminderWeight = ViewData["ReminderWeight"] is true;
+    var reminderWorkout = ViewData["ReminderWorkout"] is true;
+    var reminderNutrition = ViewData["ReminderNutrition"] is true;
+}
+@if (reminderWeight || reminderWorkout || reminderNutrition)
+{
+    <style>
+        .first-week-guide{max-width:min(92vw,620px);border:1px solid #54c8ec;border-radius:18px;background:#0b2031;color:#edfaff;padding:1.4rem;box-shadow:0 24px 70px #0009}
+        .first-week-guide::backdrop{background:#0009}
+        .first-week-guide h2{margin:.2rem 0 .6rem}
+        .first-week-guide p{line-height:1.5}
+        .first-week-guide a{display:block;margin:.65rem 0;color:#8eeeff;font-weight:700}
+        .first-week-guide button{margin-top:.7rem}
+    </style>
+    <dialog class="first-week-guide" id="first-week-guide" aria-labelledby="first-week-guide-title">
+        <h2 id="first-week-guide-title">A quick guide to today's entries</h2>
+        <p>You can enter your daily numbers in the Weight, Training and Nutrition sections of Daily Entry. For more precise records, use Workout logging and the Food Log.</p>
+        @if (reminderWeight)
+        {
+            <a asp-controller="DailyEntry" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")" asp-fragment="body-recovery">Enter today's weight in Daily Entry →</a>
+        }
+        @if (reminderWorkout)
+        {
+            <a asp-controller="DailyEntry" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")" asp-fragment="training">Enter today's workout in Daily Entry →</a>
+            <a asp-controller="DetailedWorkout" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Or log a detailed workout →</a>
+        }
+        @if (reminderNutrition)
+        {
+            <a asp-controller="DailyEntry" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")" asp-fragment="nutrition">Enter today's nutrition in Daily Entry →</a>
+            <a asp-controller="Nutrition" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Or log foods for more accurate totals →</a>
+        }
+        <button type="button" class="button primary" onclick="this.closest('dialog').close()">Got it</button>
+    </dialog>
+    <script>
+        (() => {
+            const dialog = document.getElementById('first-week-guide');
+            const key = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["ReminderKey"]));
+            try {
+                if (!sessionStorage.getItem(key)) {
+                    dialog.showModal();
+                    sessionStorage.setItem(key, 'seen');
+                }
+            } catch (_) { dialog.showModal(); }
+        })();
+    </script>
+}
 <div class="recomp-dashboard">
     <header class="dash-title-row">
         <div>

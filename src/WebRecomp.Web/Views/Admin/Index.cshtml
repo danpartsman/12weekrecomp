@@ -4,6 +4,21 @@
 }
 
 <section class="admin-home">
+    @if (TempData["StatusMessage"] is string adminStatus)
+    {
+        <div class="app-message success" role="status">@adminStatus</div>
+    }
+    <form asp-controller="Admin" asp-action="SetFreeUseOverlay" method="post" class="admin-card" style="margin-bottom:1.25rem">
+        @Html.AntiForgeryToken()
+        <h2>Welcome page: free-use announcement</h2>
+        <p>Show the free-use messages on the public welcome and information pages.</p>
+        <label style="display:flex;gap:.7rem;align-items:center;font-weight:700">
+            <input type="checkbox" name="enabled" value="true" checked="@(ViewData["FreeUseOverlayEnabled"] is true)" />
+            Show the free-use announcement
+        </label>
+        <input type="hidden" name="enabled" value="false" />
+        <button type="submit" class="button primary" style="margin-top:.8rem">Save</button>
+    </form>
 
     <header class="admin-heading">
         <span class="admin-eyebrow">ADMINISTRATION</span>

@@ -54,6 +54,68 @@ public sealed class DashboardController(
             return RedirectToAction("Index", "Onboarding");
         }
 
+        // A short orientation reminder for newly created accounts. Do not
+        // substitute plan data for actual entries or prompt on rest days.
+        if (context.User.CreatedAtUtc > DateTime.UtcNow.AddDays(-8))
+        {
+            var createdUtc = DateTime.SpecifyKind(
+                context.User.CreatedAtUtc,
+                DateTimeKind.Utc);
+            DateOnly createdDate;
+            try
+            {
+                var zone = TimeZoneInfo.FindSystemTimeZoneById(client.TimeZone);
+                createdDate = DateOnly.FromDateTime(
+                    TimeZoneInfo.ConvertTimeFromUtc(createdUtc, zone));
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                createdDate = DateOnly.FromDateTime(createdUtc);
+            }
+
+            if (today >= createdDate && today < createdDate.AddDays(7))
+            {
+                var hasTodayWeight = await db.Measurements.AsNoTracking().AnyAsync(
+                    x => x.ClientId == client.ClientId
+                        && x.ProgramId == program.ProgramId
+                        && x.LocalMeasurementDate == today
+                        && !x.IsDeleted
+                        && x.WeightLb.HasValue
+                        && x.WeightLb.Value > 0m,
+                    cancellationToken);
+                var hasWorkout = await db.WorkoutSessions.AsNoTracking().AnyAsync(
+                    x => x.ClientId == client.ClientId
+                        && x.ProgramId == program.ProgramId
+                        && x.WorkoutDate == today
+                        && x.CompletedFlag,
+                    cancellationToken);
+                var activityRecorded = await db.DailyCheckins.AsNoTracking().AnyAsync(
+                    x => x.ProgramId == program.ProgramId
+                        && x.CheckinDate == today
+                        && x.DailyActivityHours.HasValue,
+                    cancellationToken);
+                var isRestDay = await db.PlannedWorkouts.AsNoTracking().AnyAsync(
+                    x => x.ProgramId == program.ProgramId
+                        && x.PlannedDate == today
+                        && x.WorkoutTypeCode == "REST",
+                    cancellationToken);
+                var hasNutrition = await db.NutritionDays.AsNoTracking().AnyAsync(
+                    x => x.ProgramId == program.ProgramId
+                        && x.NutritionDate == today
+                        && x.ActualCalories.HasValue
+                        && x.ActualProteinG.HasValue
+                        && x.ActualCarbsG.HasValue
+                        && x.ActualFatG.HasValue,
+                    cancellationToken);
+
+                ViewData["ReminderWeight"] = !hasTodayWeight;
+                ViewData["ReminderWorkout"] = !hasWorkout && !activityRecorded && !isRestDay;
+                ViewData["ReminderNutrition"] = !hasNutrition;
+                ViewData["ReminderKey"] =
+                    $"recomp-entry-guide:{context.User.UserId}:{today:yyyy-MM-dd}";
+            }
+        }
+
         var vm = await dashboard.BuildAsync(context, today, cancellationToken);
         return View(vm);
     }

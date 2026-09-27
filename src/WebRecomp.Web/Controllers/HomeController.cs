@@ -198,5 +198,13 @@ public sealed class HomeController(
     }
 
     [AllowAnonymous]
+    [HttpGet("/recomp/why-free")]
+    public IActionResult WhyFree()
+    {
+        ViewData["PublicPage"] = true;
+        return View();
+    }
+
+    [AllowAnonymous]
     public IActionResult Error() => View();
 }
