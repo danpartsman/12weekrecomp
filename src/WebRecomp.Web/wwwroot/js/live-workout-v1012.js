@@ -37,9 +37,7 @@
     }
 
     const timerHost = document.querySelector("[data-live-workout-start]");
-    const startButton = document.querySelector("[data-workout-start-button]");
-
-    if (!timerHost || !(startButton instanceof HTMLButtonElement)) return;
+    if (!timerHost) return;
 
     const output = timerHost.querySelector("[data-live-workout-elapsed]");
     const workoutForm = document.getElementById("wi-detailed-workout-form");
@@ -91,9 +89,6 @@
     };
 
     const enforceServerTimerUi = () => {
-        startButton.hidden = true;
-        startButton.disabled = true;
-
         if (pauseButton instanceof HTMLButtonElement) {
             pauseButton.hidden = true;
             pauseButton.disabled = true;
@@ -101,12 +96,6 @@
 
         if (pausedSecondsInput instanceof HTMLInputElement) {
             pausedSecondsInput.value = "0";
-        }
-
-        const stopButton = document.querySelector('[name="stopWorkout"]');
-        if (stopButton instanceof HTMLButtonElement) {
-            stopButton.disabled = false;
-            stopButton.textContent = isCardio ? "End Cardio" : "End Workout";
         }
 
         const label = timerHost.querySelector("span");
@@ -237,7 +226,7 @@
         editButton.id = "wi-live-edit-exercises";
         editButton.className = "button wi-live-edit-exercises-button";
         editButton.textContent = "Edit Exercises";
-        startButton.insertAdjacentElement("beforebegin", editButton);
+        timerHost.insertAdjacentElement("afterend", editButton);
 
         editButton.addEventListener("click", () => {
             searchPanel.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -312,9 +301,8 @@
     void syncStatus();
     handleEndPrompt();
 
-    // The legacy timer still renders once per second. Reassert the authoritative
-    // server-derived display slightly afterward without keeping the screen awake.
-    window.setInterval(enforceServerTimerUi, 350);
+    // One authoritative server-derived timer renders once per second.
+    window.setInterval(renderServerTimer, 1000);
     window.setInterval(() => void syncStatus(), 60000);
 
     document.addEventListener("visibilitychange", () => {
