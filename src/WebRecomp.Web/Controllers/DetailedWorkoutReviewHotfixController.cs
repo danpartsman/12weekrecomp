@@ -111,6 +111,8 @@ public sealed class DetailedWorkoutReviewHotfixController(
                 .Where(x => !x.IsWarmup)
                 .Sum(x => x.Reps ?? 0);
 
+        ViewData["ReviewExercises"] = detailed.Exercises;
+
         ViewData["RecordedSets"] =
             recordedWorkingSets;
 
@@ -152,6 +154,7 @@ public sealed class DetailedWorkoutReviewHotfixController(
         decimal? sessionRpe,
         int extraSets,
         Guid? extraExerciseId,
+        Dictionary<Guid, int?>? reviewReps,
         CancellationToken cancellationToken)
     {
         var context =
@@ -200,6 +203,7 @@ public sealed class DetailedWorkoutReviewHotfixController(
                 sessionRpe,
                 extraSets,
                 extraExerciseId,
+                reviewReps,
                 cancellationToken);
         }
 
@@ -217,6 +221,7 @@ public sealed class DetailedWorkoutReviewHotfixController(
         decimal? sessionRpe,
         int extraSets,
         Guid? extraExerciseId,
+        Dictionary<Guid, int?>? reviewReps,
         CancellationToken cancellationToken)
     {
         var detailed =
@@ -229,6 +234,34 @@ public sealed class DetailedWorkoutReviewHotfixController(
         {
             throw new InvalidOperationException(
                 "A detailed workout is required before finalization.");
+        }
+
+        if (reviewReps is { Count: > 0 })
+        {
+            if (reviewReps.Values.Any(reps => reps is < 0 or > 500))
+                throw new InvalidOperationException("Review reps must be between 0 and 500.");
+
+            var knownSetIds = detailed.Exercises
+                .SelectMany(exercise => exercise.Sets)
+                .Select(set => set.DetailedSetId)
+                .ToHashSet();
+
+            if (reviewReps.Keys.Any(id => !knownSetIds.Contains(id)))
+                throw new InvalidOperationException("A reviewed set is not part of this workout.");
+
+            var revised = detailed.Exercises
+                .Select(exercise => exercise with
+                {
+                    Sets = exercise.Sets
+                        .Select(set => reviewReps.TryGetValue(set.DetailedSetId, out var reps)
+                            ? set with { Reps = reps }
+                            : set)
+                        .ToArray()
+                })
+                .ToArray();
+
+            detailed = new DetailedWorkoutSession(detailed.WorkoutSessionId, revised);
+            await detailedWorkoutStore.ReplaceAsync(detailed, cancellationToken);
         }
 
         if (extraSets > 0)
