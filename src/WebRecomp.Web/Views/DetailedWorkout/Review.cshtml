@@ -37,6 +37,10 @@
         ViewData["PrimaryMuscles"] as string
         ?? "";
 
+    var reviewExercises =
+        ViewData["ReviewExercises"] as IReadOnlyList<WebRecomp.WorkoutIntelligence.Persistence.DetailedWorkoutExerciseEntry>
+        ?? [];
+
     var deadlineUtc =
         ViewData["ReviewDeadlineUtc"] as string
         ?? "";
@@ -55,7 +59,8 @@
             @workoutName
         </div>
 
-        <form asp-action="FinalizeWorkout"
+        <form asp-controller="DetailedWorkoutReviewHotfix"
+              asp-action="FinalizeWorkout"
               method="post"
               id="wi-review-form"
               data-review-deadline="@deadlineUtc">
@@ -111,6 +116,36 @@
                 <span aria-hidden="true">&bull;</span>
                 <span><strong>@totalReps</strong> total reps</span>
             </div>
+
+            @if (reviewExercises.Count > 0)
+            {
+                <section class="wi-review-reps" aria-label="Review exercise repetitions">
+                    <h2>Check your sets and reps</h2>
+                    <p>Correct any rep count before saving. Duration and RPE above can also be changed.</p>
+                    @foreach (var exercise in reviewExercises.OrderBy(x => x.ExerciseOrder))
+                    {
+                        <div class="wi-review-reps__exercise">
+                            <strong>@exercise.ExerciseNameSnapshot</strong>
+                            <div class="wi-review-reps__sets">
+                                @foreach (var set in exercise.Sets.OrderBy(x => x.SetOrder))
+                                {
+                                    <label>
+                                        <span>Set @set.SetOrder reps</span>
+                                        <input type="number"
+                                               name="reviewReps[@set.DetailedSetId]"
+                                               min="0"
+                                               max="500"
+                                               step="1"
+                                               inputmode="numeric"
+                                               value="@set.Reps"
+                                               placeholder="Timed" />
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    }
+                </section>
+            }
 
             @if (!string.IsNullOrWhiteSpace(primaryMuscles))
             {
@@ -229,3 +264,13 @@
         1000);
 })();
 </script>
+<style>
+.wi-review-reps { margin: 1.25rem 0; padding: 1rem; border: 1px solid rgba(148, 163, 184, .28); border-radius: 14px; }
+.wi-review-reps h2 { margin: 0 0 .25rem; font-size: 1.2rem; }
+.wi-review-reps p { margin: 0 0 .9rem; opacity: .8; }
+.wi-review-reps__exercise { padding: .8rem 0; border-top: 1px solid rgba(148, 163, 184, .18); }
+.wi-review-reps__exercise > strong { display: block; margin-bottom: .6rem; }
+.wi-review-reps__sets { display: flex; flex-wrap: wrap; gap: .65rem; }
+.wi-review-reps__sets label { display: grid; gap: .3rem; width: 105px; font-size: .8rem; }
+.wi-review-reps__sets input { width: 100%; }
+</style>
