@@ -3589,6 +3589,63 @@ public sealed class DetailedWorkoutController(
         if (preview is null)
             return NotFound();
 
+        var treatSystemSetsAsRecovery =
+            string.Equals(
+                preview.WorkoutTypeCode,
+                "MOBILITY_RECOVERY",
+                StringComparison.OrdinalIgnoreCase);
+
+        var detailedExercises =
+            preview.Exercises
+                .Select(
+                    (input, index) =>
+                    {
+                        var setReps =
+                            ResolveSetReps(
+                                input);
+
+                        return new DetailedWorkoutExerciseEntry(
+                            Guid.Empty,
+                            input.ExerciseId,
+                            index + 1,
+                            input.ExerciseName,
+                            input.Mechanics,
+                            input.Notes,
+                            Enumerable.Range(
+                                    1,
+                                    Math.Clamp(
+                                        input.Sets,
+                                        1,
+                                        20))
+                                .Select(
+                                    setOrder =>
+                                        new DetailedWorkoutSetEntry(
+                                            Guid.Empty,
+                                            setOrder,
+                                            setReps[
+                                                Math.Min(
+                                                    setOrder - 1,
+                                                    setReps.Length - 1)],
+                                            null,
+                                            NormalizeLoadUnit(
+                                                input.LoadUnitCode,
+                                                preview.Exercises.Count > 0
+                                                    ? input.LoadUnitCode
+                                                    : "LB"),
+                                            null,
+                                            null,
+                                            null,
+                                            null,
+                                            treatSystemSetsAsRecovery,
+                                            null))
+                                .ToArray(),
+                            input.MaxWeight,
+                            NormalizeLoadUnit(
+                                input.LoadUnitCode,
+                                "LB"));
+                    })
+                .ToArray();
+
         var existingOpenSession =
             await db.WorkoutSessions
                 .AsNoTracking()
@@ -3609,6 +3666,26 @@ public sealed class DetailedWorkoutController(
 
         if (existingOpenSession is not null)
         {
+            // An OTF session created before its published movements were
+            // resolvable may already exist with zero exercise rows. Repair
+            // that draft in place so selecting the card does not reopen
+            // another empty session.
+            if (preview.Exercises.Count > 0
+                && !await db.DetailedWorkoutExercises
+                    .AsNoTracking()
+                    .AnyAsync(
+                        exercise =>
+                            exercise.WorkoutSessionId
+                                == existingOpenSession.WorkoutSessionId,
+                        cancellationToken))
+            {
+                await detailedWorkoutStore.ReplaceAsync(
+                    new DetailedWorkoutSession(
+                        existingOpenSession.WorkoutSessionId,
+                        detailedExercises),
+                    cancellationToken);
+            }
+
             TempData["StatusMessage"] =
                 $"{preview.DisplayName} is already open for this date. Reopening it instead of creating a duplicate.";
 
@@ -3666,63 +3743,6 @@ public sealed class DetailedWorkoutController(
         db.WorkoutSessions.Add(session);
         await db.SaveChangesAsync(
             cancellationToken);
-
-        var treatSystemSetsAsRecovery =
-            string.Equals(
-                preview.WorkoutTypeCode,
-                "MOBILITY_RECOVERY",
-                StringComparison.OrdinalIgnoreCase);
-
-        var detailedExercises =
-            preview.Exercises
-                .Select(
-                    (input, index) =>
-                    {
-                        var setReps =
-                            ResolveSetReps(
-                                input);
-
-                        return new DetailedWorkoutExerciseEntry(
-                            Guid.Empty,
-                            input.ExerciseId,
-                            index + 1,
-                            input.ExerciseName,
-                            input.Mechanics,
-                            input.Notes,
-                            Enumerable.Range(
-                                    1,
-                                    Math.Clamp(
-                                        input.Sets,
-                                        1,
-                                        20))
-                                .Select(
-                                    setOrder =>
-                                        new DetailedWorkoutSetEntry(
-                                            Guid.Empty,
-                                            setOrder,
-                                            setReps[
-                                                Math.Min(
-                                                    setOrder - 1,
-                                                    setReps.Length - 1)],
-                                            null,
-                                            NormalizeLoadUnit(
-                                                input.LoadUnitCode,
-                                                preview.Exercises.Count > 0
-                                                    ? input.LoadUnitCode
-                                                    : "LB"),
-                                            null,
-                                            null,
-                                            null,
-                                            null,
-                                            treatSystemSetsAsRecovery,
-                                            null))
-                                .ToArray(),
-                            input.MaxWeight,
-                            NormalizeLoadUnit(
-                                input.LoadUnitCode,
-                                "LB"));
-                    })
-                .ToArray();
 
         await detailedWorkoutStore.ReplaceAsync(
             new DetailedWorkoutSession(
