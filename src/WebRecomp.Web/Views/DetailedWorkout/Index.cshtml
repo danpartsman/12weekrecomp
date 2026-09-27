@@ -304,6 +304,30 @@
                 <div class="wi-workout-intelligence-title">
                     Workout Intelligence
                 </div>
+                @if (isHome)
+                {
+                    <form asp-action="Index"
+                          method="get"
+                          class="app-date-picker wi-home-date-picker">
+                        <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                        <label>Date
+                            <input type="date"
+                                   name="date"
+                                   value="@Model.Date.ToString("yyyy-MM-dd")"
+                                   onchange="this.form.submit()" />
+                        </label>
+                        <div class="app-adjacent-days">
+                            <a asp-action="Index"
+                               asp-route-date="@(Model.Date.AddDays(-1).ToString("yyyy-MM-dd"))"
+                               asp-route-returnContext="@Model.ReturnContext"
+                               aria-label="Previous day">← Previous day</a>
+                            <a asp-action="Index"
+                               asp-route-date="@(Model.Date.AddDays(1).ToString("yyyy-MM-dd"))"
+                               asp-route-returnContext="@Model.ReturnContext"
+                               aria-label="Next day">Next day →</a>
+                        </div>
+                    </form>
+                }
 
                 <section class="card wi-live-command-card"
                          aria-label="Live Workout">

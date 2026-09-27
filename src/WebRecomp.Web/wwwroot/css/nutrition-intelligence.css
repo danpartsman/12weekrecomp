@@ -982,3 +982,20 @@
 .nutrition-picker-provider-controls[hidden] {
     display: none !important;
 }
+
+/* Keep the three food picker actions together on one horizontal line. */
+.nutrition-picker-action-links {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: .8rem;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+.nutrition-picker-action-links .nutrition-picker-custom-link {
+    flex: 0 0 auto;
+}
+.nutrition-picker-food-actions .nutrition-picker-results-heading {
+    display: block;
+}

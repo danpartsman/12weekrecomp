@@ -3586,3 +3586,16 @@ body.test-live-preview
 }
 
 /* ===== END B2.35.14 WORKOUT CARDS + SELECTION POLISH ===== */
+
+/* Date navigation on the Workouts home command surface. */
+.workout-intelligence-page .wi-home-date-picker {
+    width: min(100%, 24rem);
+    margin: 0 auto .5rem;
+}
+.workout-intelligence-page .wi-home-date-picker .app-adjacent-days {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: .5rem;
+    font-weight: 700;
+}
