@@ -119,6 +119,47 @@
     }}
 
 <div class="app-page workout-intelligence-page wi-simple-page @(isHome ? "wi-workouts-home-minimal" : "") @(isStart ? "wi-start-page-minimal" : "") @(isLive ? "wi-live-page-minimal" : "") @((isNew || isSaved || isSystem) ? "wi-manage-page" : "")">
+
+    @if (isHome && Model.FeatureEnabled)
+    {
+        <header class="app-page-head wi-entry-hero">
+            <div class="wi-entry-hero-title">
+                <div class="app-kicker">WORKOUT INTELLIGENCE</div>
+                <h1>Workouts</h1>
+                <p class="lede app-date-heading">@Model.Date.ToString("dddd, MMMM d")</p>
+            </div>
+            <figure class="wi-entry-hero-photo">
+                <img src="~/images/workout-lifting-gym.png"
+                     asp-append-version="true"
+                     alt="People lifting weights in a gym"
+                     width="2048"
+                     height="768" />
+            </figure>
+            <form asp-action="Index"
+                  method="get"
+                  class="app-date-picker wi-home-date-picker">
+                <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                <label>Date
+                    <input type="date"
+                           name="date"
+                           value="@Model.Date.ToString("yyyy-MM-dd")"
+                           onchange="this.form.submit()" />
+                </label>
+                <div class="app-adjacent-days">
+                    <a asp-action="Index"
+                       asp-route-date="@(Model.Date.AddDays(-1).ToString("yyyy-MM-dd"))"
+                       asp-route-returnContext="@Model.ReturnContext"
+                       aria-label="Previous day"
+                       class="button app-day-nav-button">← Previous day</a>
+                    <a asp-action="Index"
+                       asp-route-date="@(Model.Date.AddDays(1).ToString("yyyy-MM-dd"))"
+                       asp-route-returnContext="@Model.ReturnContext"
+                       aria-label="Next day"
+                       class="button app-day-nav-button">Next day →</a>
+                </div>
+            </form>
+        </header>
+    }
     <header class="app-page-head wi-simple-head wi-analysis-head">
         <div class="wi-head-title">
             <div class="app-kicker">WORKOUT INTELLIGENCE</div>
@@ -303,34 +344,12 @@
         {
             <section class="wi-workout-command-shell"
                      aria-label="Workout Intelligence">
-                <div class="wi-workout-intelligence-title">
-                    Workout Intelligence
-                </div>
-                @if (isHome)
+                @if (!isHome)
                 {
-                    <form asp-action="Index"
-                          method="get"
-                          class="app-date-picker wi-home-date-picker">
-                        <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
-                        <label>Date
-                            <input type="date"
-                                   name="date"
-                                   value="@Model.Date.ToString("yyyy-MM-dd")"
-                                   onchange="this.form.submit()" />
-                        </label>
-                        <div class="app-adjacent-days">
-                            <a asp-action="Index"
-                               asp-route-date="@(Model.Date.AddDays(-1).ToString("yyyy-MM-dd"))"
-                               asp-route-returnContext="@Model.ReturnContext"
-                               aria-label="Previous day" class="button app-day-nav-button">← Previous day</a>
-                            <a asp-action="Index"
-                               asp-route-date="@(Model.Date.AddDays(1).ToString("yyyy-MM-dd"))"
-                               asp-route-returnContext="@Model.ReturnContext"
-                               aria-label="Next day" class="button app-day-nav-button">Next day →</a>
-                        </div>
-                    </form>
+                    <div class="wi-workout-intelligence-title">
+                        Workout Intelligence
+                    </div>
                 }
-
                 <section class="card wi-live-command-card"
                          aria-label="Live Workout">
                     <div class="wi-command-label">
