@@ -765,3 +765,93 @@ body.guided-demo-dark-theme .daily-entry-workout-not-completed:hover,
 body.guided-demo-dark-theme .daily-entry-workout-not-completed:focus-visible {
     background: #7c2d12;
 }
+
+/* Daily Entry photo hero */
+.daily-entry-header {
+    display: block;
+    margin-bottom: 1.25rem;
+}
+.daily-entry-hero {
+    position: relative;
+    display: grid;
+    align-items: end;
+    isolation: isolate;
+    min-height: 340px;
+    overflow: hidden;
+    border: 1px solid rgba(149, 190, 187, 0.35);
+    border-radius: 28px;
+    background: #07100d;
+    box-shadow: 0 18px 45px rgba(1, 19, 15, 0.2);
+    color: #fff;
+}
+.daily-entry-hero-image {
+    position: absolute;
+    z-index: -2;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 42%;
+}
+.daily-entry-hero::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(3, 11, 10, .9) 0%, rgba(3, 11, 10, .55) 48%, rgba(3, 11, 10, .04) 100%),
+                linear-gradient(0deg, rgba(3, 11, 10, .55), transparent 65%);
+}
+.daily-entry-hero-content {
+    max-width: 650px;
+    padding: clamp(1.5rem, 5vw, 3.5rem);
+    text-shadow: 0 2px 14px rgba(0, 0, 0, .4);
+}
+.daily-entry-hero-eyebrow {
+    margin: 0 0 .5rem;
+    color: #68e6e8;
+    font-size: .85rem;
+    font-weight: 900;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+}
+.daily-entry-hero h1 {
+    margin: 0;
+    color: #f8fafc;
+    font-size: clamp(3.1rem, 8vw, 5.7rem);
+    font-weight: 900;
+    letter-spacing: -.055em;
+    line-height: .94;
+    text-transform: uppercase;
+}
+.daily-entry-hero h1 span { color: #a1ff54; }
+.daily-entry-hero-tagline {
+    margin: 1.4rem 0 0;
+    color: #f2f6f4;
+    font-size: clamp(1.05rem, 2.6vw, 1.5rem);
+    font-weight: 800;
+}
+.daily-entry-header-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1rem .2rem 0;
+}
+.daily-entry-header-bottom .daily-entry-lede { max-width: 680px; }
+.daily-entry-header-bottom .daily-entry-dashboard-link { margin: 0; }
+@media (max-width: 820px) {
+    .daily-entry-hero { min-height: 430px; border-radius: 25px; }
+    .daily-entry-hero-image { object-position: 52% 34%; }
+    .daily-entry-hero::after {
+        background: linear-gradient(0deg, rgba(3, 11, 10, .94) 0%, rgba(3, 11, 10, .58) 35%, rgba(3, 11, 10, .06) 80%);
+    }
+    .daily-entry-header-bottom { flex-wrap: wrap; }
+    .daily-entry-header-bottom .daily-entry-dashboard-link { margin-left: auto; }
+}
+@media (max-width: 520px) {
+    .daily-entry-hero { min-height: 390px; }
+    .daily-entry-hero-content { padding: 1.3rem; }
+    .daily-entry-hero h1 { font-size: clamp(2.9rem, 13vw, 4.6rem); }
+    .daily-entry-hero-tagline { margin-top: 1rem; }
+}
