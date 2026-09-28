@@ -5026,6 +5026,22 @@ public sealed class DetailedWorkoutController(
                                 item.Exercise.Mechanics,
                             Notes =
                                 item.Slot.Notes,
+                            BlockName =
+                                item.Slot.BlockName,
+                            BlockType =
+                                item.Slot.BlockType,
+                            DurationSeconds =
+                                item.Slot.DurationSeconds,
+                            DistanceMeters =
+                                item.Slot.DistanceMeters,
+                            InclinePercent =
+                                item.Slot.InclinePercent,
+                            EstimatedRounds =
+                                item.Slot.EstimatedRounds,
+                            IsEstimated =
+                                item.Slot.IsEstimated,
+                            WorkloadText =
+                                item.Slot.WorkloadText,
                             Sets =
                                 setCount,
                             Reps =
