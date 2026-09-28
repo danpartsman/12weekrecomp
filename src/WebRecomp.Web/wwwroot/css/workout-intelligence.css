@@ -3879,3 +3879,85 @@ body.test-live-preview
         min-width: 0 !important;
     }
 }
+
+/* TEST 2026-09-28 embedded live timer + compact exercise action row */
+.workout-intelligence-page.wi-live-page-minimal .wi-simple-head {
+    display: grid !important;
+    grid-template-columns: minmax(220px, .8fr) minmax(360px, 1.45fr) minmax(180px, .55fr) !important;
+    align-items: center !important;
+    gap: 1rem !important;
+}
+.workout-intelligence-page.wi-live-page-minimal .wi-head-title {
+    grid-column: 1 !important;
+}
+.workout-intelligence-page.wi-live-page-minimal .wi-live-motivation {
+    position: relative !important;
+    grid-column: 2 !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: 180px !important;
+    margin: 0 !important;
+    transform: none !important;
+}
+.workout-intelligence-page.wi-live-page-minimal .wi-set-timer {
+    position: absolute !important;
+    top: 50% !important;
+    right: 1rem !important;
+    transform: translateY(-50%) !important;
+    width: 180px !important;
+    margin: 0 !important;
+    padding: .72rem !important;
+    gap: .35rem !important;
+    box-shadow: none !important;
+}
+.workout-intelligence-page .wi-workout-exercise .wi-exercise-action-stack {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 118px)) !important;
+    justify-content: end !important;
+    gap: .5rem !important;
+    width: 100% !important;
+    margin-top: .15rem !important;
+}
+.workout-intelligence-page .wi-exercise-action-stack .wi-exchange-exercise,
+.workout-intelligence-page .wi-exercise-action-stack .wi-remove-exercise,
+.workout-intelligence-page .wi-exercise-action-stack .wi-card-move-handle {
+    grid-column: auto !important;
+    grid-row: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 38px !important;
+    padding: .35rem .55rem !important;
+    font-size: .88rem !important;
+}
+@media (max-width: 900px) {
+    .workout-intelligence-page.wi-live-page-minimal .wi-simple-head {
+        grid-template-columns: 1fr !important;
+    }
+    .workout-intelligence-page.wi-live-page-minimal .wi-head-title,
+    .workout-intelligence-page.wi-live-page-minimal .wi-live-motivation {
+        grid-column: 1 !important;
+    }
+    .workout-intelligence-page.wi-live-page-minimal .wi-set-timer {
+        position: relative !important;
+        top: auto !important;
+        right: auto !important;
+        transform: none !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin-top: .65rem !important;
+    }
+    .workout-intelligence-page .wi-workout-exercise .wi-exercise-action-stack {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: .35rem !important;
+    }
+    .workout-intelligence-page .wi-exercise-action-stack .wi-exchange-exercise,
+    .workout-intelligence-page .wi-exercise-action-stack .wi-remove-exercise,
+    .workout-intelligence-page .wi-exercise-action-stack .wi-card-move-handle {
+        min-height: 36px !important;
+        padding: .3rem .25rem !important;
+        font-size: .78rem !important;
+    }
+}
