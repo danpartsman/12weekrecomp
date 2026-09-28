@@ -36,7 +36,8 @@ public sealed record SystemWorkoutRecipe(
     bool IsSignature = false,
     string GroupName = "Standard",
     decimal DurationMultiplier = 1m,
-    decimal RpeOffset = 0m);
+    decimal RpeOffset = 0m,
+    decimal? PlannedMinutes = null);
 
 public static class SystemWorkoutRecipeCatalog
 {
@@ -521,7 +522,22 @@ public static class SystemWorkoutRecipeCatalog
         CoreRecipe("MIXED_CONDITIONING") with { GroupName = "Hard", DisplayName = "Hard Mixed Conditioning" },
         CoreRecipe("TRUE_HIIT") with { GroupName = "Hard", DisplayName = "Hard HIIT / Sprint Intervals" },
 
-        CoreRecipe("ORANGETHEORY") with { GroupName = "Orangetheory", DisplayName = "Orangetheory Class" },
+        CoreRecipe("ORANGETHEORY") with
+        {
+            GroupName = "Orangetheory",
+            DisplayName = "Standard Orangetheory 2G",
+            Description = "Typical 60-minute treadmill, rower, and floor class for planning. Engine 3.0 estimates calories and glycogen from the calibrated Orangetheory composite profile; actual class details vary.",
+            PlannedMinutes = 60m
+        },
+        new(
+            "SYS_OTF_STRENGTH_50",
+            "Orangetheory Strength 50",
+            "RESISTANCE_CIRCUIT",
+            "Typical 50-minute coach-led resistance class for planning. Engine 3.0 estimates calories and glycogen from the resistance-circuit profile; actual movements and workload vary.",
+            [],
+            GroupName: "Orangetheory",
+            PlannedMinutes: 50m),
+        OrangetheoryDailyRecipeRegistration.CreateRecipe(),
         CoreRecipe("MIXED_GYM_SESSION") with { GroupName = "Standard", DisplayName = "Standard Mixed Gym Session" },
         CoreRecipe("CUSTOM_COMPOSITE") with { GroupName = "Standard", DisplayName = "Standard Custom Multi-Block" }
     ];
@@ -676,8 +692,8 @@ public static class SystemWorkoutRecipeCatalog
             return 0m;
 
         var raw =
-            engineDefaultMinutes
-            * recipe.DurationMultiplier;
+            recipe.PlannedMinutes
+            ?? engineDefaultMinutes * recipe.DurationMultiplier;
 
         return Math.Max(
             5m,
