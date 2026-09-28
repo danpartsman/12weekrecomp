@@ -3777,3 +3777,12 @@ body.test-live-preview
     z-index: 1;
 }
 .workout-intelligence-page .wi-live-motivation { z-index: 0; }
+
+/* TEST 2026-09-28: additive block/circuit presentation. Standard gym rows are unchanged. */
+.wi-block-preview-list { display: grid; gap: .85rem; }
+.wi-workout-block { border: 1px solid rgba(121,204,255,.28); border-radius: 14px; overflow: hidden; background: rgba(8,29,48,.42); }
+.wi-workout-block__head { display:flex; flex-wrap:wrap; gap:.55rem 1rem; align-items:center; padding:.72rem .9rem; background:rgba(40,106,151,.28); }
+.wi-workout-block__head > strong { margin-right:auto; font-size:1.05rem; }
+.wi-estimate-chip { padding:.18rem .48rem; border-radius:999px; background:rgba(215,255,89,.12); color:#eaff71; font-size:.78rem; font-weight:800; }
+.wi-block-exercise { padding:.62rem .9rem; border-top:1px solid rgba(255,255,255,.07); }
+.wi-block-exercise small, .wi-exercise-instructions { display:block; margin-top:.22rem; opacity:.78; line-height:1.35; }
