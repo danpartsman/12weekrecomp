@@ -15,7 +15,7 @@ public sealed class SystemWorkoutRecipeCatalogTests
         var choices =
             SystemWorkoutRecipeCatalog.PresentationRecipes;
 
-        Assert.Equal(54, choices.Count);
+        Assert.Equal(56, choices.Count);
         Assert.Equal(
             choices.Count,
             choices
@@ -96,6 +96,13 @@ public sealed class SystemWorkoutRecipeCatalogTests
         Assert.Equal("Orangetheory", recipe.GroupName);
         Assert.Equal("ORANGETHEORY", recipe.EngineWorkoutTypeCode);
         Assert.Contains("Orangetheory", SystemWorkoutRecipeCatalog.PresentationCategoryOrder);
+        var strength = SystemWorkoutRecipeCatalog.PresentationRecipes.Single(x => x.SystemCode == "SYS_OTF_STRENGTH_50");
+        Assert.Equal("Orangetheory", strength.GroupName);
+        Assert.Equal("RESISTANCE_CIRCUIT", strength.EngineWorkoutTypeCode);
+        Assert.Equal(50m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(strength, 45m));
+        Assert.Equal("Standard Orangetheory 2G", recipe.DisplayName);
+        Assert.Equal(60m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(recipe, 60m));
+        Assert.Contains(SystemWorkoutRecipeCatalog.PresentationRecipes, x => x.SystemCode == "OTF_2G_2026_09_27");
     }
 
     [Fact]
