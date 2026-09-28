@@ -24,8 +24,8 @@
         return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
     };
 
-    let duration = 60;
-    let remaining = 60;
+    let duration = 120;
+    let remaining = 120;
     let endsAt = null;
     let cycling = false;
 
