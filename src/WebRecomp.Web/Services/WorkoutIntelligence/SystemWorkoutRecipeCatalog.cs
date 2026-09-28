@@ -25,7 +25,15 @@ public sealed record SystemWorkoutExerciseSlot(
     bool AllowStretching = false,
     bool AllowCardio = false,
     bool RequireNameMatch = false,
-    string? Notes = null);
+    string? Notes = null,
+    string? BlockName = null,
+    string? BlockType = null,
+    int? DurationSeconds = null,
+    decimal? DistanceMeters = null,
+    decimal? InclinePercent = null,
+    int? EstimatedRounds = null,
+    bool IsEstimated = false,
+    string? WorkloadText = null);
 
 public sealed record SystemWorkoutRecipe(
     string SystemCode,
