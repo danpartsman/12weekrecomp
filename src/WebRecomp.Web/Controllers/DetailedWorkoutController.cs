@@ -1467,6 +1467,47 @@ public sealed class DetailedWorkoutController(
     }
 
     [HttpGet]
+    public async Task<IActionResult> ExchangeExercises(
+        Guid exerciseId,
+        string? q,
+        int take = 60,
+        CancellationToken cancellationToken = default)
+    {
+        var context = await userContext.GetAsync(HttpContext, cancellationToken);
+        if (context.Client is null || context.Program is null || !context.Program.DetailedWorkoutEntryEnabled)
+            return StatusCode(403);
+
+        var sourceMuscles = await db.ExerciseMuscleTargets
+            .AsNoTracking()
+            .Where(x => x.ExerciseCatalogItemId == exerciseId)
+            .OrderByDescending(x => MuscleRolePriority(x.RoleCode))
+            .ThenBy(x => x.DisplayOrder)
+            .Select(x => new { x.MuscleName, x.MuscleSlug })
+            .ToListAsync(cancellationToken);
+
+        var normalized = q?.Trim();
+        var searchTerms = string.IsNullOrWhiteSpace(normalized)
+            ? sourceMuscles.Select(x => x.MuscleSlug).Concat(sourceMuscles.Select(x => x.MuscleName))
+                .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).Take(4).ToArray()
+            : new[] { normalized };
+
+        var combined = new Dictionary<Guid, object>();
+        foreach (var term in searchTerms)
+        {
+            var result = await SearchExercises(term, 100, cancellationToken) as JsonResult;
+            if (result?.Value is not System.Collections.IEnumerable values) continue;
+            foreach (var value in values)
+            {
+                var prop = value.GetType().GetProperty("exerciseId");
+                if (prop?.GetValue(value) is Guid id && id != exerciseId)
+                    combined.TryAdd(id, value);
+            }
+        }
+
+        return Json(combined.Values.Take(Math.Clamp(take, 1, 100)).ToArray());
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Technique(
         Guid exerciseId,
         CancellationToken cancellationToken = default)
