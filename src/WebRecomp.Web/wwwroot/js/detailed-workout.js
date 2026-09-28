@@ -1219,8 +1219,10 @@ const technique =
         if (!card || !searchRoot || !searchResults || !searchStatus) return;
         exchangeCard = card;
         const exerciseId = card.dataset.exerciseId || card.querySelector('[data-field="ExerciseId"]')?.value;
-        root.insertAdjacentElement("afterend", searchRoot);
-        searchRoot.classList.add("wi-bottom-exercise-search", "wi-exchange-search");
+        // Put the editor immediately below the exercise being edited so the
+        // action is obvious on a phone instead of moving it below the full list.
+        card.insertAdjacentElement("afterend", searchRoot);
+        searchRoot.classList.add("wi-bottom-exercise-search", "wi-exchange-search", "wi-edit-exercise-open");
         searchInput.value = "";
         searchStatus.textContent = "Loading exercises that target the same muscles...";
         searchResults.replaceChildren();
@@ -1235,7 +1237,10 @@ const technique =
             searchStatus.textContent = items.length
                 ? "Best same-muscle exchanges are shown first. Search above for any other exercise."
                 : "No same-muscle exchanges found. Search for any exercise.";
-            searchRoot.scrollIntoView({ behavior: "smooth", block: "center" });
+            searchRoot.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            if (searchInput instanceof HTMLInputElement) {
+                window.setTimeout(() => searchInput.focus({ preventScroll: true }), 120);
+            }
         } catch (error) {
             clearSearch(error?.message || "Exercise exchange lookup failed.");
         }
