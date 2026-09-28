@@ -41,25 +41,29 @@
 <div class="daily-entry-page">
 
     <header class="daily-entry-header">
-        <div>
-            <p class="daily-entry-kicker">
-                PLAN &bull; ENTER &bull; ANALYZE &bull; ADAPT
-            </p>
-
-            <h1>Daily Entry</h1>
-
-            <p class="daily-entry-lede">
-                Tell Recomp what happened today. One page gives the analytical
-                engine the body, recovery, training, and nutrition inputs it
-                needs to keep your program current.
-            </p>
+        <div class="daily-entry-hero">
+            <img class="daily-entry-hero-image"
+                 src="~/images/workout-lifting-gym.png"
+                 asp-append-version="true"
+                 alt="People training together in a gym"
+                 fetchpriority="high" />
+            <div class="daily-entry-hero-content">
+                <p class="daily-entry-hero-eyebrow">Daily momentum</p>
+                <h1>Today <span>counts.</span></h1>
+                <p class="daily-entry-hero-tagline">Check in. Train. Fuel. Recover.</p>
+            </div>
         </div>
-
-        <a class="daily-entry-dashboard-link"
-           asp-controller="Dashboard"
-           asp-action="Index">
-            View Dashboard
-        </a>
+        <div class="daily-entry-header-bottom">
+            <p class="daily-entry-lede">
+                Log what happened today. Your body, recovery, training, and nutrition
+                entries keep your 12WR recommendations current.
+            </p>
+            <a class="daily-entry-dashboard-link"
+               asp-controller="Dashboard"
+               asp-action="Index">
+                View Dashboard
+            </a>
+        </div>
     </header>
 
     @if (TempData["StatusMessage"] is string statusMessage)
