@@ -842,9 +842,10 @@ const technique =
                 card.appendChild(actionStack);
             }
             const remove = card.querySelector("[data-remove-exercise]");
-            if (moveButton.parentElement !== actionStack) actionStack.appendChild(moveButton);
+            // Keep the compact action row in the requested order on desktop and mobile.
             if (exchangeButton.parentElement !== actionStack) actionStack.appendChild(exchangeButton);
             if (remove && remove.parentElement !== actionStack) actionStack.appendChild(remove);
+            if (moveButton.parentElement !== actionStack) actionStack.appendChild(moveButton);
 
             card.querySelectorAll(
                 'input[type="number"]'
