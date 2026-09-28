@@ -833,10 +833,18 @@ const technique =
                 exchangeButton.className = "button wi-exchange-exercise";
                 exchangeButton.dataset.exchangeExercise = "";
                 exchangeButton.textContent = "Exchange";
-                const remove = card.querySelector("[data-remove-exercise]");
-                if (remove) card.insertBefore(exchangeButton, remove);
-                else card.appendChild(exchangeButton);
             }
+
+            let actionStack = card.querySelector(".wi-exercise-action-stack");
+            if (!actionStack) {
+                actionStack = document.createElement("div");
+                actionStack.className = "wi-exercise-action-stack";
+                card.appendChild(actionStack);
+            }
+            const remove = card.querySelector("[data-remove-exercise]");
+            if (moveButton.parentElement !== actionStack) actionStack.appendChild(moveButton);
+            if (exchangeButton.parentElement !== actionStack) actionStack.appendChild(exchangeButton);
+            if (remove && remove.parentElement !== actionStack) actionStack.appendChild(remove);
 
             card.querySelectorAll(
                 'input[type="number"]'
