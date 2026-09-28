@@ -31,6 +31,9 @@
 
     const techniqueUrl =
         "/DetailedWorkout/Technique";
+    const exchangeUrl =
+        "/DetailedWorkout/ExchangeExercises";
+    let exchangeCard = null;
 
     const antiForgery =
         form.querySelector(
@@ -822,6 +825,19 @@ const technique =
                 }
             }
 
+            let exchangeButton =
+                card.querySelector("[data-exchange-exercise]");
+            if (!exchangeButton) {
+                exchangeButton = document.createElement("button");
+                exchangeButton.type = "button";
+                exchangeButton.className = "button wi-exchange-exercise";
+                exchangeButton.dataset.exchangeExercise = "";
+                exchangeButton.textContent = "Exchange";
+                const remove = card.querySelector("[data-remove-exercise]");
+                if (remove) card.insertBefore(exchangeButton, remove);
+                else card.appendChild(exchangeButton);
+            }
+
             card.querySelectorAll(
                 'input[type="number"]'
             ).forEach(input => {
@@ -1169,6 +1185,51 @@ const technique =
         }
     }
 
+    function replaceExercise(card, item) {
+        if (!card) return;
+        const id = card.querySelector('[data-field="ExerciseId"]');
+        const name = card.querySelector('[data-field="ExerciseName"]');
+        const mechanics = card.querySelector('[data-field="Mechanics"]');
+        const title = card.querySelector(".wi-workout-exercise-name strong");
+        if (id) id.value = item.exerciseId;
+        if (name) name.value = item.name || "";
+        if (mechanics) mechanics.value = item.mechanics || "";
+        if (title) title.textContent = item.name || "Exercise";
+        card.dataset.exerciseId = item.exerciseId;
+        const weight = card.querySelector('[data-field="MaxWeight"]');
+        if (weight && item.defaultMaxWeight != null) weight.value = Math.round(Number(item.defaultMaxWeight));
+        exchangeCard = null;
+        renumber();
+        if (searchRoot) searchRoot.classList.remove("wi-bottom-exercise-search");
+        clearSearch(`${item.name} exchanged.`);
+    }
+
+    async function openExchange(card) {
+        if (!card || !searchRoot || !searchResults || !searchStatus) return;
+        exchangeCard = card;
+        const exerciseId = card.dataset.exerciseId || card.querySelector('[data-field="ExerciseId"]')?.value;
+        root.insertAdjacentElement("afterend", searchRoot);
+        searchRoot.classList.add("wi-bottom-exercise-search", "wi-exchange-search");
+        searchInput.value = "";
+        searchStatus.textContent = "Loading exercises that target the same muscles...";
+        searchResults.replaceChildren();
+        searchResults.hidden = false;
+        try {
+            const response = await fetch(`${exchangeUrl}?exerciseId=${encodeURIComponent(exerciseId)}&take=60`, {
+                headers: { "X-Requested-With": "XMLHttpRequest" }
+            });
+            if (!response.ok) throw new Error(`Exchange lookup failed (${response.status}).`);
+            const items = await response.json();
+            renderResults(items, true);
+            searchStatus.textContent = items.length
+                ? "Best same-muscle exchanges are shown first. Search above for any other exercise."
+                : "No same-muscle exchanges found. Search for any exercise.";
+            searchRoot.scrollIntoView({ behavior: "smooth", block: "center" });
+        } catch (error) {
+            clearSearch(error?.message || "Exercise exchange lookup failed.");
+        }
+    }
+
     function addExercise(item) {
         const selector =
             `[data-exercise-card][data-exercise-id="${CSS.escape(item.exerciseId)}"]`;
@@ -1215,6 +1276,14 @@ const technique =
                 return;
             }
 
+            const exchange =
+                event.target.closest("[data-exchange-exercise]");
+            if (exchange) {
+                event.preventDefault();
+                openExchange(exchange.closest("[data-exercise-card]"));
+                return;
+            }
+
             const remove =
                 event.target.closest(
                     "[data-remove-exercise]");
@@ -1230,7 +1299,7 @@ const technique =
             renumber();
         });
 
-    function renderResults(items) {
+    function renderResults(items, exchangeMode = false) {
         if (!searchResults) {
             return;
         }
@@ -1389,7 +1458,7 @@ const technique =
                         return;
                     }
 
-                    addExercise(item);
+                    exchangeMode && exchangeCard ? replaceExercise(exchangeCard, item) : addExercise(item);
                 });
 
             row.addEventListener(
@@ -1399,7 +1468,7 @@ const technique =
                         || event.key === " ") {
 
                         event.preventDefault();
-                        addExercise(item);
+                        exchangeMode && exchangeCard ? replaceExercise(exchangeCard, item) : addExercise(item);
                     }
                 });
 
@@ -1552,7 +1621,7 @@ const technique =
             const items =
                 await response.json();
 
-            renderResults(items);
+            renderResults(items, Boolean(exchangeCard));
 
             searchStatus.textContent =
                 items.length === 0
