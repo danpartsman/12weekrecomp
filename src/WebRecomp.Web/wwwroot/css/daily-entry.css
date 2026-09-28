@@ -855,3 +855,24 @@ body.guided-demo-dark-theme .daily-entry-workout-not-completed:focus-visible {
     .daily-entry-hero h1 { font-size: clamp(2.9rem, 13vw, 4.6rem); }
     .daily-entry-hero-tagline { margin-top: 1rem; }
 }
+
+/* Daily Entry hero and date navigation */
+.daily-entry-hero-image { z-index: 0; }
+.daily-entry-hero::after { z-index: 1; pointer-events: none; }
+.daily-entry-hero-content { position: relative; z-index: 2; }
+.daily-entry-header-bottom { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: .85rem 1rem; }
+.daily-entry-header-bottom .daily-entry-date-form { grid-column: 2; grid-row: 1 / span 2; width: min(100%, 420px); justify-self: end; display: grid; grid-template-columns: 1fr; gap: .4rem; }
+.daily-entry-header-bottom .daily-entry-date-form label { grid-column: 1; color: #80dbf5; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.daily-entry-header-bottom .daily-entry-date-form input { width: 100%; min-height: 50px; font-size: 1.2rem; font-weight: 800; color: #67d9ff; background: #071b2b; border: 1px solid #22c6ec; border-radius: 10px; padding: .45rem .7rem; color-scheme: dark; }
+.daily-entry-header-bottom .app-adjacent-days { display: flex; gap: .5rem; flex-wrap: wrap; }
+.daily-entry-header-bottom .app-day-nav-button { position: static; flex: 1 1 140px; text-align: center; }
+.daily-entry-header-bottom .daily-entry-dashboard-link { grid-column: 1; grid-row: 2; width: fit-content; }
+.daily-entry-datebar { grid-template-columns: 1fr; align-items: center; }
+.daily-entry-progress { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 820px) {
+  .daily-entry-header-bottom { grid-template-columns: 1fr; }
+  .daily-entry-header-bottom .daily-entry-date-form { grid-column: 1; grid-row: 1; justify-self: stretch; width: 100%; }
+  .daily-entry-header-bottom .daily-entry-lede { grid-row: 2; }
+  .daily-entry-header-bottom .daily-entry-dashboard-link { grid-column: 1; grid-row: 3; margin-left: 0; }
+}
+@media (max-width: 520px) { .daily-entry-progress { grid-template-columns: 1fr; } }
