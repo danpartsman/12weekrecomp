@@ -121,7 +121,21 @@ public sealed class SystemWorkoutRecipeCatalogTests
             dated.Slots,
             x => x.PreferredNameTerms.Single() == "Treadmill Elevation Surge"
                 && x.Sets == 5
-                && x.Notes!.Contains("12 m / 40 ft", StringComparison.Ordinal));
+                && x.WorkloadText!.Contains("40", StringComparison.Ordinal));
+
+        var floorSquat = dated.Slots.Single(
+            x => x.PreferredNameTerms.Single() == "Dumbbell Mid Band Squat");
+        Assert.Equal("Floor Block 1", floorSquat.BlockName);
+        Assert.Equal("Circuit", floorSquat.BlockType);
+        Assert.Equal(540, floorSquat.DurationSeconds);
+        Assert.Equal(3, floorSquat.Sets);
+        Assert.Equal(3, floorSquat.EstimatedRounds);
+        Assert.True(floorSquat.IsEstimated);
+
+        var finisher = dated.Slots.Single(
+            x => x.SlotCode == "OTF_0928_BICEP_FINISHER");
+        Assert.Equal(30, finisher.DurationSeconds);
+        Assert.Equal("Floor Finisher", finisher.BlockName);
     }
 
     [Fact]
