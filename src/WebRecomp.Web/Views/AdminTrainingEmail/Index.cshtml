@@ -1,0 +1,43 @@
+@model List<WebRecomp.Web.Controllers.AdminTrainingEmailController.TrainingEmailRecipient>
+@{
+    ViewData["Title"] = "Training email";
+    Layout = "_AdminLayout";
+}
+<section class="admin-home">
+    <header class="admin-heading">
+        <span class="admin-eyebrow">TRAINING COMMUNICATIONS</span>
+        <h1>Training check-in email</h1>
+        <p>Preview a personalized seven-day summary, send one test, then send to all active accounts. Only completed workouts are counted.</p>
+    </header>
+    @if (TempData["TrainingEmailStatus"] is string status)
+    {
+        <div class="app-message success" role="status">@status</div>
+    }
+    <article class="admin-card" style="margin-bottom:1.25rem">
+        <h2>Prepared audience: @Model.Count</h2>
+        <p>Active accounts with a valid email address; duplicate addresses receive one message. Counts and minutes come from completed workouts on accessible active client profiles.</p>
+        <form asp-action="Send" asp-controller="AdminTrainingEmail" method="post"
+              onsubmit="return confirm('Send a personalized training check-in to all @Model.Count listed addresses?');">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="sendAll" value="true" />
+            <button class="button primary" type="submit" disabled="@(Model.Count == 0)">Send to all listed users</button>
+        </form>
+    </article>
+    @foreach (var recipient in Model)
+    {
+        <article class="admin-card" style="margin-bottom:1rem">
+            <h2>@recipient.Name</h2>
+            <p>@recipient.Email · @recipient.CompletedWorkouts completed workouts · @recipient.Minutes.ToString("0") minutes</p>
+            <details>
+                <summary>Preview exact message</summary>
+                <p><strong>Subject:</strong> Your 12WR training check-in</p>
+                <pre style="white-space:pre-wrap;font:inherit;overflow-wrap:anywhere">@recipient.Body</pre>
+            </details>
+            <form asp-action="Send" asp-controller="AdminTrainingEmail" method="post" style="margin-top:1rem">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="userId" value="@recipient.UserId" />
+                <button class="button" type="submit">Send this test email</button>
+            </form>
+        </article>
+    }
+</section>
