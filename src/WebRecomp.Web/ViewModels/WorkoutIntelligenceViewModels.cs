@@ -142,6 +142,16 @@ public sealed class DetailedWorkoutExerciseInputModel
     public string? Mechanics { get; set; }
     public string? Notes { get; set; }
 
+    // Optional block/circuit metadata. Ordinary gym workouts leave these null.
+    public string? BlockName { get; set; }
+    public string? BlockType { get; set; }
+    public int? DurationSeconds { get; set; }
+    public decimal? DistanceMeters { get; set; }
+    public decimal? InclinePercent { get; set; }
+    public int? EstimatedRounds { get; set; }
+    public bool IsEstimated { get; set; }
+    public string? WorkloadText { get; set; }
+
     // B2.35.16 TEMPLATE PRESCRIPTION TEXT
     // Only the template/CSV layer uses these free-form prescription values.
     // Live/finalized performance remains numeric.
