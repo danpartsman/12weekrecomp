@@ -295,7 +295,7 @@
     };
 
     ensureStyles();
-    addEditExercisesButton();
+    // Per-exercise Edit Exercise controls replace the old global Edit Exercises button.
     convertCardioPage();
     enforceServerTimerUi();
     void syncStatus();
