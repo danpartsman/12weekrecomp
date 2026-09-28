@@ -1040,6 +1040,10 @@
 
                                 <div class="wi-workout-exercise-name">
                                     <strong>@exercise.ExerciseName</strong>
+                                    @if (!string.IsNullOrWhiteSpace(exercise.Notes))
+                                    {
+                                        <small class="wi-exercise-instructions">@exercise.Notes</small>
+                                    }
                                 </div>
 
                                 @{
@@ -1775,19 +1779,39 @@
                                         Exercise fit comes first. Initial choices are seeded from public evidence-oriented trainer recommendations; as 12WR heart data grows, platform favorites can rotate equally appropriate exercises. Your own favorites and prior use still help.
                                     </p>
 
-                                    <div class="wi-preview-list">
-                                        @foreach (var exercise in Model.SelectedSystemWorkout.Exercises)
+                                    <div class="wi-preview-list wi-block-preview-list">
+                                        @foreach (var block in Model.SelectedSystemWorkout.Exercises
+                                            .GroupBy(x => string.IsNullOrWhiteSpace(x.BlockName) ? "Exercises" : x.BlockName))
                                         {
-                                            <div class="wi-preview-exercise">
-                                                <strong>@exercise.ExerciseName</strong>
-                                                <span>@exercise.Sets sets</span>
-                                                <span>@exercise.Reps reps</span>
-                                                <span>
-                                                    @(exercise.MaxWeight.HasValue
-                                                        ? $"{exercise.MaxWeight:0.##} {exercise.LoadUnitCode.ToLowerInvariant()}"
-                                                        : "heaviest set -")
-                                                </span>
-                                            </div>
+                                            var first = block.First();
+                                            <section class="wi-workout-block">
+                                                <header class="wi-workout-block__head">
+                                                    <strong>@block.Key</strong>
+                                                    @if (first.DurationSeconds.HasValue)
+                                                    {
+                                                        <span>@TimeSpan.FromSeconds(first.DurationSeconds.Value).ToString(@"m\:ss")</span>
+                                                    }
+                                                    @if (first.EstimatedRounds.HasValue)
+                                                    {
+                                                        <span class="wi-estimate-chip">~@first.EstimatedRounds.Value rounds estimated</span>
+                                                    }
+                                                </header>
+                                                @foreach (var exercise in block)
+                                                {
+                                                    <div class="wi-preview-exercise wi-block-exercise">
+                                                        <strong>@exercise.ExerciseName</strong>
+                                                        <span>
+                                                            @(string.IsNullOrWhiteSpace(exercise.WorkloadText)
+                                                                ? $"{exercise.Sets} x {exercise.Reps}"
+                                                                : exercise.WorkloadText)
+                                                        </span>
+                                                        @if (!string.IsNullOrWhiteSpace(exercise.Notes))
+                                                        {
+                                                            <small>@exercise.Notes</small>
+                                                        }
+                                                    </div>
+                                                }
+                                            </section>
                                         }
                                     </div>
                                 }
