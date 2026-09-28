@@ -3786,3 +3786,45 @@ body.test-live-preview
 .wi-estimate-chip { padding:.18rem .48rem; border-radius:999px; background:rgba(215,255,89,.12); color:#eaff71; font-size:.78rem; font-weight:800; }
 .wi-block-exercise { padding:.62rem .9rem; border-top:1px solid rgba(255,255,255,.07); }
 .wi-block-exercise small, .wi-exercise-instructions { display:block; margin-top:.22rem; opacity:.78; line-height:1.35; }
+
+/* TEST 2026-09-28 live workout controls */
+.workout-intelligence-page.wi-live-page-minimal .wi-set-timer {
+    top: 82px;
+    right: 24px;
+}
+.workout-intelligence-page .wi-workout-exercise .wi-card-move-handle,
+.workout-intelligence-page .wi-workout-exercise .wi-remove-exercise,
+.workout-intelligence-page .wi-workout-exercise .wi-exchange-exercise {
+    width: 138px;
+    min-width: 138px;
+    min-height: 46px;
+}
+.workout-intelligence-page .wi-workout-exercise .wi-card-move-handle { grid-column: 6; }
+.workout-intelligence-page .wi-workout-exercise .wi-exchange-exercise {
+    grid-column: 5;
+    grid-row: 2;
+}
+.workout-intelligence-page .wi-workout-exercise .wi-remove-exercise {
+    grid-column: 6;
+    grid-row: 2;
+}
+.workout-intelligence-page .wi-exchange-search {
+    margin-top: .7rem;
+    border: 1px solid rgba(121,204,255,.35);
+    border-radius: 14px;
+    padding: .8rem;
+    background: rgba(8,29,48,.72);
+}
+@media (max-width: 900px) {
+    .workout-intelligence-page.wi-live-page-minimal .wi-set-timer {
+        position: static;
+        width: min(100%, 330px);
+        margin: 1rem auto;
+    }
+    .workout-intelligence-page .wi-workout-exercise .wi-card-move-handle,
+    .workout-intelligence-page .wi-workout-exercise .wi-remove-exercise,
+    .workout-intelligence-page .wi-workout-exercise .wi-exchange-exercise {
+        width: 100%;
+        min-width: 0;
+    }
+}
