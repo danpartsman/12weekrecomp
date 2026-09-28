@@ -1,28 +1,14 @@
-using System.Reflection;
-using System.Runtime.CompilerServices;
-
 namespace WebRecomp.Web.Services.WorkoutIntelligence;
 
 /// <summary>
-/// Registers the current dated Orangetheory template with the existing System
-/// Workouts catalog. The source template is also retained as
-/// wwwroot/workout-templates/otf/2026-09-27-2g.csv.
-///
-/// SystemWorkoutRecipeCatalog currently exposes a fixed presentation array, so
-/// the dated OTF recipe replaces the generic Orangetheory presentation card
-/// while retaining the stable ORANGETHEORY system key and calibrated engine
-/// physiology. The lookup entry is replaced with the same dated recipe so
-/// selecting the displayed card resolves the workout that was displayed.
+/// Builds the separately selectable dated 2G workout. Its verified exercise
+/// rows do not change the reusable class planning presets.
 /// </summary>
 internal static class OrangetheoryDailyRecipeRegistration
 {
-    private const string OrangetheorySystemCode = "ORANGETHEORY";
-
-    [ModuleInitializer]
-    internal static void Register()
-    {
-        var recipe = new SystemWorkoutRecipe(
-            OrangetheorySystemCode,
+    internal static SystemWorkoutRecipe CreateRecipe()
+        => new SystemWorkoutRecipe(
+            "OTF_2G_2026_09_27",
             "OTF 2G - 2026-09-27",
             "ORANGETHEORY",
             "Orangetheory 2G template for September 27, 2026. Fixed floor reps are preserved directly; timed work and the 250 m row are preserved in the exercise notes while Engine 3.0 retains the calibrated Orangetheory composite physiology.",
@@ -53,31 +39,6 @@ internal static class OrangetheoryDailyRecipeRegistration
                     "Floor Block 2 finisher for 1 minute.")
             ],
             GroupName: "Orangetheory");
-
-        // PresentationRecipes is backed by the catalog's fixed array. Replace
-        // only the generic OTF card; all other System Workout cards are untouched.
-        if (SystemWorkoutRecipeCatalog.PresentationRecipes is SystemWorkoutRecipe[] presentation)
-        {
-            var genericIndex = Array.FindIndex(
-                presentation,
-                candidate => candidate.SystemCode.Equals(
-                    OrangetheorySystemCode,
-                    StringComparison.OrdinalIgnoreCase));
-
-            if (genericIndex >= 0)
-                presentation[genericIndex] = recipe;
-        }
-
-        // TryGet() resolves selections through the catalog's private dictionary.
-        // Replace the stable OTF key with the dated recipe so the displayed card
-        // and the selection lookup remain in sync.
-        var byCodeField = typeof(SystemWorkoutRecipeCatalog).GetField(
-            "ByCode",
-            BindingFlags.NonPublic | BindingFlags.Static);
-
-        if (byCodeField?.GetValue(null) is IDictionary<string, SystemWorkoutRecipe> byCode)
-            byCode[OrangetheorySystemCode] = recipe;
-    }
 
     private static SystemWorkoutExerciseSlot Slot(
         string slotCode,
