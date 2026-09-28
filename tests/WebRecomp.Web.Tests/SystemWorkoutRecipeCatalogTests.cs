@@ -15,7 +15,7 @@ public sealed class SystemWorkoutRecipeCatalogTests
         var choices =
             SystemWorkoutRecipeCatalog.PresentationRecipes;
 
-        Assert.Equal(56, choices.Count);
+        Assert.Equal(57, choices.Count);
         Assert.Equal(
             choices.Count,
             choices
@@ -103,6 +103,25 @@ public sealed class SystemWorkoutRecipeCatalogTests
         Assert.Equal("Standard Orangetheory 2G", recipe.DisplayName);
         Assert.Equal(60m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(recipe, 60m));
         Assert.Contains(SystemWorkoutRecipeCatalog.PresentationRecipes, x => x.SystemCode == "OTF_2G_2026_09_27");
+
+        var dated =
+            SystemWorkoutRecipeCatalog.PresentationRecipes
+                .Single(x => x.SystemCode == "OTF_2G_2026_09_28");
+
+        Assert.Equal("OTF 2G - 2026-09-28", dated.DisplayName);
+        Assert.Equal("Orangetheory", dated.GroupName);
+        Assert.Equal("ORANGETHEORY", dated.EngineWorkoutTypeCode);
+        Assert.Equal(60m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(dated, 60m));
+        Assert.Equal(16, dated.Slots.Count);
+        Assert.Contains(
+            dated.Slots,
+            x => x.PreferredNameTerms.Single() == "Dumbbell Mid Band Squat"
+                && x.Reps == 8);
+        Assert.Contains(
+            dated.Slots,
+            x => x.PreferredNameTerms.Single() == "Treadmill Elevation Surge"
+                && x.Sets == 5
+                && x.Notes!.Contains("12 m / 40 ft", StringComparison.Ordinal));
     }
 
     [Fact]

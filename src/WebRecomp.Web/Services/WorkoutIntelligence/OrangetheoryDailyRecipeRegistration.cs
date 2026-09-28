@@ -40,6 +40,49 @@ internal static class OrangetheoryDailyRecipeRegistration
             ],
             GroupName: "Orangetheory");
 
+    internal static SystemWorkoutRecipe Create20260928Recipe()
+        => new SystemWorkoutRecipe(
+            "OTF_2G_2026_09_28",
+            "OTF 2G - 2026-09-28",
+            "ORANGETHEORY",
+            "Orangetheory 2G elevation-challenge template for September 28, 2026. The 23-minute tread sequence, elevation targets, fixed floor reps, repeat-until-time blocks, recoveries, and timed finishers are preserved in the exercise rows and notes while Engine 3.0 retains the calibrated Orangetheory composite physiology.",
+            [
+                Slot("OTF_0928_TREAD_BASE", "Treadmill Base at 3%", 5, 1,
+                    "Tread Block - 23 minutes. Five parts; 90 sec base at 3% in each part (power walkers at 5%+).", allowCardio: true),
+                Slot("OTF_0928_ELEVATION_SURGE", "Treadmill Elevation Surge", 5, 1,
+                    "Member choice speed and incline. Sequential elevation targets: 6 m / 20 ft, 9 m / 30 ft, 12 m / 40 ft, 9 m / 30 ft, 6 m / 20 ft.", allowCardio: true),
+                Slot("OTF_0928_WALKING_RECOVERY", "Walking Recovery", 5, 1,
+                    "After each elevation target, take walking recovery, return to base as quickly as possible, and maintain base until the next part.", allowCardio: true),
+                Slot("OTF_0928_TREAD_FINISHER", "Treadmill All Out", 1, 1,
+                    "Tread finisher: 1 minute all out; power walkers at 10%+.", allowCardio: true),
+                Slot("OTF_0928_MID_BAND_SQUAT", "Dumbbell Mid Band Squat", 1, 8,
+                    "Floor Block 1 - 9 minutes; back-to-back with dumbbell mid band bridge, then rest; repeat the full block until time."),
+                Slot("OTF_0928_MID_BAND_BRIDGE", "Dumbbell Mid Band Bridge", 1, 8,
+                    "Floor Block 1 - 9 minutes; shoulders on bench, stick it; back-to-back with dumbbell mid band squat, then rest; repeat until time."),
+                Slot("OTF_0928_SIDE_PLANK_LEG_LIFT", "Mid Band Low Side Plank Leg Lift", 1, 4,
+                    "Floor Block 1 - 9 minutes; 4 each side; back-to-back with mid band high plank toe tap, then rest; repeat until time."),
+                Slot("OTF_0928_HIGH_PLANK_TOE_TAP", "Mid Band High Plank Toe Tap", 1, 4,
+                    "Floor Block 1 - 9 minutes; 4 each side, stick it; repeat the full block until time. Follow with 90 sec recovery."),
+                Slot("OTF_0928_LATERAL_STEP_UP", "Dumbbell Single Arm Single Leg Lateral Step-Up With Shift", 1, 8,
+                    "Floor Block 2 - 13 minutes; 8 each side; back-to-back with goblet alternating lateral shift, then rest; repeat until finisher."),
+                Slot("OTF_0928_GOBLET_LATERAL_SHIFT", "Goblet Alternating Lateral Shift", 1, 8,
+                    "Floor Block 2 - 13 minutes; 8 total, stick it; paired with dumbbell single arm single leg lateral step-up with shift."),
+                Slot("OTF_0928_ARNOLD_PRESS", "Tall Kneeling Arnold Press", 1, 8,
+                    "Floor Block 2 - 13 minutes; back-to-back with tall kneeling bicep curl, then rest; repeat until finisher."),
+                Slot("OTF_0928_BICEP_CURL", "Tall Kneeling Bicep Curl", 1, 8,
+                    "Floor Block 2 - 13 minutes; stick it; paired with tall kneeling Arnold press."),
+                Slot("OTF_0928_BRIDGE_CHEST_PRESS", "Bridge Hold With Chest Press", 1, 8,
+                    "Floor Block 2 - 13 minutes; back-to-back with 4 point single arm low row, then rest; repeat until finisher."),
+                Slot("OTF_0928_FOUR_POINT_LOW_ROW", "4 Point Single Arm Low Row", 1, 4,
+                    "Floor Block 2 - 13 minutes; 4 each side, stick it; paired with bridge hold with chest press."),
+                Slot("OTF_0928_BICEP_FINISHER", "Tall Kneeling Bicep Curl", 1, 1,
+                    "Floor finisher: 30 seconds."),
+                Slot("OTF_0928_ARNOLD_FINISHER", "Tall Kneeling Arnold Press", 1, 1,
+                    "Floor finisher: 30 seconds.")
+            ],
+            GroupName: "Orangetheory",
+            PlannedMinutes: 60m);
+
     private static SystemWorkoutExerciseSlot Slot(
         string slotCode,
         string exerciseName,
