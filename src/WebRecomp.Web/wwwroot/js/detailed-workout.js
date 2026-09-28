@@ -832,7 +832,7 @@ const technique =
                 exchangeButton.type = "button";
                 exchangeButton.className = "button wi-exchange-exercise";
                 exchangeButton.dataset.exchangeExercise = "";
-                exchangeButton.textContent = "Exchange";
+                exchangeButton.textContent = "Edit Exercise";
             }
 
             let actionStack = card.querySelector(".wi-exercise-action-stack");
@@ -842,6 +842,8 @@ const technique =
                 card.appendChild(actionStack);
             }
             const remove = card.querySelector("[data-remove-exercise]");
+            if (remove) remove.textContent = "Remove Exercise";
+            moveButton.textContent = "Move";
             // Keep the compact action row in the requested order on desktop and mobile.
             if (exchangeButton.parentElement !== actionStack) actionStack.appendChild(exchangeButton);
             if (remove && remove.parentElement !== actionStack) actionStack.appendChild(remove);
