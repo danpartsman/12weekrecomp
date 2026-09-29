@@ -10,14 +10,15 @@
     <title>12 Week Recomp — Welcome Preview</title>
     <meta name="description" content="12 Week Recomp combines training, nutrition, recovery and energy balance into one practical 12-week system." />
     <link rel="stylesheet" href="~/css/welcome-next-v1012.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
 </head>
 <body class="wn-page">
     <header class="wn-nav-shell">
         <nav class="wn-nav" aria-label="Welcome preview navigation">
-            <a class="wn-brand" href="/welcome-next" aria-label="12 Week Recomp welcome preview">
+            <div class="free-brand-group"><a class="wn-brand" href="/welcome-next" aria-label="12 Week Recomp welcome preview">
                 <span class="wn-brand-main">12 WEEK</span>
                 <span class="wn-brand-accent">RECOMP</span>
-            </a>
+            </a><a class="free-stamp free-stamp--brand" href="/recomp/why-free" aria-label="Completely free — read why">FREE</a></div>
 
             <div class="wn-nav-links">
                 <a href="#method">Method</a>
@@ -266,5 +267,5 @@
             <a asp-controller="Account" asp-action="SignIn">Sign In</a>
         </div>
     </footer>
-@await Component.InvokeAsync("FreeUseOverlay")</body>
+</body>
 </html>

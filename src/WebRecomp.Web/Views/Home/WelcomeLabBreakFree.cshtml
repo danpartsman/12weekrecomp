@@ -9,15 +9,16 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>12 Week Recomp — Break Free Scene</title>
     <link rel="stylesheet" href="~/css/welcome-scenes-v1012.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
 </head>
 <body class="ws-page">
 <header class="ws-top">
-    <a class="ws-brand" href="/welcome-lab">12 WEEK <em>RECOMP</em></a>
+    <div class="free-brand-group"><a class="ws-brand" href="/welcome-lab">12 WEEK <em>RECOMP</em></a><a class="free-stamp free-stamp--brand" href="/recomp/why-free" aria-label="Completely free — read why">FREE</a></div>
     <nav class="ws-nav" aria-label="Explore 12 Week Recomp">
         <a href="/recomp/what">What is Recomp?</a>
         <a href="/recomp/how">How it Works</a>
         <a href="/recomp/evidence">Evidence</a>
-        <a class="primary" href="/recomp/start">Start Free</a>
+        <span class="free-signup-group"><a class="primary" href="/recomp/start">Start Free</a><a class="free-signup-note" href="/recomp/why-free"><span class="free-stamp free-stamp--small">100% FREE</span><span class="free-signup-note__copy">No credit card. No hidden fees.<small>Why it’s free ↗</small></span></a></span>
     </nav>
 </header>
 <main class="ws-scene ws-breakfree">
@@ -50,5 +51,5 @@
     </nav>
 </main>
 <script src="~/js/welcome-scenes-v1012.js" asp-append-version="true"></script>
-@await Component.InvokeAsync("FreeUseOverlay")</body>
+</body>
 </html>

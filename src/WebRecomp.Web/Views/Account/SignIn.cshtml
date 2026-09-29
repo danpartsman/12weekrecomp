@@ -43,7 +43,7 @@
             </form>
 
             <div class="auth-links">
-                New to 12WR? <a asp-controller="Account" asp-action="CreateAccount" asp-route-returnUrl="@Model.ReturnUrl">Create an account</a>
+                New to 12WR? <span class="free-signup-group"><a asp-controller="Account" asp-action="CreateAccount" asp-route-returnUrl="@Model.ReturnUrl">Create an account</a><a class="free-signup-note" href="/recomp/why-free"><span class="free-stamp free-stamp--small">100% FREE</span><span class="free-signup-note__copy">No credit card. No hidden fees.<small>Why it’s free ↗</small></span></a></span>
             </div>
         }
         else

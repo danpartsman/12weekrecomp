@@ -10,18 +10,19 @@
     <meta name="theme-color" content="#02070b" />
     <title>12 Week Recomp — Break Free</title>
     <link rel="stylesheet" href="~/css/welcome-portal-stable-v1012.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
 </head>
 <body>
 <main class="wr-page" data-wr-page>
     <header class="wr-nav">
-        <a class="wr-brand" href="/welcome-portal"><span>12 WEEK</span> <em>RECOMP</em></a>
+        <div class="free-brand-group"><a class="wr-brand" href="/welcome-portal"><span>12 WEEK</span> <em>RECOMP</em></a><a class="free-stamp free-stamp--brand" href="/recomp/why-free" aria-label="Completely free — read why">FREE</a></div>
         <nav aria-label="12 Week Recomp">
             <a class="active" href="/welcome-portal">Home</a>
             <a href="/recomp/what">What is Recomp</a>
             <a href="/recomp/how">How it Works</a>
             <a href="/recomp/evidence">Evidence</a>
         </nav>
-        <a class="wr-account" href="/recomp/start">Create Free Account</a>
+        <span class="free-signup-group"><a class="wr-account" href="/recomp/start">Create Free Account</a><a class="free-signup-note" href="/recomp/why-free"><span class="free-stamp free-stamp--small">100% FREE</span><span class="free-signup-note__copy">No credit card. No hidden fees.<small>Why it’s free ↗</small></span></a></span>
     </header>
 
     <section class="wr-hero">
@@ -110,5 +111,5 @@
     }
 })();
 </script>
-@await Component.InvokeAsync("FreeUseOverlay")</body>
+</body>
 </html>

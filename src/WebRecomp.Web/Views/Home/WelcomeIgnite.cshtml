@@ -10,6 +10,7 @@
     <title>12 Week Recomp — Ignite Preview</title>
     <meta name="description" content="A high-energy preview of the 12 Week Recomp method: training, nutrition, recovery, coaching and adaptive planning working together." />
     <link rel="stylesheet" href="~/css/welcome-ignite-v1012.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
 </head>
 <body class="wi-page">
     <div class="wi-noise" aria-hidden="true"></div>
@@ -17,9 +18,9 @@
 
     <header class="wi-nav-shell" data-wi-nav>
         <nav class="wi-nav" aria-label="Ignite preview navigation">
-            <a class="wi-brand" href="/welcome-ignite" aria-label="12 Week Recomp Ignite preview">
+            <div class="free-brand-group"><a class="wi-brand" href="/welcome-ignite" aria-label="12 Week Recomp Ignite preview">
                 <span class="wi-brand-12">12</span><span class="wi-brand-week">WEEK</span><span class="wi-brand-recomp">RECOMP</span>
-            </a>
+            </a><a class="free-stamp free-stamp--brand" href="/recomp/why-free" aria-label="Completely free — read why">FREE</a></div>
             <div class="wi-nav-links">
                 <a href="#method">Method</a>
                 <a href="#engine">Engine</a>
@@ -180,5 +181,5 @@
     <footer class="wi-footer"><div class="wi-shell wi-footer-inner"><a class="wi-brand wi-brand-footer" href="/welcome-ignite"><span class="wi-brand-12">12</span><span class="wi-brand-week">WEEK</span><span class="wi-brand-recomp">RECOMP</span></a><p>Train. Fuel. Recover. Adapt.</p><div><a asp-controller="Home" asp-action="Evidence">Evidence</a><a asp-controller="Contact" asp-action="Index">Contact</a><a asp-controller="Account" asp-action="SignIn">Sign In</a></div></div></footer>
 
     <script src="~/js/welcome-ignite-v1012.js" asp-append-version="true" defer></script>
-@await Component.InvokeAsync("FreeUseOverlay")</body>
+</body>
 </html>

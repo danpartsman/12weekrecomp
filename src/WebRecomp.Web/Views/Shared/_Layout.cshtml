@@ -113,6 +113,7 @@
     <script src="~/js/test-live-vibrance.js"
             asp-append-version="true"
             defer></script>
+<link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
 </head>
 
 @{
@@ -160,6 +161,7 @@
             </a>
         }
 
+        <a class="free-stamp free-stamp--brand" href="/recomp/why-free" aria-label="Completely free — read why">FREE</a>
     </div>
 
 
@@ -198,7 +200,7 @@
                 Sign In
             </a>
 
-            <a class="public-nav-create" href="/trial/start">Start Free</a>
+            <span class="free-signup-group"><a class="public-nav-create" href="/trial/start">Start Free</a><a class="free-signup-note" href="/recomp/why-free"><span class="free-stamp free-stamp--small">100% FREE</span><span class="free-signup-note__copy">No credit card. No hidden fees.<small>Why it’s free ↗</small></span></a></span>
 
         </nav>
     }

@@ -1,0 +1,22 @@
+/* Free access marks: permanent, in-flow, and linked to the personal story. */
+.free-brand-group{display:inline-flex;align-items:center;gap:18px;flex-shrink:0}
+.brand-logo-wrap{display:flex;align-items:center;gap:18px}
+a.free-stamp,.free-stamp{display:inline-block;flex-shrink:0;padding:5px 10px;border:2px solid #ff354b;border-radius:4px;background:#21070c;color:#ff5265!important;font:950 18px/1.05 system-ui,-apple-system,"Segoe UI",sans-serif!important;letter-spacing:.12em!important;text-decoration:none!important;text-transform:uppercase;transform:rotate(-11deg);box-shadow:0 0 8px #ff243955,0 0 22px #ff243933,inset 0 0 9px #ff243922;text-shadow:0 0 9px #ff354b88;outline-offset:5px}
+a.free-stamp--brand{padding:6px 11px!important}
+.free-signup-group{display:inline-flex;align-items:center;gap:12px;flex-wrap:wrap;vertical-align:middle}
+a.free-signup-note{display:inline-flex!important;align-items:center;gap:9px;padding:7px 3px!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;text-decoration:none!important;letter-spacing:normal!important;text-transform:none!important;white-space:normal}
+.free-stamp--small{font-size:10px!important;padding:4px 6px;letter-spacing:.06em!important}
+.free-signup-note__copy{color:#a83c4a;font:650 11px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;white-space:nowrap}
+.free-signup-note__copy small{display:block;color:#bd263e;font:800 11px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif}
+.rg-page .free-signup-note__copy,body:not([class]) .free-signup-note__copy,.auth-card .free-signup-note__copy,[data-theme="dark"] .free-signup-note__copy{color:#ffb3bd}
+.rg-page .free-signup-note__copy small,body:not([class]) .free-signup-note__copy small,.auth-card .free-signup-note__copy small,[data-theme="dark"] .free-signup-note__copy small{color:#ff6378}
+header .free-signup-group{flex-direction:column;align-items:center;gap:0}
+header .free-signup-note__copy{font-size:9px}
+header .free-signup-note__copy small{font-size:9px}
+header .free-stamp--small{font-size:9px!important;padding:3px 4px}
+header .free-signup-note{padding:3px!important;gap:7px}
+header .free-stamp--brand{font-size:16px!important}
+a.free-stamp:hover,a.free-signup-note:hover .free-stamp{box-shadow:0 0 12px #ff243977,0 0 28px #ff243944,inset 0 0 9px #ff243922}
+a.free-stamp:focus-visible,a.free-signup-note:focus-visible{outline:3px solid #ff6378;outline-offset:4px}
+@media(max-width:1100px){header .free-brand-group,header .brand-logo-wrap{gap:10px}header .free-signup-note__copy{white-space:normal;max-width:112px}header .free-stamp--brand{font-size:13px!important;padding:4px 7px!important}}
+@media(max-width:700px){.free-signup-group{gap:7px}header .free-signup-group{gap:0}.free-brand-group{gap:10px}.free-stamp--brand{font-size:13px!important}.free-signup-note__copy{white-space:normal}.rg-nav{height:auto;min-height:74px;flex-wrap:wrap;gap:10px;padding-top:10px;padding-bottom:10px}.rg-nav nav{flex-wrap:wrap;justify-content:center;gap:4px}.rg-hero{padding-top:180px}}
