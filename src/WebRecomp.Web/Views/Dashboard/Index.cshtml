@@ -58,17 +58,6 @@
 }
 
 <style>
-/* TEST 2026-09-29 dashboard motivation + workout recommendation links */
-.recomp-dashboard .dash-title-row.dash-title-row-motivated{display:grid;grid-template-columns:minmax(360px,1fr) minmax(220px,360px) minmax(280px,.8fr);align-items:center;gap:1.2rem}
-.recomp-dashboard .dash-motivation-image{display:block;width:100%;max-width:340px;height:112px;justify-self:center;object-fit:cover;object-position:center;border-radius:14px;border:1px solid rgba(22,140,255,.42);box-shadow:0 12px 28px rgba(0,0,0,.28)}
-.recomp-dashboard .dash-title-row-motivated .dash-status{justify-self:end;text-align:right}
-.recomp-dashboard .dash-workout-recommendation-link{display:block;margin-top:4px;color:#49c8ff!important;font-size:1rem;font-weight:950;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
-.recomp-dashboard .dash-workout-recommendation-link:hover,.recomp-dashboard .dash-workout-recommendation-link:focus-visible{color:#8ee5ff!important}
-@@media(max-width:900px){.recomp-dashboard .dash-title-row.dash-title-row-motivated{grid-template-columns:1fr 150px}.recomp-dashboard .dash-motivation-image{height:84px}.recomp-dashboard .dash-title-row-motivated .dash-status{grid-column:1/-1;justify-self:start;text-align:left}}
-@@media(max-width:560px){.recomp-dashboard .dash-title-row.dash-title-row-motivated{grid-template-columns:1fr 112px;gap:.7rem}.recomp-dashboard .dash-motivation-image{height:70px;border-radius:10px}}
-</style>
-
-<style>
 /* B2.35.32_DASHBOARD_BOLD_ENERGY */
 
 .dash-planactual-panel {
@@ -633,16 +622,13 @@
     </script>
 }
 <div class="recomp-dashboard">
-    <header class="dash-title-row dash-title-row-motivated">
-        <div class="dash-today-copy">
+    <header class="dash-title-row">
+        <div>
             <div class="dash-kicker">TODAY</div>
             <h1>@Model.ActionDate.ToString("dddd, MMMM d")</h1>
             <p class="lede">Week @Model.ProgramWeek &bull; @Model.PlanCode</p>
         </div>
-        <img class="dash-motivation-image"
-             src="~/images/workout-lifting-gym.png"
-             alt="Strength training motivation" />
-        <div class="dash-status @Model.TodayStatusClass">STAY MOTIVATED TODAY</div>
+        <div class="dash-status @Model.TodayStatusClass">@Model.TodayStatusLabel</div>
     </header>
 
     @if (Model.NeedsCurrentWeight)
@@ -710,29 +696,11 @@
                         </div>
                     </div>
 
-                    @{
-                        var recommendationWorkoutTypeCode =
-                            Model.ScheduleChangeRecommended
-                                ? Model.Engine30AdaptiveRecommendation?.RecommendedWorkoutTypeCode
-                                : Model.Engine30AdaptiveRecommendation?.PlannedWorkoutTypeCode
-                                    ?? Model.Engine30WorkoutTypeCode;
-                        var recommendationRecipe =
-                            WebRecomp.Web.Services.WorkoutIntelligence.SystemWorkoutRecipeCatalog
-                                .GetDefaultPresentationForEngine(recommendationWorkoutTypeCode);
-                        var recommendationSystemCode = recommendationRecipe?.SystemCode;
-                    }
                     @if (Model.ScheduleChangeRecommended)
                     {
                         <div class="dash-pa-recommendation review">
                             <strong>Recomp recommendation</strong>
-                            <a class="dash-workout-recommendation-link"
-                               asp-controller="DetailedWorkout"
-                               asp-action="Index"
-                               asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")"
-                               asp-route-mode="system"
-                               asp-route-systemCode="@recommendationSystemCode">
-                                Change to @Model.RecommendedWorkout
-                            </a>
+                            <span>Change to @Model.RecommendedWorkout</span>
                             @if (!string.IsNullOrWhiteSpace(Model.WorkoutRecommendationRationale))
                             {
                                 <small>@Model.WorkoutRecommendationRationale</small>
@@ -743,14 +711,7 @@
                     {
                         <div class="dash-pa-recommendation">
                             <strong>Recomp recommendation</strong>
-                            <a class="dash-workout-recommendation-link"
-                               asp-controller="DetailedWorkout"
-                               asp-action="Index"
-                               asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")"
-                               asp-route-mode="system"
-                               asp-route-systemCode="@recommendationSystemCode">
-                                Keep the planned session — open workout
-                            </a>
+                            <span>Keep the planned session.</span>
                         </div>
                     }
                 </article>
