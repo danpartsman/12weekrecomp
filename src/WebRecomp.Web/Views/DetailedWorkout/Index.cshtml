@@ -181,16 +181,7 @@
                         <span>Workout time</span>
                         <strong data-live-workout-elapsed>00:00:00</strong>
                     </div>
-                    <section class="wi-set-timer" data-set-timer data-draggable-panel="set-timer" data-workout-id="@Model.WorkoutSessionId.Value" aria-label="Set timer">
-                        <div class="wi-set-timer__title" data-draggable-handle>Set Timer <span aria-hidden="true">✥</span></div>
-                        <label class="wi-set-timer__entry">
-                            <span class="sr-only">Set countdown time in minutes and seconds</span>
-                            <input data-set-timer-duration type="text" inputmode="numeric" value="02:00" aria-label="Set timer duration minutes colon seconds" />
-                        </label>
-                        <output data-set-timer-display aria-live="off">02:00</output>
-                        <button class="button wi-set-timer__button" data-set-timer-toggle type="button">Start</button>
-                        <label class="wi-set-timer__cycle"><input data-set-timer-cycle type="checkbox" /> Continuous cycling</label>
-                    </section>
+
                 }
             }
 
@@ -212,6 +203,19 @@
                 <img src="~/images/workout-lifting-gym.png"
                      alt="Athletes lifting weights in a gym" />
             </figure>
+            @if (Model.Sessions.Any(x => x.WorkoutSessionId == Model.WorkoutSessionId.Value && x.CreatedAtUtc != default))
+            {
+                    <section class="wi-set-timer" data-set-timer data-workout-id="@Model.WorkoutSessionId.Value" aria-label="Set timer">
+                        <div class="wi-set-timer__title">Set Timer</div>
+                        <label class="wi-set-timer__entry">
+                            <span class="sr-only">Set countdown time in minutes and seconds</span>
+                            <input data-set-timer-duration type="text" inputmode="numeric" value="02:00" aria-label="Set timer duration minutes colon seconds" />
+                        </label>
+                        <output data-set-timer-display aria-live="off">02:00</output>
+                        <button class="button wi-set-timer__button" data-set-timer-toggle type="button">Start</button>
+                        <label class="wi-set-timer__cycle"><input data-set-timer-cycle type="checkbox" /> Continuous cycling</label>
+                    </section>
+            }
         }
 
         @if (Model.FeatureEnabled)
@@ -313,6 +317,11 @@
             </section>
         }
     </header>
+
+    @if (isLive && Model.WorkoutSessionId.HasValue)
+    {
+        <output class="wi-scroll-countdown" data-set-timer-sticky hidden aria-label="Set countdown" aria-live="off">02:00</output>
+    }
 
     @if (TempData["StatusMessage"] is string statusMessage)
     {
@@ -2065,6 +2074,43 @@
 </div>
 
 <style>
+    .workout-intelligence-page.wi-live-page-minimal .wi-set-timer {
+        position: relative !important;
+        inset: auto !important;
+        grid-column: 3 !important;
+        grid-row: 1 !important;
+        transform: none !important;
+        margin: 0 !important;
+    }
+    .workout-intelligence-page .wi-set-timer__title {
+        cursor: default;
+        touch-action: auto;
+    }
+    .wi-scroll-countdown {
+        position: fixed;
+        top: .75rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1200;
+        padding: .4rem 1rem;
+        border: 1px solid #b8e74e;
+        border-radius: 14px;
+        background: #102a2a;
+        color: #fff;
+        font-size: 2rem;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+        box-shadow: 0 4px 18px rgba(0,0,0,.4);
+        pointer-events: none;
+    }
+    .wi-scroll-countdown[hidden] { display: none !important; }
+    @media (max-width: 900px) {
+        .workout-intelligence-page.wi-live-page-minimal .wi-set-timer {
+            grid-column: 1 !important;
+            grid-row: auto !important;
+        }
+    }
     .wi-workout-detail-photo {
         width: min(100%, 1248px);
         margin: 0 auto 1.5rem;

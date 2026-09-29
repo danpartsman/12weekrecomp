@@ -9,6 +9,7 @@
 
     const durationInput = host.querySelector("[data-set-timer-duration]");
     const display = host.querySelector("[data-set-timer-display]");
+    const stickyDisplay = document.querySelector("[data-set-timer-sticky]");
     const toggle = host.querySelector("[data-set-timer-toggle]");
     const cycleInput = host.querySelector("[data-set-timer-cycle]");
     const key = `12wr:set-timer:v1:${workoutId}`;
@@ -63,6 +64,7 @@
             }
         }
         display.textContent = format(remaining);
+        if (stickyDisplay) stickyDisplay.textContent = display.textContent;
         toggle.textContent = endsAt === null ? "Start" : "Stop";
         toggle.setAttribute("aria-pressed", endsAt === null ? "false" : "true");
         host.classList.toggle("is-running", endsAt !== null);
@@ -101,6 +103,12 @@
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden) render();
     });
+    const updateStickyDisplay = () => {
+        if (stickyDisplay) stickyDisplay.hidden = display.getBoundingClientRect().bottom > 0;
+    };
+    window.addEventListener("scroll", updateStickyDisplay, { passive: true });
+    window.addEventListener("resize", updateStickyDisplay, { passive: true });
     render();
+    updateStickyDisplay();
     setInterval(render, 250);
 })();
