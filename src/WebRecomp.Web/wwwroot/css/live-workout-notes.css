@@ -1,0 +1,60 @@
+/* TEST 2026-09-29: compact per-exercise notes beside Weight in live workouts. */
+.workout-intelligence-page.wi-live-page-minimal .wi-notes-field {
+    grid-column: 5 / -1 !important;
+    display: grid !important;
+    gap: .35rem;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    align-self: end !important;
+    font-size: .78rem;
+    font-weight: 800;
+}
+
+.workout-intelligence-page.wi-live-page-minimal .wi-notes-field textarea {
+    box-sizing: border-box;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 74px;
+    max-height: 132px;
+    margin: 0;
+    padding: .55rem .65rem;
+    border: 1px solid var(--border, #315a84);
+    border-radius: .7rem;
+    background: var(--surface, rgba(8, 29, 48, .72));
+    color: inherit;
+    font: inherit;
+    font-weight: 650;
+    line-height: 1.25;
+    resize: vertical;
+    user-select: text;
+    pointer-events: auto;
+}
+
+.workout-intelligence-page.wi-live-page-minimal .wi-notes-field textarea::placeholder {
+    opacity: .62;
+}
+
+.workout-intelligence-page.wi-live-page-minimal .wi-notes-field textarea:focus {
+    outline: 2px solid #79ccff;
+    outline-offset: 1px;
+}
+
+.workout-intelligence-page.wi-live-page-minimal .wi-note-source-hidden {
+    display: none !important;
+}
+
+@media (max-width: 900px) {
+    .workout-intelligence-page.wi-live-page-minimal .wi-notes-field {
+        grid-column: 2 / -1 !important;
+        grid-row: auto !important;
+        align-self: end !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .workout-intelligence-page.wi-live-page-minimal .wi-notes-field textarea {
+        min-height: 74px;
+        max-height: 110px;
+    }
+}
