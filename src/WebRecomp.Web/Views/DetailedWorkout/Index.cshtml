@@ -194,7 +194,7 @@
                 }
             }
 
-            @if (!isLive && !Model.TemplateOnlyMode)
+            @if (!isLive && !Model.TemplateOnlyMode && !(isSystem && Model.SelectedSystemWorkout is not null))
             {
                 <a class="button primary wi-header-start-workout @(isStart ? "is-active" : "")"
                    asp-action="Index"
@@ -355,6 +355,18 @@
         }
         else if (!isLive)
         {
+            @if (isSystem && Model.SelectedSystemWorkout is not null)
+            {
+                <figure class="wi-workout-detail-photo">
+                    <img src="~/images/workout-detail-gym-20260929.jpg"
+                         asp-append-version="true"
+                         alt="People strength training together in a gym"
+                         width="2048"
+                         height="768" />
+                </figure>
+            }
+            else
+            {
             <section class="wi-workout-command-shell"
                      aria-label="Workout Intelligence">
                 @if (!isHome)
@@ -413,6 +425,7 @@
                     </nav>
                 </section>
             </section>
+            }
         }
 
         <section class="card wi-workspace">
@@ -2050,6 +2063,24 @@
         </section>
     }
 </div>
+
+<style>
+    .wi-workout-detail-photo {
+        width: min(100%, 1248px);
+        margin: 0 auto 1.5rem;
+        overflow: hidden;
+        border: 1px solid #254c70;
+        border-radius: 20px;
+        background: #10253b;
+    }
+    .wi-workout-detail-photo img {
+        display: block;
+        width: 100%;
+        height: clamp(180px, 25vw, 350px);
+        object-fit: cover;
+        object-position: center;
+    }
+</style>
 
 <script src="~/js/system-workout-picker.js"
         asp-append-version="true"></script>
