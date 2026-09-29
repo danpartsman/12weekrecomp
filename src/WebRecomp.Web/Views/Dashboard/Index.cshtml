@@ -696,6 +696,14 @@
                         </div>
                     </div>
 
+                    @{
+                        var recommendedWorkoutTypeCode = Model.ScheduleChangeRecommended
+                            ? Model.Engine30AdaptiveRecommendation?.RecommendedWorkoutTypeCode
+                            : Model.Engine30AdaptiveRecommendation?.PlannedWorkoutTypeCode ?? Model.Engine30WorkoutTypeCode;
+                        var recommendedSystemWorkout =
+                            WebRecomp.Web.Services.WorkoutIntelligence.SystemWorkoutRecipeCatalog
+                                .GetDefaultPresentationForEngine(recommendedWorkoutTypeCode);
+                    }
                     @if (Model.ScheduleChangeRecommended)
                     {
                         <div class="dash-pa-recommendation review">
@@ -705,6 +713,15 @@
                             {
                                 <small>@Model.WorkoutRecommendationRationale</small>
                             }
+                            @if (recommendedSystemWorkout is not null)
+                            {
+                                <a class="btn btn-sm btn-primary mt-2"
+                                   asp-controller="DetailedWorkout"
+                                   asp-action="Index"
+                                   asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")"
+                                   asp-route-mode="system"
+                                   asp-route-systemCode="@recommendedSystemWorkout.SystemCode">Open Recommended Workout</a>
+                            }
                         </div>
                     }
                     else
@@ -712,6 +729,15 @@
                         <div class="dash-pa-recommendation">
                             <strong>Recomp recommendation</strong>
                             <span>Keep the planned session.</span>
+                            @if (recommendedSystemWorkout is not null)
+                            {
+                                <a class="btn btn-sm btn-primary mt-2"
+                                   asp-controller="DetailedWorkout"
+                                   asp-action="Index"
+                                   asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")"
+                                   asp-route-mode="system"
+                                   asp-route-systemCode="@recommendedSystemWorkout.SystemCode">Open Recommended Workout</a>
+                            }
                         </div>
                     }
                 </article>
