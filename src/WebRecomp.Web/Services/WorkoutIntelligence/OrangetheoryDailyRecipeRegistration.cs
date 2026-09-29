@@ -86,6 +86,59 @@ internal static class OrangetheoryDailyRecipeRegistration
             GroupName: "Orangetheory",
             PlannedMinutes: 60m);
 
+    internal static SystemWorkoutRecipe Create20260929Recipe()
+        => new SystemWorkoutRecipe(
+            "OTF_2G_2026_09_29",
+            "OTF 2G - 2026-09-29",
+            "ORANGETHEORY",
+            "Orangetheory 2G power run/row with published 500 m rows, exact tread distances, cluster-set floor work, and two timed member-choice metabolic blocks. Repeat-until-time circuit rounds are explicitly marked as estimates; published distances, reps, and work/rest times remain exact.",
+            [
+                Slot("OTF_0929_ROW_500_REQUIRED", "Row", 2, 1,
+                    "Two required 500 m rows: one before the ascending tread ladder and one before the descending tread ladder.", true, "Tread / Row Block", "Row", null, 500m, null, null, false, "2 x 500 m row"),
+                Slot("OTF_0929_TREAD_AO_160", "Treadmill All Out", 2, 1,
+                    "160 m / 0.1 mile each; power walkers 80 m / 0.05 miles at 10%+.", true, "Tread / Row Block", "Tread", null, 160m, null, null, false, "2 x 160 m All Out"),
+                Slot("OTF_0929_TREAD_PUSH_AO_240", "Treadmill Push to All Out", 2, 1,
+                    "240 m / 0.15 mile each; power walkers 120 m / 0.08 miles at 8-10%.", true, "Tread / Row Block", "Tread", null, 240m, null, null, false, "2 x 240 m Push to All Out"),
+                Slot("OTF_0929_TREAD_PUSH_320", "Treadmill Push", 2, 1,
+                    "320 m / 0.2 mile each; power walkers 160 m / 0.1 miles at 6%+.", true, "Tread / Row Block", "Tread", null, 320m, null, null, false, "2 x 320 m Push"),
+                Slot("OTF_0929_TREAD_PUSH_400", "Treadmill Push", 2, 1,
+                    "400 m / 0.25 mile each; power walkers 200 m / 0.13 miles at 6%+.", true, "Tread / Row Block", "Tread", null, 400m, null, null, false, "2 x 400 m Push"),
+                Slot("OTF_0929_WALKING_RECOVERY", "Walking Recovery", 8, 1,
+                    "Walking recovery after every tread effort; continue when ready.", true, "Tread / Row Block", "Recovery", null, null, null, null, false, "8 walking recoveries"),
+                Slot("OTF_0929_BONUS_ROW", "Row", 1, 1,
+                    "Bonus 500 m row if the full ascending and descending tread ladder is completed.", true, "Tread / Row Bonus", "Row", null, 500m, null, null, false, "Bonus 500 m row"),
+                Slot("OTF_0929_BONUS_TREAD", "Treadmill for Distance", 1, 1,
+                    "After the bonus 500 m row, tread for distance until time is called.", true, "Tread / Row Bonus", "Tread", null, null, null, null, false, "Tread for distance until time"),
+
+                Slot("OTF_0929_NEUTRAL_THRUSTER", "Single Dumbbell Neutral Grip Thruster", 2, 8,
+                    "Floor Block 1 - 6.25 minutes. Do 8 reps, rest about 10 sec, then AMRAP; repeat the circuit until time.", false, "Floor Block 1", "Cluster Set", 375, null, null, 2, true, "8 + AMRAP x ~2 rounds"),
+                Slot("OTF_0929_WIDE_BICEP_CURL", "Wide Bicep Curl", 2, 8,
+                    "Floor Block 1 - 6.25 minutes. Do 8 reps, rest about 10 sec, then AMRAP; repeat the circuit until time.", false, "Floor Block 1", "Cluster Set", 375, null, null, 2, true, "8 + AMRAP x ~2 rounds"),
+                Slot("OTF_0929_HIGH_PLANK_UP_DOWN", "Bodyweight Low Bench High Plank Alternating Up and Down", 2, 8,
+                    "8 total per circuit; repeat until time.", false, "Floor Block 1", "Circuit", 375, null, null, 2, true, "8 total x ~2 rounds"),
+
+                Slot("OTF_0929_BOX_JUMP_BLOCK_2", "Low Bench Box Jump", 1, 1,
+                    "Floor Block 2 member choice. Perform this OR the reverse-lunge option: 60 sec work, 15 sec rest, 45 sec work, 30 sec rest, 30 sec work. Remove the unchosen exercise row.", false, "Floor Block 2", "Member Choice", 135, null, null, null, false, "60 sec + 45 sec + 30 sec work"),
+                Slot("OTF_0929_REVERSE_LUNGE_BLOCK_2", "Dumbbell Low Bench Alternating Step-Down Reverse Lunge to Single Leg Knee Drive", 1, 1,
+                    "Floor Block 2 member choice. Perform this OR low bench box jumps: 60 sec work, 15 sec rest, 45 sec work, 30 sec rest, 30 sec work. Remove the unchosen exercise row.", false, "Floor Block 2", "Member Choice", 135, null, null, null, false, "60 sec + 45 sec + 30 sec work"),
+
+                Slot("OTF_0929_HIP_HINGE_SWING", "Hip Hinge Swing", 2, 8,
+                    "Floor Block 3 - 8.75 minutes. Do 8 reps, rest about 10 sec, then AMRAP; repeat the circuit until time.", false, "Floor Block 3", "Cluster Set", 525, null, null, 2, true, "8 + AMRAP x ~2 rounds"),
+                Slot("OTF_0929_REVERSE_GRIP_LOW_ROW", "Reverse Grip Low Row", 2, 8,
+                    "Floor Block 3 - 8.75 minutes. Do 8 reps, rest about 10 sec, then AMRAP; repeat the circuit until time.", false, "Floor Block 3", "Cluster Set", 525, null, null, 2, true, "8 + AMRAP x ~2 rounds"),
+                Slot("OTF_0929_STEP_DOWN_SQUAT", "Low Bench Goblet Alternating Step-Down Squat", 2, 8,
+                    "8 total, rest about 10 sec, then AMRAP; repeat the circuit until time.", false, "Floor Block 3", "Cluster Set", 525, null, null, 2, true, "8 total + AMRAP x ~2 rounds"),
+                Slot("OTF_0929_HIGH_PLANK_KNEE_DRIVE", "Low Bench High Plank Alternating Knee Drive", 2, 16,
+                    "16 total with feet on the bench; repeat the circuit until time.", false, "Floor Block 3", "Circuit", 525, null, null, 2, true, "16 total x ~2 rounds"),
+
+                Slot("OTF_0929_BOX_JUMP_BLOCK_4", "Low Bench Box Jump", 1, 1,
+                    "Floor Block 4 member choice. Perform this OR the reverse-lunge option: 60 sec work, 15 sec rest, 45 sec work, 30 sec rest, 30 sec work. Remove the unchosen exercise row.", false, "Floor Block 4", "Member Choice", 135, null, null, null, false, "60 sec + 45 sec + 30 sec work"),
+                Slot("OTF_0929_REVERSE_LUNGE_BLOCK_4", "Dumbbell Low Bench Alternating Step-Down Reverse Lunge to Single Leg Knee Drive", 1, 1,
+                    "Floor Block 4 member choice. Perform this OR low bench box jumps: 60 sec work, 15 sec rest, 45 sec work, 30 sec rest, 30 sec work. Remove the unchosen exercise row.", false, "Floor Block 4", "Member Choice", 135, null, null, null, false, "60 sec + 45 sec + 30 sec work")
+            ],
+            GroupName: "Orangetheory",
+            PlannedMinutes: 60m);
+
     private static SystemWorkoutExerciseSlot Slot(
         string slotCode,
         string exerciseName,

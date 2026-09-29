@@ -15,7 +15,7 @@ public sealed class SystemWorkoutRecipeCatalogTests
         var choices =
             SystemWorkoutRecipeCatalog.PresentationRecipes;
 
-        Assert.Equal(57, choices.Count);
+        Assert.Equal(58, choices.Count);
         Assert.Equal(
             choices.Count,
             choices
@@ -136,6 +136,35 @@ public sealed class SystemWorkoutRecipeCatalogTests
             x => x.SlotCode == "OTF_0928_BICEP_FINISHER");
         Assert.Equal(30, finisher.DurationSeconds);
         Assert.Equal("Floor Finisher", finisher.BlockName);
+
+        var september29 =
+            SystemWorkoutRecipeCatalog.PresentationRecipes
+                .Single(x => x.SystemCode == "OTF_2G_2026_09_29");
+
+        Assert.Equal("OTF 2G - 2026-09-29", september29.DisplayName);
+        Assert.Equal("Orangetheory", september29.GroupName);
+        Assert.Equal("ORANGETHEORY", september29.EngineWorkoutTypeCode);
+        Assert.Equal(60m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(september29, 60m));
+        Assert.Equal(19, september29.Slots.Count);
+
+        var requiredRows = september29.Slots.Single(
+            x => x.SlotCode == "OTF_0929_ROW_500_REQUIRED");
+        Assert.Equal(2, requiredRows.Sets);
+        Assert.Equal(500m, requiredRows.DistanceMeters);
+        Assert.Equal("Row", requiredRows.BlockType);
+
+        var treadPush = september29.Slots.Single(
+            x => x.SlotCode == "OTF_0929_TREAD_PUSH_400");
+        Assert.Equal(400m, treadPush.DistanceMeters);
+        Assert.Equal(2, treadPush.Sets);
+
+        Assert.Equal(
+            4,
+            september29.Slots.Count(
+                x => x.BlockType == "Member Choice"));
+        Assert.All(
+            september29.Slots.Where(x => x.BlockType == "Member Choice"),
+            x => Assert.Equal(135, x.DurationSeconds));
     }
 
     [Fact]
