@@ -189,6 +189,13 @@ public sealed class SystemWorkoutRecipeCatalogTests
 
         Assert.Equal("OTF Strength 50 Total - 2026-09-30", september30Strength.DisplayName);
         Assert.Equal("Orangetheory", september30Strength.GroupName);
+
+        var datedOtfNames = SystemWorkoutRecipeCatalog.PresentationRecipes
+            .Where(x => x.GroupName == "Orangetheory" && (x.SystemCode.StartsWith("OTF_2G_") || x.SystemCode.StartsWith("OTF_STRENGTH50_")))
+            .Select(x => x.DisplayName)
+            .ToArray();
+        Assert.Contains("2026-09-30", datedOtfNames[0]);
+        Assert.Contains("2026-09-30", datedOtfNames[1]);
         Assert.Equal("RESISTANCE_CIRCUIT", september30Strength.EngineWorkoutTypeCode);
         Assert.Equal(50m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(september30Strength, 45m));
         Assert.Equal(14, september30Strength.Slots.Count);

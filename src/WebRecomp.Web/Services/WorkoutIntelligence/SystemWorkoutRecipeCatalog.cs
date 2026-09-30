@@ -560,8 +560,21 @@ public static class SystemWorkoutRecipeCatalog
             .Concat(Tiered)
             .Concat(ClassifiedCore)
             .OrderBy(x => GroupRank(x.GroupName))
+            .ThenBy(x => x.GroupName.Equals("Orangetheory", StringComparison.OrdinalIgnoreCase) ? OrangetheorySortRank(x.SystemCode) : 0)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private static int OrangetheorySortRank(string systemCode)
+    {
+        var parts = systemCode.Split('_');
+        if ((systemCode.StartsWith("OTF_2G_", StringComparison.OrdinalIgnoreCase)
+             || systemCode.StartsWith("OTF_STRENGTH50_", StringComparison.OrdinalIgnoreCase))
+            && parts.Length >= 5
+            && int.TryParse(string.Concat(parts[^3], parts[^2], parts[^1]), out var yyyymmdd))
+            return -yyyymmdd;
+
+        return int.MaxValue;
+    }
 
     private static int GroupRank(string groupName)
         => groupName switch
