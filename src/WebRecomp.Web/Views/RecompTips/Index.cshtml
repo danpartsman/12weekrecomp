@@ -3,6 +3,8 @@
     ViewData["Title"] = "Recomp Tips";
 }
 
+<link rel="stylesheet" href="~/css/recomp-tips.css" asp-append-version="true" />
+
 <section class="tips-page">
     <header class="tips-hero">
         <div>
@@ -12,6 +14,10 @@
                 Short, useful ideas on training, nutrition, recovery, and the
                 small decisions that make body recomposition easier to sustain.
             </p>
+            @if (User.IsInRole("Administrator"))
+            {
+                <p><a class="tips-read-more" href="/admin/tips">Manage Recomp Tips →</a></p>
+            }
         </div>
 
         <form class="tips-search" method="get" asp-action="Index" role="search">
