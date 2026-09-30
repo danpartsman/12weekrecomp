@@ -26,3 +26,24 @@ a.free-stamp--brand{position:relative;text-align:center;white-space:nowrap;borde
 a.free-stamp--brand::before{content:"NOW 100%";display:block;margin-bottom:3px;padding-bottom:3px;border-bottom:1px solid #ff526588;font-size:.6em;line-height:1.1;letter-spacing:.14em}
 a.free-stamp--brand::after{content:"!"}
 @media(max-width:1100px){header a.free-stamp--brand{padding:5px 8px!important}}
+
+/* Dashboard responsive safety net. This stylesheet loads last so it can
+   neutralize fixed/grid widths added by earlier dashboard presentation layers. */
+.recomp-dashboard{width:100%;max-width:100%;min-width:0}
+.recomp-dashboard>*{min-width:0}
+@media(max-width:900px){
+.recomp-dashboard .dash-primary-grid,.recomp-dashboard .dash-tomorrow-repeat-grid,.recomp-dashboard .dash-fuel-flow{grid-template-columns:minmax(0,1fr)!important;width:100%;max-width:100%;min-width:0}
+.recomp-dashboard .dash-panel,.recomp-dashboard .dash-section,.recomp-dashboard .dash-pa-card,.recomp-dashboard .dash-fuel-card,.recomp-dashboard .dash-coach{width:100%;max-width:100%;min-width:0;overflow-wrap:anywhere}
+.recomp-dashboard .dash-title-row,.recomp-dashboard .dash-section-heading,.recomp-dashboard .dash-pa-head{flex-wrap:wrap;min-width:0}
+.recomp-dashboard .dash-flow-arrow{transform:rotate(90deg);justify-self:center}
+}
+@media(max-width:560px){
+.recomp-dashboard{overflow-x:hidden}
+.recomp-dashboard .dash-pa-card{min-height:0!important;padding:14px!important}
+.recomp-dashboard .dash-pa-title{font-size:1.28rem!important}
+.recomp-dashboard .dash-pa-calories strong{font-size:1.8rem}
+.recomp-dashboard .dash-pa-macro-legend{grid-template-columns:minmax(0,1fr)!important}
+.recomp-dashboard .dash-workout-burn-grid,.recomp-dashboard .dash-refill-line{grid-template-columns:minmax(0,1fr)!important}
+.recomp-dashboard .dash-compare-head,.recomp-dashboard .dash-compare-row{grid-template-columns:minmax(0,1fr) 54px 54px!important;gap:5px}
+.recomp-dashboard .dash-status,.recomp-dashboard .dash-preliminary,.recomp-dashboard .dash-detail-date{max-width:100%;white-space:normal}
+}
