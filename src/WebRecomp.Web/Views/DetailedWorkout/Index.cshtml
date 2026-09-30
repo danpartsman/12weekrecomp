@@ -1699,10 +1699,7 @@
                                         .Where(
                                             x => SystemWorkoutCategory(x.GroupName, x.EngineWorkoutTypeCode).Equals(
                                                 selectedSystemCategory,
-                                                StringComparison.OrdinalIgnoreCase))
-                                        .OrderBy(
-                                            x => x.DisplayName,
-                                            StringComparer.OrdinalIgnoreCase))
+                                                StringComparison.OrdinalIgnoreCase)))
                                 {
                                     var isPlanned =
                                         !string.IsNullOrWhiteSpace(
