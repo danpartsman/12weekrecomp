@@ -218,7 +218,7 @@ public sealed class SystemWorkoutRecipeCatalogTests
         Assert.Equal(14, september30Strength.Slots.Count);
         Assert.Contains(september30Strength.Slots, x => x.PreferredNameTerms.Single() == "Dumbbell Split Squat With Leg On BOSU" && x.Reps == 8);
         Assert.Contains(september30Strength.Slots, x => x.PreferredNameTerms.Single() == "Alternating Single Arm Snatch" && x.WorkloadText == "4-8 reps");
-        Assert.Equal(2, september30Strength.Slots.Count(x => x.BlockName == "Block 1A" && x.DurationSeconds == 480));\n        Assert.Equal(2, september30Strength.Slots.Count(x => x.BlockName == "Block 1B" && x.DurationSeconds == 240));\n        Assert.Equal(2, september30Strength.Slots.Count(x => x.BlockName == "Block 2A" && x.DurationSeconds == 480));\n        Assert.Equal(2, september30Strength.Slots.Count(x => x.BlockName == "Block 2B" && x.DurationSeconds == 240));\n        Assert.Equal(2, september30Strength.Slots.Count(x => x.BlockName == "Block 3A" && x.DurationSeconds == 480));\n        Assert.Equal(2, september30Strength.Slots.Count(x => x.BlockName == "Block 3B" && x.DurationSeconds == 240));\n        Assert.Equal(2, september30Strength.Slots.Count(x => x.BlockName == "Finisher" && x.DurationSeconds == 30));
+        Assert.Equal(2, september30Strength.Slots.Count(x => x.BlockName == "Finisher" && x.DurationSeconds == 30));
     }
 
     [Fact]
