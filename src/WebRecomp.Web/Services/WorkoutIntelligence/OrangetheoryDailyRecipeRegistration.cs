@@ -145,13 +145,43 @@ internal static class OrangetheoryDailyRecipeRegistration
             "OTF_2G_2026_09_30",
             "OTF 2G - 2026-09-30",
             "ORANGETHEORY",
-            "Orangetheory 2G repeat of the September 14 template. Preserves the publicly reported standard 2G floor reverse-drop-set block with exact movement names, 5-rep loading steps, 300 m push row, and 18.5-minute duration. Three circuit passes are an explicit calculation estimate only.",
+            "Complete September 30 2G repeat of September 14: four published tread blocks, the 18.5-minute reverse-drop-set floor block with 300 m push row, and the 3.5-minute BOSU 360-core block with finisher.",
             [
+                Slot("OTF_0930_T1_BASE_4", "Treadmill Base at 4%", 1, 1, "Tread Block 1.", true, "Tread Block 1", "Tread", 120, null, 4m, null, false, "2 min base @ 4% (PW 6%+)"),
+                Slot("OTF_0930_T1_BASE", "Treadmill Base", 1, 1, "Tread Block 1.", true, "Tread Block 1", "Tread", 60, null, null, null, false, "1 min base"),
+                Slot("OTF_0930_T1_PUSH_4", "Treadmill Push at 4%", 1, 1, "Tread Block 1.", true, "Tread Block 1", "Tread", 60, null, 4m, null, false, "1 min push @ 4% (PW 6%+)"),
+                Slot("OTF_0930_T1_BASE_2", "Treadmill Base", 1, 1, "Tread Block 1.", true, "Tread Block 1", "Tread", 60, null, null, null, false, "1 min base"),
+                Slot("OTF_0930_T1_AO_4", "Treadmill All Out at 4%", 1, 1, "Tread Block 1.", true, "Tread Block 1", "Tread", 30, null, 4m, null, false, "30 sec AO @ 4% (PW 10%+)"),
+                Slot("OTF_0930_WR_1", "Walking Recovery", 1, 1, "Between Tread Blocks 1 and 2; get to base when ready.", true, "Tread Recovery 1", "Recovery", 60, null, null, null, false, "1 min WR"),
+
+                Slot("OTF_0930_T2_PUSH_1", "Treadmill Push", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Tread", 120, null, null, null, false, "2 min push (PW 5%+)"),
+                Slot("OTF_0930_T2_BASE_1", "Treadmill Base", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Tread", 60, null, null, null, false, "1 min base"),
+                Slot("OTF_0930_T2_PUSH_2", "Treadmill Push", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Tread", 60, null, null, null, false, "1 min push (PW 6%+)"),
+                Slot("OTF_0930_T2_BASE_2", "Treadmill Base", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Tread", 60, null, null, null, false, "1 min base"),
+                Slot("OTF_0930_T2_AO", "Treadmill All Out", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Tread", 30, null, null, null, false, "30 sec AO (PW 10%+)"),
+                Slot("OTF_0930_WR_2", "Walking Recovery", 1, 1, "Between Tread Blocks 2 and 3; get to base when ready.", true, "Tread Recovery 2", "Recovery", 60, null, null, null, false, "1 min WR"),
+
+                Slot("OTF_0930_T3_PUSH_AO", "Treadmill Push to All Out", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Tread", 120, null, null, null, false, "2 min push to AO (PW 5-10%)"),
+                Slot("OTF_0930_T3_WR_1", "Walking Recovery", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Recovery", 60, null, null, null, false, "1 min WR"),
+                Slot("OTF_0930_T3_AO_1", "Treadmill All Out", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Tread", 60, null, null, null, false, "1 min AO (PW 10%+)"),
+                Slot("OTF_0930_T3_WR_2", "Walking Recovery", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Recovery", 60, null, null, null, false, "1 min WR"),
+                Slot("OTF_0930_T3_AO_2", "Treadmill All Out", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Tread", 30, null, null, null, false, "30 sec AO (PW 10%+)"),
+                Slot("OTF_0930_WR_3", "Walking Recovery", 1, 1, "Between Tread Blocks 3 and 4; get to base when ready.", true, "Tread Recovery 3", "Recovery", 60, null, null, null, false, "1 min WR"),
+
+                Slot("OTF_0930_T4_BASE_4", "Treadmill Base at 4%", 1, 1, "Tread Block 4.", true, "Tread Block 4", "Tread", 120, null, 4m, null, false, "2 min base @ 4% (PW 6%+)"),
+                Slot("OTF_0930_T4_PUSH", "Treadmill Push", 1, 1, "Tread Block 4.", true, "Tread Block 4", "Tread", 60, null, null, null, false, "1 min push (PW 6%+)"),
+                Slot("OTF_0930_T4_FINISHER", "Treadmill All Out", 1, 1, "Tread Block 4 finisher.", true, "Tread Block 4", "Finisher", 30, null, null, null, false, "30 sec AO (PW 10%+)"),
+
                 Slot("OTF_0930_SQUAT", "Two Handed Single Dumbbell Squat", 3, 5, "Floor Block 1; 5 reps, then 5 reps heavier, rest; repeat circuit until time.", false, "Floor Block 1", "Reverse Drop Set", 1110, null, null, 3, true, "5 reps + 5 heavier x ~3 rounds"),
                 Slot("OTF_0930_BOSU_PULLOVER", "Bosu Bridge Hold With Dumbbell Pullover", 3, 5, "Floor Block 1; 5 reps, then 5 reps heavier, rest; repeat circuit until time.", false, "Floor Block 1", "Reverse Drop Set", 1110, null, null, 3, true, "5 reps + 5 heavier x ~3 rounds"),
                 Slot("OTF_0930_DEADLIFT", "Two Handed Single Dumbbell Deadlift", 3, 5, "Floor Block 1; 5 reps, then 5 reps heavier, rest; repeat circuit until time.", false, "Floor Block 1", "Reverse Drop Set", 1110, null, null, 3, true, "5 reps + 5 heavier x ~3 rounds"),
                 Slot("OTF_0930_BOSU_TRICEP", "Bosu Kneeling Tricep Extension", 3, 5, "Floor Block 1; 5 reps, then 5 reps heavier, rest; repeat circuit until time.", false, "Floor Block 1", "Reverse Drop Set", 1110, null, null, 3, true, "5 reps + 5 heavier x ~3 rounds"),
-                Slot("OTF_0930_PUSH_ROW", "Row", 3, 1, "Floor Block 1; 300 m push row after the four reverse-drop-set pairs; repeat circuit until time.", true, "Floor Block 1", "Row", 1110, 300m, null, 3, true, "300 m push row x ~3 rounds")
+                Slot("OTF_0930_PUSH_ROW", "Row", 3, 1, "Floor Block 1; 300 m push row after the four reverse-drop-set pairs; repeat circuit until time.", true, "Floor Block 1", "Row", 1110, 300m, null, 3, true, "300 m push row x ~3 rounds"),
+
+                Slot("OTF_0930_BOSU_CRUNCH", "BOSU Crunch", 1, 10, "Floor Block 2; 360 core circuit; repeat until finisher.", false, "Floor Block 2", "360 Core", 210, null, null, null, false, "10 reps"),
+                Slot("OTF_0930_SIDE_PLANK_DIP", "BOSU Low Side Plank Dip", 1, 10, "Floor Block 2; 10 each side; repeat until finisher.", false, "Floor Block 2", "360 Core", 210, null, null, null, false, "10 each"),
+                Slot("OTF_0930_BACK_EXTENSION", "Back Extension", 1, 10, "Floor Block 2; repeat until finisher.", false, "Floor Block 2", "360 Core", 210, null, null, null, false, "10 reps"),
+                Slot("OTF_0930_CORE_FINISHER", "BOSU High Plank Alternating Knee Drive", 1, 1, "Floor Block 2 finisher.", false, "Floor Block 2", "Finisher", 30, null, null, null, false, "30 sec")
             ],
             GroupName: "Orangetheory",
             PlannedMinutes: 60m);
@@ -162,41 +192,28 @@ internal static class OrangetheoryDailyRecipeRegistration
             "OTF_STRENGTH50_2026_09_30",
             "OTF Strength 50 Total - 2026-09-30",
             "RESISTANCE_CIRCUIT",
-            "Orangetheory Strength 50 Total Body template for September 30, 2026. Three 12-minute blocks preserve the published 8-minute strength and 4-minute power structure. Published movement names and timed finisher are retained; repeat-until-time round counts are not fabricated.",
+            "Complete September 30 Strength 50 Total Body template. Each 12-minute set is represented as two distinct blocks: A = 8 minutes strength, B = 4 minutes power. Three A/B pairs total 36 minutes, followed by the published 60-second finisher.",
             [
-                Slot("OTF_S50_0930_SPLIT_SQUAT_BOSU", "Dumbbell Split Squat With Leg On BOSU", 1, 8,
-                    "Block 1 strength portion; 8-minute strength segment.", false, "Block 1", "Strength", 480, null, null, null, false, "8 reps"),
-                Slot("OTF_S50_0930_REVERSE_FLY", "Reverse Fly", 1, 8,
-                    "Block 1 strength portion; 8-minute strength segment.", false, "Block 1", "Strength", 480, null, null, null, false, "8 reps"),
-                Slot("OTF_S50_0930_SPEED_SKATER", "Speed Skater With Power", 1, 4,
-                    "Block 1 power portion; published power prescription is 4-8 reps.", false, "Block 1", "Power", 240, null, null, null, false, "4-8 reps"),
-                Slot("OTF_S50_0930_BOSU_PUSHUP", "BOSU Push-Up", 1, 4,
-                    "Block 1 power portion; published power prescription is 4-8 reps.", false, "Block 1", "Power", 240, null, null, null, false, "4-8 reps"),
+                Slot("OTF_S50_0930_SPLIT_SQUAT_BOSU", "Dumbbell Split Squat With Leg On BOSU", 1, 8, "Block 1A; repeat strength work for 8 minutes.", false, "Block 1A", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_REVERSE_FLY", "Reverse Fly", 1, 8, "Block 1A; repeat strength work for 8 minutes.", false, "Block 1A", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_SPEED_SKATER", "Speed Skater With Power", 1, 4, "Block 1B; power work for 4 minutes.", false, "Block 1B", "Power", 240, null, null, null, false, "4-8 reps"),
+                Slot("OTF_S50_0930_BOSU_PUSHUP", "BOSU Push-Up", 1, 4, "Block 1B; power work for 4 minutes.", false, "Block 1B", "Power", 240, null, null, null, false, "4-8 reps"),
 
-                Slot("OTF_S50_0930_SQUAT", "Dumbbell Squat", 1, 8,
-                    "Block 2 strength portion; 8-minute strength segment.", false, "Block 2", "Strength", 480, null, null, null, false, "8 reps"),
-                Slot("OTF_S50_0930_LOW_ROW_BOSU", "Split Stance Single Arm Low Row With Leg On BOSU", 1, 8,
-                    "Block 2 strength portion; 8-minute strength segment.", false, "Block 2", "Strength", 480, null, null, null, false, "8 reps"),
-                Slot("OTF_S50_0930_PLANK_POP", "BOSU Plank Pop", 1, 4,
-                    "Block 2 power portion; published power prescription is 4-8 reps.", false, "Block 2", "Power", 240, null, null, null, false, "4-8 reps"),
-                Slot("OTF_S50_0930_CLEAN", "Single Arm Clean", 1, 4,
-                    "Block 2 power portion; published power prescription is 4-8 reps.", false, "Block 2", "Power", 240, null, null, null, false, "4-8 reps"),
+                Slot("OTF_S50_0930_SQUAT", "Dumbbell Squat", 1, 8, "Block 2A; repeat strength work for 8 minutes.", false, "Block 2A", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_LOW_ROW_BOSU", "Split Stance Single Arm Low Row With Leg On BOSU", 1, 8, "Block 2A; repeat strength work for 8 minutes.", false, "Block 2A", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_PLANK_POP", "BOSU Plank Pop", 1, 4, "Block 2B; power work for 4 minutes.", false, "Block 2B", "Power", 240, null, null, null, false, "4-8 reps"),
+                Slot("OTF_S50_0930_CLEAN", "Single Arm Clean", 1, 4, "Block 2B; power work for 4 minutes.", false, "Block 2B", "Power", 240, null, null, null, false, "4-8 reps"),
 
-                Slot("OTF_S50_0930_DEADLIFT", "Single Arm Split Stance Deadlift", 1, 8,
-                    "Block 3 strength portion; 8-minute strength segment.", false, "Block 3", "Strength", 480, null, null, null, false, "8 reps"),
-                Slot("OTF_S50_0930_UPRIGHT_ROW", "Upright Row", 1, 8,
-                    "Block 3 strength portion; 8-minute strength segment.", false, "Block 3", "Strength", 480, null, null, null, false, "8 reps"),
-                Slot("OTF_S50_0930_HIP_HINGE_SWING", "Single Arm Hip Hinge Swing", 1, 4,
-                    "Block 3 power portion; published power prescription is 4-8 reps.", false, "Block 3", "Power", 240, null, null, null, false, "4-8 reps"),
-                Slot("OTF_S50_0930_SNATCH", "Alternating Single Arm Snatch", 1, 4,
-                    "Block 3 power portion; published power prescription is 4-8 reps.", false, "Block 3", "Power", 240, null, null, null, false, "4-8 reps"),
-                Slot("OTF_S50_0930_FINISHER_LEFT", "Single Arm Hip Hinge Swing - Left", 1, 1,
-                    "Timed finisher, left arm.", false, "Finisher", "Power", 30, null, null, null, false, "30 sec left"),
-                Slot("OTF_S50_0930_FINISHER_RIGHT", "Single Arm Hip Hinge Swing - Right", 1, 1,
-                    "Timed finisher, right arm.", false, "Finisher", "Power", 30, null, null, null, false, "30 sec right")
+                Slot("OTF_S50_0930_DEADLIFT", "Single Arm Split Stance Deadlift", 1, 8, "Block 3A; repeat strength work for 8 minutes.", false, "Block 3A", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_UPRIGHT_ROW", "Upright Row", 1, 8, "Block 3A; repeat strength work for 8 minutes.", false, "Block 3A", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_HIP_HINGE_SWING", "Single Arm Hip Hinge Swing", 1, 4, "Block 3B; power work for 4 minutes.", false, "Block 3B", "Power", 240, null, null, null, false, "4-8 reps"),
+                Slot("OTF_S50_0930_SNATCH", "Alternating Single Arm Snatch", 1, 4, "Block 3B; power work for 4 minutes.", false, "Block 3B", "Power", 240, null, null, null, false, "4-8 reps"),
+                Slot("OTF_S50_0930_FINISHER_LEFT", "Single Arm Hip Hinge Swing - Left", 1, 1, "Timed finisher, left arm.", false, "Finisher", "Power", 30, null, null, null, false, "30 sec left"),
+                Slot("OTF_S50_0930_FINISHER_RIGHT", "Single Arm Hip Hinge Swing - Right", 1, 1, "Timed finisher, right arm.", false, "Finisher", "Power", 30, null, null, null, false, "30 sec right")
             ],
             GroupName: "Orangetheory",
             PlannedMinutes: 50m);
+
 
     private static SystemWorkoutExerciseSlot Slot(
         string slotCode,
