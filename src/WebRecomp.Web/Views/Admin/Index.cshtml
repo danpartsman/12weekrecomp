@@ -1,6 +1,8 @@
 @{
     ViewData["Title"] = "Administration";
     Layout = "_AdminLayout";
+    var activeDemoSessions = ViewData["ActiveDemoSessionCount"] is int demoCount ? demoCount : 0;
+    var unread = ViewData["UnreadContactCount"] is int count ? count : 0;
 }
 
 <section class="admin-home">
@@ -8,155 +10,106 @@
     {
         <div class="app-message success" role="status">@adminStatus</div>
     }
-<header class="admin-heading">
+
+    <header class="admin-heading">
         <span class="admin-eyebrow">ADMINISTRATION</span>
         <h1>12 Week Recomp Admin</h1>
-        <p>
-            Manage controlled access to 12 Week Recomp without affecting
-            customer training or nutrition data.
-        </p>
+        <p>Manage the application, users, public content, communications, workout intelligence, and nutrition services from one control center.</p>
     </header>
 
     <div class="admin-grid">
-        <a asp-controller="AdminRecompTips" asp-action="Index" class="admin-card admin-card-primary admin-card-link">
+        <article class="admin-card admin-card-primary">
             <span class="admin-card-status">PUBLIC CONTENT</span>
             <h2>Recomp Tips</h2>
             <p>Create, edit, publish, and remove public recomp tips, linked articles, search tags, and supporting images.</p>
-        </a>
+            <div class="admin-card-actions">
+                <a asp-controller="AdminRecompTips" asp-action="Index" class="button primary">Manage Tips</a>
+                <a asp-controller="RecompTips" asp-action="Index" class="button">View Tips Page</a>
+            </div>
+        </article>
 
-        <a asp-controller="AdminTrainingEmail" asp-action="Index" class="admin-card admin-card-primary admin-card-link">
+        <article class="admin-card admin-card-primary">
             <span class="admin-card-status">EMAIL</span>
             <h2>Training Check-ins</h2>
             <p>Preview personalized workout statistics and send a test email or a check-in to active users.</p>
-        </a>
-
-        <a asp-controller="AdminGiveawayCodes"
-           asp-action="Index"
-           class="admin-card admin-card-primary admin-card-link">
-            <span class="admin-card-status">ACTIVE</span>
-            <h2>Giveaway &amp; Promotion Codes</h2>
-            <p>
-                Generate individual access codes and reusable promotional
-                campaigns, then review redemption activity.
-            </p>
-        </a>
-
-        <a asp-controller="AdminDemoSessions"
-           asp-action="Index"
-           class="admin-card admin-card-link">
-
-            @{
-                var activeDemoSessions =
-                    ViewData["ActiveDemoSessionCount"] is int demoCount
-                        ? demoCount
-                        : 0;
-            }
-
-            <span class="admin-card-status">
-                @(activeDemoSessions > 0
-                    ? $"{activeDemoSessions} ACTIVE"
-                    : "SESSIONS")
-            </span>
-
-            <h2>Demo Sessions</h2>
-
-            <p>
-                Review guided demo workspaces, activity, status,
-                expiration, and terminate active sessions.
-            </p>
-
-        </a>
-
-        <article class="admin-card">
-            <span class="admin-card-status">FOUNDATION</span>
-            <h2>Users &amp; Roles</h2>
-            <p>
-                Administrative visibility for customers, administrators,
-                coaches, and future coach-client assignments.
-            </p>
+            <div class="admin-card-actions">
+                <a asp-controller="AdminTrainingEmail" asp-action="Index" class="button primary">Manage Check-ins</a>
+            </div>
         </article>
 
-        <a asp-controller="AdminContact"
-           asp-action="Index"
-           class="admin-card admin-card-link">
+        <article class="admin-card admin-card-primary">
+            <span class="admin-card-status">ACTIVE</span>
+            <h2>Giveaway &amp; Promotion Codes</h2>
+            <p>Generate individual access codes and reusable promotional campaigns, then review redemption activity.</p>
+            <div class="admin-card-actions">
+                <a asp-controller="AdminGiveawayCodes" asp-action="Index" class="button primary">Manage Codes</a>
+            </div>
+        </article>
 
-            <span class="admin-card-status">
-                @{
-                    var unread =
-                        ViewData["UnreadContactCount"] is int count
-                            ? count
-                            : 0;
-                }
+        <article class="admin-card">
+            <span class="admin-card-status">@(activeDemoSessions > 0 ? $"{activeDemoSessions} ACTIVE" : "SESSIONS")</span>
+            <h2>Demo Sessions</h2>
+            <p>Review guided demo workspaces, activity, status, expiration, and terminate active sessions.</p>
+            <div class="admin-card-actions">
+                <a asp-controller="AdminDemoSessions" asp-action="Index" class="button primary">Manage Sessions</a>
+            </div>
+        </article>
 
-                @(unread > 0 ? $"{unread} NEW" : "INBOX")
-            </span>
+        <article class="admin-card admin-card-primary">
+            <span class="admin-card-status">USER MANAGEMENT</span>
+            <h2>Users &amp; Roles</h2>
+            <p>Search users, distinguish native 12WR and legacy Microsoft accounts, manage account status, and assign native application roles.</p>
+            <div class="admin-card-actions">
+                <a asp-controller="AdminUsers" asp-action="Index" class="button primary">Manage Users</a>
+            </div>
+        </article>
 
+        <article class="admin-card">
+            <span class="admin-card-status">@(unread > 0 ? $"{unread} NEW" : "INBOX")</span>
             <h2>Contacts &amp; Interest Requests</h2>
+            <p>Manage Contact Us messages and Request More Information leads, including notification status, search, and exports.</p>
+            <div class="admin-card-actions">
+                <a asp-controller="AdminContact" asp-action="Index" class="button primary">Manage Contacts</a>
+                <a asp-controller="Contact" asp-action="Index" class="button">View Contact Page</a>
+                <a asp-controller="RequestInformation" asp-action="Index" class="button">View Request Info</a>
+            </div>
+        </article>
 
-            <p>
-                Manage Contact Us messages and Request More Information leads, including notification status and exports.
-            </p>
-
-        </a>
-        <a asp-controller="AdminNutritionProviders"
-           asp-action="Index"
-           class="admin-card admin-card-primary admin-card-link">
-
+        <article class="admin-card admin-card-primary">
             <span class="admin-card-status">NUTRITION INTELLIGENCE</span>
-
             <h2>Nutrition Data Providers</h2>
+            <p>Choose primary and secondary food databases, verify provider connectivity, and review caching and attribution requirements.</p>
+            <div class="admin-card-actions">
+                <a asp-controller="AdminNutritionProviders" asp-action="Index" class="button primary">Manage Providers</a>
+                <a asp-controller="Nutrition" asp-action="Index" class="button">View Nutrition</a>
+            </div>
+        </article>
 
-            <p>
-                Choose primary and secondary food databases, verify provider
-                connectivity, and review caching and attribution requirements.
-            </p>
-
-        </a>
-
-        <a asp-controller="AdminCatalogSync"
-           asp-action="Index"
-           class="admin-card admin-card-link">
-
+        <article class="admin-card">
             <span class="admin-card-status">WORKOUT INTELLIGENCE</span>
-
             <h2>Exercise Catalog &amp; Sync</h2>
+            <p>Select the exercise-data provider, configure automatic refresh, run a manual update, and review catalog synchronization history.</p>
+            <div class="admin-card-actions">
+                <a asp-controller="AdminCatalogSync" asp-action="Index" class="button primary">Manage Catalog</a>
+                <a asp-controller="DetailedWorkout" asp-action="Index" class="button">View Workouts</a>
+            </div>
+        </article>
 
-            <p>
-                Select the exercise-data provider, configure automatic refresh,
-                run a manual update, and review catalog synchronization history.
-            </p>
-
-        </a>
-
-        <a asp-controller="AdminWorkoutTypes"
-           asp-action="Index"
-           class="admin-card admin-card-primary admin-card-link">
-
+        <article class="admin-card admin-card-primary">
             <span class="admin-card-status">ENGINE 3.0</span>
-
             <h2>Workout Definitions &amp; Calibration</h2>
-
-            <p>
-                Manage Engine 3.0 workout presets, energy calibration,
-                glycogen modeling, composite segments, and version history.
-            </p>
-
-        </a>
-
+            <p>Manage Engine 3.0 workout presets, energy calibration, glycogen modeling, composite segments, and version history.</p>
+            <div class="admin-card-actions">
+                <a asp-controller="AdminWorkoutTypes" asp-action="Index" class="button primary">Manage Definitions</a>
+                <a asp-controller="DetailedWorkout" asp-action="Index" class="button">View Workout Page</a>
+            </div>
+        </article>
     </div>
-
 </section>
 
 <section class="card admin-engine30-energy-policy-link">
     <span class="admin-eyebrow">ENGINE 3.0</span>
     <h2>Goal Energy Prescription</h2>
-    <p>
-        Configure calorie protection and carryover behavior by recomp goal and
-        workout category.
-    </p>
-    <a asp-controller="AdminEngine30EnergyPolicy"
-       asp-action="Index"
-       class="button primary">
-        Open Engine 3.0 Energy Policy
-    </a>
+    <p>Configure calorie protection and carryover behavior by recomp goal and workout category.</p>
+    <a asp-controller="AdminEngine30EnergyPolicy" asp-action="Index" class="button primary">Open Engine 3.0 Energy Policy</a>
 </section>
