@@ -1,0 +1,102 @@
+@model WebRecomp.Web.ViewModels.AdminUsersIndexViewModel
+@{
+    ViewData["Title"] = "User Management";
+    Layout = "_AdminLayout";
+}
+
+<section class="admin-home">
+    <header class="admin-heading">
+        <span class="admin-eyebrow">ADMINISTRATION / USERS</span>
+        <h1>User Management</h1>
+        <p>Manage 12 Week Recomp accounts and keep legacy Microsoft identities visible during the authentication transition.</p>
+    </header>
+
+    @if (TempData["StatusMessage"] is string statusMessage)
+    {
+        <div class="app-message success" role="status">@statusMessage</div>
+    }
+
+    <div class="card" style="margin-bottom:1rem;">
+        <form method="get" class="admin-contact-search">
+            <label for="user-search"><strong>Search users</strong></label>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:end;">
+                <input id="user-search" name="search" value="@Model.Search" placeholder="Name or email" style="min-width:18rem;" />
+                <button type="submit" class="button primary">Search</button>
+                @if (!string.IsNullOrWhiteSpace(Model.Search))
+                {
+                    <a asp-action="Index" class="button">Clear</a>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="card" style="overflow-x:auto;">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Account type</th>
+                    <th>Status</th>
+                    <th>Role</th>
+                    <th>Last sign-in</th>
+                    <th>Created</th>
+                    <th>Management</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var user in Model.Users)
+            {
+                <tr>
+                    <td>
+                        <strong>@user.DisplayName</strong><br />
+                        <span class="muted">@user.Email</span>
+                        @if (user.IsCurrentUser)
+                        {
+                            <br /><span class="admin-card-status">CURRENT ADMIN</span>
+                        }
+                    </td>
+                    <td>
+                        <strong>@user.AccountType</strong>
+                        @if (!user.IsLocalAccount)
+                        {
+                            <br /><span class="muted">Legacy Microsoft/Entra identity</span>
+                        }
+                    </td>
+                    <td>@user.StatusCode</td>
+                    <td>@user.RoleCode</td>
+                    <td>@(user.LastSignInAtUtc?.ToString("yyyy-MM-dd HH:mm 'UTC'") ?? "—")</td>
+                    <td>@user.CreatedAtUtc.ToString("yyyy-MM-dd")</td>
+                    <td>
+                        <div style="display:flex;gap:.45rem;flex-wrap:wrap;">
+                            <form asp-action="SetStatus" asp-route-userId="@user.UserId" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="search" value="@Model.Search" />
+                                <input type="hidden" name="status" value="@(user.StatusCode.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase) ? "SUSPENDED" : "ACTIVE")" />
+                                <button type="submit" class="button" disabled="@(user.IsCurrentUser && user.StatusCode.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase))">
+                                    @(user.StatusCode.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase) ? "Suspend" : "Activate")
+                                </button>
+                            </form>
+                            @if (user.IsLocalAccount)
+                            {
+                                <form asp-action="SetRole" asp-route-userId="@user.UserId" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="search" value="@Model.Search" />
+                                    <input type="hidden" name="role" value="@(user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase) ? "CLIENT" : "ADMINISTRATOR")" />
+                                    <button type="submit" class="button" disabled="@(user.IsCurrentUser && user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase))">
+                                        @(user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase) ? "Make Client" : "Make Administrator")
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+
+        @if (Model.Users.Count == 0)
+        {
+            <p class="muted">No users match that search.</p>
+        }
+    </div>
+</section>
