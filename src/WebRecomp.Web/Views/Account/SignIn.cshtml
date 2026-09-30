@@ -16,7 +16,7 @@
 
         @if (nativeAuthAvailable)
         {
-            <p>Sign in directly to 12 Week Recomp. No Microsoft account is required.</p>
+            <p>Sign in directly to 12 Week Recomp.</p>
 
             <form asp-controller="Account" asp-action="SignIn" method="post">
                 <input asp-for="ReturnUrl" type="hidden" />
@@ -36,7 +36,7 @@
 
                 <label class="auth-check">
                     <input asp-for="RememberMe" />
-                    <span>Keep me signed in</span>
+                    <span>Keep me signed in for 7 days</span>
                 </label>
 
                 <button class="auth-button" type="submit">Sign in →</button>
