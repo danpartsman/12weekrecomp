@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.ViewModels;
 
@@ -58,7 +59,7 @@ public sealed class RecompTipsController(IWebHostEnvironment environment) : Cont
     }
 
     private static bool MatchesSearch(
-        Models.RecompTipPost post,
+        RecompTipPost post,
         string search)
     {
         if (string.IsNullOrWhiteSpace(search))
