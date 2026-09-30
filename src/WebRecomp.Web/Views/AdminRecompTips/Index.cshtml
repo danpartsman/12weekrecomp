@@ -1,0 +1,112 @@
+@model IReadOnlyList<RecompTipPost>
+@{
+    ViewData["Title"] = "Recomp Tips";
+    Layout = "_AdminLayout";
+}
+
+<link rel="stylesheet" href="~/css/recomp-tips.css" asp-append-version="true" />
+
+<section class="tips-admin-page">
+    <div class="page-head">
+        <div>
+            <span class="admin-eyebrow">CONTENT</span>
+            <h1>Recomp Tips</h1>
+            <p class="lede">
+                Publish short recomp guidance, link to outside articles, and
+                optionally show a supporting image.
+            </p>
+        </div>
+        <a class="primary" asp-action="Create">New post</a>
+    </div>
+
+    @if (TempData["StatusMessage"] is string status)
+    {
+        <div class="app-message success" role="status">@status</div>
+    }
+
+    <div class="card tips-admin-note">
+        <strong>Public page:</strong>
+        <a asp-controller="RecompTips" asp-action="Index" target="_blank">
+            /tips ↗
+        </a>
+        <span>
+            Visitors do not need an account or sign-in to read published posts.
+        </span>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="card tips-empty">
+            <h2>No posts yet.</h2>
+            <p>Create the first recomp tip or linked resource.</p>
+            <a class="primary" asp-action="Create">Create first post</a>
+        </div>
+    }
+    else
+    {
+        <div class="tips-admin-list">
+            @foreach (var post in Model)
+            {
+                var date = post.PublishedAtUtc ?? post.CreatedAtUtc;
+                <article class="card tips-admin-row">
+                    <div class="tips-admin-row-main">
+                        <div class="tips-meta">
+                            <span class="tips-status @(post.IsPublished ? "is-published" : "is-draft")">
+                                @(post.IsPublished ? "PUBLISHED" : "DRAFT")
+                            </span>
+                            <time>@date.ToLocalTime().ToString("MMM d, yyyy")</time>
+                        </div>
+                        <h2>@post.Title</h2>
+                        <p>@post.Summary</p>
+                        @if (!string.IsNullOrWhiteSpace(post.Tags))
+                        {
+                            <div class="small">Tags: @post.Tags</div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(post.ImageUrl))
+                    {
+                        <img class="tips-admin-thumb"
+                             src="@post.ImageUrl"
+                             alt=""
+                             referrerpolicy="no-referrer" />
+                    }
+
+                    <div class="tips-admin-actions">
+                        <a class="button"
+                           asp-action="Edit"
+                           asp-route-id="@post.Id">
+                            Edit
+                        </a>
+
+                        @if (post.IsPublished)
+                        {
+                            <a class="button"
+                               asp-controller="RecompTips"
+                               asp-action="Details"
+                               asp-route-id="@post.Id"
+                               target="_blank">
+                                View ↗
+                            </a>
+                        }
+
+                        <form asp-action="TogglePublished"
+                              asp-route-id="@post.Id"
+                              method="post">
+                            <button class="button" type="submit">
+                                @(post.IsPublished ? "Unpublish" : "Publish")
+                            </button>
+                        </form>
+
+                        <form asp-action="Delete"
+                              asp-route-id="@post.Id"
+                              method="post"
+                              onsubmit="return confirm('Delete this recomp tip?');">
+                            <button class="button tips-delete" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</section>

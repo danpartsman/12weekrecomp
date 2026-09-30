@@ -1,0 +1,112 @@
+@model RecompTipEditViewModel
+@{
+    var isNew = !Model.Id.HasValue;
+    ViewData["Title"] = isNew ? "New Recomp Tip" : "Edit Recomp Tip";
+    Layout = "_AdminLayout";
+}
+
+<link rel="stylesheet" href="~/css/recomp-tips.css" asp-append-version="true" />
+
+<section class="tips-editor-page">
+    <div class="page-head">
+        <div>
+            <span class="admin-eyebrow">CONTENT</span>
+            <h1>@(isNew ? "New Recomp Tip" : "Edit Recomp Tip")</h1>
+            <p class="lede">
+                Write your own post, link to an outside resource, or combine the two.
+            </p>
+        </div>
+        <a class="button" asp-action="Index">Back to posts</a>
+    </div>
+
+    <form class="card tips-editor" asp-action="Save" method="post">
+        @if (Model.Id.HasValue)
+        {
+            <input asp-for="Id" type="hidden" />
+        }
+
+        <div asp-validation-summary="ModelOnly" class="validation"></div>
+
+        <label>
+            Title
+            <input asp-for="Title" maxlength="160" placeholder="Example: Why post-workout hunger can hit so hard" />
+            <span asp-validation-for="Title" class="validation"></span>
+        </label>
+
+        <label>
+            Short summary
+            <textarea asp-for="Summary"
+                      rows="3"
+                      maxlength="600"
+                      placeholder="A short description shown on the main tips page."></textarea>
+            <span asp-validation-for="Summary" class="validation"></span>
+        </label>
+
+        <label>
+            Article / tip text
+            <textarea asp-for="Body"
+                      rows="14"
+                      maxlength="16000"
+                      placeholder="Optional. Write the full tip here. Plain text and paragraph breaks are preserved."></textarea>
+            <span asp-validation-for="Body" class="validation"></span>
+        </label>
+
+        <div class="grid-2 tips-editor-grid">
+            <label>
+                Source article URL
+                <input asp-for="SourceUrl"
+                       type="url"
+                       placeholder="https://..." />
+                <span class="small">
+                    Optional. If Image URL is blank, 12WR will try to find the article's Open Graph / social image automatically when you save.
+                </span>
+                <span asp-validation-for="SourceUrl" class="validation"></span>
+            </label>
+
+            <label>
+                Image URL
+                <input asp-for="ImageUrl"
+                       type="url"
+                       placeholder="https://..." />
+                <span class="small">
+                    Optional. Paste a specific image URL to override automatic article-image discovery.
+                </span>
+                <span asp-validation-for="ImageUrl" class="validation"></span>
+            </label>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+        {
+            <div class="tips-editor-preview">
+                <span class="small">Current image preview</span>
+                <img src="@Model.ImageUrl"
+                     alt=""
+                     referrerpolicy="no-referrer" />
+            </div>
+        }
+
+        <label>
+            Search tags
+            <input asp-for="Tags"
+                   maxlength="400"
+                   placeholder="protein, carb cycling, recovery, strength training" />
+            <span class="small">Comma-separated. These help search without creating visible site categories.</span>
+            <span asp-validation-for="Tags" class="validation"></span>
+        </label>
+
+        <label class="tips-publish-check">
+            <input asp-for="IsPublished" />
+            <span>
+                <strong>Publish this post</strong>
+                <small>Uncheck to save it as an admin-only draft.</small>
+            </span>
+        </label>
+
+        <div class="tips-editor-actions">
+            <button class="primary" type="submit">
+                @(Model.IsPublished ? "Save & Publish" : "Save Draft")
+            </button>
+            <a class="button" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</section>
