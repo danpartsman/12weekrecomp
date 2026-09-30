@@ -40,13 +40,31 @@ public sealed class SystemWorkoutRecipeCatalogTests
             ["Recovery"] = 6
         };
 
-        var expected = choices
+        var expectedNonOtf = choices
+            .Where(x => !x.GroupName.Equals("Orangetheory", StringComparison.OrdinalIgnoreCase))
             .OrderBy(x => groupOrder[x.GroupName])
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .Select(x => x.SystemCode)
             .ToArray();
 
-        Assert.Equal(expected, choices.Select(x => x.SystemCode));
+        Assert.Equal(
+            expectedNonOtf,
+            choices
+                .Where(x => !x.GroupName.Equals("Orangetheory", StringComparison.OrdinalIgnoreCase))
+                .Select(x => x.SystemCode));
+
+        var otf = choices
+            .Where(x => x.GroupName.Equals("Orangetheory", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.SystemCode)
+            .ToArray();
+
+        Assert.Equal("OTF_2G_2026_09_30", otf[0]);
+        Assert.Equal("OTF_STRENGTH50_2026_09_30", otf[1]);
+        Assert.Equal("OTF_2G_2026_09_29", otf[2]);
+        Assert.Equal("OTF_2G_2026_09_28", otf[3]);
+        Assert.Equal("OTF_2G_2026_09_27", otf[4]);
+        Assert.Contains("ORANGETHEORY", otf.Skip(5));
+        Assert.Contains("SYS_OTF_STRENGTH_50", otf.Skip(5));
     }
 
     [Theory]
