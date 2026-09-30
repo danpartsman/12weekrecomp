@@ -10,10 +10,10 @@
     <div class="admin-page-header">
         <div>
             <span class="admin-eyebrow">ADMINISTRATION</span>
-            <h1>Contact Messages</h1>
+            <h1>Contacts &amp; Interest Requests</h1>
             <p>
-                Manage the public Contact Us destination and review messages
-                submitted through 12 Week Recomp.
+                Manage public Contact Us messages and Request More Information leads
+                in one place.
             </p>
         </div>
 
@@ -92,6 +92,16 @@
 
 
     <section class="admin-code-list-section">
+
+        <form asp-controller="AdminContact" asp-action="Index" method="get" class="admin-contact-search" style="display:flex;gap:.75rem;align-items:end;flex-wrap:wrap;margin-bottom:1rem;">
+            <label style="flex:1;min-width:240px;">
+                <span>Search contacts</span>
+                <input type="search" name="search" value="@Model.Search" placeholder="Name, email, or subject" />
+            </label>
+            <button type="submit" class="admin-primary-button">Search</button>
+            <a asp-controller="AdminContact" asp-action="Index" class="button">Clear</a>
+            <a asp-controller="AdminContact" asp-action="Export" asp-route-search="@Model.Search" class="button">Export CSV</a>
+        </form>
 
         <div class="admin-list-heading admin-contact-inbox-heading">
 
