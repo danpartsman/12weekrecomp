@@ -1,0 +1,24 @@
+@model WebRecomp.Web.Controllers.RequestInformationInput
+@{ ViewData["Title"] = "Request More Information"; ViewData["PublicPage"] = true; }
+<section class="card" style="max-width:760px;margin:3rem auto;padding:2rem;">
+    <div class="app-kicker">12 WEEK RECOMP</div>
+    <h1>Request More Information</h1>
+    <p>Interested in 12 Week Recomp? Send us your information and we’ll keep you updated. The program is 100% free to use.</p>
+    <form asp-controller="RequestInformation" asp-action="Submit" method="post">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="admin-validation"></div>
+        <label style="display:block;margin:1rem 0;">Name
+            <input asp-for="Name" style="display:block;width:100%;margin-top:.35rem;" />
+            <span asp-validation-for="Name"></span>
+        </label>
+        <label style="display:block;margin:1rem 0;">Email
+            <input asp-for="Email" type="email" style="display:block;width:100%;margin-top:.35rem;" />
+            <span asp-validation-for="Email"></span>
+        </label>
+        <div aria-hidden="true" style="position:absolute;left:-10000px;">
+            <label>Company <input asp-for="Company" tabindex="-1" autocomplete="off" /></label>
+        </div>
+        <p><small>By submitting, you’re asking 12 Week Recomp to contact you about the program. We won’t sell your information.</small></p>
+        <button type="submit" class="button primary">Request Information</button>
+    </form>
+</section>

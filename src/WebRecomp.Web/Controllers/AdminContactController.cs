@@ -16,9 +16,10 @@ public sealed class AdminContactController(
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(
+        string? search,
         CancellationToken cancellationToken)
     {
-        var model = await BuildIndexAsync(cancellationToken);
+        var model = await BuildIndexAsync(cancellationToken, search);
         return View(model);
     }
 
@@ -31,7 +32,7 @@ public sealed class AdminContactController(
     {
         if (!ModelState.IsValid)
         {
-            var invalidModel = await BuildIndexAsync(cancellationToken);
+            var invalidModel = await BuildIndexAsync(cancellationToken, null);
             invalidModel.Settings = input;
             return View("Index", invalidModel);
         }
@@ -128,8 +129,45 @@ public sealed class AdminContactController(
         return View(model);
     }
 
-    private async Task<AdminContactIndexViewModel> BuildIndexAsync(
+    [HttpGet("export")]
+    public async Task<IActionResult> Export(
+        string? search,
         CancellationToken cancellationToken)
+    {
+        var query = db.ContactMessages.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(x =>
+                x.SenderName.Contains(term) ||
+                x.SenderEmail.Contains(term) ||
+                x.Subject.Contains(term));
+        }
+
+        var rows = await query.OrderByDescending(x => x.SubmittedAtUtc)
+            .Take(5000)
+            .ToListAsync(cancellationToken);
+
+        static string Csv(string? value) =>
+            $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
+
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("Name,Email,Subject,Status,Submitted UTC,Email Status");
+        foreach (var row in rows)
+            csv.AppendLine(string.Join(",",
+                Csv(row.SenderName), Csv(row.SenderEmail), Csv(row.Subject),
+                Csv(row.StatusCode), Csv(row.SubmittedAtUtc.ToString("O")),
+                Csv(row.EmailNotificationStatus)));
+
+        return File(
+            System.Text.Encoding.UTF8.GetBytes(csv.ToString()),
+            "text/csv",
+            $"12wr-contacts-{DateTime.UtcNow:yyyyMMdd}.csv");
+    }
+
+    private async Task<AdminContactIndexViewModel> BuildIndexAsync(
+        CancellationToken cancellationToken,
+        string? search)
     {
         var settings = await db.ContactSettings
             .AsNoTracking()
@@ -137,9 +175,20 @@ public sealed class AdminContactController(
                 x => x.SettingsKey == "DEFAULT",
                 cancellationToken);
 
-        var messages = await db.ContactMessages
+        var messageQuery = db.ContactMessages
             .AsNoTracking()
-            .Where(x => x.StatusCode != "ARCHIVED")
+            .Where(x => x.StatusCode != "ARCHIVED");
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            messageQuery = messageQuery.Where(x =>
+                x.SenderName.Contains(term) ||
+                x.SenderEmail.Contains(term) ||
+                x.Subject.Contains(term));
+        }
+
+        var messages = await messageQuery
             .OrderByDescending(x => x.SubmittedAtUtc)
             .Take(250)
             .Select(x => new AdminContactMessageRow
@@ -161,7 +210,8 @@ public sealed class AdminContactController(
                 ContactEnabled = settings?.ContactEnabled ?? true
             },
             Messages = messages,
-            UnreadCount = messages.Count(x => x.StatusCode == "NEW")
+            UnreadCount = messages.Count(x => x.StatusCode == "NEW"),
+            Search = search
         };
     }
 

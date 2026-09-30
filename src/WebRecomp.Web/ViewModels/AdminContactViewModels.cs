@@ -30,6 +30,7 @@ public sealed class AdminContactIndexViewModel
         = Array.Empty<AdminContactMessageRow>();
 
     public int UnreadCount { get; set; }
+    public string? Search { get; set; }
 }
 
 public sealed class AdminContactMessageDetailViewModel
