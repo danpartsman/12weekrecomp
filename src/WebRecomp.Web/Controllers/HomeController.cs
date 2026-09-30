@@ -14,7 +14,7 @@ public sealed class HomeController(
     public async Task<IActionResult> Index(
         CancellationToken cancellationToken)
     {
-        // Authenticated customers opening the root are routed into their Recomp experience.
+        // Returning authenticated customers opening the root go straight into their Recomp experience.
         if (User.Identity?.IsAuthenticated == true)
         {
             var context =
