@@ -1,0 +1,34 @@
+.admin-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+    margin-top: auto;
+    padding-top: .85rem;
+}
+
+.admin-card-actions .button {
+    text-decoration: none;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: .75rem .65rem;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border-color, rgba(128, 128, 128, .25));
+}
+
+.admin-table th {
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .admin-table {
+        min-width: 860px;
+    }
+}
