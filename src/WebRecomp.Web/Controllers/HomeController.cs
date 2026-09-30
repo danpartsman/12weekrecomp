@@ -64,8 +64,8 @@ public sealed class HomeController(
             }
         }
 
-        // TEST v1012 approved public starting page.
-        return View("RecompStart");
+        // Approved public starting page: anonymous visitors see the Welcome Portal.
+        return View("WelcomePortal");
     }
 
     [AllowAnonymous]
