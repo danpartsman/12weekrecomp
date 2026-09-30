@@ -15,7 +15,7 @@ public sealed class SystemWorkoutRecipeCatalogTests
         var choices =
             SystemWorkoutRecipeCatalog.PresentationRecipes;
 
-        Assert.Equal(59, choices.Count);
+        Assert.Equal(60, choices.Count);
         Assert.Equal(
             choices.Count,
             choices
@@ -182,6 +182,19 @@ public sealed class SystemWorkoutRecipeCatalogTests
         Assert.Equal(300m, september30Row.DistanceMeters);
         Assert.Equal("Row", september30Row.BlockType);
     }
+
+        var september30Strength =
+            SystemWorkoutRecipeCatalog.PresentationRecipes
+                .Single(x => x.SystemCode == "OTF_STRENGTH50_2026_09_30");
+
+        Assert.Equal("OTF Strength 50 Total - 2026-09-30", september30Strength.DisplayName);
+        Assert.Equal("Orangetheory", september30Strength.GroupName);
+        Assert.Equal("RESISTANCE_CIRCUIT", september30Strength.EngineWorkoutTypeCode);
+        Assert.Equal(50m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(september30Strength, 45m));
+        Assert.Equal(14, september30Strength.Slots.Count);
+        Assert.Contains(september30Strength.Slots, x => x.PreferredNameTerms.Single() == "Dumbbell Split Squat With Leg On BOSU" && x.Reps == 8);
+        Assert.Contains(september30Strength.Slots, x => x.PreferredNameTerms.Single() == "Alternating Single Arm Snatch" && x.WorkloadText == "4-8 reps");
+        Assert.Equal(2, september30Strength.Slots.Count(x => x.BlockName == "Finisher" && x.DurationSeconds == 30));
 
     [Fact]
     public void TieredAccessoryAndCardioPresetsScaleTimeAndRpe()

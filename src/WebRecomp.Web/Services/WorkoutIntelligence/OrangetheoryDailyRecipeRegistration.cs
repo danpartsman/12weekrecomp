@@ -156,6 +156,48 @@ internal static class OrangetheoryDailyRecipeRegistration
             GroupName: "Orangetheory",
             PlannedMinutes: 60m);
 
+
+    internal static SystemWorkoutRecipe Create20260930Strength50Recipe()
+        => new SystemWorkoutRecipe(
+            "OTF_STRENGTH50_2026_09_30",
+            "OTF Strength 50 Total - 2026-09-30",
+            "RESISTANCE_CIRCUIT",
+            "Orangetheory Strength 50 Total Body template for September 30, 2026. Three 12-minute blocks preserve the published 8-minute strength and 4-minute power structure. Published movement names and timed finisher are retained; repeat-until-time round counts are not fabricated.",
+            [
+                Slot("OTF_S50_0930_SPLIT_SQUAT_BOSU", "Dumbbell Split Squat With Leg On BOSU", 1, 8,
+                    "Block 1 strength portion; 8-minute strength segment.", false, "Block 1", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_REVERSE_FLY", "Reverse Fly", 1, 8,
+                    "Block 1 strength portion; 8-minute strength segment.", false, "Block 1", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_SPEED_SKATER", "Speed Skater With Power", 1, 4,
+                    "Block 1 power portion; published power prescription is 4-8 reps.", false, "Block 1", "Power", 240, null, null, null, false, "4-8 reps"),
+                Slot("OTF_S50_0930_BOSU_PUSHUP", "BOSU Push-Up", 1, 4,
+                    "Block 1 power portion; published power prescription is 4-8 reps.", false, "Block 1", "Power", 240, null, null, null, false, "4-8 reps"),
+
+                Slot("OTF_S50_0930_SQUAT", "Dumbbell Squat", 1, 8,
+                    "Block 2 strength portion; 8-minute strength segment.", false, "Block 2", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_LOW_ROW_BOSU", "Split Stance Single Arm Low Row With Leg On BOSU", 1, 8,
+                    "Block 2 strength portion; 8-minute strength segment.", false, "Block 2", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_PLANK_POP", "BOSU Plank Pop", 1, 4,
+                    "Block 2 power portion; published power prescription is 4-8 reps.", false, "Block 2", "Power", 240, null, null, null, false, "4-8 reps"),
+                Slot("OTF_S50_0930_CLEAN", "Single Arm Clean", 1, 4,
+                    "Block 2 power portion; published power prescription is 4-8 reps.", false, "Block 2", "Power", 240, null, null, null, false, "4-8 reps"),
+
+                Slot("OTF_S50_0930_DEADLIFT", "Single Arm Split Stance Deadlift", 1, 8,
+                    "Block 3 strength portion; 8-minute strength segment.", false, "Block 3", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_UPRIGHT_ROW", "Upright Row", 1, 8,
+                    "Block 3 strength portion; 8-minute strength segment.", false, "Block 3", "Strength", 480, null, null, null, false, "8 reps"),
+                Slot("OTF_S50_0930_HIP_HINGE_SWING", "Single Arm Hip Hinge Swing", 1, 4,
+                    "Block 3 power portion; published power prescription is 4-8 reps.", false, "Block 3", "Power", 240, null, null, null, false, "4-8 reps"),
+                Slot("OTF_S50_0930_SNATCH", "Alternating Single Arm Snatch", 1, 4,
+                    "Block 3 power portion; published power prescription is 4-8 reps.", false, "Block 3", "Power", 240, null, null, null, false, "4-8 reps"),
+                Slot("OTF_S50_0930_FINISHER_LEFT", "Single Arm Hip Hinge Swing - Left", 1, 1,
+                    "Timed finisher, left arm.", false, "Finisher", "Power", 30, null, null, null, false, "30 sec left"),
+                Slot("OTF_S50_0930_FINISHER_RIGHT", "Single Arm Hip Hinge Swing - Right", 1, 1,
+                    "Timed finisher, right arm.", false, "Finisher", "Power", 30, null, null, null, false, "30 sec right")
+            ],
+            GroupName: "Orangetheory",
+            PlannedMinutes: 50m);
+
     private static SystemWorkoutExerciseSlot Slot(
         string slotCode,
         string exerciseName,
