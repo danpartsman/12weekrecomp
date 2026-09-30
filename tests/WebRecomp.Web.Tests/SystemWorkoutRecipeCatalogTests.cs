@@ -192,9 +192,9 @@ public sealed class SystemWorkoutRecipeCatalogTests
         Assert.Equal("Orangetheory", september30.GroupName);
         Assert.Equal("ORANGETHEORY", september30.EngineWorkoutTypeCode);
         Assert.Equal(60m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(september30, 60m));
-        Assert.Equal(5, september30.Slots.Count);
-        Assert.All(september30.Slots, x => Assert.Equal("Floor Block 1", x.BlockName));
-        Assert.All(september30.Slots, x => Assert.Equal(1110, x.DurationSeconds));
+        Assert.Equal(30, september30.Slots.Count);
+        Assert.Equal(5, september30.Slots.Count(x => x.BlockName == "Floor Block 1" && x.DurationSeconds == 1110));
+        Assert.Equal(4, september30.Slots.Count(x => x.BlockName == "Floor Block 2"));
         Assert.Contains(september30.Slots, x => x.PreferredNameTerms.Single() == "Two Handed Single Dumbbell Squat" && x.Reps == 5 && x.EstimatedRounds == 3 && x.IsEstimated);
         var september30Row = september30.Slots.Single(x => x.SlotCode == "OTF_0930_PUSH_ROW");
         Assert.Equal(300m, september30Row.DistanceMeters);
