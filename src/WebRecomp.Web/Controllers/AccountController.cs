@@ -26,7 +26,8 @@ public sealed class AccountController(
         SetPublicAuthViewData();
         return View(new LocalSignInViewModel
         {
-            ReturnUrl = SafeReturnUrl(returnUrl)
+            ReturnUrl = SafeReturnUrl(returnUrl),
+            RememberMe = true
         });
     }
 
@@ -248,7 +249,7 @@ public sealed class AccountController(
                 IsPersistent = rememberMe,
                 AllowRefresh = true,
                 ExpiresUtc = rememberMe
-                    ? DateTimeOffset.UtcNow.AddDays(30)
+                    ? DateTimeOffset.UtcNow.AddDays(7)
                     : null
             });
     }
