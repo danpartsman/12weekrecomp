@@ -139,6 +139,23 @@ internal static class OrangetheoryDailyRecipeRegistration
             GroupName: "Orangetheory",
             PlannedMinutes: 60m);
 
+
+    internal static SystemWorkoutRecipe Create20260930Recipe()
+        => new SystemWorkoutRecipe(
+            "OTF_2G_2026_09_30",
+            "OTF 2G - 2026-09-30",
+            "ORANGETHEORY",
+            "Orangetheory 2G repeat of the September 14 template. Preserves the publicly reported standard 2G floor reverse-drop-set block with exact movement names, 5-rep loading steps, 300 m push row, and 18.5-minute duration. Three circuit passes are an explicit calculation estimate only.",
+            [
+                Slot("OTF_0930_SQUAT", "Two Handed Single Dumbbell Squat", 3, 5, "Floor Block 1; 5 reps, then 5 reps heavier, rest; repeat circuit until time.", false, "Floor Block 1", "Reverse Drop Set", 1110, null, null, 3, true, "5 reps + 5 heavier x ~3 rounds"),
+                Slot("OTF_0930_BOSU_PULLOVER", "Bosu Bridge Hold With Dumbbell Pullover", 3, 5, "Floor Block 1; 5 reps, then 5 reps heavier, rest; repeat circuit until time.", false, "Floor Block 1", "Reverse Drop Set", 1110, null, null, 3, true, "5 reps + 5 heavier x ~3 rounds"),
+                Slot("OTF_0930_DEADLIFT", "Two Handed Single Dumbbell Deadlift", 3, 5, "Floor Block 1; 5 reps, then 5 reps heavier, rest; repeat circuit until time.", false, "Floor Block 1", "Reverse Drop Set", 1110, null, null, 3, true, "5 reps + 5 heavier x ~3 rounds"),
+                Slot("OTF_0930_BOSU_TRICEP", "Bosu Kneeling Tricep Extension", 3, 5, "Floor Block 1; 5 reps, then 5 reps heavier, rest; repeat circuit until time.", false, "Floor Block 1", "Reverse Drop Set", 1110, null, null, 3, true, "5 reps + 5 heavier x ~3 rounds"),
+                Slot("OTF_0930_PUSH_ROW", "Row", 3, 1, "Floor Block 1; 300 m push row after the four reverse-drop-set pairs; repeat circuit until time.", true, "Floor Block 1", "Row", 1110, 300m, null, 3, true, "300 m push row x ~3 rounds")
+            ],
+            GroupName: "Orangetheory",
+            PlannedMinutes: 60m);
+
     private static SystemWorkoutExerciseSlot Slot(
         string slotCode,
         string exerciseName,
