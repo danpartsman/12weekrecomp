@@ -1,0 +1,61 @@
+@model RecompTipPost
+@{
+    ViewData["Title"] = Model.Title;
+    var published = Model.PublishedAtUtc ?? Model.CreatedAtUtc;
+    var tags = (Model.Tags ?? string.Empty)
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+<article class="tip-detail">
+    <a class="tips-back" asp-action="Index">← All recomp tips</a>
+
+    <header class="tip-detail-head">
+        <div class="tips-meta">
+            <time>@published.ToLocalTime().ToString("MMM d, yyyy")</time>
+            <span>12 Week Recomp</span>
+        </div>
+        <h1>@Model.Title</h1>
+        <p class="tip-detail-summary">@Model.Summary</p>
+
+        @if (tags.Length > 0)
+        {
+            <div class="tips-tags" aria-label="Topics">
+                @foreach (var tag in tags)
+                {
+                    <span>@tag</span>
+                }
+            </div>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+    {
+        <div class="tip-detail-image">
+            <img src="@Model.ImageUrl"
+                 alt=""
+                 referrerpolicy="no-referrer" />
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.Body))
+    {
+        <div class="tip-body-copy">@Model.Body</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.SourceUrl))
+    {
+        <aside class="tip-source card">
+            <span class="tips-eyebrow">SOURCE / FURTHER READING</span>
+            <p>
+                This post references an outside article or resource. Open it in
+                a new tab for the original material.
+            </p>
+            <a class="primary"
+               href="@Model.SourceUrl"
+               target="_blank"
+               rel="noopener noreferrer">
+                Open source article ↗
+            </a>
+        </aside>
+    }
+</article>
