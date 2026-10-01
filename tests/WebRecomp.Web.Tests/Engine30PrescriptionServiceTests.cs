@@ -30,7 +30,7 @@ public sealed class Engine30PrescriptionServiceTests
     }
 
     [Fact]
-    public void Carbohydrate_EqualsBackgroundPlusCalculatedGlycogenReload()
+    public void Carbohydrate_UsesRecoveryHorizonInsteadOfFullSameDayReload()
     {
         var result =
             new Engine30PrescriptionService()
@@ -43,7 +43,7 @@ public sealed class Engine30PrescriptionServiceTests
         var first = result.Days[0];
         var rest = result.Days[^1];
 
-        Assert.Equal(210m, first.RecommendedCarbsG);
+        Assert.Equal(180m, first.RecommendedCarbsG);
         Assert.Equal(100m, rest.RecommendedCarbsG);
 
         Assert.Equal(
@@ -108,11 +108,11 @@ public sealed class Engine30PrescriptionServiceTests
         Assert.Equal(0.80m, rest.CategoryWeight);
 
         Assert.Equal(
-            110m,
+            80m,
             major.RecommendedCarbsG - rest.RecommendedCarbsG);
 
         Assert.Equal(
-            440m,
+            320m,
             major.PrescribedEnergyKcal - rest.PrescribedEnergyKcal);
     }
 
@@ -210,12 +210,12 @@ public sealed class Engine30PrescriptionServiceTests
             a.WeeklyMaintenanceEnergyKcal,
             b.WeeklyMaintenanceEnergyKcal);
 
-        Assert.Equal(210m, a.Days[0].RecommendedCarbsG);
-        Assert.Equal(300m, b.Days[0].RecommendedCarbsG);
+        Assert.Equal(180m, a.Days[0].RecommendedCarbsG);
+        Assert.Equal(240m, b.Days[0].RecommendedCarbsG);
 
-        // The extra 90 g of workout carbohydrate is preserved exactly.
+        // Same-day recovery is deliberately tapered across the 24-hour horizon.
         Assert.Equal(
-            90m,
+            60m,
             b.Days[0].RecommendedCarbsG
             - a.Days[0].RecommendedCarbsG);
 
