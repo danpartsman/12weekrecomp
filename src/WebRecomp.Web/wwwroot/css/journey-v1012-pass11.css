@@ -77,3 +77,13 @@ panel to be swiped left into full view.  Vertical page gestures remain vertical.
         box-sizing:border-box !important;
     }
 }
+
+
+@media (max-width:680px) {
+    body.journey-dashboard .journey-coach-p8__panel {
+        touch-action:pan-y !important;
+        will-change:transform;
+        user-select:none;
+        -webkit-user-select:none;
+    }
+}
