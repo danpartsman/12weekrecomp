@@ -40,24 +40,23 @@
 
 <div class="daily-entry-page">
 
-    <header class="daily-entry-header daily-entry-intel-header">
-        <div class="daily-entry-intel-copy">
+    <header class="daily-entry-v2-hero">
+        <div class="daily-entry-v2-copy">
             <p class="daily-entry-hero-eyebrow">Daily | Recomp Intelligence</p>
             <h1>Daily Entry</h1>
-            <p class="daily-entry-intel-date">@Model.Date.ToString("dddd, MMMM d")</p>
+            <p class="daily-entry-v2-date">@Model.Date.ToString("dddd, MMMM d")</p>
             <p class="daily-entry-lede">
                 Log your body, recovery, training, and nutrition so your plan stays current.
             </p>
         </div>
 
-        <figure class="daily-entry-intel-photo">
-            <img src="~/images/daily-entry-trainer-client.jpg"
-                 asp-append-version="true"
-                 alt="Healthy active adults sharing a positive lifestyle moment"
+        <figure class="daily-entry-v2-photo">
+            <img src="https://images.pexels.com/photos/4589504/pexels-photo-4589504.jpeg?auto=compress&amp;dpr=1&amp;h=750&amp;w=1260"
+                 alt="Friends enjoying a healthy outdoor lunch together"
                  fetchpriority="high" />
         </figure>
 
-        <div class="daily-entry-intel-actions">
+        <div class="daily-entry-v2-actions">
             <form asp-action="Index"
                   method="get"
                   class="app-date-picker daily-entry-date-form">
