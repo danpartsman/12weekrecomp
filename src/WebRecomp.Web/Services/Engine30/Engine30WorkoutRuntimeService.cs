@@ -81,7 +81,7 @@ public sealed class Engine30WorkoutRuntimeService(
                         profileResolution.Provenance,
                         resolved)));
 
-        var glycogen =
+        var modeledGlycogen =
             _glycogen.Calculate(
                 new Engine30WorkoutGlycogenAdapterInput(
                     Session: resolved,
@@ -91,11 +91,71 @@ public sealed class Engine30WorkoutRuntimeService(
                     BaselineGlycogenGPerKgMuscle: request.BaselineGlycogenGPerKgMuscle,
                     ResistanceTrainingStatusCode: request.ResistanceTrainingStatusCode));
 
+        // Physiological consistency guardrail.
+        //
+        // Glycogen depletion is modeled independently from workout energy so
+        // calories never become a glycogen proxy.  The independent estimates
+        // must nevertheless obey conservation of energy: muscle glycogen
+        // energy cannot exceed the carbohydrate share of total exercise
+        // energy.  Ninety percent is deliberately a generous ceiling for
+        // very carbohydrate-dominant high-intensity work; it is a safety
+        // boundary, not an assertion that every workout is 90% carbohydrate.
+        var glycogen =
+            ApplyExerciseEnergyConsistencyGuardrail(
+                modeledGlycogen,
+                energy.GrossWorkoutEnergyKcal);
+
         return new Engine30WorkoutRuntimeResult(
             ProfileProvenance: profileResolution.Provenance,
             ResolvedSession: resolved,
             Energy: energy,
             Glycogen: glycogen);
+    }
+
+    private static Engine30WorkoutGlycogenAdapterResult ApplyExerciseEnergyConsistencyGuardrail(
+        Engine30WorkoutGlycogenAdapterResult modeled,
+        decimal grossWorkoutEnergyKcal)
+    {
+        if (grossWorkoutEnergyKcal <= 0m
+            || modeled.EstimatedGlycogenDepletedG <= 0m)
+        {
+            return modeled;
+        }
+
+        const decimal kcalPerGramCarbohydrate = 4m;
+        const decimal maximumCarbohydrateEnergyFraction = 0.90m;
+
+        var maximumPhysiologicallyPossibleGlycogenG =
+            grossWorkoutEnergyKcal
+            * maximumCarbohydrateEnergyFraction
+            / kcalPerGramCarbohydrate;
+
+        if (modeled.EstimatedGlycogenDepletedG
+            <= maximumPhysiologicallyPossibleGlycogenG)
+        {
+            return modeled;
+        }
+
+        var scale =
+            maximumPhysiologicallyPossibleGlycogenG
+            / modeled.EstimatedGlycogenDepletedG;
+
+        var depleted =
+            Round(maximumPhysiologicallyPossibleGlycogenG, 2);
+
+        var restoration =
+            Round(modeled.TargetGlycogenRestorationG * scale, 2);
+
+        var reload =
+            Round(modeled.CarbohydrateReloadRequirementG * scale, 2);
+
+        return modeled with
+        {
+            EstimatedGlycogenDepletedG = depleted,
+            TargetGlycogenRestorationG = restoration,
+            CarbohydrateReloadRequirementG = reload,
+            CarbohydrateReloadEnergyKcal = Round(reload * kcalPerGramCarbohydrate, 2)
+        };
     }
 
     private static Engine30WorkoutSessionInput BuildRuntimeSessionInput(
