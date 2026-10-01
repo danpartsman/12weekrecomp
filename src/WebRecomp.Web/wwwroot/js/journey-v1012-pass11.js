@@ -20,79 +20,20 @@
         }
 
         coach.classList.add("journey-coach-pass11");
-        enableMobilePrescriptionDrag(coach);
+        ensureMobilePrescriptionViewport(coach);
         return true;
     };
 
-    const enableMobilePrescriptionDrag = (coach) => {
-        const panel = coach.querySelector(".journey-coach-p8__panel");
-        if (!panel || panel.dataset.mobileDragReady === "true") return;
+    const ensureMobilePrescriptionViewport = (coach) => {
+        const panel = coach.querySelector(":scope > .journey-coach-p8__panel");
+        if (!panel || panel.parentElement?.classList.contains("journey-coach-p8__mobile-scroll")) {
+            return;
+        }
 
-        panel.dataset.mobileDragReady = "true";
-
-        let startX = 0;
-        let startY = 0;
-        let baseX = 0;
-        let currentX = 0;
-        let draggingHorizontal = false;
-        let gestureDecided = false;
-
-        const mobile = () => window.matchMedia("(max-width: 680px)").matches;
-        const minX = () => {
-            const overflow = Math.max(0, panel.scrollWidth - coach.clientWidth + 24);
-            return -Math.min(overflow + 120, 320);
-        };
-
-        panel.addEventListener("touchstart", (event) => {
-            if (!mobile() || event.touches.length !== 1) return;
-
-            const touch = event.touches[0];
-            startX = touch.clientX;
-            startY = touch.clientY;
-            baseX = currentX;
-            draggingHorizontal = false;
-            gestureDecided = false;
-            panel.style.transition = "none";
-        }, { passive:true });
-
-        panel.addEventListener("touchmove", (event) => {
-            if (!mobile() || event.touches.length !== 1) return;
-
-            const touch = event.touches[0];
-            const dx = touch.clientX - startX;
-            const dy = touch.clientY - startY;
-
-            if (!gestureDecided && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
-                draggingHorizontal = Math.abs(dx) > Math.abs(dy);
-                gestureDecided = true;
-            }
-
-            if (!draggingHorizontal) return;
-
-            event.preventDefault();
-
-            currentX = Math.max(minX(), Math.min(0, baseX + dx));
-            panel.style.transform = `translate3d(${currentX}px,0,0)`;
-        }, { passive:false });
-
-        const finish = () => {
-            if (!mobile()) return;
-            panel.style.transition = "transform 120ms ease-out";
-        };
-
-        panel.addEventListener("touchend", finish, { passive:true });
-        panel.addEventListener("touchcancel", finish, { passive:true });
-
-        window.addEventListener("resize", () => {
-            if (!mobile()) {
-                currentX = 0;
-                panel.style.transform = "";
-                panel.style.transition = "";
-            } else {
-                currentX = Math.max(minX(), Math.min(0, currentX));
-                panel.style.transform = `translate3d(${currentX}px,0,0)`;
-            }
-        }, { passive:true });
+        const viewport = document.createElement("div");
+        viewport.className = "journey-coach-p8__mobile-scroll";
+        panel.parentNode.insertBefore(viewport, panel);
+        viewport.appendChild(panel);
     };
 
     const initialize = () => {
