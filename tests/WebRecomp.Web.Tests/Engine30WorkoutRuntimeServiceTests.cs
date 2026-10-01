@@ -44,6 +44,34 @@ public sealed class Engine30WorkoutRuntimeServiceTests
     }
 
     [Fact]
+    public async Task GlycogenDepletion_CannotExceedNinetyPercentOfGrossExerciseEnergy()
+    {
+        var profile =
+            CardioProfile(
+                kcalPerMinute: 2m,
+                depletion: 0.70m);
+
+        var result =
+            await Calculate(
+                profile,
+                "E30-ZONE2_CARDIO-V0014",
+                plannedMinutes: 120m);
+
+        var maximumGlycogenG =
+            result.Energy.GrossWorkoutEnergyKcal
+            * 0.90m
+            / 4m;
+
+        Assert.True(
+            result.Glycogen.EstimatedGlycogenDepletedG
+            <= maximumGlycogenG + 0.01m);
+
+        Assert.Equal(
+            result.Glycogen.CarbohydrateReloadRequirementG * 4m,
+            result.Glycogen.CarbohydrateReloadEnergyKcal);
+    }
+
+    [Fact]
     public async Task RuntimeResult_PreservesActiveProfileProvenance()
     {
         var result =
