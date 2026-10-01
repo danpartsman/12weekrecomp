@@ -51,39 +51,39 @@ body.journey-dashboard .journey-coach-p8__panel {
 
 
 /*
-Mobile prescription reveal:
-Keep the approved right-offset starting composition, but allow the prescription
-panel to be swiped left into full view.  Vertical page gestures remain vertical.
+Mobile prescription viewport:
+The coach/photo card remains completely static. Only this inner viewport scrolls
+horizontally, avoiding transforms/compositing on the background image.
 */
 @media (max-width:680px) {
     body.journey-dashboard .journey-coach-p8 {
-        overflow-x:auto !important;
-        overflow-y:hidden !important;
-        overscroll-behavior-x:contain;
-        touch-action:pan-x pan-y;
-        scrollbar-width:none;
-        -webkit-overflow-scrolling:touch;
+        overflow:hidden !important;
     }
 
-    body.journey-dashboard .journey-coach-p8::-webkit-scrollbar {
+    body.journey-dashboard .journey-coach-p8__mobile-scroll {
+        position:relative;
+        z-index:4;
+        width:100%;
+        overflow-x:auto;
+        overflow-y:visible;
+        overscroll-behavior-x:contain;
+        -webkit-overflow-scrolling:touch;
+        scrollbar-width:none;
+        touch-action:pan-x pan-y;
+    }
+
+    body.journey-dashboard .journey-coach-p8__mobile-scroll::-webkit-scrollbar {
         display:none;
     }
 
-    body.journey-dashboard .journey-coach-p8__panel {
-        width:max(31rem, calc(100vw - 2rem)) !important;
+    body.journey-dashboard .journey-coach-p8__mobile-scroll > .journey-coach-p8__panel {
+        position:relative !important;
+        inset:auto !important;
+        width:31rem !important;
         min-width:31rem !important;
-        margin-left:14rem !important;
-        margin-right:.65rem !important;
+        margin:.65rem .65rem .65rem 14rem !important;
         box-sizing:border-box !important;
-    }
-}
-
-
-@media (max-width:680px) {
-    body.journey-dashboard .journey-coach-p8__panel {
-        touch-action:pan-y !important;
-        will-change:transform;
-        user-select:none;
-        -webkit-user-select:none;
+        transform:none !important;
+        will-change:auto !important;
     }
 }
