@@ -51,39 +51,49 @@ body.journey-dashboard .journey-coach-p8__panel {
 
 
 /*
-Mobile prescription viewport:
-The coach/photo card remains completely static. Only this inner viewport scrolls
-horizontally, avoiding transforms/compositing on the background image.
+Mobile prescription: stable default composition + tap-to-expand.
+No horizontal scrolling or transforms are applied to the coach/photo card.
 */
 @media (max-width:680px) {
     body.journey-dashboard .journey-coach-p8 {
         overflow:hidden !important;
     }
 
-    body.journey-dashboard .journey-coach-p8__mobile-scroll {
-        position:relative;
-        z-index:4;
-        width:100%;
-        overflow-x:auto;
-        overflow-y:visible;
-        overscroll-behavior-x:contain;
-        -webkit-overflow-scrolling:touch;
-        scrollbar-width:none;
-        touch-action:pan-x pan-y;
+    body.journey-dashboard .journey-coach-p8__panel {
+        cursor:pointer;
     }
 
-    body.journey-dashboard .journey-coach-p8__mobile-scroll::-webkit-scrollbar {
-        display:none;
+    body.journey-dashboard .journey-coach-p8.is-prescription-expanded {
+        overflow:visible !important;
     }
 
-    body.journey-dashboard .journey-coach-p8__mobile-scroll > .journey-coach-p8__panel {
-        position:relative !important;
-        inset:auto !important;
-        width:31rem !important;
-        min-width:31rem !important;
-        margin:.65rem .65rem .65rem 14rem !important;
-        box-sizing:border-box !important;
-        transform:none !important;
-        will-change:auto !important;
+    body.journey-dashboard .journey-coach-p8.is-prescription-expanded .journey-coach-p8__panel {
+        left:.75rem !important;
+        right:.75rem !important;
+        width:auto !important;
+        max-width:none !important;
+        z-index:6 !important;
+        cursor:zoom-out;
+    }
+
+    body.journey-dashboard .journey-coach-p8__expand-hint {
+        position:absolute;
+        right:.8rem;
+        top:.8rem;
+        z-index:7;
+        border:1px solid rgba(99,230,255,.55);
+        border-radius:999px;
+        padding:.38rem .62rem;
+        background:rgba(2,12,18,.88);
+        color:#dff9ff;
+        font-size:.72rem;
+        font-weight:800;
+        letter-spacing:.04em;
+        pointer-events:none;
+    }
+
+    body.journey-dashboard .journey-coach-p8.is-prescription-expanded .journey-coach-p8__expand-hint {
+        color:#dfff49;
+        border-color:rgba(223,255,73,.55);
     }
 }
