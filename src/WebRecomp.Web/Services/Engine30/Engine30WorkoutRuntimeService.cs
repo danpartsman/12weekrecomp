@@ -158,6 +158,9 @@ public sealed class Engine30WorkoutRuntimeService(
         };
     }
 
+    private static decimal Round(decimal value, int decimals)
+        => Math.Round(value, decimals, MidpointRounding.AwayFromZero);
+
     private static Engine30WorkoutSessionInput BuildRuntimeSessionInput(
         Engine30WorkoutSessionInput source,
         Engine30WorkoutAdminProfile profile)
