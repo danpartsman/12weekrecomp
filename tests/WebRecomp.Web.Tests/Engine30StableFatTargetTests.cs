@@ -6,7 +6,7 @@ namespace WebRecomp.Web.Tests;
 public sealed class Engine30StableFatTargetTests
 {
     [Fact]
-    public void NormalWeek_KeepsStableFatAtWeightBasedTarget()
+    public void NormalWeek_PreservesEnergySafetyAfterRecoveryTaper()
     {
         var days =
             Enumerable.Range(0, 7)
@@ -30,9 +30,9 @@ public sealed class Engine30StableFatTargetTests
                     heightIn: 73m,
                     days: days);
 
-        Assert.Equal(50m, result.StableFatG);
-        Assert.All(result.Days, day => Assert.Equal(50m, day.FatG));
-        Assert.DoesNotContain(
+        Assert.Equal(55m, result.StableFatG);
+        Assert.All(result.Days, day => Assert.Equal(55m, day.FatG));
+        Assert.Contains(
             "STABLE_FAT_RAISED_FOR_ENERGY_SAFETY_GUARDRAIL",
             result.ReasonCodes);
     }
@@ -68,8 +68,8 @@ public sealed class Engine30StableFatTargetTests
             day => Assert.Equal(result.StableFatG, day.FatG));
 
         Assert.Equal(100m, result.BaseRestCarbsG);
-        Assert.Equal(200m, result.Days[0].RecommendedCarbsG);
-        Assert.Equal(125m, result.Days[1].RecommendedCarbsG);
+        Assert.Equal(170m, result.Days[0].RecommendedCarbsG);
+        Assert.Equal(120m, result.Days[1].RecommendedCarbsG);
 
         Assert.Contains(
             "STABLE_FAT_RAISED_FOR_ENERGY_SAFETY_GUARDRAIL",
