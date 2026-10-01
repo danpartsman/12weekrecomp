@@ -40,42 +40,44 @@
 
 <div class="daily-entry-page">
 
-    <header class="daily-entry-header">
-        <div class="daily-entry-hero">
-            <img class="daily-entry-hero-image"
-                 src="~/images/daily-entry-trainer-client.jpg"
-                 asp-append-version="true"
-                 alt="A trainer talking with a client in the gym"
-                 fetchpriority="high" />
-            <div class="daily-entry-hero-content">
-                <p class="daily-entry-hero-eyebrow">Daily momentum</p>
-                <h1>Today <span>counts.</span></h1>
-                <p class="daily-entry-hero-tagline">Check in. Train. Fuel. Recover.</p>
-            </div>
-        </div>
-        <div class="daily-entry-header-bottom">
-        <form asp-action="Index"
-              method="get"
-              class="daily-entry-date-form">
-
-            <label for="daily-entry-date">Entry date</label>
-
-            <input id="daily-entry-date"
-                   name="date"
-                   type="date"
-                   value="@Model.Date.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
-                <div class="app-adjacent-days"><a asp-action="Index" asp-route-date="@(Model.Date.AddDays(-1).ToString("yyyy-MM-dd"))" aria-label="Previous day" class="button app-day-nav-button">← Previous day</a><a asp-action="Index" asp-route-date="@(Model.Date.AddDays(1).ToString("yyyy-MM-dd"))" aria-label="Next day" class="button app-day-nav-button">Next day →</a></div>
-        </form>
-
+    <header class="daily-entry-header daily-entry-intel-header">
+        <div class="daily-entry-intel-copy">
+            <p class="daily-entry-hero-eyebrow">Daily | Recomp Intelligence</p>
+            <h1>Daily Entry</h1>
+            <p class="daily-entry-intel-date">@Model.Date.ToString("dddd, MMMM d")</p>
             <p class="daily-entry-lede">
-                Log what happened today. Your body, recovery, training, and nutrition
-                entries keep your 12WR recommendations current.
+                Log your body, recovery, training, and nutrition so your plan stays current.
             </p>
-            <a class="daily-entry-dashboard-link"
-               asp-controller="Dashboard"
-               asp-action="Index">
-                View Dashboard
-            </a>
+        </div>
+
+        <figure class="daily-entry-intel-photo">
+            <img src="~/images/daily-entry-trainer-client.jpg"
+                 asp-append-version="true"
+                 alt="Healthy active adults sharing a positive lifestyle moment"
+                 fetchpriority="high" />
+        </figure>
+
+        <div class="daily-entry-intel-actions">
+            <form asp-action="Index"
+                  method="get"
+                  class="app-date-picker daily-entry-date-form">
+                <label for="daily-entry-date">Date</label>
+                <input id="daily-entry-date"
+                       name="date"
+                       type="date"
+                       value="@Model.Date.ToString("yyyy-MM-dd")"
+                       onchange="this.form.submit()" />
+                <div class="app-adjacent-days">
+                    <a asp-action="Index"
+                       asp-route-date="@(Model.Date.AddDays(-1).ToString("yyyy-MM-dd"))"
+                       aria-label="Previous day"
+                       class="button app-day-nav-button">← Previous day</a>
+                    <a asp-action="Index"
+                       asp-route-date="@(Model.Date.AddDays(1).ToString("yyyy-MM-dd"))"
+                       aria-label="Next day"
+                       class="button app-day-nav-button">Next day →</a>
+                </div>
+            </form>
         </div>
     </header>
 
