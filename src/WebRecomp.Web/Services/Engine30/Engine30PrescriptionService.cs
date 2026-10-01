@@ -130,7 +130,8 @@ public sealed class Engine30PrescriptionService
             "PHYSIOLOGY_FIRST_CARBOHYDRATE",
             "BACKGROUND_CARB_EAR_100G",
             "PERSONALIZED_BACKGROUND_CARB_FROM_HABITUAL_ACTIVITY",
-            "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED"
+            "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED",
+            "GLYCOGEN_RECOVERY_HORIZON_24H"
         };
 
         var weeklyMaintenance =
@@ -177,12 +178,49 @@ var standardCarbUpper =
         weightKg * 5.0m,
         5m);
 
+        /*
+         * Recovery-horizon model.
+         *
+         * A workout's estimated glycogen depletion is not a requirement to
+         * replace 100% of that carbohydrate before midnight. With a normal
+         * recovery window, glycogen resynthesis continues across the
+         * following 24 hours and subsequent meals/background carbohydrate
+         * continue to supply substrate.
+         *
+         * When tomorrow contains a major glycogen-demanding session we retain
+         * a higher same-day fraction (85%). Otherwise 70% is treated as the
+         * immediate recovery requirement. These are intentionally
+         * conservative operational weights, not claims of a universal human
+         * resynthesis percentage; future Engine 4 learning may personalize
+         * them. Rapid-turnaround competition/multiple-same-day training needs
+         * a separate explicit recovery mode rather than silently forcing
+         * every recomp user into rapid-refueling nutrition.
+         */
+        var immediateReloadRequirements =
+            orderedDays
+                .Select((day, index) =>
+                {
+                    var nextDay =
+                        index + 1 < orderedDays.Length
+                            ? orderedDays[index + 1]
+                            : null;
+
+                    var recoveryFraction =
+                        RequiresHighNextDayGlycogenReadiness(nextDay)
+                            ? 0.85m
+                            : 0.70m;
+
+                    return day.GlycogenReloadRequirementG
+                           * recoveryFraction;
+                })
+                .ToArray();
+
         var carbFloors =
             orderedDays
-                .Select(day =>
+                .Select((day, index) =>
                     CeilingToIncrement(
                         day.BackgroundCarbohydrateRequirementG
-                        + day.GlycogenReloadRequirementG,
+                        + immediateReloadRequirements[index],
                         5m))
                 .ToArray();
 
@@ -447,6 +485,22 @@ var standardCarbUpper =
             "PLAN_5" => "PLAN_PAIN_LIMITED",
             _ => "PLAN_UNKNOWN"
         };
+
+    private static bool RequiresHighNextDayGlycogenReadiness(
+        Engine30PrescriptionDayInput? nextDay)
+    {
+        if (nextDay is null)
+            return false;
+
+        var category =
+            nextDay.WorkoutCategoryCode?
+                .Trim()
+                .ToUpperInvariant();
+
+        return category is
+            Engine30PrescriptionCategoryCodes.MajorStrength
+            or Engine30PrescriptionCategoryCodes.ConditioningCardio;
+    }
 
     private static decimal CalculateBmi(
         decimal weightLb,
