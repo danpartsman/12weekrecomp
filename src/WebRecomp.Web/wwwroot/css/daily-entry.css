@@ -876,3 +876,156 @@ body.guided-demo-dark-theme .daily-entry-workout-not-completed:focus-visible {
   .daily-entry-header-bottom .daily-entry-dashboard-link { grid-column: 1; grid-row: 3; margin-left: 0; }
 }
 @media (max-width: 520px) { .daily-entry-progress { grid-template-columns: 1fr; } }
+
+
+/* ===== Daily Entry intelligence hero: align with Workout / Nutrition ===== */
+.daily-entry-page {
+    max-width: 1180px;
+}
+
+.daily-entry-intel-header {
+    display:grid !important;
+    grid-template-columns:minmax(12rem,1fr) minmax(22rem,2.35fr) minmax(18rem,22rem);
+    align-items:center;
+    gap:1.25rem;
+    margin:0 0 1.35rem;
+    padding:1.35rem;
+    border:1px solid #2c6085;
+    border-radius:1.2rem;
+    background:linear-gradient(135deg,#102a46 0%,#10233c 60%,#0b1b2f 100%);
+    color:#f8fafc;
+    box-shadow:0 12px 30px rgba(0,0,0,.16);
+}
+
+.daily-entry-intel-copy {
+    min-width:0;
+}
+
+.daily-entry-intel-copy .daily-entry-hero-eyebrow {
+    margin:0 0 .3rem;
+    color:#46d9ff;
+}
+
+.daily-entry-intel-copy h1 {
+    margin:0;
+    color:#f8fafc;
+    font-size:clamp(2.5rem,4.4vw,4.2rem);
+    line-height:.98;
+    letter-spacing:-.04em;
+}
+
+.daily-entry-intel-date {
+    margin:.85rem 0 0;
+    color:#67d9ff;
+    font-size:clamp(1.25rem,2vw,1.65rem);
+    font-weight:850;
+}
+
+.daily-entry-intel-copy .daily-entry-lede {
+    margin:.8rem 0 0;
+    color:#c8d7e8;
+    font-size:.98rem;
+}
+
+.daily-entry-intel-photo {
+    width:100%;
+    height:13.25rem;
+    margin:0;
+    overflow:hidden;
+    border:1px solid #2c6085;
+    border-radius:.9rem;
+    background:#10233c;
+}
+
+.daily-entry-intel-photo img {
+    display:block;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    object-position:center 40%;
+}
+
+.daily-entry-intel-actions {
+    width:100%;
+    min-width:0;
+}
+
+.daily-entry-intel-actions .app-date-picker {
+    width:100%;
+    max-width:22rem;
+    margin:0;
+}
+
+.daily-entry-intel-actions .daily-entry-date-form {
+    display:grid;
+    grid-template-columns:1fr;
+    gap:.55rem;
+}
+
+.daily-entry-intel-actions .daily-entry-date-form label {
+    grid-column:auto;
+    color:#f8fafc;
+    font-weight:800;
+}
+
+.daily-entry-intel-actions .daily-entry-date-form input {
+    width:100%;
+    min-height:50px;
+    box-sizing:border-box;
+    border:1px solid #3c78a8;
+    border-radius:.75rem;
+    background:#0a2035;
+    color:#67d9ff;
+    font-size:1.18rem;
+    font-weight:850;
+    padding:.55rem .75rem;
+    color-scheme:dark;
+}
+
+.daily-entry-intel-actions .app-adjacent-days {
+    display:flex;
+    justify-content:space-between;
+    gap:.65rem;
+}
+
+.daily-entry-intel-actions .app-day-nav-button {
+    position:static;
+    flex:0 1 auto;
+    min-width:0;
+    white-space:nowrap;
+}
+
+@media (max-width:900px) {
+    .daily-entry-intel-header {
+        grid-template-columns:minmax(0,1fr);
+        gap:.9rem;
+    }
+
+    .daily-entry-intel-photo {
+        height:11rem;
+    }
+
+    .daily-entry-intel-actions .app-date-picker {
+        max-width:none;
+    }
+}
+
+@media (max-width:520px) {
+    .daily-entry-intel-header {
+        padding:1rem;
+        border-radius:1rem;
+    }
+
+    .daily-entry-intel-copy h1 {
+        font-size:2.7rem;
+    }
+
+    .daily-entry-intel-photo {
+        height:10.5rem;
+    }
+
+    .daily-entry-intel-actions .app-day-nav-button {
+        font-size:.92rem;
+        padding-inline:.7rem;
+    }
+}
