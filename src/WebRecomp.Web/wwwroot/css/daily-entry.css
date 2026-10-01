@@ -1029,3 +1029,196 @@ body.guided-demo-dark-theme .daily-entry-workout-not-completed:focus-visible {
         padding-inline:.7rem;
     }
 }
+
+
+/* ===== Daily Entry V2 hero — approved mockup is the specification ===== */
+body.test-live-preview.app-shell .daily-entry-page > .daily-entry-hero,
+body.test-live-preview.app-shell .daily-entry-page > .daily-entry-header:not(.daily-entry-v2-hero) {
+    display:none !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-hero {
+    display:grid !important;
+    grid-template-columns:minmax(18rem,1.05fr) minmax(34rem,2.45fr) minmax(19rem,.95fr) !important;
+    align-items:stretch !important;
+    gap:1.2rem !important;
+    width:calc(100vw - 4rem) !important;
+    max-width:1760px !important;
+    min-height:300px !important;
+    margin:0 50% 1.6rem !important;
+    transform:translateX(-50%) !important;
+    padding:1.35rem !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+    border:1px solid #286894 !important;
+    border-radius:1.35rem !important;
+    background:linear-gradient(105deg,#102d4d 0%,#102846 52%,#0b2038 100%) !important;
+    box-shadow:0 14px 40px rgba(0,0,0,.2) !important;
+    color:#f8fafc !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-copy {
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:center !important;
+    min-width:0 !important;
+    padding:.5rem .4rem !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-copy .daily-entry-hero-eyebrow {
+    margin:0 0 .55rem !important;
+    color:#27d7ff !important;
+    font-size:.92rem !important;
+    font-weight:900 !important;
+    letter-spacing:.15em !important;
+    text-transform:uppercase !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-copy h1 {
+    display:block !important;
+    position:static !important;
+    margin:0 !important;
+    padding:0 !important;
+    color:#f8fafc !important;
+    font-size:clamp(3.1rem,4.6vw,5.2rem) !important;
+    line-height:.95 !important;
+    letter-spacing:-.045em !important;
+    text-transform:none !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-copy h1::after {
+    display:none !important;
+    content:none !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-date {
+    margin:1.05rem 0 0 !important;
+    color:#5fdcff !important;
+    font-size:clamp(1.35rem,2vw,1.8rem) !important;
+    font-weight:850 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-copy .daily-entry-lede {
+    margin:1rem 0 0 !important;
+    max-width:30rem !important;
+    color:#d6e3f1 !important;
+    font-size:1.02rem !important;
+    line-height:1.55 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-photo {
+    min-width:0 !important;
+    min-height:270px !important;
+    height:auto !important;
+    margin:0 !important;
+    overflow:hidden !important;
+    border:1px solid #31759e !important;
+    border-radius:1rem !important;
+    background:#071b2b !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-photo img {
+    display:block !important;
+    width:100% !important;
+    height:100% !important;
+    min-height:270px !important;
+    object-fit:cover !important;
+    object-position:center center !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-actions {
+    display:flex !important;
+    align-items:center !important;
+    min-width:0 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-actions .daily-entry-date-form {
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:.7rem !important;
+    width:100% !important;
+    margin:0 !important;
+    padding:1rem !important;
+    box-sizing:border-box !important;
+    border:1px solid #326d99 !important;
+    border-radius:1rem !important;
+    background:rgba(9,31,53,.72) !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-actions label {
+    color:#f8fafc !important;
+    font-size:1rem !important;
+    font-weight:850 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-actions input[type="date"] {
+    width:100% !important;
+    min-height:58px !important;
+    box-sizing:border-box !important;
+    border:1px solid #3b7fb0 !important;
+    border-radius:.85rem !important;
+    background:#09223a !important;
+    color:#55d9ff !important;
+    padding:.6rem .8rem !important;
+    font-size:1.25rem !important;
+    font-weight:900 !important;
+    color-scheme:dark !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-actions .app-adjacent-days {
+    display:flex !important;
+    justify-content:space-between !important;
+    gap:.7rem !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-actions .app-day-nav-button {
+    position:static !important;
+    flex:1 1 0 !important;
+    min-width:0 !important;
+    padding:.72rem .6rem !important;
+    white-space:nowrap !important;
+    text-align:center !important;
+}
+
+@media (max-width:1050px) {
+    body.test-live-preview.app-shell .daily-entry-v2-hero {
+        grid-template-columns:minmax(0,1fr) !important;
+        width:calc(100vw - 2rem) !important;
+        transform:translateX(-50%) !important;
+    }
+
+    body.test-live-preview.app-shell .daily-entry-v2-photo {
+        min-height:220px !important;
+    }
+
+    body.test-live-preview.app-shell .daily-entry-v2-photo img {
+        min-height:220px !important;
+        max-height:320px !important;
+    }
+}
+
+@media (max-width:520px) {
+    body.test-live-preview.app-shell .daily-entry-v2-hero {
+        width:calc(100vw - 1rem) !important;
+        padding:.85rem !important;
+        gap:.85rem !important;
+        border-radius:1rem !important;
+    }
+
+    body.test-live-preview.app-shell .daily-entry-v2-copy h1 {
+        font-size:2.8rem !important;
+    }
+
+    body.test-live-preview.app-shell .daily-entry-v2-photo,
+    body.test-live-preview.app-shell .daily-entry-v2-photo img {
+        min-height:180px !important;
+    }
+
+    body.test-live-preview.app-shell .daily-entry-v2-actions .app-adjacent-days {
+        gap:.45rem !important;
+    }
+
+    body.test-live-preview.app-shell .daily-entry-v2-actions .app-day-nav-button {
+        font-size:.88rem !important;
+    }
+}
