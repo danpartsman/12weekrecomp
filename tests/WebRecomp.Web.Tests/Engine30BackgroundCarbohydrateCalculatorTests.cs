@@ -117,8 +117,12 @@ public sealed class Engine30BackgroundCarbohydrateCalculatorTests
                     days: days);
 
         Assert.All(
-            result.Days,
-            day => Assert.Equal(195m, day.RecommendedCarbsG));
+            result.Days.Take(6),
+            day => Assert.Equal(185m, day.RecommendedCarbsG));
+
+        Assert.Equal(
+            170m,
+            result.Days[^1].RecommendedCarbsG);
 
         Assert.Equal(113.93m, result.BaseRestCarbsG);
         Assert.DoesNotContain(
