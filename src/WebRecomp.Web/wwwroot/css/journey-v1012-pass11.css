@@ -48,3 +48,32 @@ body.journey-dashboard .journey-coach-p8__panel {
         object-position:left top !important;
     }
 }
+
+
+/*
+Mobile prescription reveal:
+Keep the approved right-offset starting composition, but allow the prescription
+panel to be swiped left into full view.  Vertical page gestures remain vertical.
+*/
+@media (max-width:680px) {
+    body.journey-dashboard .journey-coach-p8 {
+        overflow-x:auto !important;
+        overflow-y:hidden !important;
+        overscroll-behavior-x:contain;
+        touch-action:pan-x pan-y;
+        scrollbar-width:none;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    body.journey-dashboard .journey-coach-p8::-webkit-scrollbar {
+        display:none;
+    }
+
+    body.journey-dashboard .journey-coach-p8__panel {
+        width:max(31rem, calc(100vw - 2rem)) !important;
+        min-width:31rem !important;
+        margin-left:14rem !important;
+        margin-right:.65rem !important;
+        box-sizing:border-box !important;
+    }
+}
