@@ -215,6 +215,42 @@ internal static class OrangetheoryDailyRecipeRegistration
             PlannedMinutes: 50m);
 
 
+    internal static SystemWorkoutRecipe Create20261002HellWeekStrengthRecipe()
+        => new SystemWorkoutRecipe(
+            "OTF_STRENGTH60_2026_10_02",
+            "OTF Hell Week Strength 60 - 2026-10-02",
+            "RESISTANCE_CIRCUIT",
+            "Hell Week 60-minute strength template focused on glutes/hamstrings, upper chest/triceps, delts/posture, and glutes/posture. Published sets, rep ranges, and rest periods are preserved in the workload text and notes. The member-choice bonus and surprise-card penalties are retained as coaching notes rather than fabricated exercise rows.",
+            [
+                Slot("OTF_HW_1002_RDL", "Barbell Romanian Deadlift", 3, 10,
+                    "Block 1 - Glutes + Hamstrings. 3 x 8-10; rest 75 sec.", false, "Block 1 - Glutes + Hamstrings", "Strength", null, null, null, null, false, "3 x 8-10; rest 75 sec"),
+                Slot("OTF_HW_1002_HIP_THRUST", "Barbell Hip Thrust", 3, 10,
+                    "Block 1 - Glutes + Hamstrings. 3 x 8-10; rest 75 sec.", false, "Block 1 - Glutes + Hamstrings", "Strength", null, null, null, null, false, "3 x 8-10; rest 75 sec"),
+                Slot("OTF_HW_1002_SUMO_SQUAT", "Dumbbell Sumo Squat", 3, 10,
+                    "Block 1 - Glutes + Hamstrings. 3 x 10; rest 60 sec.", false, "Block 1 - Glutes + Hamstrings", "Strength", null, null, null, null, false, "3 x 10; rest 60 sec"),
+
+                Slot("OTF_HW_1002_INCLINE_PRESS", "Incline Dumbbell Press", 3, 10,
+                    "Block 2 - Upper Chest + Triceps. 3 x 8-10; rest 75 sec.", false, "Block 2 - Upper Chest + Triceps", "Strength", null, null, null, null, false, "3 x 8-10; rest 75 sec"),
+                Slot("OTF_HW_1002_LOW_HIGH_FLY", "Low-to-High Cable Fly", 3, 10,
+                    "Block 2 - Upper Chest + Triceps. 3 x 10; rest 60 sec.", false, "Block 2 - Upper Chest + Triceps", "Strength", null, null, null, null, false, "3 x 10; rest 60 sec"),
+                Slot("OTF_HW_1002_PRESSDOWN", "Cable Triceps Pressdown", 3, 10,
+                    "Block 2 - Upper Chest + Triceps. 3 x 10; rest 60 sec.", false, "Block 2 - Upper Chest + Triceps", "Strength", null, null, null, null, false, "3 x 10; rest 60 sec"),
+
+                Slot("OTF_HW_1002_LATERAL_RAISE", "Dumbbell Lateral Raise", 3, 10,
+                    "Block 3 - Delts + Posture. 3 x 10; rest 60 sec.", false, "Block 3 - Delts + Posture", "Strength", null, null, null, null, false, "3 x 10; rest 60 sec"),
+                Slot("OTF_HW_1002_REAR_DELT_FLY", "Dumbbell Rear-Delt Fly", 3, 10,
+                    "Block 3 - Delts + Posture. 3 x 10; rest 60 sec.", false, "Block 3 - Delts + Posture", "Strength", null, null, null, null, false, "3 x 10; rest 60 sec"),
+                Slot("OTF_HW_1002_FACE_PULL", "Cable Face Pull", 3, 10,
+                    "Block 3 - Delts + Posture. 3 x 10; rest 60 sec.", false, "Block 3 - Delts + Posture", "Strength", null, null, null, null, false, "3 x 10; rest 60 sec"),
+
+                Slot("OTF_HW_1002_SPLIT_SQUAT", "Split Squat", 2, 5,
+                    "Block 4 - Glutes + Posture. Heavy split squat, 2 x 5 each side; rest 60 sec.", false, "Block 4 - Glutes + Posture", "Strength", null, null, null, null, false, "2 x 5/side; rest 60 sec"),
+                Slot("OTF_HW_1002_BENT_ROW", "Barbell Bent-Over Row", 2, 10,
+                    "Block 4 - Glutes + Posture. Heavy barbell bent-over row, 2 x 10; rest 60 sec.", false, "Block 4 - Glutes + Posture", "Strength", null, null, null, null, false, "2 x 10; rest 60 sec")
+            ],
+            GroupName: "Orangetheory",
+            PlannedMinutes: 60m);
+
     private static SystemWorkoutExerciseSlot Slot(
         string slotCode,
         string exerciseName,
