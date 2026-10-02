@@ -282,6 +282,44 @@
             .wm-comparison { border-radius:16px; }
             .wm-tissue-split { grid-template-columns:1fr 1fr; }
         }
+
+        /* Final comparison-row sizing: source-image dimensions must never control row height. */
+        @@media (min-width:851px) {
+            .wm-comparison-row {
+                height:190px !important;
+                min-height:190px !important;
+                max-height:190px !important;
+                overflow:hidden !important;
+            }
+            .wm-comparison-row > div {
+                height:190px !important;
+                min-height:0 !important;
+                max-height:190px !important;
+                box-sizing:border-box !important;
+                overflow:hidden !important;
+            }
+            .wm-result-image {
+                position:relative !important;
+                height:190px !important;
+                min-height:190px !important;
+                max-height:190px !important;
+                overflow:hidden !important;
+            }
+            .wm-result-image img {
+                position:absolute !important;
+                inset:0 !important;
+                width:100% !important;
+                height:100% !important;
+                min-height:0 !important;
+                max-height:none !important;
+                object-fit:cover !important;
+            }
+            .wm-comparison-row.is-diet .wm-result-image img {
+                object-position:center 82% !important;
+                transform:scale(1.32) !important;
+                transform-origin:center bottom !important;
+            }
+        }
     </style>
 <link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
 </head>
