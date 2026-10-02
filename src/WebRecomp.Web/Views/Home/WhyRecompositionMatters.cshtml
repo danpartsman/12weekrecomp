@@ -12,165 +12,255 @@
     <link rel="stylesheet" href="~/css/recomp-guide-v1012.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/why-recomp-v1012.css" asp-append-version="true" />
     <style>
-        .wm-hero.wm-hero-clarity {
+        .wm-hero.wm-study-hero {
             display:block;
             min-height:0;
-            padding:clamp(1rem,2.8vw,2rem);
+            padding:clamp(1rem,2.6vw,2.4rem);
             background:
-                linear-gradient(105deg,rgba(2,8,11,.97),rgba(5,20,23,.91)),
-                url('/images/marketing-v13/evidence-gym-group-clean.jpg') center 43%/cover no-repeat;
+                radial-gradient(circle at 82% 12%,rgba(152,255,49,.10),transparent 28%),
+                linear-gradient(135deg,#031017,#061a20 58%,#07150f);
         }
-        .wm-clarity-proof {
-            width:100%;
-            margin:0;
-            padding:clamp(1rem,2.8vw,2rem);
-            border:1px solid rgba(45,227,255,.28);
-            border-radius:22px;
-            background:rgba(2,9,13,.92);
-            box-shadow:0 18px 50px rgba(0,0,0,.42);
+        .wm-study-shell {
+            width:min(1500px,96vw);
+            margin:0 auto;
         }
-        .wm-clarity-intro {
-            margin:0 0 .6rem;
-            color:#fff;
-            font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-            font-size:clamp(1.45rem,3.2vw,2.7rem);
-            font-style:italic;
+        .wm-study-kicker {
+            margin:0 0 .45rem;
+            color:#2de3ff;
+            font-size:.82rem;
             font-weight:950;
-            line-height:1.05;
+            letter-spacing:.16em;
             text-transform:uppercase;
         }
-        .wm-clarity-sub {
-            margin:0 0 1.15rem;
-            color:#b9cbd6;
-            font-size:clamp(.9rem,1.4vw,1.08rem);
-            font-weight:750;
-            line-height:1.45;
-        }
-        .wm-clarity-grid {
-            display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));
-            gap:.8rem;
-        }
-        .wm-clarity-card {
-            position:relative;
-            min-width:0;
-            padding:clamp(1rem,2.2vw,1.45rem);
-            border:2px solid #24546e;
-            border-radius:18px;
-            background:linear-gradient(160deg,#07131c,#030a0f);
-        }
-        .wm-clarity-card h2 {
+        .wm-study-title {
+            max-width:1200px;
             margin:0;
             color:#fff;
             font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-            font-size:clamp(1.75rem,3.5vw,3rem);
+            font-size:clamp(2.3rem,5vw,5.2rem);
+            font-style:italic;
+            font-weight:950;
+            line-height:.94;
+            letter-spacing:-.025em;
+            text-transform:uppercase;
+        }
+        .wm-study-title em {
+            color:#98ff31;
+            font-style:inherit;
+        }
+        .wm-study-lede {
+            max-width:1180px;
+            margin:1rem 0 .55rem;
+            color:#e4eef3;
+            font-size:clamp(1.02rem,1.7vw,1.35rem);
+            font-weight:750;
+            line-height:1.5;
+        }
+        .wm-study-question {
+            margin:.2rem 0 1.45rem;
+            color:#98ff31;
+            font-size:clamp(1.05rem,1.8vw,1.4rem);
+            font-weight:950;
+        }
+        .wm-comparison {
+            overflow:hidden;
+            border:1px solid rgba(45,227,255,.30);
+            border-radius:22px;
+            background:#031016;
+            box-shadow:0 22px 60px rgba(0,0,0,.38);
+        }
+        .wm-comparison-head,
+        .wm-comparison-row {
+            display:grid;
+            grid-template-columns:minmax(260px,.95fr) minmax(310px,1.05fr) minmax(320px,1.35fr);
+        }
+        .wm-comparison-head {
+            background:#0b2430;
+            color:#8fa9b5;
+            font-size:.72rem;
+            font-weight:950;
+            letter-spacing:.13em;
+            text-transform:uppercase;
+        }
+        .wm-comparison-head > div {
+            padding:.75rem 1rem;
+        }
+        .wm-comparison-row {
+            min-height:235px;
+            border-top:1px solid rgba(45,227,255,.18);
+        }
+        .wm-comparison-row:first-of-type { border-top:0; }
+        .wm-comparison-row > div {
+            min-width:0;
+            border-left:1px solid rgba(45,227,255,.14);
+        }
+        .wm-comparison-row > div:first-child { border-left:0; }
+        .wm-result-image {
+            position:relative;
+            min-height:235px;
+            overflow:hidden;
+            background:#07151c;
+        }
+        .wm-result-image img {
+            display:block;
+            width:100%;
+            height:100%;
+            min-height:235px;
+            object-fit:cover;
+        }
+        .wm-result-image::after {
+            content:"";
+            position:absolute;
+            inset:0;
+            background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.72));
+            pointer-events:none;
+        }
+        .wm-result-label {
+            position:absolute;
+            z-index:2;
+            left:1rem;
+            bottom:.9rem;
+            color:#fff;
+            font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
+            font-size:clamp(1.7rem,2.7vw,2.8rem);
             font-style:italic;
             font-weight:950;
             line-height:.95;
             text-transform:uppercase;
         }
-        .wm-loss-number {
-            display:block;
-            margin:.5rem 0 .15rem;
-            color:#ff8e98;
-            font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-            font-size:clamp(4rem,8vw,7rem);
-            font-weight:950;
-            line-height:.82;
-            letter-spacing:-.025em;
+        .wm-result-numbers {
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            gap:.75rem;
+            padding:1.2rem 1.35rem;
+            background:linear-gradient(145deg,#071924,#041117);
         }
-        .wm-cardio .wm-loss-number { color:#ffc75c; }
-        .wm-loss-copy {
-            display:block;
+        .wm-total-loss {
             color:#fff;
-            font-size:clamp(1rem,1.8vw,1.35rem);
+            font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
+            font-size:clamp(2.2rem,3.8vw,4rem);
             font-weight:950;
-            line-height:1.18;
+            line-height:.9;
+        }
+        .wm-total-loss span {
+            display:block;
+            margin-bottom:.25rem;
+            color:#7ceeff;
+            font-family:system-ui,sans-serif;
+            font-size:.7rem;
+            font-weight:950;
+            letter-spacing:.12em;
             text-transform:uppercase;
         }
-        .wm-recomp-card {
-            border-color:#98ff31;
-            background:linear-gradient(145deg,rgba(57,104,21,.25),rgba(3,12,7,.96) 58%);
-            box-shadow:inset 0 5px 0 #98ff31,0 0 32px rgba(152,255,49,.12);
+        .wm-tissue-split {
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:.55rem;
         }
-        .wm-recomp-card h2,
-        .wm-recomp-card .wm-loss-number,
-        .wm-recomp-card .wm-loss-copy { color:#98ff31; }
-        .wm-recomp-arrow {
-            position:absolute;
-            top:.8rem;
-            right:1rem;
-            color:#98ff31;
-            font-size:clamp(2rem,4vw,3.5rem);
-            font-weight:950;
-            line-height:1;
-        }
-        .wm-fat-result {
-            margin-top:.85rem;
-            padding:.8rem .9rem;
-            border:1px solid rgba(152,255,49,.42);
+        .wm-tissue-split div {
+            padding:.7rem .75rem;
+            border:1px solid #244758;
             border-radius:12px;
-            background:rgba(152,255,49,.07);
+            background:#06131a;
+        }
+        .wm-tissue-split b {
+            display:block;
             color:#fff;
-            font-size:clamp(1.05rem,2vw,1.5rem);
-            font-weight:900;
+            font-size:1.35rem;
+        }
+        .wm-tissue-split span {
+            display:block;
+            margin-top:.1rem;
+            color:#91a8b3;
+            font-size:.72rem;
+            font-weight:800;
             line-height:1.25;
             text-transform:uppercase;
         }
-        .wm-fat-result strong {
-            color:#98ff31;
-            font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-            font-size:clamp(2rem,4vw,3rem);
+        .wm-tissue-split .wm-lean b { color:#ff8e98; }
+        .wm-effect {
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            padding:1.3rem 1.5rem;
+            background:#061219;
         }
-        .wm-why-callout {
-            display:grid;
-            grid-template-columns:auto 1fr;
-            align-items:center;
-            gap:.75rem;
-            margin-top:1rem;
-            padding:clamp(1rem,2.3vw,1.5rem);
-            border:2px solid rgba(152,255,49,.58);
-            border-radius:16px;
-            background:linear-gradient(90deg,rgba(152,255,49,.10),rgba(9,28,15,.65));
-        }
-        .wm-why-callout b {
-            color:#98ff31;
-            font-size:clamp(2rem,5vw,4rem);
-            line-height:1;
-        }
-        .wm-why-callout strong {
-            display:block;
+        .wm-effect strong {
             color:#fff;
-            font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-            font-size:clamp(1.55rem,3.4vw,3rem);
-            font-style:italic;
-            font-weight:950;
-            line-height:1;
-            text-transform:uppercase;
+            font-size:clamp(1.12rem,1.7vw,1.45rem);
+            line-height:1.35;
         }
-        .wm-why-callout span {
-            display:block;
-            margin-top:.3rem;
+        .wm-effect p {
+            margin:.65rem 0 0;
+            color:#a9bdc7;
+            line-height:1.48;
+        }
+        .wm-comparison-row.is-cardio .wm-total-loss { color:#ffc75c; }
+        .wm-comparison-row.is-recomp {
+            box-shadow:inset 5px 0 0 #98ff31;
+        }
+        .wm-comparison-row.is-recomp .wm-result-numbers,
+        .wm-comparison-row.is-recomp .wm-effect {
+            background:linear-gradient(135deg,rgba(39,74,20,.35),#06150c 65%);
+        }
+        .wm-comparison-row.is-recomp .wm-total-loss,
+        .wm-comparison-row.is-recomp .wm-result-label,
+        .wm-comparison-row.is-recomp .wm-tissue-split .wm-fat b {
             color:#98ff31;
-            font-size:clamp(.9rem,1.6vw,1.2rem);
-            font-weight:950;
-            letter-spacing:.035em;
-            text-transform:uppercase;
         }
-        .wm-clarity-note {
+        .wm-comparison-row.is-recomp .wm-tissue-split .wm-lean b { color:#dfffbf; }
+        .wm-comparison-row.is-recomp .wm-effect strong { color:#dfffbf; }
+        .wm-study-note {
             display:flex;
             flex-wrap:wrap;
-            gap:.5rem 1rem;
+            gap:.55rem 1rem;
             align-items:center;
-            margin-top:1rem;
+            margin:.9rem .25rem 0;
             color:#8fa4b2;
             font-size:.72rem;
             line-height:1.45;
         }
-        .wm-clarity-note a {
+        .wm-study-note a {
             color:#7ceeff;
             font-weight:900;
             text-decoration:none;
+        }
+        @@media (max-width:850px) {
+            .wm-comparison-head { display:none; }
+            .wm-comparison-row {
+                grid-template-columns:1fr;
+                min-height:0;
+            }
+            .wm-comparison-row > div {
+                border-left:0;
+                border-top:1px solid rgba(45,227,255,.14);
+            }
+            .wm-comparison-row > div:first-child { border-top:0; }
+            .wm-result-image,
+            .wm-result-image img {
+                min-height:190px;
+                height:190px;
+            }
+            .wm-result-numbers,
+            .wm-effect {
+                padding:1rem;
+            }
+            .wm-effect::before {
+                content:"WHAT IT MEANS";
+                display:block;
+                margin-bottom:.5rem;
+                color:#2de3ff;
+                font-size:.68rem;
+                font-weight:950;
+                letter-spacing:.12em;
+            }
+        }
+        @@media (max-width:480px) {
+            .wm-study-shell { width:100%; }
+            .wm-hero.wm-study-hero { padding:.8rem; }
+            .wm-comparison { border-radius:16px; }
+            .wm-tissue-split { grid-template-columns:1fr 1fr; }
         }
     </style>
 <link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
@@ -187,45 +277,81 @@
 </header>
 
 <main>
-    <section class="wm-hero wm-hero-clarity">
-        <div class="wm-hero-proof wm-clarity-proof" aria-label="Kraemer 1999 randomized trial comparing diet, aerobic exercise, and resistance training during weight loss">
-            <p class="wm-clarity-intro">A 1999 randomized study compared dieting, cardio and a recomp-style plan.</p>
-            <p class="wm-clarity-sub">All three intervention groups lost about the same total body weight—roughly 9–10 kg. What they lost was dramatically different.</p>
+    <section class="wm-hero wm-study-hero">
+        <div class="wm-study-shell">
+            <p class="wm-study-kicker">The study that explains why recomposition matters</p>
+            <h1 class="wm-study-title">Don't just lose weight. <em>Change what your body is made of.</em></h1>
+            <p class="wm-study-lede">
+                Retaining muscle doesn't just help you look, feel, and perform better. Lean mass and strength are important markers of healthy aging, and low lean mass is associated with higher mortality risk. This 1999 randomized trial shows why we <strong>RECOMPOSE OUR BODIES</strong>, not just lose weight.
+            </p>
+            <p class="wm-study-question">All three groups lost about 20–22 lb. Look at what that weight was made of. Don't you want the third result?</p>
 
-            <div class="wm-clarity-grid">
-                <article class="wm-clarity-card wm-diet-card">
-                    <h2>DIETING ALONE</h2>
-                    <strong class="wm-loss-number">31%</strong>
-                    <span class="wm-loss-copy">of total weight lost was lean mass*</span>
-                </article>
-
-                <article class="wm-clarity-card wm-cardio">
-                    <h2>DIETING + CARDIO</h2>
-                    <strong class="wm-loss-number">22%</strong>
-                    <span class="wm-loss-copy">of total weight lost was lean mass*</span>
-                </article>
-
-                <article class="wm-clarity-card wm-recomp-card">
-                    <div class="wm-recomp-arrow" aria-hidden="true">➜</div>
-                    <h2>RECOMP PLAN</h2>
-                    <strong class="wm-loss-number">ONLY 3%</strong>
-                    <span class="wm-loss-copy">of total weight lost was lean mass*</span>
-                    <div class="wm-fat-result"><strong>97%</strong> of the weight lost was actual fat.</div>
-                </article>
-            </div>
-
-            <div class="wm-why-callout">
-                <b aria-hidden="true">↗</b>
-                <div>
-                    <strong>That is why we recompose our bodies instead of simply dieting.</strong>
-                    <span>More healthy muscle. Less fat.</span>
+            <div class="wm-comparison" aria-label="Kraemer 1999 comparison of diet alone, diet plus cardio, and diet plus cardio plus resistance training">
+                <div class="wm-comparison-head" aria-hidden="true">
+                    <div>Approach</div>
+                    <div>12-week result</div>
+                    <div>What it means</div>
                 </div>
+
+                <article class="wm-comparison-row is-diet">
+                    <div class="wm-result-image">
+                        <img src="https://images.pexels.com/photos/4051009/pexels-photo-4051009.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1200" alt="A small healthy meal portion on a plate" loading="eager" />
+                        <div class="wm-result-label">Diet Alone</div>
+                    </div>
+                    <div class="wm-result-numbers">
+                        <div class="wm-total-loss"><span>Total weight lost</span>21.3 lb</div>
+                        <div class="wm-tissue-split">
+                            <div class="wm-fat"><b>14.7 lb</b><span>estimated fat lost</span></div>
+                            <div class="wm-lean"><b>6.6 lb</b><span>estimated fat-free tissue lost*</span></div>
+                        </div>
+                    </div>
+                    <div class="wm-effect">
+                        <strong>The scale went down—but nearly one-third of the loss was fat-free tissue.</strong>
+                        <p>Dieting creates the energy deficit, but without an exercise stimulus this group significantly lost fat-free mass and also showed a decline in peak and mean power.</p>
+                    </div>
+                </article>
+
+                <article class="wm-comparison-row is-cardio">
+                    <div class="wm-result-image">
+                        <img src="https://images.pexels.com/photos/6455836/pexels-photo-6455836.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1200" alt="A person walking on a treadmill in a modern gym" loading="lazy" />
+                        <div class="wm-result-label">Diet + Cardio</div>
+                    </div>
+                    <div class="wm-result-numbers">
+                        <div class="wm-total-loss"><span>Total weight lost</span>19.8 lb</div>
+                        <div class="wm-tissue-split">
+                            <div class="wm-fat"><b>15.5 lb</b><span>estimated fat lost</span></div>
+                            <div class="wm-lean"><b>4.4 lb</b><span>estimated fat-free tissue lost*</span></div>
+                        </div>
+                    </div>
+                    <div class="wm-effect">
+                        <strong>Cardio improved aerobic fitness, but it did not protect lean tissue nearly as well as adding resistance training.</strong>
+                        <p>This group improved peak oxygen consumption substantially, yet about 22% of its weight loss was still fat-free tissue.</p>
+                    </div>
+                </article>
+
+                <article class="wm-comparison-row is-recomp">
+                    <div class="wm-result-image">
+                        <img src="https://images.pexels.com/photos/9958673/pexels-photo-9958673.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1200" alt="A group of people strength training with weights in a gym" loading="lazy" />
+                        <div class="wm-result-label">Recomp</div>
+                    </div>
+                    <div class="wm-result-numbers">
+                        <div class="wm-total-loss"><span>Total weight lost</span>21.8 lb</div>
+                        <div class="wm-tissue-split">
+                            <div class="wm-fat"><b>21.2 lb</b><span>estimated fat lost</span></div>
+                            <div class="wm-lean"><b>0.7 lb</b><span>estimated fat-free tissue lost*</span></div>
+                        </div>
+                    </div>
+                    <div class="wm-effect">
+                        <strong>Almost all of the weight lost was fat—while strength increased.</strong>
+                        <p>Diet + aerobic exercise + resistance training produced about 97% of weight loss from fat, while bench-press strength rose 19.6% and squat strength rose 32.6%. This is the result 12 Week Recomp is designed around.</p>
+                    </div>
+                </article>
             </div>
 
-            <div class="wm-clarity-note">
+            <div class="wm-study-note">
                 <span>Kraemer et al., 1999 • 35 overweight men • 12-week randomized trial.</span>
-                <span>*The study reported fat-free mass, which includes muscle and other non-fat tissue; “lean mass” is simplified wording here for clarity.</span>
-                <a href="https://pubmed.ncbi.nlm.nih.gov/10487375/" target="_blank" rel="noopener">Read the study ↗</a>
+                <span>*The study measured fat-free mass, not skeletal muscle alone. Pound values are rounded estimates calculated from the published total weight loss and published fat-loss percentages.</span>
+                <a href="https://pubmed.ncbi.nlm.nih.gov/10487375/" target="_blank" rel="noopener">Read the original study ↗</a>
             </div>
         </div>
     </section>
