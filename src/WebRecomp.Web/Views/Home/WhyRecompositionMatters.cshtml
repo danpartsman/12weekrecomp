@@ -388,6 +388,46 @@
             font-size:.88rem !important;
             line-height:1.32 !important;
         }
+
+        /* Final readability pass: bullets + explanation cells must stay inside the grid. */
+        .wm-study-bullets {
+            padding-left:1.35rem !important;
+            margin-top:1rem !important;
+            margin-bottom:.55rem !important;
+        }
+        .wm-study-bullets li {
+            margin:.28rem 0;
+            padding-left:.2rem;
+        }
+        .wm-study-bullets li::marker {
+            color:#98ff31;
+        }
+        .wm-comparison-row .wm-effect {
+            min-width:0 !important;
+            width:auto !important;
+            max-width:100% !important;
+            overflow:hidden !important;
+            box-sizing:border-box !important;
+        }
+        .wm-comparison-row .wm-effect strong,
+        .wm-comparison-row .wm-effect p {
+            display:block !important;
+            width:100% !important;
+            max-width:100% !important;
+            white-space:normal !important;
+            overflow:visible !important;
+            overflow-wrap:break-word !important;
+            word-break:normal !important;
+            box-sizing:border-box !important;
+        }
+        .wm-comparison-row .wm-effect strong {
+            font-size:clamp(.9rem,1.02vw,1.08rem) !important;
+            line-height:1.18 !important;
+        }
+        .wm-comparison-row .wm-effect p {
+            font-size:clamp(.74rem,.82vw,.84rem) !important;
+            line-height:1.28 !important;
+        }
     </style>
 <link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
 </head>
@@ -407,9 +447,10 @@
         <div class="wm-study-shell">
             <p class="wm-study-kicker">The study that explains why recomposition matters</p>
             <h1 class="wm-study-title">Don't just lose weight. <em>Change what your body is made of.</em></h1>
-            <p class="wm-study-lede">
-                Retaining muscle doesn't just help you look, feel, and perform better. Lean mass and strength are important markers of healthy aging, and low lean mass is associated with higher mortality risk. This 1999 randomized trial shows why we <strong>RECOMPOSE OUR BODIES</strong>, not just lose weight.
-            </p>
+            <ul class="wm-study-lede wm-study-bullets">
+                <li><strong>Retaining muscle</strong> doesn't just help you look, feel, and perform better. Lean mass and strength are important markers of healthy aging, and low lean mass is associated with higher mortality risk.</li>
+                <li><strong>This 1999 randomized trial</strong> shows why we <strong>RECOMPOSE OUR BODIES</strong>, not just lose weight.</li>
+            </ul>
             <p class="wm-study-question">All three groups lost about 20–22 lb. Look at what that weight was made of. Don't you want the third result?</p>
 
             <div class="wm-comparison" aria-label="Kraemer 1999 comparison of diet alone, diet plus cardio, and diet plus cardio plus resistance training">
