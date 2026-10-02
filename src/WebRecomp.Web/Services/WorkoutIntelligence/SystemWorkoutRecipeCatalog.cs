@@ -569,7 +569,8 @@ public static class SystemWorkoutRecipeCatalog
     {
         var parts = systemCode.Split('_');
         if ((systemCode.StartsWith("OTF_2G_", StringComparison.OrdinalIgnoreCase)
-             || systemCode.StartsWith("OTF_STRENGTH50_", StringComparison.OrdinalIgnoreCase))
+             || systemCode.StartsWith("OTF_STRENGTH50_", StringComparison.OrdinalIgnoreCase)
+             || systemCode.StartsWith("OTF_STRENGTH60_", StringComparison.OrdinalIgnoreCase))
             && parts.Length >= 5
             && int.TryParse(string.Concat(parts[^3], parts[^2], parts[^1]), out var yyyymmdd))
             return -yyyymmdd;
