@@ -15,7 +15,7 @@ public sealed class SystemWorkoutRecipeCatalogTests
         var choices =
             SystemWorkoutRecipeCatalog.PresentationRecipes;
 
-        Assert.Equal(60, choices.Count);
+        Assert.Equal(61, choices.Count);
         Assert.Equal(
             choices.Count,
             choices
@@ -58,13 +58,14 @@ public sealed class SystemWorkoutRecipeCatalogTests
             .Select(x => x.SystemCode)
             .ToArray();
 
-        Assert.Equal("OTF_2G_2026_09_30", otf[0]);
-        Assert.Equal("OTF_STRENGTH50_2026_09_30", otf[1]);
-        Assert.Equal("OTF_2G_2026_09_29", otf[2]);
-        Assert.Equal("OTF_2G_2026_09_28", otf[3]);
-        Assert.Equal("OTF_2G_2026_09_27", otf[4]);
-        Assert.Contains("ORANGETHEORY", otf.Skip(5));
-        Assert.Contains("SYS_OTF_STRENGTH_50", otf.Skip(5));
+        Assert.Equal("OTF_STRENGTH60_2026_10_02", otf[0]);
+        Assert.Equal("OTF_2G_2026_09_30", otf[1]);
+        Assert.Equal("OTF_STRENGTH50_2026_09_30", otf[2]);
+        Assert.Equal("OTF_2G_2026_09_29", otf[3]);
+        Assert.Equal("OTF_2G_2026_09_28", otf[4]);
+        Assert.Equal("OTF_2G_2026_09_27", otf[5]);
+        Assert.Contains("ORANGETHEORY", otf.Skip(6));
+        Assert.Contains("SYS_OTF_STRENGTH_50", otf.Skip(6));
     }
 
     [Theory]
@@ -208,17 +209,30 @@ public sealed class SystemWorkoutRecipeCatalogTests
         Assert.Equal("Orangetheory", september30Strength.GroupName);
 
         var datedOtfNames = SystemWorkoutRecipeCatalog.PresentationRecipes
-            .Where(x => x.GroupName == "Orangetheory" && (x.SystemCode.StartsWith("OTF_2G_") || x.SystemCode.StartsWith("OTF_STRENGTH50_")))
+            .Where(x => x.GroupName == "Orangetheory" && (x.SystemCode.StartsWith("OTF_2G_") || x.SystemCode.StartsWith("OTF_STRENGTH50_") || x.SystemCode.StartsWith("OTF_STRENGTH60_")))
             .Select(x => x.DisplayName)
             .ToArray();
-        Assert.Contains("2026-09-30", datedOtfNames[0]);
+        Assert.Contains("2026-10-02", datedOtfNames[0]);
         Assert.Contains("2026-09-30", datedOtfNames[1]);
+        Assert.Contains("2026-09-30", datedOtfNames[2]);
         Assert.Equal("RESISTANCE_CIRCUIT", september30Strength.EngineWorkoutTypeCode);
         Assert.Equal(50m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(september30Strength, 45m));
         Assert.Equal(14, september30Strength.Slots.Count);
         Assert.Contains(september30Strength.Slots, x => x.PreferredNameTerms.Single() == "Dumbbell Split Squat With Leg On BOSU" && x.Reps == 8);
         Assert.Contains(september30Strength.Slots, x => x.PreferredNameTerms.Single() == "Alternating Single Arm Snatch" && x.WorkloadText == "4-8 reps");
         Assert.Equal(2, september30Strength.Slots.Count(x => x.BlockName == "Finisher" && x.DurationSeconds == 30));
+
+        var october2HellWeek =
+            SystemWorkoutRecipeCatalog.PresentationRecipes
+                .Single(x => x.SystemCode == "OTF_STRENGTH60_2026_10_02");
+
+        Assert.Equal("OTF Hell Week Strength 60 - 2026-10-02", october2HellWeek.DisplayName);
+        Assert.Equal("Orangetheory", october2HellWeek.GroupName);
+        Assert.Equal("RESISTANCE_CIRCUIT", october2HellWeek.EngineWorkoutTypeCode);
+        Assert.Equal(60m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(october2HellWeek, 45m));
+        Assert.Equal(11, october2HellWeek.Slots.Count);
+        Assert.Contains(october2HellWeek.Slots, x => x.PreferredNameTerms.Single() == "Barbell Romanian Deadlift" && x.Sets == 3 && x.WorkloadText == "3 x 8-10; rest 75 sec");
+        Assert.Contains(october2HellWeek.Slots, x => x.PreferredNameTerms.Single() == "Split Squat" && x.Sets == 2 && x.WorkloadText == "2 x 5/side; rest 60 sec");
     }
 
     [Fact]
