@@ -72,7 +72,7 @@
         .wm-comparison-head,
         .wm-comparison-row {
             display:grid;
-            grid-template-columns:minmax(260px,.95fr) minmax(310px,1.05fr) minmax(320px,1.35fr);
+            grid-template-columns:minmax(220px,.82fr) minmax(270px,.95fr) minmax(0,1.45fr);
         }
         .wm-comparison-head {
             background:#0b2430;
@@ -86,7 +86,7 @@
             padding:.75rem 1rem;
         }
         .wm-comparison-row {
-            min-height:235px;
+            min-height:190px;
             border-top:1px solid rgba(45,227,255,.18);
         }
         .wm-comparison-row:first-of-type { border-top:0; }
@@ -97,7 +97,7 @@
         .wm-comparison-row > div:first-child { border-left:0; }
         .wm-result-image {
             position:relative;
-            min-height:235px;
+            min-height:190px;
             overflow:hidden;
             background:#07151c;
         }
@@ -105,9 +105,12 @@
             display:block;
             width:100%;
             height:100%;
-            min-height:235px;
+            min-height:190px;
             object-fit:cover;
         }
+        .wm-comparison-row.is-diet .wm-result-image img { object-position:center 62%; }
+        .wm-comparison-row.is-cardio .wm-result-image img { object-position:center 48%; }
+        .wm-comparison-row.is-recomp .wm-result-image img { object-position:center 58%; }
         .wm-result-image::after {
             content:"";
             position:absolute;
@@ -183,18 +186,23 @@
             display:flex;
             flex-direction:column;
             justify-content:center;
-            padding:1.3rem 1.5rem;
+            padding:1.05rem 1.25rem;
             background:#061219;
         }
         .wm-effect strong {
             color:#fff;
-            font-size:clamp(1.12rem,1.7vw,1.45rem);
-            line-height:1.35;
+            font-size:clamp(1.02rem,1.35vw,1.32rem);
+            line-height:1.28;
+        }
+        .wm-effect strong,
+        .wm-effect p {
+            overflow-wrap:anywhere;
+            word-break:normal;
         }
         .wm-effect p {
             margin:.65rem 0 0;
             color:#a9bdc7;
-            line-height:1.48;
+            line-height:1.4;
         }
         .wm-comparison-row.is-cardio .wm-total-loss { color:#ffc75c; }
         .wm-comparison-row.is-recomp {
@@ -209,7 +217,19 @@
         .wm-comparison-row.is-recomp .wm-tissue-split .wm-fat b {
             color:#98ff31;
         }
-        .wm-comparison-row.is-recomp .wm-tissue-split .wm-lean b { color:#dfffbf; }
+        .wm-comparison-row.is-recomp .wm-tissue-split .wm-lean {
+            border-color:#98ff31;
+            background:rgba(152,255,49,.10);
+            box-shadow:0 0 22px rgba(152,255,49,.12);
+        }
+        .wm-comparison-row.is-recomp .wm-tissue-split .wm-lean b {
+            color:#98ff31;
+            font-size:1.8rem;
+        }
+        .wm-comparison-row.is-recomp .wm-tissue-split .wm-lean span {
+            color:#eaffd5;
+            font-weight:950;
+        }
         .wm-comparison-row.is-recomp .wm-effect strong { color:#dfffbf; }
         .wm-study-note {
             display:flex;
@@ -239,8 +259,8 @@
             .wm-comparison-row > div:first-child { border-top:0; }
             .wm-result-image,
             .wm-result-image img {
-                min-height:190px;
-                height:190px;
+                min-height:155px;
+                height:155px;
             }
             .wm-result-numbers,
             .wm-effect {
@@ -302,30 +322,30 @@
                         <div class="wm-total-loss"><span>Total weight lost</span>21.3 lb</div>
                         <div class="wm-tissue-split">
                             <div class="wm-fat"><b>14.7 lb</b><span>estimated fat lost</span></div>
-                            <div class="wm-lean"><b>6.6 lb</b><span>estimated fat-free tissue lost*</span></div>
+                            <div class="wm-lean"><b>6.6 lb</b><span>estimated muscle lost*</span></div>
                         </div>
                     </div>
                     <div class="wm-effect">
-                        <strong>The scale went down—but nearly one-third of the loss was fat-free tissue.</strong>
-                        <p>Dieting creates the energy deficit, but without an exercise stimulus this group significantly lost fat-free mass and also showed a decline in peak and mean power.</p>
+                        <strong>The scale went down—but nearly one-third of the loss was muscle.*</strong>
+                        <p>Dieting creates the energy deficit, but without an exercise stimulus this group significantly lost muscle* and also showed a decline in peak and mean power.</p>
                     </div>
                 </article>
 
                 <article class="wm-comparison-row is-cardio">
                     <div class="wm-result-image">
-                        <img src="https://images.pexels.com/photos/6455836/pexels-photo-6455836.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1200" alt="A person walking on a treadmill in a modern gym" loading="lazy" />
+                        <img src="https://images.pexels.com/photos/4944954/pexels-photo-4944954.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1200" alt="People exercising side by side on treadmills in a gym" loading="lazy" />
                         <div class="wm-result-label">Diet + Cardio</div>
                     </div>
                     <div class="wm-result-numbers">
                         <div class="wm-total-loss"><span>Total weight lost</span>19.8 lb</div>
                         <div class="wm-tissue-split">
                             <div class="wm-fat"><b>15.5 lb</b><span>estimated fat lost</span></div>
-                            <div class="wm-lean"><b>4.4 lb</b><span>estimated fat-free tissue lost*</span></div>
+                            <div class="wm-lean"><b>4.4 lb</b><span>estimated muscle lost*</span></div>
                         </div>
                     </div>
                     <div class="wm-effect">
-                        <strong>Cardio improved aerobic fitness, but it did not protect lean tissue nearly as well as adding resistance training.</strong>
-                        <p>This group improved peak oxygen consumption substantially, yet about 22% of its weight loss was still fat-free tissue.</p>
+                        <strong>Cardio improved aerobic fitness, but it did not protect muscle nearly as well as adding resistance training.</strong>
+                        <p>This group improved peak oxygen consumption substantially, yet about 22% of its weight loss was still muscle.*</p>
                     </div>
                 </article>
 
@@ -338,7 +358,7 @@
                         <div class="wm-total-loss"><span>Total weight lost</span>21.8 lb</div>
                         <div class="wm-tissue-split">
                             <div class="wm-fat"><b>21.2 lb</b><span>estimated fat lost</span></div>
-                            <div class="wm-lean"><b>0.7 lb</b><span>estimated fat-free tissue lost*</span></div>
+                            <div class="wm-lean"><b>0.7 lb</b><span>estimated muscle lost*</span></div>
                         </div>
                     </div>
                     <div class="wm-effect">
@@ -350,7 +370,7 @@
 
             <div class="wm-study-note">
                 <span>Kraemer et al., 1999 • 35 overweight men • 12-week randomized trial.</span>
-                <span>*The study measured fat-free mass, not skeletal muscle alone. Pound values are rounded estimates calculated from the published total weight loss and published fat-loss percentages.</span>
+                <span>*The study measured fat-free mass (FFM), not skeletal muscle directly. FFM includes muscle, water, bone and other non-fat tissue; “muscle lost” is used here as simplified reader-facing language because skeletal muscle is a major component of FFM. Pound values are rounded estimates calculated from the published total weight loss and published fat-loss percentages.</span>
                 <a href="https://pubmed.ncbi.nlm.nih.gov/10487375/" target="_blank" rel="noopener">Read the original study ↗</a>
             </div>
         </div>
