@@ -320,6 +320,74 @@
                 transform-origin:center bottom !important;
             }
         }
+
+        /* Story hierarchy: muscle preservation is the result, scale weight is context. */
+        .wm-total-context {
+            color:#8fb1bf;
+            font-size:.78rem;
+            font-weight:900;
+            letter-spacing:.06em;
+            text-transform:uppercase;
+        }
+        .wm-result-numbers {
+            gap:.55rem !important;
+        }
+        .wm-tissue-split {
+            align-items:stretch;
+        }
+        .wm-tissue-split div {
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            min-height:92px;
+        }
+        .wm-tissue-split span {
+            order:0;
+            margin:0 0 .18rem !important;
+            font-size:.7rem !important;
+            font-weight:950 !important;
+            letter-spacing:.055em;
+        }
+        .wm-tissue-split b {
+            order:1;
+            font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
+            font-size:clamp(2.25rem,3.2vw,3.5rem) !important;
+            line-height:.9;
+        }
+        .wm-tissue-split .wm-lean {
+            border-color:#ff6978;
+            background:rgba(255,75,95,.08);
+        }
+        .wm-tissue-split .wm-lean b {
+            color:#ff7180 !important;
+        }
+        .wm-tissue-split .wm-fat b {
+            color:#f7fbff;
+        }
+        .wm-comparison-row.is-recomp .wm-tissue-split .wm-lean {
+            border:2px solid #98ff31 !important;
+            background:rgba(152,255,49,.12) !important;
+            box-shadow:0 0 24px rgba(152,255,49,.16);
+        }
+        .wm-comparison-row.is-recomp .wm-tissue-split .wm-lean b {
+            color:#98ff31 !important;
+            font-size:clamp(2.65rem,3.7vw,4rem) !important;
+        }
+        .wm-comparison-row.is-recomp .wm-tissue-split .wm-lean span {
+            color:#dfffbd !important;
+        }
+        .wm-effect {
+            padding:.85rem 1rem !important;
+        }
+        .wm-effect strong {
+            font-size:clamp(.98rem,1.15vw,1.18rem) !important;
+            line-height:1.22 !important;
+        }
+        .wm-effect p {
+            margin:.45rem 0 0 !important;
+            font-size:.88rem !important;
+            line-height:1.32 !important;
+        }
     </style>
 <link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
 </head>
@@ -357,15 +425,15 @@
                         <div class="wm-result-label">Diet Alone</div>
                     </div>
                     <div class="wm-result-numbers">
-                        <div class="wm-total-loss"><span>Total weight lost</span>21.3 lb</div>
+                        <div class="wm-total-context">21.3 lb total weight lost</div>
                         <div class="wm-tissue-split">
-                            <div class="wm-fat"><b>14.7 lb</b><span>estimated fat lost</span></div>
-                            <div class="wm-lean"><b>6.6 lb</b><span>estimated muscle lost*</span></div>
+                            <div class="wm-lean"><span>Muscle lost*</span><b>6.6 lb</b></div>
+                            <div class="wm-fat"><span>Fat lost</span><b>14.7 lb</b></div>
                         </div>
                     </div>
                     <div class="wm-effect">
-                        <strong>The scale went down—but nearly one-third of the loss was muscle.*</strong>
-                        <p>Dieting creates the energy deficit, but without an exercise stimulus this group significantly lost muscle* and also showed a decline in peak and mean power.</p>
+                        <strong>Diet alone: 6.6 lb of muscle* lost.</strong>
+                        <p>They lost weight, but almost one-third of it came from muscle*. The scale improved while valuable body tissue was sacrificed.</p>
                     </div>
                 </article>
 
@@ -375,15 +443,15 @@
                         <div class="wm-result-label">Diet + Cardio</div>
                     </div>
                     <div class="wm-result-numbers">
-                        <div class="wm-total-loss"><span>Total weight lost</span>19.8 lb</div>
+                        <div class="wm-total-context">19.8 lb total weight lost</div>
                         <div class="wm-tissue-split">
-                            <div class="wm-fat"><b>15.5 lb</b><span>estimated fat lost</span></div>
-                            <div class="wm-lean"><b>4.4 lb</b><span>estimated muscle lost*</span></div>
+                            <div class="wm-lean"><span>Muscle lost*</span><b>4.4 lb</b></div>
+                            <div class="wm-fat"><span>Fat lost</span><b>15.5 lb</b></div>
                         </div>
                     </div>
                     <div class="wm-effect">
-                        <strong>Cardio improved aerobic fitness, but it did not protect muscle nearly as well as adding resistance training.</strong>
-                        <p>This group improved peak oxygen consumption substantially, yet about 22% of its weight loss was still muscle.*</p>
+                        <strong>Adding cardio helped—but 4.4 lb of muscle* was still lost.</strong>
+                        <p>Cardio improved aerobic fitness and reduced muscle loss versus diet alone, but it still did not preserve muscle nearly as well as strength training.</p>
                     </div>
                 </article>
 
@@ -393,15 +461,15 @@
                         <div class="wm-result-label">Recomp</div>
                     </div>
                     <div class="wm-result-numbers">
-                        <div class="wm-total-loss"><span>Total weight lost</span>21.8 lb</div>
+                        <div class="wm-total-context">21.8 lb total weight lost</div>
                         <div class="wm-tissue-split">
-                            <div class="wm-fat"><b>21.2 lb</b><span>estimated fat lost</span></div>
-                            <div class="wm-lean"><b>0.7 lb</b><span>estimated muscle lost*</span></div>
+                            <div class="wm-lean"><span>Muscle lost*</span><b>0.7 lb</b></div>
+                            <div class="wm-fat"><span>Fat lost</span><b>21.2 lb</b></div>
                         </div>
                     </div>
                     <div class="wm-effect">
-                        <strong>Almost all of the weight lost was fat—while strength increased.</strong>
-                        <p>Diet + aerobic exercise + resistance training produced about 97% of weight loss from fat, while bench-press strength rose 19.6% and squat strength rose 32.6%. This is the result 12 Week Recomp is designed around.</p>
+                        <strong>Recomp: only 0.7 lb of muscle* lost.</strong>
+                        <p>About 97% of the weight loss was fat—and strength increased. Same basic scale result. Dramatically better body-composition result.</p>
                     </div>
                 </article>
             </div>
