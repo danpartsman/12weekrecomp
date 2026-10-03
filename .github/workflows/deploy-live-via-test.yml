@@ -80,11 +80,13 @@ jobs:
               return (az webapp config appsettings list --resource-group $rg --name $app --query $query -o tsv)
           }
 
+          "stage=resolve-live" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           $liveRg = (az resource list --name recomp-live --resource-type Microsoft.Web/sites --query "[0].resourceGroup" -o tsv)
           if ([string]::IsNullOrWhiteSpace($liveRg)) {
               throw "Azure resource recomp-live was not found or is not accessible to the deployment identity."
           }
 
+          "stage=resolve-test" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           $testRg = (az resource list --name recomp-test --resource-type Microsoft.Web/sites --query "[0].resourceGroup" -o tsv)
           if ([string]::IsNullOrWhiteSpace($testRg)) {
               throw "Azure resource recomp-test was not found or is not accessible to the deployment identity."
@@ -93,6 +95,7 @@ jobs:
           Write-Host "LIVE resource located in resource group $liveRg."
           Write-Host "TEST resource located in resource group $testRg."
 
+          "stage=database" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           $liveDb = (az webapp config connection-string list --resource-group $liveRg --name recomp-live --query "[?name=='RecompDatabase'].value | [0]" -o tsv)
           $liveDbAppSetting = Get-AppSettingValue $liveRg "recomp-live" "ConnectionStrings__RecompDatabase"
 
@@ -119,6 +122,7 @@ jobs:
               Write-Host "LIVE already has a RecompDatabase setting; it was preserved."
           }
 
+          "stage=shared-settings" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           $sharedSettings = @(
               "FATSECRET_CLIENT_ID",
               "FATSECRET_CLIENT_SECRET",
@@ -137,7 +141,9 @@ jobs:
               }
           }
 
+          "stage=production-settings" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           az webapp config appsettings set --resource-group $liveRg --name recomp-live --settings "ASPNETCORE_ENVIRONMENT=Production" "WebRecomp__AllowDevelopmentUser=false" "WebRecomp__TestPersonaAccountsEnabled=false" | Out-Null
+          "stage=complete" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Deploy to recomp-live
         id: deploy
@@ -217,3 +223,15 @@ jobs:
                 ? ('LIVE failed at ' + failed[0]).slice(0, 140)
                 : 'recomp-live deployed and health check passed'
             });
+
+            if (failed && failed[0] === 'preflight') {
+              const stage = '${{ steps.preflight.outputs.stage }}' || 'unknown';
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                sha: context.sha,
+                state: 'failure',
+                context: ('live-deploy-via-test/preflight-' + stage).slice(0, 100),
+                description: ('LIVE preflight failed during ' + stage).slice(0, 140)
+              });
+            }
