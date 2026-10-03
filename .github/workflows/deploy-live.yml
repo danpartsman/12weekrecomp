@@ -202,3 +202,16 @@ jobs:
                 ? ('LIVE failed at ' + failed[0]).slice(0, 140)
                 : 'recomp-live deployed and health check passed'
             });
+
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: failed ? 'failure' : 'success',
+              context: failed
+                ? ('live-deploy/failure-' + failed[0]).slice(0, 100)
+                : 'live-deploy/verified',
+              description: failed
+                ? ('LIVE failed at ' + failed[0]).slice(0, 140)
+                : 'recomp-live deployed and health check passed'
+            });
