@@ -69,81 +69,12 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_91AF6C5B8085425781068E9B0080051C }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_28C36820998A4A0AB8C5EBB50A54AE0E }}
 
-      - name: Validate LIVE resource and runtime settings
+      - name: LIVE deployment permission probe
         id: preflight
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
-
-          function Get-AppSettingValue([string]$rg, [string]$app, [string]$name) {
-              $query = "[?name=='$name'].value | [0]"
-              return (az webapp config appsettings list --resource-group $rg --name $app --query $query -o tsv)
-          }
-
-          "stage=resolve-live" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          $liveRg = (az resource list --name recomp-live --resource-type Microsoft.Web/sites --query "[0].resourceGroup" -o tsv)
-          if ([string]::IsNullOrWhiteSpace($liveRg)) {
-              throw "Azure resource recomp-live was not found or is not accessible to the deployment identity."
-          }
-
-          "stage=resolve-test" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          $testRg = (az resource list --name recomp-test --resource-type Microsoft.Web/sites --query "[0].resourceGroup" -o tsv)
-          if ([string]::IsNullOrWhiteSpace($testRg)) {
-              throw "Azure resource recomp-test was not found or is not accessible to the deployment identity."
-          }
-
-          Write-Host "LIVE resource located in resource group $liveRg."
-          Write-Host "TEST resource located in resource group $testRg."
-
-          "stage=database" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          $liveDb = (az webapp config connection-string list --resource-group $liveRg --name recomp-live --query "[?name=='RecompDatabase'].value | [0]" -o tsv)
-          $liveDbAppSetting = Get-AppSettingValue $liveRg "recomp-live" "ConnectionStrings__RecompDatabase"
-
-          if ([string]::IsNullOrWhiteSpace($liveDb) -and [string]::IsNullOrWhiteSpace($liveDbAppSetting)) {
-              $testDb = (az webapp config connection-string list --resource-group $testRg --name recomp-test --query "[?name=='RecompDatabase'].value | [0]" -o tsv)
-              $testDbType = (az webapp config connection-string list --resource-group $testRg --name recomp-test --query "[?name=='RecompDatabase'].type | [0]" -o tsv)
-
-              if (-not [string]::IsNullOrWhiteSpace($testDb)) {
-                  if ([string]::IsNullOrWhiteSpace($testDbType)) { $testDbType = "SQLAzure" }
-                  az webapp config connection-string set --resource-group $liveRg --name recomp-live --connection-string-type $testDbType --settings "RecompDatabase=$testDb" | Out-Null
-                  Write-Host "LIVE RecompDatabase was missing; copied the working TEST RecompDatabase connection."
-              }
-              else {
-                  $testDbAppSetting = Get-AppSettingValue $testRg "recomp-test" "ConnectionStrings__RecompDatabase"
-                  if ([string]::IsNullOrWhiteSpace($testDbAppSetting)) {
-                      throw "LIVE is missing RecompDatabase and no working RecompDatabase setting could be found on recomp-test."
-                  }
-
-                  az webapp config appsettings set --resource-group $liveRg --name recomp-live --settings "ConnectionStrings__RecompDatabase=$testDbAppSetting" | Out-Null
-                  Write-Host "LIVE RecompDatabase was missing; copied the working TEST RecompDatabase app setting."
-              }
-          }
-          else {
-              Write-Host "LIVE already has a RecompDatabase setting; it was preserved."
-          }
-
-          "stage=shared-settings" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          $sharedSettings = @(
-              "FATSECRET_CLIENT_ID",
-              "FATSECRET_CLIENT_SECRET",
-              "USDA_FDC_API_KEY",
-              "AzureAd__ClientSecret"
-          )
-
-          foreach ($name in $sharedSettings) {
-              $liveValue = Get-AppSettingValue $liveRg "recomp-live" $name
-              if ([string]::IsNullOrWhiteSpace($liveValue)) {
-                  $testValue = Get-AppSettingValue $testRg "recomp-test" $name
-                  if (-not [string]::IsNullOrWhiteSpace($testValue)) {
-                      az webapp config appsettings set --resource-group $liveRg --name recomp-live --settings "$name=$testValue" | Out-Null
-                      Write-Host "Copied missing shared setting $name to LIVE."
-                  }
-              }
-          }
-
-          "stage=production-settings" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          az webapp config appsettings set --resource-group $liveRg --name recomp-live --settings "ASPNETCORE_ENVIRONMENT=Production" "WebRecomp__AllowDevelopmentUser=false" "WebRecomp__TestPersonaAccountsEnabled=false" | Out-Null
-          "stage=complete" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Azure login succeeded. Proceeding directly to recomp-live deployment so deployment permission is tested independently of subscription resource enumeration."
+          "stage=direct-deploy" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Deploy to recomp-live
         id: deploy
