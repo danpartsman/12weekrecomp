@@ -41,11 +41,15 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.ForwardedHostHeaderName = "X-Original-Host";
     options.ForwardedProtoHeaderName = "X-Forwarded-Proto";
 
-    // Cloudflare edge IPs can change. Restrict the accepted forwarded host
-    // to our test hostname.
+    // Cloudflare edge IPs can change. Accept only the known 12WR public
+    // hostnames when honoring the forwarded host supplied by our edge.
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
     options.AllowedHosts.Add("test.12weekrecomp.com");
+    options.AllowedHosts.Add("12weekrecomp.com");
+    options.AllowedHosts.Add("www.12weekrecomp.com");
+    options.AllowedHosts.Add("recomp-test.azurewebsites.net");
+    options.AllowedHosts.Add("recomp-live.azurewebsites.net");
 });
 
 // Native 12WR cookie authentication is now the normal customer path. Entra
