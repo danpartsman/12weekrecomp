@@ -1,5 +1,7 @@
 using System.Data;
 using System.Data.Common;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
@@ -357,27 +359,12 @@ public sealed class LocalAuthService(
     private string ResolveInitialRole(
         UserAccount user,
         string normalizedEmail)
-    {
-        var configuredAdminEmail =
-            configuration["WebRecomp:BootstrapAdministratorEmail"]?
-                .Trim()
-                .ToLowerInvariant();
-
-        var isExistingExternalIdentity =
-            !string.IsNullOrWhiteSpace(user.ExternalSubject)
-            && !user.ExternalSubject.StartsWith(
-                "local:",
-                StringComparison.OrdinalIgnoreCase);
-
-        return isExistingExternalIdentity
-            && !string.IsNullOrWhiteSpace(configuredAdminEmail)
-            && string.Equals(
-                configuredAdminEmail,
-                normalizedEmail,
-                StringComparison.OrdinalIgnoreCase)
+        => BootstrapAdministratorMatcher.IsMatch(
+            user,
+            normalizedEmail,
+            configuration)
                 ? "ADMINISTRATOR"
                 : "CLIENT";
-    }
 
     private static string NormalizeEmail(string email)
         => email.Trim().ToLowerInvariant();
@@ -398,6 +385,41 @@ public sealed class LocalAuthService(
         string GlobalRoleCode,
         int FailedSignInCount,
         DateTime? LockoutEndUtc);
+}
+
+internal static class BootstrapAdministratorMatcher
+{
+    public static bool IsMatch(
+        UserAccount user,
+        string normalizedEmail,
+        IConfiguration configuration)
+    {
+        var configuredHash =
+            configuration["WebRecomp:BootstrapAdministratorEmailSha256"]?
+                .Trim()
+                .ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(configuredHash))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(user.ExternalSubject)
+            || user.ExternalSubject.StartsWith(
+                "local:",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var normalized = normalizedEmail.Trim().ToLowerInvariant();
+        var actualHash = Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))
+            .ToLowerInvariant();
+
+        return string.Equals(
+            configuredHash,
+            actualHash,
+            StringComparison.Ordinal);
+    }
 }
 
 public sealed class LocalAuthSchemaHostedService(
@@ -517,30 +539,30 @@ public sealed class LocalAuthSchemaHostedService(
         RecompDbContext db,
         CancellationToken cancellationToken)
     {
-        var configuredAdminEmail =
-            configuration["WebRecomp:BootstrapAdministratorEmail"]?
+        var configuredHash =
+            configuration["WebRecomp:BootstrapAdministratorEmailSha256"]?
                 .Trim()
                 .ToLowerInvariant();
 
-        if (string.IsNullOrWhiteSpace(configuredAdminEmail))
+        if (string.IsNullOrWhiteSpace(configuredHash))
             return;
 
-        var users = await db.UserAccounts
-            .Where(x => x.EmailNormalized == configuredAdminEmail)
-            .Take(2)
+        var candidates = await db.UserAccounts
+            .Where(x => x.EmailNormalized != null)
             .ToListAsync(cancellationToken);
+
+        var users = candidates
+            .Where(x => BootstrapAdministratorMatcher.IsMatch(
+                x,
+                x.EmailNormalized!,
+                configuration))
+            .Take(2)
+            .ToList();
 
         if (users.Count != 1)
             return;
 
         var user = users[0];
-        if (string.IsNullOrWhiteSpace(user.ExternalSubject)
-            || user.ExternalSubject.StartsWith(
-                "local:",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
 
         await db.Database.ExecuteSqlInterpolatedAsync(
             $"""
