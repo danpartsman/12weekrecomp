@@ -51,6 +51,17 @@ jobs:
       - name: Publish web project
         run: dotnet publish ${{ env.WEB_PROJECT }} --configuration Release --no-build --output ./publish
 
+      - name: Stamp LIVE release
+        shell: pwsh
+        run: |
+          @(
+              "12 Week Recomp LIVE release"
+              "source_branch=${{ github.ref_name }}"
+              "source_sha=${{ github.sha }}"
+              "deployment_run=${{ github.run_id }}"
+              "built_at_utc=$([DateTime]::UtcNow.ToString('o'))"
+          ) | Set-Content -Path "./publish/release-version.txt" -Encoding utf8
+
       - name: Create deployment ZIP
         shell: pwsh
         run: |
@@ -187,13 +198,19 @@ jobs:
                   $health = Invoke-WebRequest -Uri "$base/health?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 20
                   $marker = Invoke-WebRequest -Uri "$base/release-version.txt?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 20
 
-                  if ($health.StatusCode -eq 200 -and $marker.StatusCode -eq 200) {
+                  if ($health.StatusCode -eq 200 -and
+                      $marker.StatusCode -eq 200 -and
+                      $marker.Content.Contains("${{ github.sha }}")) {
                       Write-Host "LIVE health check passed."
                       Write-Host $health.Content
-                      Write-Host "LIVE release marker:"
+                      Write-Host "LIVE release marker matches this deployment:"
                       Write-Host $marker.Content
                       $healthy = $true
                       break
+                  }
+
+                  if ($marker.StatusCode -eq 200) {
+                      Write-Host "LIVE is responding, but the release marker does not yet match ${{ github.sha }}."
                   }
               }
               catch {
