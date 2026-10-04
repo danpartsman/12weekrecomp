@@ -32,14 +32,3 @@ public sealed class LocalRegisterViewModel
 
     public string? ReturnUrl { get; set; }
 }
-
-public sealed class BootstrapLocalPasswordViewModel
-{
-    [Required, DataType(DataType.Password), StringLength(128, MinimumLength = 8)]
-    [RegularExpression(@"^(?=.*[A-Za-z])(?=.*\d).{8,}$", ErrorMessage = "Use at least 8 characters with at least one letter and one number.")]
-    public string Password { get; set; } = "";
-
-    [Required, DataType(DataType.Password), Compare(nameof(Password), ErrorMessage = "The passwords do not match.")]
-    public string ConfirmPassword { get; set; } = "";
-}
-

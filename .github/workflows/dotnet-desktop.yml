@@ -66,7 +66,7 @@ jobs:
           az webapp config appsettings set `
               --name recomp-test `
               --resource-group $resourceGroup `
-              --settings WebRecomp__BootstrapAdministratorEmailSha256="0618188557cf5bee9c97b08c64f7a748835803dbaf1aa2a5cf3a9f2dd1da60bb" WebRecomp__EnableTestPersonas="false" | Out-Null
+              --settings WebRecomp__EnableTestPersonas="false" | Out-Null
 
           az webapp log config `
               --name recomp-test `
