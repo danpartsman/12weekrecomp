@@ -4,7 +4,7 @@ SET XACT_ABORT ON;
 BEGIN TRY
     BEGIN TRANSACTION;
 
-    IF DB_NAME() <> N'sqldb-recomp'
+    IF DB_NAME() NOT IN (N'sqldb-recomp', N'sqldb-recomp-live')
         THROW 51200, 'Safety stop: wrong database.', 1;
 
     IF OBJECT_ID(N'nutrition.Providers', N'U') IS NULL
