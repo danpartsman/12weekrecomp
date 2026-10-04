@@ -206,3 +206,40 @@ jobs:
           if (-not $healthy) {
               throw "recomp-live did not pass health + release marker verification after deployment."
           }
+
+      - name: Verify LIVE account creation and sign-in
+        shell: pwsh
+        run: |
+          $base = "https://recomp-live.azurewebsites.net"
+          $create = Invoke-WebRequest -Uri "$base/Account/CreateAccount?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 30
+          $signIn = Invoke-WebRequest -Uri "$base/Account/SignIn?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 30
+
+          if ($create.StatusCode -ne 200 -or $signIn.StatusCode -ne 200) {
+              throw "LIVE account pages did not return HTTP 200."
+          }
+
+          if ($create.Content -notmatch 'Create account &amp; continue|Create account & continue') {
+              throw "LIVE native account creation form is not enabled."
+          }
+
+          if ($signIn.Content -notmatch 'Keep me signed in for 7 days') {
+              throw "LIVE native sign-in form is not enabled."
+          }
+
+          $forbidden = @(
+              'TEST credential',
+              'Existing TEST',
+              'TEST personas',
+              'legacy Microsoft',
+              'temporarily unavailable'
+          )
+
+          foreach ($phrase in $forbidden) {
+              if ($create.Content -match [regex]::Escape($phrase) -or
+                  $signIn.Content -match [regex]::Escape($phrase)) {
+                  throw "LIVE auth page contains forbidden non-production text: $phrase"
+              }
+          }
+
+          Write-Host "LIVE account creation and sign-in pages are enabled and production-clean."
+
