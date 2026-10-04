@@ -234,14 +234,18 @@ builder.Services.AddHttpClient<IEmailService, MicrosoftGraphEmailService>();
 builder.Services.AddScoped<DemoSessionService>();
 builder.Services.AddScoped<GuidedDemoSeederService>();
 
-// TEST-only persistent synthetic personas. Both seeders and the session service
-// independently refuse to operate outside the recomp-test app.
+// TEST persona infrastructure remains available for deliberate diagnostics,
+// but persistent synthetic accounts are no longer seeded automatically.
 builder.Services.AddScoped<TestPersonaSessionService>();
-builder.Services.AddHostedService<TestPersonaLegacyMigrationHostedService>();
 builder.Services.AddScoped<TestPersonaSeederService>();
-builder.Services.AddHostedService<TestPersonaSeederHostedService>();
 builder.Services.AddScoped<TestPersonaNutritionSeederService>();
-builder.Services.AddHostedService<TestPersonaNutritionSeederHostedService>();
+
+if (builder.Configuration.GetValue<bool>("WebRecomp:EnableTestPersonas"))
+{
+    builder.Services.AddHostedService<TestPersonaLegacyMigrationHostedService>();
+    builder.Services.AddHostedService<TestPersonaSeederHostedService>();
+    builder.Services.AddHostedService<TestPersonaNutritionSeederHostedService>();
+}
 
 builder.Services.AddScoped<Engine21PipelineService>();
 builder.Services.AddScoped<Engine21FuelWindowService>();
