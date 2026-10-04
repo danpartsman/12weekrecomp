@@ -1,0 +1,112 @@
+name: Deploy 12WR LIVE
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: recomp-live-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AZURE_WEBAPP_NAME: recomp-live
+  AZURE_RESOURCE_GROUP: recomp_group
+  AZURE_CLIENT_ID: a81057ec-568b-4cec-9a95-1d4d3ff549a0
+  AZURE_TENANT_ID: e5e2dff4-ed49-4038-95d0-63d75304d52e
+  AZURE_SUBSCRIPTION_ID: 14564a14-42f9-4d2e-8a0b-a7c844dfb5c0
+  WEB_PROJECT: src/WebRecomp.Web/WebRecomp.Web.csproj
+  TEST_PROJECT: tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj
+
+jobs:
+  build-test-deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore web project
+        run: dotnet restore ${{ env.WEB_PROJECT }}
+
+      - name: Restore test project
+        run: dotnet restore ${{ env.TEST_PROJECT }}
+
+      - name: Build web project
+        run: dotnet build ${{ env.WEB_PROJECT }} --configuration Release --no-restore
+
+      - name: Run automated tests
+        run: dotnet test ${{ env.TEST_PROJECT }} --configuration Release --no-restore
+
+      - name: Publish web project
+        run: dotnet publish ${{ env.WEB_PROJECT }} --configuration Release --no-build --output ./publish
+
+      - name: Login to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify LIVE database configuration
+        shell: pwsh
+        run: |
+          $name = az webapp config connection-string list `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AZURE_WEBAPP_NAME `
+            --query "[?name=='RecompDatabase'].name | [0]" `
+            -o tsv
+
+          if ([string]::IsNullOrWhiteSpace($name)) {
+              throw "LIVE is missing the required RecompDatabase connection-string setting. Deployment stopped before replacing the running site."
+          }
+
+          Write-Host "Required RecompDatabase connection-string setting is present."
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: Production
+          package: ./publish
+
+      - name: Verify LIVE health and release marker
+        shell: pwsh
+        run: |
+          $base = "https://recomp-live.azurewebsites.net"
+          $healthy = $false
+
+          for ($attempt = 1; $attempt -le 24; $attempt++) {
+              try {
+                  $health = Invoke-WebRequest -Uri "$base/health?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 20
+                  $marker = Invoke-WebRequest -Uri "$base/release-version.txt?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 20
+
+                  if ($health.StatusCode -eq 200 -and $marker.StatusCode -eq 200) {
+                      Write-Host "LIVE health check passed."
+                      Write-Host $health.Content
+                      Write-Host "LIVE release marker:"
+                      Write-Host $marker.Content
+                      $healthy = $true
+                      break
+                  }
+              }
+              catch {
+                  Write-Host "LIVE verification attempt $attempt/24 not ready yet: $($_.Exception.Message)"
+              }
+
+              Start-Sleep -Seconds 10
+          }
+
+          if (-not $healthy) {
+              throw "recomp-live did not pass health + release marker verification after deployment."
+          }
