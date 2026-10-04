@@ -320,7 +320,7 @@ public sealed class NutritionFoodSearchService(
                 "API key",
                 StringComparison.OrdinalIgnoreCase))
         {
-            return "Provider API key is not configured for this TEST environment.";
+            return "Provider API key is not configured.";
         }
 
         if (ex.Message.Contains(

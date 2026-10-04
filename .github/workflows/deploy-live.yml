@@ -92,6 +92,67 @@ jobs:
 
           Write-Host "Required RecompDatabase connection-string setting is present."
 
+      - name: Ensure LIVE nutrition provider settings
+        shell: pwsh
+        run: |
+          $providerKeys = @(
+              "FATSECRET_CLIENT_ID",
+              "FATSECRET_CLIENT_SECRET",
+              "USDA_FDC_API_KEY"
+          )
+
+          $liveSettings = az webapp config appsettings list `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AZURE_WEBAPP_NAME | ConvertFrom-Json
+
+          $testSettings = az webapp config appsettings list `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name "recomp-test" | ConvertFrom-Json
+
+          $updates = @()
+
+          foreach ($key in $providerKeys) {
+              $live = $liveSettings |
+                  Where-Object { $_.name -eq $key } |
+                  Select-Object -First 1
+
+              if ($null -ne $live -and
+                  -not [string]::IsNullOrWhiteSpace([string]$live.value)) {
+                  Write-Host "$key is already configured in LIVE."
+                  continue
+              }
+
+              $source = $testSettings |
+                  Where-Object { $_.name -eq $key } |
+                  Select-Object -First 1
+
+              if ($null -eq $source -or
+                  [string]::IsNullOrWhiteSpace([string]$source.value)) {
+                  throw "$key is missing from both LIVE and TEST."
+              }
+
+              Write-Output "::add-mask::$($source.value)"
+              $updates += "$key=$($source.value)"
+              Write-Host "Prepared missing LIVE setting $key from TEST."
+          }
+
+          if ($updates.Count -gt 0) {
+              az webapp config appsettings set `
+                --resource-group $env:AZURE_RESOURCE_GROUP `
+                --name $env:AZURE_WEBAPP_NAME `
+                --settings $updates `
+                --output none
+
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Failed to configure LIVE nutrition provider settings."
+              }
+
+              Write-Host "Missing LIVE nutrition provider settings were configured."
+          }
+          else {
+              Write-Host "All LIVE nutrition provider settings are already present."
+          }
+
       - name: Configure LIVE run-from-package deployment
         shell: pwsh
         run: |
