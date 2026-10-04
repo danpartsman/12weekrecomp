@@ -124,23 +124,7 @@ jobs:
 
           # Remove stale Kudu source/build caches left by the old Azure build pipeline.
           # Do not touch wwwroot, data/SitePackages, application settings, or databases.
-          $cleanupScript = @'
-$targets = @(
-    "C:\local\VirtualDirectory0\.nuget",
-    "C:\local\VirtualDirectory0\site\repository",
-    "D:\home\.nuget",
-    "D:\home\site\repository"
-)
-
-foreach ($target in $targets) {
-    if (Test-Path $target) {
-        Write-Output "Removing stale deployment cache: $target"
-        Remove-Item $target -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
-
-Write-Output "Stale deployment cache cleanup complete."
-'@
+          $cleanupScript = '$targets=@("C:\\local\\VirtualDirectory0\\.nuget","C:\\local\\VirtualDirectory0\\site\\repository","D:\\home\\.nuget","D:\\home\\site\\repository"); foreach($target in $targets){ if(Test-Path $target){ Write-Output ("Removing stale deployment cache: " + $target); Remove-Item $target -Recurse -Force -ErrorAction SilentlyContinue } }; Write-Output "Stale deployment cache cleanup complete."'
 
           $encodedCleanup = [Convert]::ToBase64String(
               [Text.Encoding]::Unicode.GetBytes($cleanupScript)
