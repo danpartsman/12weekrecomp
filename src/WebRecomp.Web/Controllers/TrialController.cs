@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebRecomp.Web.Services;
@@ -43,12 +42,9 @@ public sealed class TrialController(
                 "Access");
         }
 
-        return Challenge(
-            new OpenIdConnectChallengeProperties
-            {
-                RedirectUri = "/access/complete",
-                Prompt = "create"
-            },
-            OpenIdConnectDefaults.AuthenticationScheme);
+        return RedirectToAction(
+            "CreateAccount",
+            "Account",
+            new { returnUrl = "/access/complete" });
     }
 }
