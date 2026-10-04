@@ -234,6 +234,7 @@ builder.Services.AddHttpClient<IEmailService, MicrosoftGraphEmailService>();
 builder.Services.AddScoped<DemoSessionService>();
 builder.Services.AddScoped<GuidedDemoSeederService>();
 
+// TEST deployment marker: native-auth conversion rollout.
 // TEST persona infrastructure remains available for deliberate diagnostics,
 // but persistent synthetic accounts are no longer seeded automatically.
 builder.Services.AddScoped<TestPersonaSessionService>();
