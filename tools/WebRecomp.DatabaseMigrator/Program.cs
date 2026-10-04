@@ -65,6 +65,14 @@ END;
 
 IF OBJECT_ID(N'app.LocalAuthCredentials', N'U') IS NULL
     THROW 50002, 'Local auth credential table migration did not complete.', 1;
+
+IF DATABASE_PRINCIPAL_ID(N'web_recomp_app') IS NULL
+    THROW 50003, 'Required database role web_recomp_app does not exist.', 1;
+
+IF SCHEMA_ID(N'nutrition') IS NULL
+    THROW 50004, 'Required nutrition schema does not exist.', 1;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::nutrition TO web_recomp_app;
 """;
 
 try
@@ -82,7 +90,7 @@ try
     await command.ExecuteNonQueryAsync();
 
     Console.WriteLine(
-        $"12WR database migration complete for {runtimeBuilder.InitialCatalog}; app.LocalAuthCredentials is present.");
+        $"12WR database migration complete for {runtimeBuilder.InitialCatalog}; local auth schema and nutrition runtime grants are present.");
     return 0;
 }
 catch (SqlException exception)
