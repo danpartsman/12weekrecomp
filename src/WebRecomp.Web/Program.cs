@@ -82,6 +82,8 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 
+builder.Services.AddTransient<Microsoft.AspNetCore.Authentication.IClaimsTransformation, CanonicalRoleClaimsTransformation>();
+
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddRateLimiter(options =>
