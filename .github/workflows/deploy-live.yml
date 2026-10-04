@@ -96,17 +96,56 @@ jobs:
             --setting-names PROJECT `
             --output none 2>$null
 
-      - name: Deploy ZIP package to Azure Web App
+      - name: Install package directly in SitePackages
         shell: pwsh
         run: |
-          az webapp deploy `
+          $ErrorActionPreference = "Stop"
+
+          $pub = az webapp deployment list-publishing-credentials `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AZURE_WEBAPP_NAME | ConvertFrom-Json
+
+          if ($null -eq $pub -or
+              [string]::IsNullOrWhiteSpace($pub.publishingUserName) -or
+              [string]::IsNullOrWhiteSpace($pub.publishingPassword)) {
+              throw "Could not obtain App Service publishing credentials."
+          }
+
+          Write-Output "::add-mask::$($pub.publishingUserName)"
+          Write-Output "::add-mask::$($pub.publishingPassword)"
+
+          $pair = "$($pub.publishingUserName):$($pub.publishingPassword)"
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
+
+          $headers = @{
+              Authorization = "Basic $auth"
+              "If-Match" = "*"
+          }
+
+          $packageName = "12wr-${{ github.sha }}.zip"
+          $base = "https://$($env:AZURE_WEBAPP_NAME).scm.azurewebsites.net/api/vfs/data/SitePackages"
+
+          Invoke-WebRequest `
+            -Uri "$base/$packageName" `
+            -Method Put `
+            -Headers $headers `
+            -InFile "./publish.zip" `
+            -ContentType "application/zip" `
+            -UseBasicParsing | Out-Null
+
+          Invoke-WebRequest `
+            -Uri "$base/packagename.txt" `
+            -Method Put `
+            -Headers $headers `
+            -Body $packageName `
+            -ContentType "text/plain" `
+            -UseBasicParsing | Out-Null
+
+          Write-Host "Installed $packageName into SitePackages and updated packagename.txt."
+
+          az webapp restart `
             --resource-group $env:AZURE_RESOURCE_GROUP `
             --name $env:AZURE_WEBAPP_NAME `
-            --src-path ./publish.zip `
-            --type zip `
-            --restart true `
-            --timeout 600000 `
-            --enriched-errors true `
             --output none
 
       - name: Verify LIVE health and release marker
