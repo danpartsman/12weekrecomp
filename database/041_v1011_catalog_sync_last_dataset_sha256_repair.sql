@@ -1,8 +1,8 @@
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
-IF DB_NAME() NOT IN (N'sqldb-recomp', N'sqldb-recomp-live')
-    THROW 51200, 'B2.35.18 safety stop: wrong database.', 1;
+IF OBJECT_ID(N'app.UserAccounts', N'U') IS NULL
+    THROW 51200, 'B2.35.18 safety stop: this is not a valid 12WR database.', 1;
 
 IF OBJECT_ID(N'app.ExerciseCatalogSyncSettings', N'U') IS NULL
     THROW 51201, 'B2.35.18 safety stop: app.ExerciseCatalogSyncSettings is missing.', 1;
