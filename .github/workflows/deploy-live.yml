@@ -51,6 +51,14 @@ jobs:
       - name: Publish web project
         run: dotnet publish ${{ env.WEB_PROJECT }} --configuration Release --no-build --output ./publish
 
+      - name: Create deployment ZIP
+        shell: pwsh
+        run: |
+          if (Test-Path ./publish.zip) {
+              Remove-Item ./publish.zip -Force
+          }
+          Compress-Archive -Path ./publish/* -DestinationPath ./publish.zip -Force
+
       - name: Login to Azure with OIDC
         uses: azure/login@v2
         with:
@@ -73,12 +81,33 @@ jobs:
 
           Write-Host "Required RecompDatabase connection-string setting is present."
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          slot-name: Production
-          package: ./publish
+      - name: Configure LIVE run-from-package deployment
+        shell: pwsh
+        run: |
+          az webapp config appsettings set `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AZURE_WEBAPP_NAME `
+            --settings WEBSITE_RUN_FROM_PACKAGE="1" SCM_DO_BUILD_DURING_DEPLOYMENT="false" `
+            --output none
+
+          az webapp config appsettings delete `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AZURE_WEBAPP_NAME `
+            --setting-names PROJECT `
+            --output none 2>$null
+
+      - name: Deploy ZIP package to Azure Web App
+        shell: pwsh
+        run: |
+          az webapp deploy `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AZURE_WEBAPP_NAME `
+            --src-path ./publish.zip `
+            --type zip `
+            --restart true `
+            --timeout 600000 `
+            --enriched-errors true `
+            --output none
 
       - name: Verify LIVE health and release marker
         shell: pwsh
