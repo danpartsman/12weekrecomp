@@ -14,6 +14,17 @@ BEGIN
     GRANT INSERT ON SCHEMA::audit TO web_recomp_app;
 END;
 
+-- Re-apply grants on every run so schemas added after the role was
+-- first created are not missed.
+GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::app TO web_recomp_app;
+GRANT SELECT ON SCHEMA::config TO web_recomp_app;
+GRANT INSERT ON SCHEMA::audit TO web_recomp_app;
+
+IF SCHEMA_ID(N'nutrition') IS NOT NULL
+BEGIN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::nutrition TO web_recomp_app;
+END;
+
 IF NOT EXISTS (
     SELECT 1
     FROM sys.database_role_members drm
