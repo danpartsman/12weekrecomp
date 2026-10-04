@@ -125,7 +125,7 @@ public sealed class AccountController(
             case LocalRegistrationStatus.ExistingExternalAccount:
                 ModelState.AddModelError(
                     nameof(model.Email),
-                    "That email belongs to an existing 12 Week Recomp Microsoft account. Use the legacy Microsoft sign-in below so the existing profile is not duplicated.");
+                    "That email is already associated with a 12 Week Recomp account. Please sign in or contact support.");
                 return View(model);
 
             case LocalRegistrationStatus.EmailConflict:
@@ -153,9 +153,8 @@ public sealed class AccountController(
         return Redirect(ResolveDestination(model.ReturnUrl));
     }
 
-    // Compatibility path for existing externally authenticated TEST accounts.
-    // New customers no longer need Microsoft/Entra once the native credential
-    // schema has been provisioned through the database migration path.
+    // Compatibility path retained for existing externally authenticated accounts.
+    // Normal customer sign-in uses the native 12WR email/password flow.
     [HttpGet]
     public IActionResult MicrosoftSignIn(string? returnUrl = null)
         => StartEntraSignIn(returnUrl);
@@ -277,7 +276,7 @@ public sealed class AccountController(
         => ModelState.AddModelError("", NativeAuthUnavailableMessage);
 
     private const string NativeAuthUnavailableMessage =
-        "Native 12WR sign-in is temporarily unavailable while the TEST credential database migration is completed. Existing TEST accounts can use the legacy Microsoft sign-in below.";
+        "12 Week Recomp account sign-in is temporarily unavailable. Please try again shortly.";
 
     private string? SafeReturnUrl(string? returnUrl)
         => !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
