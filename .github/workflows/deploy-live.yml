@@ -122,6 +122,50 @@ jobs:
               "If-Match" = "*"
           }
 
+          # Remove stale Kudu source/build caches left by the old Azure build pipeline.
+          # Do not touch wwwroot, data/SitePackages, application settings, or databases.
+          $cleanupScript = @'
+$targets = @(
+    "C:\local\VirtualDirectory0\.nuget",
+    "C:\local\VirtualDirectory0\site\repository",
+    "D:\home\.nuget",
+    "D:\home\site\repository"
+)
+
+foreach ($target in $targets) {
+    if (Test-Path $target) {
+        Write-Output "Removing stale deployment cache: $target"
+        Remove-Item $target -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Output "Stale deployment cache cleanup complete."
+'@
+
+          $encodedCleanup = [Convert]::ToBase64String(
+              [Text.Encoding]::Unicode.GetBytes($cleanupScript)
+          )
+
+          $commandBody = @{
+              command = "powershell.exe -NoProfile -EncodedCommand $encodedCleanup"
+              dir = "D:\home"
+          } | ConvertTo-Json
+
+          $commandHeaders = @{
+              Authorization = "Basic $auth"
+          }
+
+          $cleanupResult = Invoke-RestMethod `
+            -Uri "https://$($env:AZURE_WEBAPP_NAME).scm.azurewebsites.net/api/command" `
+            -Method Post `
+            -Headers $commandHeaders `
+            -ContentType "application/json" `
+            -Body $commandBody
+
+          if ($cleanupResult.Output) {
+              Write-Host $cleanupResult.Output
+          }
+
           $packageName = "12wr-${{ github.sha }}.zip"
           $base = "https://$($env:AZURE_WEBAPP_NAME).scm.azurewebsites.net/api/vfs/data/SitePackages"
 
