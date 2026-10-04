@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -153,16 +152,6 @@ public sealed class AccountController(
         return Redirect(ResolveDestination(model.ReturnUrl));
     }
 
-    // Compatibility path retained for existing externally authenticated accounts.
-    // Normal customer sign-in uses the native 12WR email/password flow.
-    [HttpGet]
-    public IActionResult MicrosoftSignIn(string? returnUrl = null)
-        => StartEntraSignIn(returnUrl);
-
-    [HttpGet]
-    public IActionResult EntraSignIn(string? returnUrl = null)
-        => StartEntraSignIn(returnUrl);
-
     [HttpGet]
     public IActionResult AccessDenied()
     {
@@ -179,34 +168,10 @@ public sealed class AccountController(
             return RedirectToAction("Index", "Home");
         }
 
-        var authSource = User.FindFirst("recomp_auth_source")?.Value;
-        if (string.Equals(authSource, "LOCAL", StringComparison.OrdinalIgnoreCase))
-        {
-            await HttpContext.SignOutAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignOutAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme);
 
-            return RedirectToAction("Index", "Home");
-        }
-
-        // Existing Entra sessions can still perform their normal provider
-        // sign-out during the compatibility period.
-        var loginHint = User.FindFirst("login_hint")?.Value;
-
-        if (string.IsNullOrWhiteSpace(loginHint))
-        {
-            await HttpContext.SignOutAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme);
-
-            return RedirectToAction("Index", "Home");
-        }
-
-        return base.SignOut(
-            new AuthenticationProperties
-            {
-                RedirectUri = "/"
-            },
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            OpenIdConnectDefaults.AuthenticationScheme);
+        return RedirectToAction("Index", "Home");
     }
 
     private async Task SignInLocalUserAsync(
@@ -251,19 +216,6 @@ public sealed class AccountController(
                     ? DateTimeOffset.UtcNow.AddDays(7)
                     : null
             });
-    }
-
-    private IActionResult StartEntraSignIn(string? returnUrl)
-    {
-        var destination = ResolveDestination(SafeReturnUrl(returnUrl));
-
-        return Challenge(
-            new OpenIdConnectChallengeProperties
-            {
-                RedirectUri = destination,
-                Prompt = "select_account"
-            },
-            OpenIdConnectDefaults.AuthenticationScheme);
     }
 
     private void SetPublicAuthViewData()
