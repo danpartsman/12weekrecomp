@@ -1,5 +1,7 @@
 using System.Data;
 using System.Data.Common;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
@@ -28,6 +30,18 @@ public sealed record LocalSignInResult(
     bool LockedOut = false,
     bool Unavailable = false);
 
+public enum LocalCredentialBootstrapStatus
+{
+    Created,
+    AlreadyConfigured,
+    NotAuthorized,
+    Unavailable
+}
+
+public sealed record LocalCredentialBootstrapResult(
+    LocalCredentialBootstrapStatus Status,
+    UserAccount? User = null);
+
 internal static class LocalAuthSchemaReadiness
 {
     private static int _isReady;
@@ -42,7 +56,8 @@ internal static class LocalAuthSchemaReadiness
 public sealed class LocalAuthService(
     RecompDbContext db,
     IPasswordHasher<UserAccount> passwordHasher,
-    FirstSignInWelcomeEmailService welcomeEmail)
+    FirstSignInWelcomeEmailService welcomeEmail,
+    IConfiguration configuration)
 {
     public bool IsAvailable => LocalAuthSchemaReadiness.IsReady;
 
@@ -65,20 +80,20 @@ public sealed class LocalAuthService(
         if (matching.Count > 1)
             return new(LocalRegistrationStatus.EmailConflict);
 
+        var now = DateTime.UtcNow;
+
         if (matching.Count == 1)
         {
+            var existingUser = matching[0];
             var hasLocalCredential = await CredentialExistsAsync(
-                matching[0].UserId,
+                existingUser.UserId,
                 cancellationToken);
 
-            return new(
-                hasLocalCredential
-                    ? LocalRegistrationStatus.ExistingLocalAccount
-                    : LocalRegistrationStatus.ExistingExternalAccount,
-                matching[0]);
+            return hasLocalCredential
+                ? new(LocalRegistrationStatus.ExistingLocalAccount, existingUser)
+                : new(LocalRegistrationStatus.ExistingExternalAccount, existingUser);
         }
 
-        var now = DateTime.UtcNow;
         var user = new UserAccount
         {
             UserId = Guid.NewGuid(),
@@ -100,8 +115,8 @@ public sealed class LocalAuthService(
         // started transaction must therefore run inside that strategy or EF
         // can reject the unit of work and roll it back. Keep the user row and
         // credential row atomic, while allowing SQL Azure transient retries.
-        var strategy = db.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(async () =>
+        var strategyNewUser = db.Database.CreateExecutionStrategy();
+        await strategyNewUser.ExecuteAsync(async () =>
         {
             await using var transaction =
                 await db.Database.BeginTransactionAsync(cancellationToken);
@@ -131,6 +146,106 @@ public sealed class LocalAuthService(
         await welcomeEmail.TrySendAsync(user, cancellationToken);
 
         return new(LocalRegistrationStatus.Created, user, roleCode);
+    }
+
+    public async Task<bool> CanBootstrapAdministratorAsync(
+        string externalSubject,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsAvailable || string.IsNullOrWhiteSpace(externalSubject))
+            return false;
+
+        var users = await db.UserAccounts
+            .Where(x => x.ExternalSubject == externalSubject.Trim())
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        if (users.Count != 1)
+            return false;
+
+        var user = users[0];
+        if (string.IsNullOrWhiteSpace(user.EmailNormalized))
+            return false;
+
+        return BootstrapAdministratorMatcher.IsMatch(
+            user,
+            NormalizeEmail(user.EmailNormalized),
+            configuration);
+    }
+
+    public async Task<LocalCredentialBootstrapResult> BootstrapAdministratorCredentialAsync(
+        string externalSubject,
+        string password,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsAvailable)
+            return new(LocalCredentialBootstrapStatus.Unavailable);
+
+        if (string.IsNullOrWhiteSpace(externalSubject))
+            return new(LocalCredentialBootstrapStatus.NotAuthorized);
+
+        var users = await db.UserAccounts
+            .Where(x => x.ExternalSubject == externalSubject.Trim())
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        if (users.Count != 1)
+            return new(LocalCredentialBootstrapStatus.NotAuthorized);
+
+        var user = users[0];
+        if (string.IsNullOrWhiteSpace(user.EmailNormalized)
+            || !BootstrapAdministratorMatcher.IsMatch(
+                user,
+                NormalizeEmail(user.EmailNormalized),
+                configuration))
+        {
+            return new(LocalCredentialBootstrapStatus.NotAuthorized);
+        }
+
+        if (await CredentialExistsAsync(user.UserId, cancellationToken))
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                UPDATE app.LocalAuthCredentials
+                SET GlobalRoleCode = {"ADMINISTRATOR"},
+                    UpdatedAtUtc = SYSUTCDATETIME()
+                WHERE UserId = {user.UserId};
+                """,
+                cancellationToken);
+
+            return new(LocalCredentialBootstrapStatus.AlreadyConfigured, user);
+        }
+
+        var now = DateTime.UtcNow;
+        var passwordHash = passwordHasher.HashPassword(user, password);
+        var localSubject = $"local:{Guid.NewGuid():N}";
+
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction =
+                await db.Database.BeginTransactionAsync(cancellationToken);
+
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT INTO app.LocalAuthCredentials
+                    (UserId, PasswordHash, GlobalRoleCode, FailedSignInCount,
+                     LockoutEndUtc, LastSignInAtUtc, CreatedAtUtc, UpdatedAtUtc)
+                VALUES
+                    ({user.UserId}, {passwordHash}, {"ADMINISTRATOR"}, 0,
+                     NULL, NULL, {now}, {now});
+                """,
+                cancellationToken);
+
+            user.ExternalSubject = localSubject;
+            user.AccountStatusCode = "ACTIVE";
+            user.UpdatedAtUtc = now;
+            await db.SaveChangesAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+        });
+
+        return new(LocalCredentialBootstrapStatus.Created, user);
     }
 
     public async Task<LocalSignInResult> ValidateCredentialsAsync(
@@ -341,8 +456,44 @@ public sealed class LocalAuthService(
         DateTime? LockoutEndUtc);
 }
 
+internal static class BootstrapAdministratorMatcher
+{
+    public static bool IsMatch(
+        UserAccount user,
+        string normalizedEmail,
+        IConfiguration configuration)
+    {
+        var configuredHash =
+            configuration["WebRecomp:BootstrapAdministratorEmailSha256"]?
+                .Trim()
+                .ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(configuredHash))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(user.ExternalSubject)
+            || user.ExternalSubject.StartsWith(
+                "local:",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var normalized = normalizedEmail.Trim().ToLowerInvariant();
+        var actualHash = Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))
+            .ToLowerInvariant();
+
+        return string.Equals(
+            configuredHash,
+            actualHash,
+            StringComparison.Ordinal);
+    }
+}
+
 public sealed class LocalAuthSchemaHostedService(
     IServiceProvider services,
+    IConfiguration configuration,
     ILogger<LocalAuthSchemaHostedService> logger) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -361,17 +512,45 @@ public sealed class LocalAuthSchemaHostedService(
 
             try
             {
-                await using var command = connection.CreateCommand();
-                command.CommandText = """
-                    SELECT CASE
-                        WHEN OBJECT_ID(N'app.LocalAuthCredentials', N'U') IS NULL THEN 0
-                        ELSE 1
-                    END;
-                    """;
+                if (!await CredentialTableExistsAsync(connection, cancellationToken))
+                {
+                    try
+                    {
+                        await using var create = connection.CreateCommand();
+                        create.CommandText = """
+                            IF OBJECT_ID(N'app.LocalAuthCredentials', N'U') IS NULL
+                            BEGIN
+                                CREATE TABLE app.LocalAuthCredentials
+                                (
+                                    UserId uniqueidentifier NOT NULL,
+                                    PasswordHash nvarchar(512) NOT NULL,
+                                    GlobalRoleCode varchar(20) NOT NULL
+                                        CONSTRAINT DF_LocalAuthCredentials_GlobalRoleCode DEFAULT ('CLIENT'),
+                                    FailedSignInCount int NOT NULL
+                                        CONSTRAINT DF_LocalAuthCredentials_FailedSignInCount DEFAULT (0),
+                                    LockoutEndUtc datetime2(3) NULL,
+                                    LastSignInAtUtc datetime2(3) NULL,
+                                    CreatedAtUtc datetime2(3) NOT NULL,
+                                    UpdatedAtUtc datetime2(3) NOT NULL,
+                                    CONSTRAINT PK_LocalAuthCredentials PRIMARY KEY (UserId),
+                                    CONSTRAINT FK_LocalAuthCredentials_UserAccounts
+                                        FOREIGN KEY (UserId) REFERENCES app.UserAccounts(user_id)
+                                );
+                            END;
+                            """;
 
-                var scalar = await command.ExecuteScalarAsync(cancellationToken);
+                        await create.ExecuteNonQueryAsync(cancellationToken);
+                    }
+                    catch (DbException exception)
+                    {
+                        logger.LogWarning(
+                            exception,
+                            "12WR local-auth schema is missing and the application identity could not create it.");
+                    }
+                }
+
                 LocalAuthSchemaReadiness.IsReady =
-                    scalar is not null && scalar is not DBNull && Convert.ToInt32(scalar) == 1;
+                    await CredentialTableExistsAsync(connection, cancellationToken);
             }
             finally
             {
@@ -381,8 +560,12 @@ public sealed class LocalAuthSchemaHostedService(
 
             if (LocalAuthSchemaReadiness.IsReady)
             {
+                await PromoteConfiguredLegacyAdministratorAsync(
+                    db,
+                    cancellationToken);
+
                 logger.LogInformation(
-                    "12WR local-auth database schema is present; native auth is enabled.");
+                    "12WR local-auth database schema is ready; native auth is enabled.");
             }
             else
             {
@@ -402,4 +585,61 @@ public sealed class LocalAuthSchemaHostedService(
 
     public Task StopAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
+
+    private static async Task<bool> CredentialTableExistsAsync(
+        DbConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT CASE
+                WHEN OBJECT_ID(N'app.LocalAuthCredentials', N'U') IS NULL THEN 0
+                ELSE 1
+            END;
+            """;
+
+        var scalar = await command.ExecuteScalarAsync(cancellationToken);
+        return scalar is not null
+            && scalar is not DBNull
+            && Convert.ToInt32(scalar) == 1;
+    }
+
+    private async Task PromoteConfiguredLegacyAdministratorAsync(
+        RecompDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var configuredHash =
+            configuration["WebRecomp:BootstrapAdministratorEmailSha256"]?
+                .Trim()
+                .ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(configuredHash))
+            return;
+
+        var candidates = await db.UserAccounts
+            .Where(x => x.EmailNormalized != null)
+            .ToListAsync(cancellationToken);
+
+        var users = candidates
+            .Where(x => BootstrapAdministratorMatcher.IsMatch(
+                x,
+                x.EmailNormalized!,
+                configuration))
+            .Take(2)
+            .ToList();
+
+        if (users.Count != 1)
+            return;
+
+        var user = users[0];
+
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            UPDATE app.LocalAuthCredentials
+            SET GlobalRoleCode = {"ADMINISTRATOR"},
+                UpdatedAtUtc = SYSUTCDATETIME()
+            WHERE UserId = {user.UserId};
+            """,
+            cancellationToken);
+    }
 }
