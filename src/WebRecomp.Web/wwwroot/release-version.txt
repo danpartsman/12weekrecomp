@@ -2,4 +2,4 @@
 source_branch=test
 source_sha=d806c689de8c0aabb073fe1ce734e9c4d2a04344
 release_date=2026-10-03
-deployment_trigger=main-push
+deployment_trigger=main-push-after-kudu-timeout-fix
