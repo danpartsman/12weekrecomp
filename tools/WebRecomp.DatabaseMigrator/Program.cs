@@ -1,3 +1,5 @@
+using Azure.Core;
+using Azure.Identity;
 using Microsoft.Data.SqlClient;
 
 const string connectionStringVariable = "RECOMP_RUNTIME_CONNECTION_STRING";
@@ -14,8 +16,19 @@ if (string.IsNullOrWhiteSpace(runtimeConnectionString))
 
 if (string.IsNullOrWhiteSpace(accessToken))
 {
-    Console.Error.WriteLine($"Required environment variable {tokenVariable} is missing.");
-    return 3;
+    try
+    {
+        var credential = new AzureCliCredential();
+        var token = await credential.GetTokenAsync(
+            new TokenRequestContext(["https://database.windows.net/.default"]));
+        accessToken = token.Token;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine(
+            $"Could not obtain Azure SQL access token from Azure CLI: {exception.Message}");
+        return 3;
+    }
 }
 
 var runtimeBuilder = new SqlConnectionStringBuilder(runtimeConnectionString);
