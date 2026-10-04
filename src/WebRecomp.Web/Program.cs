@@ -1,13 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.StaticFiles;
 using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Web;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Middleware;
 using WebRecomp.Web.Models;
@@ -52,9 +50,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.AllowedHosts.Add("recomp-live.azurewebsites.net");
 });
 
-// Native 12WR cookie authentication is now the normal customer path. Entra
-// remains registered only as a compatibility/staff sign-in option while
-// existing external accounts are migrated deliberately.
+// Native 12WR cookie authentication is the only interactive sign-in path.
 builder.Services
     .AddAuthentication(options =>
     {
@@ -63,8 +59,7 @@ builder.Services
         options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     })
-    .AddMicrosoftIdentityWebApp(
-        builder.Configuration.GetSection("AzureAd"));
+    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme);
 
 builder.Services.Configure<CookieAuthenticationOptions>(
     CookieAuthenticationDefaults.AuthenticationScheme,
@@ -78,23 +73,6 @@ builder.Services.Configure<CookieAuthenticationOptions>(
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.ExpireTimeSpan = TimeSpan.FromDays(30);
         options.SlidingExpiration = true;
-    });
-
-builder.Services.Configure<OpenIdConnectOptions>(
-    OpenIdConnectDefaults.AuthenticationScheme,
-    options =>
-    {
-        options.Events.OnRedirectToIdentityProviderForSignOut = context =>
-        {
-            var loginHint = context.HttpContext.User.FindFirst("login_hint")?.Value;
-
-            if (!string.IsNullOrWhiteSpace(loginHint))
-            {
-                context.ProtocolMessage.SetParameter("logout_hint", loginHint);
-            }
-
-            return Task.CompletedTask;
-        };
     });
 
 builder.Services.AddAuthorization(options =>
@@ -151,9 +129,8 @@ builder.Services.AddDbContext<RecompDbContext>(options =>
     options.UseSqlServer(connectionString, sql =>
         sql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null)));
 
-// The idempotent local-auth schema bootstrap must run before TEST seeders that
-// query customer records. It only adds the credential table; existing customer,
-// client, program, workout and nutrition data are untouched.
+// Verify the migration-owned local-auth schema at startup. The runtime web
+// identity intentionally performs no DDL.
 builder.Services.AddHostedService<LocalAuthSchemaHostedService>();
 builder.Services.AddScoped<IPasswordHasher<UserAccount>, PasswordHasher<UserAccount>>();
 builder.Services.AddScoped<LocalAuthService>();
@@ -283,8 +260,8 @@ app.UseRouting();
 
 app.UseAuthentication();
 
-// A permanent 12WR cookie or a legacy Entra cookie wins. Only anonymous
-// requests are eligible for restoration from temporary TEST/demo cookies.
+// A permanent 12WR cookie wins. Only anonymous requests are eligible for
+// restoration from temporary TEST/demo cookies.
 app.UseMiddleware<DemoSessionMiddleware>();
 app.UseMiddleware<TestPersonaMiddleware>();
 
