@@ -87,7 +87,7 @@ jobs:
           az webapp config appsettings set `
             --resource-group $env:AZURE_RESOURCE_GROUP `
             --name $env:AZURE_WEBAPP_NAME `
-            --settings WEBSITE_RUN_FROM_PACKAGE="1" SCM_DO_BUILD_DURING_DEPLOYMENT="false" `
+            --settings WEBSITE_RUN_FROM_PACKAGE="1" SCM_DO_BUILD_DURING_DEPLOYMENT="false" WebRecomp__BootstrapAdministratorEmailSha256="0618188557cf5bee9c97b08c64f7a748835803dbaf1aa2a5cf3a9f2dd1da60bb" `
             --output none
 
           az webapp config appsettings delete `
