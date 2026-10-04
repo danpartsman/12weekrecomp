@@ -129,9 +129,8 @@ builder.Services.AddDbContext<RecompDbContext>(options =>
     options.UseSqlServer(connectionString, sql =>
         sql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null)));
 
-// The idempotent local-auth schema bootstrap must run before TEST seeders that
-// query customer records. It only adds the credential table; existing customer,
-// client, program, workout and nutrition data are untouched.
+// Verify the migration-owned local-auth schema at startup. The runtime web
+// identity intentionally performs no DDL.
 builder.Services.AddHostedService<LocalAuthSchemaHostedService>();
 builder.Services.AddScoped<IPasswordHasher<UserAccount>, PasswordHasher<UserAccount>>();
 builder.Services.AddScoped<LocalAuthService>();
