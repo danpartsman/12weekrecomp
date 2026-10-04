@@ -218,17 +218,32 @@ public sealed class LocalAuthService(
 
         var now = DateTime.UtcNow;
         var passwordHash = passwordHasher.HashPassword(user, password);
+        var localSubject = $"local:{Guid.NewGuid():N}";
 
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            INSERT INTO app.LocalAuthCredentials
-                (UserId, PasswordHash, GlobalRoleCode, FailedSignInCount,
-                 LockoutEndUtc, LastSignInAtUtc, CreatedAtUtc, UpdatedAtUtc)
-            VALUES
-                ({user.UserId}, {passwordHash}, {"ADMINISTRATOR"}, 0,
-                 NULL, NULL, {now}, {now});
-            """,
-            cancellationToken);
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction =
+                await db.Database.BeginTransactionAsync(cancellationToken);
+
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT INTO app.LocalAuthCredentials
+                    (UserId, PasswordHash, GlobalRoleCode, FailedSignInCount,
+                     LockoutEndUtc, LastSignInAtUtc, CreatedAtUtc, UpdatedAtUtc)
+                VALUES
+                    ({user.UserId}, {passwordHash}, {"ADMINISTRATOR"}, 0,
+                     NULL, NULL, {now}, {now});
+                """,
+                cancellationToken);
+
+            user.ExternalSubject = localSubject;
+            user.AccountStatusCode = "ACTIVE";
+            user.UpdatedAtUtc = now;
+            await db.SaveChangesAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+        });
 
         return new(LocalCredentialBootstrapStatus.Created, user);
     }
