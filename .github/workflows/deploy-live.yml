@@ -92,6 +92,29 @@ jobs:
 
           Write-Host "Required RecompDatabase connection-string setting is present."
 
+      - name: Apply LIVE database runtime grants
+        shell: pwsh
+        run: |
+          $connection = az webapp config connection-string list `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AZURE_WEBAPP_NAME `
+            --query "[?name=='RecompDatabase'].value | [0]" `
+            -o tsv
+
+          if ([string]::IsNullOrWhiteSpace($connection)) {
+              throw "Could not read LIVE RecompDatabase connection string."
+          }
+
+          $env:RECOMP_RUNTIME_CONNECTION_STRING = $connection
+
+          dotnet run `
+            --project tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj `
+            --configuration Release
+
+          if ($LASTEXITCODE -ne 0) {
+              throw "LIVE database runtime grant migration failed."
+          }
+
       - name: Configure LIVE run-from-package deployment
         shell: pwsh
         run: |
