@@ -2269,6 +2269,19 @@ public sealed class DetailedWorkoutController(
                 stoppedAtUtc;
         }
 
+        if (session.CompletedFlag
+            && model.EditCompleted
+            && !completeWorkout
+            && !stopWorkout)
+        {
+            // Editing a completed workout changes the same canonical actual
+            // row in place. Re-stamp it so no stale Engine 2.x derived values
+            // survive the correction.
+            workoutActuals.ApplyCurrentEngineState(
+                session,
+                completed: true);
+        }
+
         if (saveTemplate)
         {
             var templateName =
