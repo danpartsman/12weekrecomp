@@ -707,6 +707,12 @@ public static class SystemWorkoutRecipeCatalog
         if (string.IsNullOrWhiteSpace(engineWorkoutTypeCode))
             return null;
 
+        if (CardioActivityCatalog.IsCollapsedCardioEngineCode(
+                engineWorkoutTypeCode))
+        {
+            return CardioPresentationRecipe;
+        }
+
         var matches =
             Presentation
                 .Where(
