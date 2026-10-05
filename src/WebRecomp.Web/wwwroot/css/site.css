@@ -5230,3 +5230,101 @@ html[data-theme="dark"] .learn12wr-recomp-emphasis p {
     color: #0e7490;
 }
 .app-daily-entry-button { white-space: nowrap; }
+
+
+/* ===== v1013 Weekly Plan primary-goal preview ===== */
+.plan-goal-preview {
+    display:grid;
+    grid-template-columns:minmax(0,1.55fr) minmax(280px,.75fr);
+    gap:18px;
+    align-items:center;
+    margin:16px 0 18px;
+    padding:18px 20px;
+    border:1px solid #cbd5e1;
+    border-radius:16px;
+    background:linear-gradient(135deg,#f8fbff,#f7faf8);
+    box-shadow:0 4px 14px rgba(15,23,42,.06);
+}
+
+.plan-goal-preview.is-previewing {
+    border-color:#2563eb;
+    box-shadow:0 6px 20px rgba(37,99,235,.12);
+}
+
+.plan-goal-preview h2 {
+    margin:.28rem 0 .48rem;
+    font-size:1.12rem;
+    line-height:1.35;
+}
+
+.plan-goal-preview p {
+    margin:.35rem 0 0;
+    color:#475569;
+    line-height:1.48;
+}
+
+.plan-goal-engine-note {
+    font-size:.82rem;
+}
+
+.plan-goal-preview-controls {
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:10px;
+}
+
+.plan-goal-preview-form {
+    display:grid;
+    gap:6px;
+}
+
+.plan-goal-preview-form label {
+    font-size:.76rem;
+    font-weight:900;
+    letter-spacing:.035em;
+    text-transform:uppercase;
+    color:#334155;
+}
+
+.plan-goal-preview-form select {
+    width:100%;
+    min-height:44px;
+    padding:.62rem .7rem;
+    border:1px solid #94a3b8;
+    border-radius:10px;
+    background:#fff;
+    color:#0f172a;
+    font-weight:800;
+}
+
+.plan-goal-preview-actions {
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+}
+
+.plan-goal-preview-actions form {
+    margin:0;
+}
+
+.plan-goal-current-pill {
+    align-self:flex-start;
+    display:inline-flex;
+    padding:.38rem .62rem;
+    border:1px solid #86efac;
+    border-radius:999px;
+    background:#f0fdf4;
+    color:#166534;
+    font-size:.74rem;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+}
+
+@media (max-width: 860px) {
+    .plan-goal-preview {
+        grid-template-columns:1fr;
+    }
+}
