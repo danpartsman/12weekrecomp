@@ -1811,12 +1811,17 @@
                                         </span>
                                     </div>
                                 }
-                                <p class="small">
-                                    @Model.SelectedSystemWorkout.GroupName - @Model.SelectedSystemWorkout.DefaultMinutes.ToString("0") min - RPE @Model.SelectedSystemWorkout.DefaultRpe.ToString("0.#")
-                                </p>
+                                @if (!selectedIsRest && !selectedIsCardio)
+                                {
+                                    <p class="small">
+                                        @Model.SelectedSystemWorkout.GroupName - @Model.SelectedSystemWorkout.DefaultMinutes.ToString("0") min - RPE @Model.SelectedSystemWorkout.DefaultRpe.ToString("0.#")
+                                    </p>
+                                }
 
-                                @if (!string.IsNullOrWhiteSpace(
-                                    Model.SelectedSystemWorkout.Description))
+                                @if (!selectedIsRest
+                                    && !selectedIsCardio
+                                    && !string.IsNullOrWhiteSpace(
+                                        Model.SelectedSystemWorkout.Description))
                                 {
                                     <p class="small">
                                         @Model.SelectedSystemWorkout.Description
@@ -1867,14 +1872,16 @@
                                 }
                                 else if (selectedIsRest)
                                 {
-                                    <div class="wi-workspace-empty">
-                                        A rest day does not need a timer, sets, reps, duration or RPE. Mark it complete when no training was performed.
+                                    <div class="wi-quick-log-intro wi-quick-log-intro--recovery">
+                                        <strong>Recovery day</strong>
+                                        <span>No timer, sets, reps, duration or RPE needed. Just confirm that this was a no-training recovery day.</span>
                                     </div>
                                 }
                                 else if (selectedIsCardio)
                                 {
-                                    <div class="wi-workspace-empty">
-                                        Choose the cardio activity you actually performed. Activity type, duration and RPE are saved as the Engine-facing actual inputs.
+                                    <div class="wi-quick-log-intro wi-quick-log-intro--cardio">
+                                        <strong>Quick cardio log</strong>
+                                        <span>Choose what you did, enter the actual duration and RPE, and save it. That is all 12WR needs.</span>
                                     </div>
                                 }
                                 else
@@ -1886,81 +1893,87 @@
 
                                 @if (selectedIsRest)
                                 {
-                                    <div class="wi-actions">
-                                        <form asp-action="CompleteRest" method="post">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
-                                            <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
-                                            <button class="button primary" type="submit">Complete Rest Day</button>
-                                        </form>
+                                    <div class="wi-quick-log wi-quick-log--recovery">
+                                        <div class="wi-quick-log-summary">
+                                            <span class="wi-quick-log-kicker">RECOVERY / REST</span>
+                                            <strong>Nothing else to enter.</strong>
+                                            <small>Completing this records a true rest day with zero workout duration and no artificial RPE.</small>
+                                        </div>
 
-                                        <a class="button"
-                                           asp-action="Index"
-                                           asp-route-mode="start"
-                                           asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
-                                           asp-route-returnContext="@Model.ReturnContext">
-                                            Choose Another Activity
-                                        </a>
+                                        <div class="wi-actions wi-quick-log-actions">
+                                            <form asp-action="CompleteRest" method="post">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                                <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                                                <button class="button primary" type="submit">Complete Rest Day</button>
+                                            </form>
+
+                                            <a class="button"
+                                               asp-action="Index"
+                                               asp-route-mode="start"
+                                               asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                               asp-route-returnContext="@Model.ReturnContext">
+                                                Back to Workouts
+                                            </a>
+                                        </div>
                                     </div>
                                 }
                                 else if (selectedIsCardio)
                                 {
                                     <form asp-action="CompleteCardio"
                                           method="post"
-                                          class="wi-cardio-complete">
+                                          class="wi-cardio-complete wi-quick-log wi-quick-log--cardio">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
                                         <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
 
-                                        <label>
-                                            <span>Search cardio activity</span>
-                                            <input type="search"
-                                                   data-cardio-search
-                                                   placeholder="stairs, cycling, running, rowing..." />
-                                        </label>
-
-                                        <label>
-                                            <span>What did you do?</span>
-                                            <select name="cardioActivityCode"
-                                                    data-cardio-select
+                                        <div class="wi-cardio-activity-field">
+                                            <label for="cardio-activity">Cardio activity</label>
+                                            <select id="cardio-activity"
+                                                    name="cardioActivityCode"
                                                     required>
-                                                <option value="">Choose activity...</option>
+                                                <option value="">Choose what you did...</option>
                                                 @foreach (var activity in Model.CardioActivities)
                                                 {
-                                                    <option value="@activity.ActivityCode"
-                                                            data-search="@($"{activity.DisplayName} {activity.SearchTerms}")">
+                                                    <option value="@activity.ActivityCode">
                                                         @activity.DisplayName
                                                     </option>
                                                 }
                                             </select>
-                                        </label>
+                                        </div>
 
-                                        <label>
-                                            <span>Duration</span>
-                                            <div class="wi-review-input-unit">
+                                        <div class="wi-cardio-number-row">
+                                            <label class="wi-cardio-number-field">
+                                                <span>Duration</span>
+                                                <div class="wi-review-input-unit">
+                                                    <input type="number"
+                                                           name="durationMin"
+                                                           min="1"
+                                                           max="720"
+                                                           step="1"
+                                                           value=""
+                                                           placeholder="30"
+                                                           inputmode="numeric"
+                                                           required />
+                                                    <small>min</small>
+                                                </div>
+                                            </label>
+
+                                            <label class="wi-cardio-number-field">
+                                                <span>RPE</span>
                                                 <input type="number"
-                                                       name="durationMin"
+                                                       name="sessionRpe"
                                                        min="1"
-                                                       max="720"
-                                                       step="1"
-                                                       value="@Model.SelectedSystemWorkout.DefaultMinutes.ToString("0")"
+                                                       max="10"
+                                                       step="0.5"
+                                                       value="@Math.Max(1m, Model.SelectedSystemWorkout.DefaultRpe).ToString("0.#")"
+                                                       inputmode="decimal"
                                                        required />
-                                                <small>min</small>
-                                            </div>
-                                        </label>
+                                                <small>1–10 effort</small>
+                                            </label>
+                                        </div>
 
-                                        <label>
-                                            <span>RPE</span>
-                                            <input type="number"
-                                                   name="sessionRpe"
-                                                   min="1"
-                                                   max="10"
-                                                   step="0.5"
-                                                   value="@Math.Max(1m, Model.SelectedSystemWorkout.DefaultRpe).ToString("0.#")"
-                                                   required />
-                                        </label>
-
-                                        <div class="wi-actions">
+                                        <div class="wi-actions wi-quick-log-actions">
                                             <button class="button primary" type="submit">Complete Cardio</button>
                                             <button class="button"
                                                     type="submit"
@@ -1973,7 +1986,7 @@
                                                asp-route-mode="start"
                                                asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
                                                asp-route-returnContext="@Model.ReturnContext">
-                                                Choose Another Activity
+                                                Back to Workouts
                                             </a>
                                         </div>
                                     </form>
@@ -2227,46 +2240,6 @@
         </section>
     }
 </div>
-
-<script>
-(() => {
-    document.querySelectorAll(".wi-cardio-complete").forEach(form => {
-        const search = form.querySelector("[data-cardio-search]");
-        const select = form.querySelector("[data-cardio-select]");
-        if (!search || !select) return;
-
-        const all = Array.from(select.options).slice(1).map(option => ({
-            value: option.value,
-            text: option.textContent || "",
-            search: (option.dataset.search || "").toLowerCase()
-        }));
-
-        search.addEventListener("input", () => {
-            const q = search.value.trim().toLowerCase();
-            const current = select.value;
-            select.innerHTML = '<option value="">Choose activity...</option>';
-
-            all.filter(item => !q || item.search.includes(q))
-                .forEach(item => {
-                    const option = document.createElement("option");
-                    option.value = item.value;
-                    option.textContent = item.text;
-                    select.appendChild(option);
-                });
-
-            if (Array.from(select.options).some(x => x.value === current)) {
-                select.value = current;
-            }
-        });
-    });
-})();
-</script>
-<style>
-    .wi-cardio-complete { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
-    .wi-cardio-complete > label { display: grid; gap: .4rem; }
-    .wi-cardio-complete > .wi-actions { grid-column: 1 / -1; }
-    @@media (max-width: 700px) { .wi-cardio-complete { grid-template-columns: 1fr; } }
-</style>
 
 <style>
     .workout-intelligence-page.wi-live-page-minimal .wi-set-timer {
