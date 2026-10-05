@@ -2699,3 +2699,43 @@ body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-number-fi
 body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-actions {
     border-top-color:#315a84 !important;
 }
+
+
+/* ===== v1013.6 completed workout sync dark treatment ===== */
+body.test-live-preview.app-shell .daily-entry-actual-sync {
+    border-color:#3d9960 !important;
+    background:rgba(20,74,45,.42) !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-actual-sync strong {
+    color:#9af8b1 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-actual-sync span {
+    color:#c8dfd0 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-completed-actual {
+    border-color:#315a84 !important;
+    background:#0a1a2d !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-completed-badge {
+    background:rgba(30,110,63,.42) !important;
+    color:#9af8b1 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-completed-stats > div {
+    border-color:#315a84 !important;
+    background:#08182a !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-completed-stats span,
+body.test-live-preview.app-shell .daily-entry-completed-actual p {
+    color:#a9bdd2 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-completed-stats strong,
+body.test-live-preview.app-shell .daily-entry-completed-actual-head strong {
+    color:#f5f8ff !important;
+}
