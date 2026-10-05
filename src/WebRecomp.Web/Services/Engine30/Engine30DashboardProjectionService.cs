@@ -224,6 +224,57 @@ public sealed class Engine30DashboardProjectionService(
             EnergyCarryover: todayWeek.EnergyCarryover);
     }
 
+    /// <summary>
+    /// Returns the authoritative Engine 3.0 prescription for every day in a
+    /// requested planning week. This is the shared source for Weekly Plan
+    /// calories and macros; legacy Engine 2.x target math must not be used by
+    /// the planning UI.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<DateOnly, Engine30DashboardDayProjection>>
+        BuildPlanningWeekAsync(
+            AppClientContext context,
+            DateOnly weekStart,
+            string planCode,
+            CancellationToken cancellationToken = default)
+    {
+        if (context.Client is null || context.Program is null)
+            throw new InvalidOperationException("Active client/program required.");
+
+        if (string.IsNullOrWhiteSpace(planCode))
+            throw new ArgumentException("Plan code is required.", nameof(planCode));
+
+        var client = context.Client;
+        var program = context.Program;
+
+        ValidateClientProfile(client);
+
+        var normalizedWeekStart = WeekStart(weekStart);
+        var knowledgeCutoffDate =
+            AppUserContextService.GetClientToday(client);
+
+        var definitions =
+            await LoadEngine30DefinitionsAsync(cancellationToken);
+
+        var measurements =
+            await LoadMeasurementsAsync(
+                client.ClientId,
+                knowledgeCutoffDate,
+                cancellationToken);
+
+        var week =
+            await BuildWeekAsync(
+                client,
+                program,
+                normalizedWeekStart,
+                knowledgeCutoffDate,
+                planCode,
+                definitions,
+                measurements,
+                cancellationToken);
+
+        return week.Days;
+    }
+
     public async Task<Engine30DashboardYesterdayImpactProjection>
         BuildYesterdayImpactAsync(
             AppClientContext context,
