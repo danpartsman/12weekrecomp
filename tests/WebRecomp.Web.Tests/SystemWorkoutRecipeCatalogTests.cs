@@ -536,4 +536,55 @@ public sealed class SystemWorkoutRecipeCatalogTests
 
         Assert.All(recipes, recipe => Assert.True(recipe.Slots.Count >= 8));
     }
+
+    [Fact]
+    public void PlanningRecipesKeepOnlyReusableOrangetheoryChoices()
+    {
+        var planningOrangetheory =
+            SystemWorkoutRecipeCatalog
+                .PlanningRecipes
+                .Where(
+                    x => x.GroupName.Equals(
+                        "Orangetheory",
+                        StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+        Assert.Equal(
+            new[]
+            {
+                "ORANGETHEORY",
+                "SYS_OTF_STRENGTH_50"
+            },
+            planningOrangetheory
+                .Select(x => x.SystemCode)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+
+        Assert.DoesNotContain(
+            SystemWorkoutRecipeCatalog.PlanningRecipes,
+            x =>
+                SystemWorkoutRecipeCatalog
+                    .IsDatedOrangetheorySystemCode(
+                        x.SystemCode));
+
+        Assert.Contains(
+            SystemWorkoutRecipeCatalog.PresentationRecipes,
+            x =>
+                SystemWorkoutRecipeCatalog
+                    .IsDatedOrangetheorySystemCode(
+                        x.SystemCode));
+
+        Assert.Equal(
+            "ORANGETHEORY",
+            SystemWorkoutRecipeCatalog
+                .NormalizePlanningSystemCode(
+                    "OTF_2G_2026_09_30"));
+
+        Assert.Equal(
+            "SYS_OTF_STRENGTH_50",
+            SystemWorkoutRecipeCatalog
+                .NormalizePlanningSystemCode(
+                    "OTF_STRENGTH50_2026_09_30"));
+    }
+
 }
