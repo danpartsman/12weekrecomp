@@ -61,7 +61,7 @@ public sealed class ScheduleController(
 
         var systemWorkouts =
             SystemWorkoutRecipeCatalog
-                .PresentationRecipes
+                .PlanningRecipes
                 .Where(
                     recipe =>
                         workoutMap.ContainsKey(
@@ -237,6 +237,11 @@ public sealed class ScheduleController(
                             normalizedWorkoutTypeCode)
                         ?.SystemCode;
             }
+
+            plannedSystemCode =
+                SystemWorkoutRecipeCatalog
+                    .NormalizePlanningSystemCode(
+                        plannedSystemCode);
 
             var plannedSystem =
                 !string.IsNullOrWhiteSpace(
