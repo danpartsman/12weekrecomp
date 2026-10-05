@@ -2032,8 +2032,7 @@ public sealed class DetailedWorkoutController(
 
             var returnWeek =
                 model.ReturnWeekStart
-                ?? WeeklyStrategyService
-                    .WeekStart(plannedDate);
+                ?? PlanningWeek.Start(plannedDate);
 
             return RedirectToAction(
                 "Index",
