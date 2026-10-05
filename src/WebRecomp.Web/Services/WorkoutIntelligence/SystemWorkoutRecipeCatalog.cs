@@ -631,6 +631,65 @@ public static class SystemWorkoutRecipeCatalog
     public static IReadOnlyList<SystemWorkoutRecipe> SignatureRecipes => Signature;
     public static IReadOnlyList<SystemWorkoutRecipe> PresentationRecipes => Presentation;
 
+    // Planning intentionally excludes dated Orangetheory templates. Future
+    // workouts are not known yet; the weekly planner should offer only the
+    // reusable generic 2G / Strength template while dated recipes remain
+    // available in the workout library for day-of use and history.
+    public static IReadOnlyList<SystemWorkoutRecipe> PlanningRecipes =>
+        Presentation
+            .Where(
+                recipe =>
+                    !IsDatedOrangetheorySystemCode(
+                        recipe.SystemCode))
+            .ToArray();
+
+    public static string? NormalizePlanningSystemCode(
+        string? systemCode)
+    {
+        if (string.IsNullOrWhiteSpace(systemCode))
+            return systemCode;
+
+        var normalized = systemCode.Trim();
+
+        if (normalized.StartsWith(
+                "OTF_2G_",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "ORANGETHEORY";
+        }
+
+        if (normalized.StartsWith(
+                "OTF_STRENGTH50_",
+                StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith(
+                "OTF_STRENGTH60_",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "SYS_OTF_STRENGTH_50";
+        }
+
+        return normalized;
+    }
+
+    public static bool IsDatedOrangetheorySystemCode(
+        string? systemCode)
+    {
+        if (string.IsNullOrWhiteSpace(systemCode))
+            return false;
+
+        var normalized = systemCode.Trim();
+
+        return normalized.StartsWith(
+                   "OTF_2G_",
+                   StringComparison.OrdinalIgnoreCase)
+               || normalized.StartsWith(
+                   "OTF_STRENGTH50_",
+                   StringComparison.OrdinalIgnoreCase)
+               || normalized.StartsWith(
+                   "OTF_STRENGTH60_",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
     public static IReadOnlyList<string> PresentationCategoryOrder { get; } =
     [
         "Resistance",
