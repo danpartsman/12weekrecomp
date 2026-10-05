@@ -32,6 +32,10 @@
     var analysisAvailable =
         ViewData["AnalysisAvailable"] is bool available
         && available;
+
+    var workoutDateIso =
+        ViewData["WorkoutDateIso"] as string
+        ?? DateTime.Today.ToString("yyyy-MM-dd");
 }
 
 <div class="app-page workout-intelligence-page wi-complete-page">
@@ -81,6 +85,33 @@
                 </div>
             }
         </div>
+
+        <section class="wi-complete-sync"
+                 aria-label="Workout saved across 12 Week Recomp">
+            <strong>Daily Tracking and Dashboard updated</strong>
+            <p>
+                This completed WorkoutSession is now the actual training record for the day.
+                Daily Tracking shows it as completed, and the Dashboard uses the actual duration,
+                RPE, calorie estimate and glycogen demand instead of the planned workout estimate.
+            </p>
+
+            <div class="wi-actions">
+                <a class="button"
+                   asp-controller="DailyEntry"
+                   asp-action="Index"
+                   asp-route-date="@workoutDateIso"
+                   asp-fragment="training">
+                    View Daily Tracking
+                </a>
+
+                <a class="button"
+                   asp-controller="Dashboard"
+                   asp-action="Index"
+                   asp-route-date="@workoutDateIso">
+                    View Updated Dashboard
+                </a>
+            </div>
+        </section>
 
         <section class="wi-complete-next-v1012"
                  aria-label="Continue training">
