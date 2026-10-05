@@ -2292,3 +2292,119 @@ body.test-live-preview.app-shell .plan-day-row.plan-pending-change .plan-recalc-
     color: #fff1a8 !important;
     font-weight: 900;
 }
+
+
+/* ===== v1013.1 weekly summary fills + picker category colors ===== */
+body.test-live-preview.app-shell .plan-week-mix {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-item {
+    min-height: 5.15rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-width: 2px !important;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .24);
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-major {
+    background: linear-gradient(145deg, #a51f36, #731426) !important;
+    border-color: #ff5968 !important;
+}
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-major strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-major span {
+    color: #fff !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-accessory {
+    background: linear-gradient(145deg, #bd5b12, #843b08) !important;
+    border-color: #ff9b38 !important;
+}
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-accessory strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-accessory span {
+    color: #fff !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-cardio {
+    background: linear-gradient(145deg, #e0ba19, #a88709) !important;
+    border-color: #ffe15a !important;
+}
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-cardio strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-cardio span {
+    color: #071526 !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recovery {
+    background: linear-gradient(145deg, #19844a, #105d33) !important;
+    border-color: #60ee89 !important;
+}
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recovery strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recovery span {
+    color: #fff !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-unplanned {
+    background: linear-gradient(145deg, #3b5873, #263d54) !important;
+    border-color: #7699b9 !important;
+}
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-unplanned strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-unplanned span {
+    color: #f3f8fc !important;
+}
+
+/* Closed picker inherits the day's semantic color. */
+body.test-live-preview.app-shell .plan-cat-major .plan-workout-select {
+    border-color: #ff5968 !important;
+    color: #ff8791 !important;
+}
+body.test-live-preview.app-shell .plan-cat-accessory .plan-workout-select {
+    border-color: #ff9b38 !important;
+    color: #ffb86e !important;
+}
+body.test-live-preview.app-shell .plan-cat-cardio .plan-workout-select {
+    border-color: #ffe15a !important;
+    color: #ffe77e !important;
+}
+body.test-live-preview.app-shell .plan-cat-recovery .plan-workout-select {
+    border-color: #60ee89 !important;
+    color: #91f3ad !important;
+}
+body.test-live-preview.app-shell .plan-cat-unplanned .plan-workout-select {
+    border-color: #7699b9 !important;
+    color: #c0d2e2 !important;
+}
+
+/* Native select menus are browser-rendered, but Chromium/Windows honors
+   option text colors. The closed selector styling above remains the fallback. */
+body.test-live-preview.app-shell .plan-workout-select option[data-category="major"] {
+    color: #d82942;
+    font-weight: 800;
+}
+body.test-live-preview.app-shell .plan-workout-select option[data-category="accessory"] {
+    color: #d5670f;
+    font-weight: 800;
+}
+body.test-live-preview.app-shell .plan-workout-select option[data-category="cardio"] {
+    color: #9a7a00;
+    font-weight: 800;
+}
+body.test-live-preview.app-shell .plan-workout-select option[data-category="recovery"] {
+    color: #168043;
+    font-weight: 800;
+}
+body.test-live-preview.app-shell .plan-workout-select option[data-category="unplanned"] {
+    color: #647c93;
+    font-weight: 800;
+}
+
+@media (max-width: 980px) {
+    body.test-live-preview.app-shell .plan-week-mix {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (max-width: 700px) {
+    body.test-live-preview.app-shell .plan-week-mix {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
