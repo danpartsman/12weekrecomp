@@ -152,7 +152,7 @@ public sealed class WeeklyPlanService(
         IReadOnlyCollection<int>? preferredTrainingDays = null,
         IReadOnlyCollection<int>? preferredRestDays = null)
     {
-        weekStart = WeeklyStrategyService.WeekStart(weekStart);
+        weekStart = PlanningWeek.Start(weekStart);
         var weekEnd = weekStart.AddDays(6);
 
         var exists = await db.PlannedWorkouts.AnyAsync(
@@ -192,7 +192,7 @@ public sealed class WeeklyPlanService(
         DateOnly clientToday,
         CancellationToken cancellationToken = default)
     {
-        var currentWeek = WeeklyStrategyService.WeekStart(clientToday);
+        var currentWeek = PlanningWeek.Start(clientToday);
         var end = currentWeek.AddDays(6);
 
         var alreadyPlanned = await db.PlannedWorkouts.AnyAsync(
@@ -204,7 +204,7 @@ public sealed class WeeklyPlanService(
         if (alreadyPlanned)
             return false;
 
-        var firstProgramWeek = WeeklyStrategyService.WeekStart(program.StartDate);
+        var firstProgramWeek = PlanningWeek.Start(program.StartDate);
         if (currentWeek <= firstProgramWeek)
         {
             return await SeedRecommendedWeekIfBlankAsync(client, program, currentWeek, cancellationToken) > 0;
@@ -232,8 +232,8 @@ public sealed class WeeklyPlanService(
         string sourceCode,
         CancellationToken cancellationToken = default)
     {
-        sourceWeekStart = WeeklyStrategyService.WeekStart(sourceWeekStart);
-        targetWeekStart = WeeklyStrategyService.WeekStart(targetWeekStart);
+        sourceWeekStart = PlanningWeek.Start(sourceWeekStart);
+        targetWeekStart = PlanningWeek.Start(targetWeekStart);
         var targetEnd = targetWeekStart.AddDays(6);
 
         var targetHasPlan = await db.PlannedWorkouts.AnyAsync(
@@ -306,7 +306,7 @@ public sealed class WeeklyPlanService(
         DateOnly effectiveDate,
         CancellationToken cancellationToken = default)
     {
-        weekStart = WeeklyStrategyService.WeekStart(weekStart);
+        weekStart = PlanningWeek.Start(weekStart);
         var weekEnd = weekStart.AddDays(6);
         if (effectiveDate < weekStart) effectiveDate = weekStart;
         if (effectiveDate > weekEnd) return 0;
