@@ -858,7 +858,11 @@ public sealed class DailyEntryController(
             {
                 WorkoutSessionId = x.WorkoutSessionId,
                 WorkoutTemplateId = x.WorkoutTemplateId,
-                SystemWorkoutCode = x.SystemWorkoutCode,
+                SystemWorkoutCode =
+                    CardioActivityCatalog.IsCollapsedCardioEngineCode(
+                        x.WorkoutTypeCode)
+                        ? CardioActivityCatalog.PresentationSystemCode
+                        : x.SystemWorkoutCode,
                 WorkoutName = x.WorkoutName,
                 WorkoutTypeCode =
                     Engine30WorkoutUiCatalogService.NormalizeCode(
