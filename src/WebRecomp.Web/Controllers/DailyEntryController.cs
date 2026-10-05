@@ -390,11 +390,72 @@ public sealed class DailyEntryController(
                                     baseRpe);
                     }
                 }
+
+                if (selectedSystemWorkout.SystemCode.Equals(
+                        CardioActivityCatalog.PresentationSystemCode,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!CardioActivityCatalog.TryGet(
+                            input.CardioActivityCode,
+                            out var cardioActivity)
+                        || cardioActivity is null)
+                    {
+                        ModelState.AddModelError(
+                            nameof(model.Workouts),
+                            "Choose the cardio activity you actually performed.");
+
+                        continue;
+                    }
+
+                    input.WorkoutTypeCode =
+                        cardioActivity.EngineWorkoutTypeCode;
+
+                    input.WorkoutName =
+                        cardioActivity.DisplayName;
+
+                    if (workoutTypes.TryGetValue(
+                            cardioActivity.EngineWorkoutTypeCode,
+                            out var cardioType))
+                    {
+                        input.DurationMin ??=
+                            cardioType.DefaultMinutes;
+
+                        if (!input.SessionRpe.HasValue)
+                        {
+                            var cardioCatalog =
+                                new Engine30WorkoutTypeCatalog();
+
+                            if (cardioCatalog.TryGet(
+                                    cardioActivity.EngineWorkoutTypeCode,
+                                    out var cardioDefinition)
+                                && cardioDefinition is not null)
+                            {
+                                input.SessionRpe =
+                                    cardioDefinition.DefaultRpe;
+                            }
+                        }
+                    }
+                }
+            }
+
+            var isRest =
+                string.Equals(
+                    input.WorkoutTypeCode,
+                    "REST",
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (isRest)
+            {
+                input.DurationMin = 0m;
+                input.SessionRpe = null;
+                input.TypicalRestSec = null;
+                input.DeviceCalories = null;
             }
 
             if (string.IsNullOrWhiteSpace(input.WorkoutTypeCode)
-                || !input.DurationMin.HasValue
-                || input.DurationMin.Value <= 0)
+                || (!isRest
+                    && (!input.DurationMin.HasValue
+                        || input.DurationMin.Value <= 0)))
             {
                 continue;
             }
@@ -458,7 +519,10 @@ public sealed class DailyEntryController(
                     ? null
                     : input.SystemWorkoutCode.Trim();
             session.WorkoutTypeCode = input.WorkoutTypeCode;
-            session.DurationMin = input.DurationMin.Value;
+            session.DurationMin =
+                isRest
+                    ? 0m
+                    : input.DurationMin!.Value;
             session.TypicalRestSec = input.TypicalRestSec;
             session.SessionRpe = input.SessionRpe;
             session.DeviceCalories = input.DeviceCalories;
@@ -799,7 +863,24 @@ public sealed class DailyEntryController(
                 WorkoutTypeCode =
                     Engine30WorkoutUiCatalogService.NormalizeCode(
                         x.WorkoutTypeCode),
-                DurationMin = EffectiveWorkoutDurationMinutes(x),
+                CardioActivityCode =
+                    string.Equals(
+                        x.SystemWorkoutCode,
+                        CardioActivityCatalog.PresentationSystemCode,
+                        StringComparison.OrdinalIgnoreCase)
+                    || CardioActivityCatalog.IsCollapsedCardioEngineCode(
+                        x.WorkoutTypeCode)
+                        ? CardioActivityCatalog.InferActivityCode(
+                            x.WorkoutTypeCode,
+                            x.WorkoutName)
+                        : null,
+                DurationMin =
+                    string.Equals(
+                        x.WorkoutTypeCode,
+                        "REST",
+                        StringComparison.OrdinalIgnoreCase)
+                        ? 0m
+                        : EffectiveWorkoutDurationMinutes(x),
                 TypicalRestSec = x.TypicalRestSec,
                 SessionRpe = x.SessionRpe,
                 DeviceCalories = x.DeviceCalories,
@@ -888,6 +969,23 @@ public sealed class DailyEntryController(
                     x.WorkoutTypeCode,
                     x.DisplayName))
             .ToList();
+
+        model.CardioActivities =
+            CardioActivityCatalog.All
+                .Where(
+                    x =>
+                        workoutTypes.ContainsKey(
+                            x.EngineWorkoutTypeCode))
+                .Select(
+                    x => new CardioActivityOptionViewModel
+                    {
+                        ActivityCode = x.ActivityCode,
+                        DisplayName = x.DisplayName,
+                        EngineWorkoutTypeCode =
+                            x.EngineWorkoutTypeCode,
+                        SearchTerms = x.SearchTerms
+                    })
+                .ToList();
 
         model.MyWorkouts =
             await db.WorkoutTemplates
@@ -1014,11 +1112,28 @@ public sealed class DailyEntryController(
             if (!workout.HasAnyEntry)
                 continue;
 
+            var isRest =
+                string.Equals(
+                    workout.WorkoutTypeCode,
+                    "REST",
+                    StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    workout.SystemWorkoutCode,
+                    "REST",
+                    StringComparison.OrdinalIgnoreCase);
+
+            var isCardioShell =
+                string.Equals(
+                    workout.SystemWorkoutCode,
+                    CardioActivityCatalog.PresentationSystemCode,
+                    StringComparison.OrdinalIgnoreCase);
+
             if (allowIncomplete
                 && (string.IsNullOrWhiteSpace(
                         workout.WorkoutTypeCode)
-                    || !workout.DurationMin.HasValue
-                    || workout.DurationMin.Value <= 0))
+                    || (!isRest
+                        && (!workout.DurationMin.HasValue
+                            || workout.DurationMin.Value <= 0))))
             {
                 continue;
             }
@@ -1031,8 +1146,18 @@ public sealed class DailyEntryController(
                     "Choose the workout type.");
             }
 
-            if (!workout.DurationMin.HasValue
-                || workout.DurationMin.Value <= 0)
+            if (isCardioShell
+                && string.IsNullOrWhiteSpace(
+                    workout.CardioActivityCode))
+            {
+                ModelState.AddModelError(
+                    $"Workouts[{i}].CardioActivityCode",
+                    "Choose the cardio activity.");
+            }
+
+            if (!isRest
+                && (!workout.DurationMin.HasValue
+                    || workout.DurationMin.Value <= 0))
             {
                 ModelState.AddModelError(
                     $"Workouts[{i}].DurationMin",
