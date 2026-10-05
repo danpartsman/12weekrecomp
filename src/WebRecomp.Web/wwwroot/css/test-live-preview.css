@@ -2408,3 +2408,140 @@ body.test-live-preview.app-shell .plan-workout-select option[data-category="unpl
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+
+/* ===== v1013.2 recommended vs planned split cards ===== */
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-item {
+    min-height: 0;
+    padding: 0 !important;
+    justify-content: stretch;
+    overflow: hidden;
+    background: transparent !important;
+}
+
+body.test-live-preview.app-shell .plan-mix-recommended,
+body.test-live-preview.app-shell .plan-mix-planned {
+    padding: .78rem .9rem;
+}
+
+body.test-live-preview.app-shell .plan-mix-recommended {
+    min-height: 6.35rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+body.test-live-preview.app-shell .plan-mix-planned {
+    min-height: 4.65rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-top: 1px solid rgba(5, 18, 32, .22);
+}
+
+body.test-live-preview.app-shell .plan-mix-section-label {
+    margin: 0 0 .42rem !important;
+    font-size: .67rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+body.test-live-preview.app-shell .plan-mix-value-line {
+    display: flex;
+    align-items: baseline;
+    gap: .48rem;
+}
+
+body.test-live-preview.app-shell .plan-mix-value-line strong {
+    display: inline-block;
+    flex: 0 0 auto;
+    font-size: 1.72rem;
+    line-height: 1;
+}
+
+body.test-live-preview.app-shell .plan-mix-value-line span {
+    display: inline-block;
+    margin: 0 !important;
+    font-size: .78rem !important;
+    line-height: 1.16;
+    font-weight: 900 !important;
+}
+
+body.test-live-preview.app-shell .plan-mix-recommended em {
+    display: block;
+    margin-top: .5rem;
+    font-size: .68rem;
+    line-height: 1;
+    font-style: normal;
+    font-weight: 950;
+    letter-spacing: .055em;
+}
+
+/* Dark recommendation headers: white lettering on the stronger category color. */
+body.test-live-preview.app-shell .plan-mix-major .plan-mix-recommended {
+    background: linear-gradient(145deg, #9b1d35, #701426) !important;
+}
+body.test-live-preview.app-shell .plan-mix-accessory .plan-mix-recommended {
+    background: linear-gradient(145deg, #aa520f, #773706) !important;
+}
+body.test-live-preview.app-shell .plan-mix-cardio .plan-mix-recommended {
+    background: linear-gradient(145deg, #917500, #675300) !important;
+}
+body.test-live-preview.app-shell .plan-mix-recovery .plan-mix-recommended {
+    background: linear-gradient(145deg, #14733e, #0d512c) !important;
+}
+body.test-live-preview.app-shell .plan-mix-unplanned .plan-mix-recommended {
+    background: linear-gradient(145deg, #39536c, #293d51) !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recommended strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recommended span,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recommended em {
+    color: #ffffff !important;
+}
+
+/* Lighter lower cells: actual planned count in black for instant comparison. */
+body.test-live-preview.app-shell .plan-mix-major .plan-mix-planned {
+    background: #f4a9b5 !important;
+}
+body.test-live-preview.app-shell .plan-mix-accessory .plan-mix-planned {
+    background: #ffc188 !important;
+}
+body.test-live-preview.app-shell .plan-mix-cardio .plan-mix-planned {
+    background: #f8e583 !important;
+}
+body.test-live-preview.app-shell .plan-mix-recovery .plan-mix-planned {
+    background: #a9e8bb !important;
+}
+body.test-live-preview.app-shell .plan-mix-unplanned .plan-mix-planned {
+    background: #c8d8e6 !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-planned strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-planned span {
+    color: #07101a !important;
+}
+
+body.test-live-preview.app-shell .plan-mix-planned .plan-mix-section-label {
+    opacity: .72;
+}
+
+@media (max-width: 1100px) {
+    body.test-live-preview.app-shell .plan-mix-value-line {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: .24rem;
+    }
+}
+
+@media (max-width: 700px) {
+    body.test-live-preview.app-shell .plan-mix-recommended {
+        min-height: 5.9rem;
+    }
+
+    body.test-live-preview.app-shell .plan-mix-planned {
+        min-height: 4.35rem;
+    }
+}
