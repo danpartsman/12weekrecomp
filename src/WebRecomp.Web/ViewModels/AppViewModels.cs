@@ -197,6 +197,12 @@ public sealed class WeekPlanViewModel
     public bool CanChangeGoal { get; set; }
     public List<SelectListItem> GoalOptions { get; set; } = [];
 
+    public decimal? PreviewWeeklyDeficitKcal { get; set; }
+    public decimal? PreviewFatLossEnergyEquivalentLb { get; set; }
+    public string PreviewFatDirection { get; set; } = "";
+    public string PreviewMuscleDirection { get; set; } = "";
+    public string PreviewMuscleStimulus { get; set; } = "";
+
     public bool SeededFromPlan { get; set; }
     public bool AutoRolled { get; set; }
     public bool NextWeekHasPlan { get; set; }
