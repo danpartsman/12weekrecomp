@@ -3267,7 +3267,7 @@ public sealed class DetailedWorkoutController(
         if (existing is null)
         {
             var now = DateTime.UtcNow;
-            db.WorkoutSessions.Add(
+            var restSession =
                 new WorkoutSession
                 {
                     WorkoutSessionId = Guid.NewGuid(),
@@ -3279,13 +3279,17 @@ public sealed class DetailedWorkoutController(
                     WorkoutTypeCode = "REST",
                     DurationMin = 0m,
                     SessionRpe = null,
-                    CompletedFlag = true,
                     EntrySourceCode =
                         RecompInputSourceCodes.DetailedWorkout,
-                    CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now
-                });
+                };
+
+            workoutActuals.ApplyCurrentEngineState(
+                restSession,
+                completed: true);
+
+            db.WorkoutSessions.Add(restSession);
 
             await db.SaveChangesAsync(cancellationToken);
         }
@@ -3364,7 +3368,7 @@ public sealed class DetailedWorkoutController(
                 "That cardio activity is not currently available.");
 
         var now = DateTime.UtcNow;
-        db.WorkoutSessions.Add(
+        var cardioSession =
             new WorkoutSession
             {
                 WorkoutSessionId = Guid.NewGuid(),
@@ -3374,8 +3378,6 @@ public sealed class DetailedWorkoutController(
                 WorkoutName = activity.DisplayName,
                 SystemWorkoutCode =
                     CardioActivityCatalog.PresentationSystemCode,
-                // Existing calibrated Engine 3.0 code; v1012 changes only
-                // capture/presentation, not physiology.
                 WorkoutTypeCode =
                     activity.EngineWorkoutTypeCode,
                 DurationMin =
@@ -3388,13 +3390,17 @@ public sealed class DetailedWorkoutController(
                         sessionRpe,
                         1,
                         MidpointRounding.AwayFromZero),
-                CompletedFlag = true,
                 EntrySourceCode =
                     RecompInputSourceCodes.DetailedWorkout,
-                CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
-            });
+            };
+
+        workoutActuals.ApplyCurrentEngineState(
+            cardioSession,
+            completed: true);
+
+        db.WorkoutSessions.Add(cardioSession);
 
         await db.SaveChangesAsync(cancellationToken);
 
