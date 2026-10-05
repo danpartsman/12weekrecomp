@@ -132,8 +132,14 @@
             <p class="lede">Start with the workouts you already do, then build a realistic seven-day mix around them.</p>
         </div>
         <div class="week-nav">
-            <a class="button" asp-action="Index" asp-route-weekStart="@previous">&larr; Prior week</a>
-            <a class="button" asp-action="Index" asp-route-weekStart="@next">Next week →</a>
+            <a class="button"
+               asp-action="Index"
+               asp-route-weekStart="@previous"
+               asp-route-previewGoalCode="@(Model.IsGoalPreview ? Model.PreviewGoalCode : null)">&larr; Prior week</a>
+            <a class="button"
+               asp-action="Index"
+               asp-route-weekStart="@next"
+               asp-route-previewGoalCode="@(Model.IsGoalPreview ? Model.PreviewGoalCode : null)">Next week →</a>
             <form asp-action="CopyToNextWeek" method="post" class="inline-week-action">
                 <input type="hidden" name="weekStart" value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
                 <button class="button copy-week-button" type="submit" disabled="@(Model.NextWeekHasPlan ? "disabled" : null)"
@@ -221,6 +227,90 @@
         <button type="button" class="help-tip status-help" aria-label="About weekly balance"
                 data-tooltip="This status is a quick check of the planned training mix. It is guidance, not a pass/fail grade. Recomp still calculates each day's targets from the workouts you save.">?</button>
     </section>
+
+    @if (Model.CanChangeGoal)
+    {
+        <section class="plan-goal-preview @(Model.IsGoalPreview ? "is-previewing" : "")"
+                 aria-labelledby="plan-goal-preview-title">
+            <div class="plan-goal-preview-copy">
+                <div class="app-kicker">PRIMARY GOAL • LIVE WEEKLY PREVIEW</div>
+                <h2 id="plan-goal-preview-title">
+                    Based on your selection of @Model.PreviewGoalDisplayName, here are Recomp's recommended days.
+                </h2>
+
+                @if (Model.IsGoalPreview)
+                {
+                    <p>
+                        <strong>Preview only.</strong>
+                        Your saved Primary Goal is still @Model.CurrentGoalDisplayName, and none of your planned workouts have been changed.
+                        The Recommended numbers below show how the weekly mix would change.
+                    </p>
+                }
+                else
+                {
+                    <p>
+                        Preview another Primary Goal to compare its recommended workout mix and fueling pattern.
+                        Your planned week will not change unless you explicitly apply a new goal and then choose to apply its recommended schedule.
+                    </p>
+                }
+
+                <p class="plan-goal-engine-note">
+                    Engine 3.0 still calculates the actual calories and macros for each day; the high/moderate/variable/low-carb labels summarize the fueling pattern.
+                </p>
+            </div>
+
+            <div class="plan-goal-preview-controls">
+                <form asp-action="Index"
+                      method="get"
+                      class="plan-goal-preview-form">
+                    <input type="hidden"
+                           name="weekStart"
+                           value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+
+                    <label for="preview-goal-code">Preview another goal</label>
+                    <select id="preview-goal-code"
+                            name="previewGoalCode"
+                            asp-items="Model.GoalOptions"
+                            onchange="this.form.submit()">
+                    </select>
+                    <noscript>
+                        <button class="button" type="submit">Preview goal</button>
+                    </noscript>
+                </form>
+
+                @if (Model.IsGoalPreview)
+                {
+                    <div class="plan-goal-preview-actions">
+                        <form asp-action="ApplyGoal"
+                              method="post">
+                            <input type="hidden"
+                                   name="goalCode"
+                                   value="@Model.PreviewGoalCode" />
+                            <input type="hidden"
+                                   name="weekStart"
+                                   value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+                            <button class="primary"
+                                    type="submit">
+                                Use this goal from today
+                            </button>
+                        </form>
+
+                        <a class="button"
+                           asp-action="Index"
+                           asp-route-weekStart="@Model.WeekStart.ToString("yyyy-MM-dd")">
+                            Return to current goal
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <span class="plan-goal-current-pill">
+                        Current goal
+                    </span>
+                }
+            </div>
+        </section>
+    }
 
     <div class="plan-week-mix-heading">
         <div>
