@@ -34,7 +34,7 @@ public sealed class WeeklyPlanService(
             "PLAN_2" => "Fat-loss Recomp starts with enough resistance training to protect muscle, adds conditioning for output, and alternates demanding sessions with easier days or recovery so the calorie deficit stays productive.",
             "PLAN_3" => "Muscle-focus Recomp protects three major strength exposures, adds accessory work when your schedule allows, and separates hard days with accessory work, easier aerobic work or recovery to support growth.",
             "PLAN_1" => "Health Reset emphasizes repeatable strength, easy aerobic work, and recovery. The goal is consistency first, not maximum training stress.",
-            "PLAN_4" => "Athletic Reconditioning keeps resistance training at the center, then layers in more conditioning, aerobic recovery, and at least one true recovery day. Hard leg work is followed by a lighter day.",
+            "PLAN_4" => "Athletic Reconditioning keeps three major strength anchors, adds a fourth demanding athletic/conditioning exposure when training availability supports it, and uses easier aerobic or accessory work plus at least one true recovery day to manage the extra training stress.",
             "PLAN_5" => "Pain-Limited / Mobility begins conservatively with mobility, lighter resistance work, easy aerobic work, and more recovery. Adjust around your real limitations.",
             _ => "Recomp builds a starting week from your plan and training availability. Change any day to fit your real life."
         };
@@ -482,8 +482,13 @@ public sealed class WeeklyPlanService(
         2 => ["FULL_BODY_STRENGTH", Recovery, "GENERAL_CARDIO", Recovery, Recovery, Recovery, Recovery],
         3 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", Recovery, "MAJOR_PULL", Recovery, Recovery],
         4 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", "ZONE2_CARDIO", "MAJOR_PULL", Recovery, Recovery],
-        5 => ["MAJOR_LEGS", "ZONE2_CARDIO", "MAJOR_PUSH", Recovery, "MAJOR_PULL", "ZONE2_CARDIO", Recovery],
-        _ => ["MAJOR_LEGS", "ZONE2_CARDIO", "MAJOR_PUSH", "ZONE2_CARDIO", "MAJOR_PULL", "ACCESSORY", Recovery]
+
+        // With five or six available training days, Athletic Reconditioning
+        // intentionally adds a fourth demanding exposure: true conditioning.
+        // Three major strength anchors remain the base; Zone 2 / accessory work
+        // and a true rest day keep the week from becoming four heavy lifting days.
+        5 => ["MAJOR_LEGS", Recovery, "MAJOR_PUSH", "ZONE2_CARDIO", "MAJOR_PULL", "TRUE_HIIT", Recovery],
+        _ => ["MAJOR_LEGS", "ZONE2_CARDIO", "MAJOR_PUSH", "ACCESSORY", "MAJOR_PULL", "TRUE_HIIT", Recovery]
     };
 
     private static string[] PainLimited(int active) => active switch
