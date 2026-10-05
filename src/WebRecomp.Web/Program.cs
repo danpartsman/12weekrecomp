@@ -166,7 +166,6 @@ builder.Services.AddScoped<AppUserContextService>();
 builder.Services.AddScoped<AccessEntitlementService>();
 builder.Services.AddScoped<PendingAccessCodeService>();
 builder.Services.AddScoped<ConfigurationService>();
-builder.Services.AddScoped<WorkoutMathService>();
 builder.Services.AddScoped<WorkoutActualService>();
 builder.Services.AddSingleton<IWorkoutIntelligenceGateway, WorkoutIntelligenceGateway>();
 builder.Services.AddScoped<IExerciseCatalogStore, SqlExerciseCatalogStore>();
@@ -200,17 +199,9 @@ builder.Services.AddScoped<IRecompRecommendationEngine, Engine30RecompRecommenda
 builder.Services.AddSingleton<Engine30FuelStateService>();
 builder.Services.AddSingleton<Engine30WeeklyFuelProjectionService>();
 builder.Services.AddScoped<Engine30AdminFuelComparisonService>();
-builder.Services.AddScoped<Engine21EnergyService>();
 builder.Services.AddScoped<WeeklyPlanningAssessmentService>();
-builder.Services.AddScoped<LegacyEngine2RegionRecoveryService>();
 builder.Services.AddScoped<ProgramPlanService>();
 builder.Services.AddScoped<WeeklyPlanService>();
-builder.Services.AddScoped<RecommendationService>();
-builder.Services.AddScoped<RecompEngineService>();
-builder.Services.AddScoped<RecompEngineConfigurationService>();
-builder.Services.AddScoped<RecompTrainingPrescriptionService>();
-builder.Services.AddScoped<RecompEngineOrchestrator>();
-builder.Services.AddScoped<RecompActualWorkoutAnalysisService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddHttpClient<IEmailService, MicrosoftGraphEmailService>();
 
@@ -231,16 +222,6 @@ if (builder.Configuration.GetValue<bool>("WebRecomp:EnableTestPersonas"))
     builder.Services.AddHostedService<TestPersonaNutritionSeederHostedService>();
 }
 
-builder.Services.AddScoped<Engine21PipelineService>();
-builder.Services.AddScoped<Engine21FuelWindowService>();
-builder.Services.AddScoped<Engine21CarbRequirementService>();
-builder.Services.AddScoped<Engine21MacroReconciliationService>();
-builder.Services.AddScoped<Engine21DailyMacroService>();
-builder.Services.AddScoped<Engine21ProjectedFuelWindowService>();
-builder.Services.AddScoped<Engine21WeeklyMacroProjectionService>();
-builder.Services.AddScoped<Engine21RealDataService>();
-builder.Services.AddScoped<Engine21WeeklyEnergyService>();
-builder.Services.AddScoped<Engine21DeficitService>();
 builder.Services.AddHealthChecks();
 builder.Services.AddProblemDetails();
 
