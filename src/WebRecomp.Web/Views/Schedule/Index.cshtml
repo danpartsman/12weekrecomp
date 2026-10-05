@@ -561,14 +561,20 @@
                 || labels.unplanned;
         }
 
+        const isChanged =
+            select.value
+                !== select.dataset.originalValue;
+
+        row.classList.toggle(
+            "plan-pending-change",
+            isChanged);
+
         const recalc =
             row.querySelector(
                 "[data-recalc-note]");
 
         if (recalc) {
-            recalc.hidden =
-                select.value
-                    === select.dataset.originalValue;
+            recalc.hidden = !isChanged;
         }
     }
 
@@ -888,6 +894,9 @@
                     const row =
                         select.closest(
                             "[data-plan-day]");
+
+                    row?.classList.remove(
+                        "plan-pending-change");
 
                     const recalc =
                         row?.querySelector(
