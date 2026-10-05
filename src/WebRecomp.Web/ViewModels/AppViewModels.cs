@@ -347,8 +347,9 @@ public sealed class DashboardViewModel
     public string FuelReasonCodes { get; set; } = "";
     // v1009 context-aware Yesterday + Trend interpretation.
     public WebRecomp.Web.Services.Engine30.Engine30DashboardAnalysisResult? Engine30Analysis { get; set; }
-    // v1009 adaptive workout + nutrition recommendation.
-    public WebRecomp.Web.Services.Engine30.Engine30AdaptiveRecommendationResult? Engine30AdaptiveRecommendation { get; set; }
+    // v1014A application-facing adaptive workout + nutrition recommendation.
+    // The Dashboard no longer depends on a concrete engine implementation.
+    public WebRecomp.Web.Services.Engine.RecompRecommendationResult? RecompRecommendation { get; set; }
     // Engine 3.0 actual-intake ENERGY carryover.
     public decimal? PreviousEnergyVarianceKcal { get; set; }
     public decimal? PreviousEligibleEnergyCarryoverKcal { get; set; }
