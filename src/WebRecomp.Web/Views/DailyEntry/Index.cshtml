@@ -510,6 +510,22 @@
                                 <span asp-validation-for="Workouts[i].WorkoutTypeCode"></span>
                             </label>
 
+                            <label data-cardio-activity-field
+                                   hidden="@(!string.Equals(workout.SystemWorkoutCode, WebRecomp.Web.Services.WorkoutIntelligence.CardioActivityCatalog.PresentationSystemCode, StringComparison.OrdinalIgnoreCase))">
+                                Cardio activity
+                                <select asp-for="Workouts[i].CardioActivityCode"
+                                        data-cardio-activity>
+                                    <option value="">Choose activity...</option>
+                                    @foreach (var activity in Model.CardioActivities)
+                                    {
+                                        <option value="@activity.ActivityCode">
+                                            @activity.DisplayName
+                                        </option>
+                                    }
+                                </select>
+                                <small>Activity + duration + RPE feed the existing Engine 3.0 workout profile.</small>
+                            </label>
+
                             <label>
                                 Duration (minutes)
                                 <input asp-for="Workouts[i].DurationMin"
@@ -686,6 +702,21 @@
                                     </option>
                                 }
                             </select>
+                        </label>
+
+                        <label data-cardio-activity-field hidden>
+                            Cardio activity
+                            <select name="Workouts[__index__].CardioActivityCode"
+                                    data-cardio-activity>
+                                <option value="">Choose activity...</option>
+                                @foreach (var activity in Model.CardioActivities)
+                                {
+                                    <option value="@activity.ActivityCode">
+                                        @activity.DisplayName
+                                    </option>
+                                }
+                            </select>
+                            <small>Activity + duration + RPE feed the existing Engine 3.0 workout profile.</small>
                         </label>
 
                         <label>
@@ -1038,11 +1069,73 @@
             'input[name="__RequestVerificationToken"]')
             ?.value;
 
+    function syncCompletionFields(row, option) {
+        if (!row) return;
+
+        const systemCode =
+            option?.dataset.systemCode
+            || row.querySelector("[data-daily-system-code]")?.value
+            || "";
+
+        const engineCode =
+            option?.dataset.workoutTypeCode
+            || row.querySelector("[data-daily-engine-code]")?.value
+            || "";
+
+        const cardioField =
+            row.querySelector("[data-cardio-activity-field]");
+
+        const cardioSelect =
+            row.querySelector("[data-cardio-activity]");
+
+        const durationInput =
+            row.querySelector('input[name$=".DurationMin"]');
+
+        const rpeInput =
+            row.querySelector('input[name$=".SessionRpe"]');
+
+        const isCardio =
+            systemCode.toUpperCase() === "CARDIO";
+
+        const isRest =
+            systemCode.toUpperCase() === "REST"
+            || engineCode.toUpperCase() === "REST";
+
+        if (cardioField) {
+            cardioField.hidden = !isCardio;
+        }
+
+        if (cardioSelect) {
+            cardioSelect.disabled = !isCardio;
+            if (!isCardio) {
+                cardioSelect.value = "";
+            }
+        }
+
+        if (durationInput) {
+            durationInput.closest("label")?.toggleAttribute("hidden", isRest);
+            if (isRest) {
+                durationInput.value = "0";
+            }
+        }
+
+        if (rpeInput) {
+            rpeInput.closest("label")?.toggleAttribute("hidden", isRest);
+            if (isRest) {
+                rpeInput.value = "";
+            }
+        }
+    }
+
     form.querySelectorAll(
         "[data-daily-workout-type]"
     ).forEach(select => {
         select.dataset.previousValue =
             select.value;
+
+        const row = select.closest("[data-workout-row]");
+        const option = select.options[select.selectedIndex];
+        syncCompletionFields(row, option);
     });
 
     function closeDialog() {
@@ -1175,6 +1268,8 @@
                         option.dataset.defaultRpe;
                 }
             }
+
+            syncCompletionFields(row, option);
 
             select.dataset.previousValue =
                 select.value;
