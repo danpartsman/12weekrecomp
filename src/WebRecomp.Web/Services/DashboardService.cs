@@ -13,6 +13,7 @@ public sealed class DashboardService(
     Engine30DashboardProjectionService engine30Dashboard,
     Engine30DashboardAnalysisService dashboardAnalysis,
     Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
+    Engine30TrainingLoadRecoveryService trainingLoadRecovery,
     WorkoutActualService workoutActuals,
     IRecompRecommendationEngine recommendationEngine)
 {
@@ -369,8 +370,13 @@ public sealed class DashboardService(
 
                     TrendEndMuscleMassLb:
                         lastTrendMeasurement?.MuscleMassLb));
+        var recoveryEvidence =
+            trainingLoadRecovery.Evaluate(
+                engine30Impact,
+                todayCheckin);
+
         // ------------------------------------------------------------
-        // v1009 adaptive decision layer.
+        // v1014C adaptive decision layer.
         //
         // This interprets Engine 3.0 evidence; it does not rewrite the
         // Weekly Plan and it never creates exercise calorie eat-back.
@@ -401,9 +407,9 @@ public sealed class DashboardService(
                     PreviousEligibleEnergyCarryoverKcal:
                         engine30Impact.PreviousEligibleEnergyCarryoverKcal,
                     FourDayHardDays:
-                        engine30Impact.FourDayHardDays,
+                        recoveryEvidence.FourDayHardDays,
                     FourDayModerateHardDays:
-                        engine30Impact.FourDayModerateHardDays,
+                        recoveryEvidence.FourDayModerateHardDays,
                     SleepHours:
                         todayCheckin?.SleepHours,
                     EnergyScore:
@@ -425,7 +431,8 @@ public sealed class DashboardService(
             BuildCoachRecommendation(
                 recommendation,
                 todayCheckin,
-                engine30Impact);
+                engine30Impact,
+                recoveryEvidence);
 
         return new DashboardViewModel
         {
@@ -498,7 +505,11 @@ public sealed class DashboardService(
 
             CoachTitle = coach.Title,
             CoachRecommendation = coach.Body,
-            CoachWhy = BuildCoachWhy(recommendation, engine30Impact, todayCheckin),
+            CoachWhy = BuildCoachWhy(
+                recommendation,
+                engine30Impact,
+                recoveryEvidence,
+                todayCheckin),
             EnergyScore = todayCheckin?.EnergyScore,
             SorenessScore = todayCheckin?.SorenessScore,
             SleepHours = todayCheckin?.SleepHours,
@@ -759,7 +770,8 @@ public sealed class DashboardService(
     private static (string Title, string Body) BuildCoachRecommendation(
         RecompRecommendationResult recommendation,
         DailyCheckin? checkin,
-        Engine30DashboardYesterdayImpactProjection impact)
+        Engine30DashboardYesterdayImpactProjection impact,
+        Engine30TrainingLoadRecoveryResult recovery)
     {
         if (recommendation.WorkoutChangeRecommended
             || recommendation.DecisionCode
@@ -795,6 +807,15 @@ public sealed class DashboardService(
                 $"Sleep was {checkin.SleepHours:0.#} hours. Keep {recommendation.RecommendedWorkoutDisplayName} inside the intended effort range and prioritize recovery afterward.");
         }
 
+        if (recovery.RecoveryBandCode
+            == Engine30RecoveryBandCodes.Watch
+            && !recommendation.WorkoutChangeRecommended)
+        {
+            return (
+                "Recovery deserves attention",
+                $"Recent training load is {recovery.TrainingLoadBandCode.ToLowerInvariant()} and recovery is in the watch range. Keep {recommendation.RecommendedWorkoutDisplayName} within the intended effort and skip optional bonus volume.");
+        }
+
         if (impact.PreWorkoutRescueG > 0m)
         {
             return (
@@ -817,12 +838,15 @@ public sealed class DashboardService(
     private static string BuildCoachWhy(
         RecompRecommendationResult recommendation,
         Engine30DashboardYesterdayImpactProjection impact,
+        Engine30TrainingLoadRecoveryResult recovery,
         DailyCheckin? checkin)
     {
         var factors = new List<string>
         {
             $"fuel readiness {Engine30DashboardProjectionService.HumanizeReadiness(impact.IncomingReadinessBandCode).ToLowerInvariant()}",
-            $"4-day carbohydrate recovery {impact.AbsoluteRestorationRatio:P0}"
+            $"4-day carbohydrate recovery {impact.AbsoluteRestorationRatio:P0}",
+            $"training load {recovery.TrainingLoadBandCode.ToLowerInvariant()}",
+            $"recovery {recovery.RecoveryBandCode.ToLowerInvariant().Replace('_', ' ')}"
         };
 
         if (impact.PreWorkoutRescueG > 0m)
