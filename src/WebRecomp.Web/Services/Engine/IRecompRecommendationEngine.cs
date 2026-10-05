@@ -28,6 +28,16 @@ public sealed record RecompRecommendationInput(
     bool PainFlag,
     bool IllnessFlag);
 
+public static class RecompRecommendationDecisionCodes
+{
+    public const string KeepPlan = "KEEP_PLAN";
+    public const string FuelRescueKeepPlan = "FUEL_RESCUE_KEEP_PLAN";
+    public const string LowFuelDowngrade = "LOW_FUEL_DOWNGRADE";
+    public const string SafetyRecovery = "SAFETY_RECOVERY";
+    public const string AddLightActivityAfterOverage = "ADD_LIGHT_ACTIVITY_AFTER_OVERAGE";
+    public const string PreserveRestForRecovery = "PRESERVE_REST_FOR_RECOVERY";
+}
+
 public sealed record RecompRecommendationResult(
     string EngineVersionCode,
     bool ShowOnDashboard,
