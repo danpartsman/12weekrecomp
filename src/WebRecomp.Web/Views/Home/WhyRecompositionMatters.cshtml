@@ -33,19 +33,24 @@
             text-transform:uppercase;
         }
         .wm-study-title {
-            max-width:1200px;
+            width:100%;
+            max-width:100%;
             margin:0;
-            color:#fff;
+            color:#fff !important;
             font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-            font-size:clamp(2.3rem,5vw,5.2rem);
+            font-size:clamp(2rem,3.8vw,4.2rem);
             font-style:italic;
             font-weight:950;
             line-height:.94;
             letter-spacing:-.025em;
             text-transform:uppercase;
+            overflow-wrap:normal;
         }
-        .wm-study-title em {
-            color:#98ff31;
+        .wm-study-title .wm-title-line:first-child {
+            color:#fff !important;
+        }
+        .wm-study-title em.wm-title-line {
+            color:#98ff31 !important;
             font-style:inherit;
         }
         .wm-study-lede {
@@ -58,24 +63,32 @@
         }
         .wm-study-callout {
             margin:1rem 0 .25rem;
-            color:#98ff31;
-            font-size:clamp(1.2rem,2vw,1.65rem);
+            color:#ffe24a !important;
+            font-size:clamp(1.12rem,1.55vw,1.5rem);
             font-weight:950;
-            line-height:1.2;
+            line-height:1.22;
         }
         .wm-study-question {
-            margin:.2rem 0 1.45rem;
-            color:#e4eef3;
-            font-size:clamp(1.02rem,1.55vw,1.25rem);
-            font-weight:800;
+            margin:.25rem 0 1.45rem;
+            color:#7ceeff;
+            font-size:clamp(1rem,1.25vw,1.18rem);
+            font-weight:850;
             line-height:1.4;
         }
         .wm-title-line {
             display:block;
-            white-space:nowrap;
+            max-width:100%;
+            white-space:normal;
+            text-wrap:balance;
         }
         @@media (max-width:760px) {
-            .wm-title-line { white-space:normal; }
+            .wm-study-title {
+                font-size:clamp(1.85rem,8.5vw,3rem);
+                line-height:.98;
+            }
+            .wm-study-callout {
+                font-size:clamp(1.05rem,4.8vw,1.3rem);
+            }
         }
         .wm-comparison {
             overflow:hidden;
