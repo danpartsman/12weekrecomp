@@ -5328,3 +5328,153 @@ html[data-theme="dark"] .learn12wr-recomp-emphasis p {
         grid-template-columns:1fr;
     }
 }
+
+
+/* ===== v1013 Weekly Plan closeout: hero + simulator outlook ===== */
+.weekly-plan-hero-head {
+    display:grid;
+    grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);
+    gap:20px;
+    align-items:stretch;
+}
+
+.weekly-plan-hero-copy {
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    min-width:0;
+}
+
+.weekly-plan-hero-copy .week-nav {
+    margin-top:16px;
+}
+
+.weekly-plan-hero-image {
+    min-height:170px;
+    overflow:hidden;
+    border:1px solid #dbe3ea;
+    border-radius:16px;
+    background:#e2e8f0;
+    box-shadow:0 6px 20px rgba(15,23,42,.08);
+}
+
+.weekly-plan-hero-image img {
+    display:block;
+    width:100%;
+    height:100%;
+    min-height:170px;
+    object-fit:cover;
+    object-position:center;
+}
+
+.plan-goal-title-row {
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+}
+
+.plan-goal-title-row h2 {
+    flex:1 1 auto;
+    min-width:0;
+}
+
+.plan-goal-info {
+    flex:0 0 auto;
+    margin-top:.26rem;
+}
+
+.plan-goal-outlook {
+    grid-column:1 / -1;
+    margin-top:2px;
+    padding:14px 16px;
+    border:1px solid #dbe3ea;
+    border-radius:14px;
+    background:rgba(255,255,255,.74);
+}
+
+.plan-goal-outlook-head {
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:10px;
+}
+
+.plan-goal-outlook-head strong {
+    display:block;
+    margin-top:3px;
+    font-size:.98rem;
+}
+
+.plan-goal-outlook-grid {
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:8px;
+}
+
+.plan-goal-outlook-grid > div {
+    min-width:0;
+    padding:10px 11px;
+    border:1px solid #dbe3ea;
+    border-radius:10px;
+    background:#fff;
+}
+
+.plan-goal-outlook-grid span,
+.plan-goal-outlook-grid strong {
+    display:block;
+}
+
+.plan-goal-outlook-grid span {
+    color:#64748b;
+    font-size:.7rem;
+    font-weight:850;
+    letter-spacing:.035em;
+    text-transform:uppercase;
+}
+
+.plan-goal-outlook-grid strong {
+    margin-top:4px;
+    color:#0f172a;
+    font-size:.86rem;
+    line-height:1.3;
+}
+
+.plan-goal-outlook-wide {
+    grid-column:span 2;
+}
+
+.plan-goal-outlook > p {
+    margin:10px 0 0 !important;
+    font-size:.77rem;
+    line-height:1.4;
+}
+
+@media (max-width:980px) {
+    .weekly-plan-hero-head {
+        grid-template-columns:1fr;
+    }
+
+    .weekly-plan-hero-image {
+        min-height:150px;
+        max-height:220px;
+    }
+
+    .plan-goal-outlook-grid {
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+}
+
+@media (max-width:600px) {
+    .plan-goal-outlook-grid {
+        grid-template-columns:1fr;
+    }
+
+    .plan-goal-outlook-wide {
+        grid-column:auto;
+    }
+
+    .plan-goal-title-row {
+        align-items:flex-start;
+    }
+}
