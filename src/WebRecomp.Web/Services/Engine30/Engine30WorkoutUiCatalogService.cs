@@ -7,11 +7,10 @@ namespace WebRecomp.Web.Services.Engine30;
 /// <summary>
 /// Single user-facing workout catalog for Engine 3.0.
 ///
-/// Weekly Plan and Daily Entry must use the same CFG-3000.0 vocabulary that
-/// the Engine 3.0 Admin calibration editor and runtime profile provider use.
-/// Legacy Engine 2.0 workout definitions remain untouched and are used only
-/// through the explicit compatibility mapping where an older display/calculation
-/// path still requires a legacy definition during the Engine 3.0 shadow phase.
+/// Weekly Plan, Daily Tracking, Workouts, and Dashboard use the same
+/// CFG-3000.0 vocabulary. Historical Engine 2.x workout codes are normalized
+/// forward into current canonical codes when old records are read; current
+/// runtime code is never translated backward into Engine 2.x.
 /// </summary>
 public sealed class Engine30WorkoutUiCatalogService(RecompDbContext db)
 {
@@ -118,51 +117,5 @@ public sealed class Engine30WorkoutUiCatalogService(RecompDbContext db)
         };
     }
 
-    /// <summary>
-    /// Temporary shadow-phase bridge for legacy display math only.
-    /// Engine 3.0 runtime calculations must use the active Admin profile instead.
-    /// </summary>
-    public static string ToLegacyCompatibilityCode(string? engine30Code)
-    {
-        var code = NormalizeCode(engine30Code);
 
-        return code switch
-        {
-            "REST" => "RECOVERY_0_RPE2",
-            "MOBILITY_RECOVERY" => "MOBILITY__POSTURE",
-
-            "EASY_CARDIO"
-                or "ZONE2_CARDIO"
-                or "WALKING" => "Z2_40_RPE4",
-
-            "GENERAL_CARDIO"
-                or "RUNNING"
-                or "TREADMILL"
-                or "CYCLING"
-                or "ROWING"
-                or "ELLIPTICAL"
-                or "STAIR_CLIMBER"
-                or "SWIMMING" => "PURE_CARDIO",
-
-            "MAJOR_LEGS" => "MAJOR_LEGS",
-            "MAJOR_PUSH" => "MAJOR_PUSH",
-            "MAJOR_PULL" => "MAJOR_PULL",
-            "FULL_BODY_STRENGTH" => "MAJOR_60_RPE8",
-
-            "ACCESSORY"
-                or "RESISTANCE_CIRCUIT" => "ACCESSORY_45_RPE7",
-
-            "RUNNING_INTERVALS"
-                or "CYCLING_INTERVALS"
-                or "ROWING_INTERVALS"
-                or "MIXED_CONDITIONING"
-                or "TRUE_HIIT" => "HIIT_45_RPE9",
-
-            "ORANGETHEORY" => "OTF_STANDARD",
-            "MIXED_GYM_SESSION" => "MAJOR_60_RPE8",
-            "CUSTOM_COMPOSITE" => "OTF_STANDARD",
-
-            _ => code
-        };
-    }
 }
