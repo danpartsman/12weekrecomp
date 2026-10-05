@@ -96,6 +96,7 @@ public sealed class DailyEntryViewModel
     public List<DailyEntryWorkoutTypeOption> WorkoutTypeOptions { get; set; } = [];
     public List<SystemWorkoutOptionViewModel> SystemWorkouts { get; set; } = [];
     public List<WorkoutTemplateOptionViewModel> MyWorkouts { get; set; } = [];
+    public List<CardioActivityOptionViewModel> CardioActivities { get; set; } = [];
 
     // ------------------------------------------------------------
     // Nutrition actual
@@ -130,6 +131,10 @@ public sealed class DailyEntryWorkoutInput
     public string? SystemWorkoutCode { get; set; }
     public string? WorkoutName { get; set; }
 
+    // v1012 uses one visible Cardio workout. This code selects the actual
+    // activity and resolves to an existing calibrated Engine 3.0 workout type.
+    public string? CardioActivityCode { get; set; }
+
     public string? WorkoutTypeCode { get; set; }
 
     [Range(0, 1440)]
@@ -156,6 +161,7 @@ public sealed class DailyEntryWorkoutInput
         WorkoutSessionId.HasValue
         || DurationMin.HasValue
         || SessionRpe.HasValue
+        || !string.IsNullOrWhiteSpace(CardioActivityCode)
         || TypicalRestSec.HasValue
         || DeviceCalories.HasValue
         || !string.IsNullOrWhiteSpace(Notes);

@@ -74,6 +74,7 @@ public sealed class DetailedWorkoutEditorViewModel
     public List<DetailedWorkoutSessionChoiceViewModel> Sessions { get; set; } = [];
     public List<WorkoutTemplateSummaryViewModel> Templates { get; set; } = [];
     public List<WorkoutBuilderTypeOptionViewModel> WorkoutTypes { get; set; } = [];
+    public List<CardioActivityOptionViewModel> CardioActivities { get; set; } = [];
     public WorkoutTemplateDetailViewModel? SelectedTemplate { get; set; }
     public SystemWorkoutPreviewViewModel? SelectedSystemWorkout { get; set; }
     public List<DetailedWorkoutExerciseInputModel> Exercises { get; set; } = [];
@@ -102,6 +103,14 @@ public sealed class WorkoutBuilderTypeOptionViewModel
     public string GroupName { get; set; } = "Standard";
     public decimal DefaultMinutes { get; set; }
     public decimal DefaultRpe { get; set; }
+}
+
+public sealed class CardioActivityOptionViewModel
+{
+    public string ActivityCode { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string EngineWorkoutTypeCode { get; set; } = "";
+    public string SearchTerms { get; set; } = "";
 }
 
 public sealed class WorkoutTemplateSummaryViewModel

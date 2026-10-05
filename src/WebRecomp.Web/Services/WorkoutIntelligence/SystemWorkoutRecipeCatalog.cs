@@ -517,9 +517,19 @@ public static class SystemWorkoutRecipeCatalog
         Variant("SYS_HARD_WALKING", "Hard Walking", "WALKING", "Hard", 1.33m, 2m)
     ];
 
+    private static readonly SystemWorkoutRecipe CardioPresentationRecipe =
+        new(
+            CardioActivityCatalog.PresentationSystemCode,
+            "Cardio",
+            "GENERAL_CARDIO",
+            "Choose the cardio activity you actually performed, then enter duration and RPE. 12WR resolves that activity to the existing calibrated Engine 3.0 workout type.",
+            [],
+            GroupName: "Standard");
+
     private static readonly IReadOnlyList<SystemWorkoutRecipe> ClassifiedCore =
     [
         CoreRecipe("REST") with { GroupName = "Recovery", DisplayName = "Rest / Recovery" },
+        CardioPresentationRecipe,
         CoreRecipe("MOBILITY_RECOVERY") with { GroupName = "Recovery", DisplayName = "Mobility / Posture" },
         CoreRecipe("EASY_CARDIO") with { GroupName = "Easy", DisplayName = "Easy Recovery Cardio" },
         CoreRecipe("ZONE2_CARDIO") with { GroupName = "Easy", DisplayName = "Easy Zone 2 Cardio" },
@@ -560,6 +570,18 @@ public static class SystemWorkoutRecipeCatalog
             .Concat(SetB)
             .Concat(Tiered)
             .Concat(ClassifiedCore)
+            // v1012 presents one Cardio workout. The activity picker resolves
+            // the user's actual modality/intensity pattern to the existing
+            // calibrated Engine 3.0 workout code at completion time.
+            .Where(
+                x =>
+                    x.SystemCode.Equals(
+                        CardioActivityCatalog.PresentationSystemCode,
+                        StringComparison.OrdinalIgnoreCase)
+                    || !CardioActivityCatalog.IsCollapsedCardioEngineCode(
+                        x.EngineWorkoutTypeCode))
+            .GroupBy(x => x.SystemCode, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Last())
             .OrderBy(x => GroupRank(x.GroupName))
             .ThenBy(x => x.GroupName.Equals("Orangetheory", StringComparison.OrdinalIgnoreCase) ? OrangetheorySortRank(x.SystemCode) : 0)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -684,6 +706,12 @@ public static class SystemWorkoutRecipeCatalog
     {
         if (string.IsNullOrWhiteSpace(engineWorkoutTypeCode))
             return null;
+
+        if (CardioActivityCatalog.IsCollapsedCardioEngineCode(
+                engineWorkoutTypeCode))
+        {
+            return CardioPresentationRecipe;
+        }
 
         var matches =
             Presentation

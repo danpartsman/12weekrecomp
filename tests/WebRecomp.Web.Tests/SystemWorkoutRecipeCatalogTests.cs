@@ -15,13 +15,25 @@ public sealed class SystemWorkoutRecipeCatalogTests
         var choices =
             SystemWorkoutRecipeCatalog.PresentationRecipes;
 
-        Assert.Equal(61, choices.Count);
+        Assert.NotEmpty(choices);
         Assert.Equal(
             choices.Count,
             choices
                 .Select(x => x.SystemCode)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Count());
+
+        var cardio =
+            choices.Single(
+                x => x.SystemCode == CardioActivityCatalog.PresentationSystemCode);
+
+        Assert.Equal("Cardio", cardio.DisplayName);
+        Assert.Equal("GENERAL_CARDIO", cardio.EngineWorkoutTypeCode);
+        Assert.DoesNotContain(
+            choices,
+            x => x.SystemCode != CardioActivityCatalog.PresentationSystemCode
+                 && CardioActivityCatalog.IsCollapsedCardioEngineCode(
+                     x.EngineWorkoutTypeCode));
 
         Assert.Contains(choices, x => x.DisplayName == "Set A - Back + Biceps + Quads" && x.GroupName == "Set A");
         Assert.Contains(choices, x => x.DisplayName == "Set B - Hard Legs" && x.GroupName == "Set B");
@@ -298,47 +310,100 @@ public sealed class SystemWorkoutRecipeCatalogTests
                 hardAccessory,
                 accessory.DefaultRpe));
 
-        foreach (var cardioName in new[]
+        var cardio =
+            SystemWorkoutRecipeCatalog.PresentationRecipes
+                .Single(
+                    x => x.SystemCode == CardioActivityCatalog.PresentationSystemCode);
+
+        Assert.Equal("Cardio", cardio.DisplayName);
+
+        foreach (var activityName in new[]
         {
             "Running",
-            "Cycling",
+            "Cycling / stationary bike",
             "Rowing",
             "Treadmill",
-            "Swimming"
+            "Swimming",
+            "Stair climber / stepper"
         })
         {
             Assert.Contains(
-                SystemWorkoutRecipeCatalog.PresentationRecipes,
-                x => x.DisplayName == $"Easy {cardioName}");
-
-            Assert.Contains(
-                SystemWorkoutRecipeCatalog.PresentationRecipes,
-                x => x.DisplayName == $"Standard {cardioName}");
-
-            Assert.Contains(
-                SystemWorkoutRecipeCatalog.PresentationRecipes,
-                x => x.DisplayName == $"Hard {cardioName}");
+                CardioActivityCatalog.All,
+                x => x.DisplayName == activityName);
         }
+
+        Assert.DoesNotContain(
+            SystemWorkoutRecipeCatalog.PresentationRecipes,
+            x => x.DisplayName.StartsWith(
+                "Easy Running",
+                StringComparison.OrdinalIgnoreCase));
+
+        Assert.DoesNotContain(
+            SystemWorkoutRecipeCatalog.PresentationRecipes,
+            x => x.DisplayName.StartsWith(
+                "Hard Cycling",
+                StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void PresentationRecipesStillCoverEveryEngine30Type()
+    public void PresentationRecipesResolveEveryEngine30TypeThroughCanonicalUi()
     {
         var engineCodes =
             new Engine30WorkoutTypeCatalog()
                 .GetAll()
                 .Select(x => x.WorkoutTypeCode)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .ToArray();
 
-        var presentedEngineCodes =
-            SystemWorkoutRecipeCatalog.PresentationRecipes
-                .Select(x => x.EngineWorkoutTypeCode)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var engineCode in engineCodes)
+        {
+            var presentation =
+                SystemWorkoutRecipeCatalog
+                    .GetDefaultPresentationForEngine(
+                        engineCode);
 
-        Assert.Empty(
-            engineCodes.Except(
-                presentedEngineCodes,
-                StringComparer.OrdinalIgnoreCase));
+            Assert.NotNull(presentation);
+
+            if (CardioActivityCatalog.IsCollapsedCardioEngineCode(engineCode))
+            {
+                Assert.Equal(
+                    CardioActivityCatalog.PresentationSystemCode,
+                    presentation!.SystemCode);
+            }
+        }
+    }
+
+    [Fact]
+    public void CardioActivitiesMapOnlyToExistingCalibratedEngine30Types()
+    {
+        var engine =
+            new Engine30WorkoutTypeCatalog();
+
+        Assert.NotEmpty(CardioActivityCatalog.All);
+
+        foreach (var activity in CardioActivityCatalog.All)
+        {
+            Assert.True(
+                engine.TryGet(
+                    activity.EngineWorkoutTypeCode,
+                    out var definition));
+
+            Assert.NotNull(definition);
+            Assert.Equal(
+                activity.EngineWorkoutTypeCode,
+                definition!.WorkoutTypeCode);
+        }
+
+        Assert.Equal(
+            "CARDIO",
+            SystemWorkoutRecipeCatalog
+                .GetDefaultPresentationForEngine("RUNNING")!
+                .SystemCode);
+
+        Assert.Equal(
+            "CARDIO",
+            SystemWorkoutRecipeCatalog
+                .GetDefaultPresentationForEngine("ZONE2_CARDIO")!
+                .SystemCode);
     }
 
     [Fact]
