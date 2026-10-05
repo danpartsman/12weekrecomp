@@ -75,7 +75,7 @@
         if (c is "REST" or "MOBILITY_RECOVERY")
             return "recovery";
 
-        return "other";
+        return "unplanned";
     }
 
     private static string CategoryLabel(string category) => category switch
@@ -84,7 +84,6 @@
         "accessory" => "Accessory strength",
         "cardio" => "Conditioning / cardio",
         "recovery" => "Recovery / rest",
-        "other" => "Other activity",
         _ => "Unplanned"
     };
 }
@@ -97,7 +96,6 @@
     var accessoryCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "accessory");
     var cardioCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "cardio");
     var recoveryCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "recovery");
-    var otherCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "other");
     var unplannedCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "unplanned");
 
     var systemCategoryOrder =
@@ -234,10 +232,6 @@
         <div class="plan-mix-item plan-mix-recovery" data-count-category="recovery">
             <strong data-count-value>@recoveryCount</strong>
             <span>Recovery / Rest</span>
-        </div>
-        <div class="plan-mix-item plan-mix-other" data-count-category="other">
-            <strong data-count-value>@otherCount</strong>
-            <span>Other</span>
         </div>
         <div class="plan-mix-item plan-mix-unplanned" data-count-category="unplanned">
             <strong data-count-value>@unplannedCount</strong>
@@ -509,7 +503,6 @@
         accessory: "Accessory strength",
         cardio: "Conditioning / cardio",
         recovery: "Recovery / rest",
-        other: "Other activity",
         unplanned: "Unplanned"
     };
 
@@ -806,7 +799,7 @@
 
                 const category =
                     systemOption?.dataset.category
-                    || "other";
+                    || "unplanned";
 
                 activeSelect
                     .querySelectorAll(
