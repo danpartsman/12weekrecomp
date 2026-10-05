@@ -698,8 +698,8 @@
 
                     @{
                         var recommendedWorkoutTypeCode = Model.ScheduleChangeRecommended
-                            ? Model.Engine30AdaptiveRecommendation?.RecommendedWorkoutTypeCode
-                            : Model.Engine30AdaptiveRecommendation?.PlannedWorkoutTypeCode ?? Model.Engine30WorkoutTypeCode;
+                            ? Model.RecompRecommendation?.RecommendedWorkoutTypeCode
+                            : Model.RecompRecommendation?.PlannedWorkoutTypeCode ?? Model.Engine30WorkoutTypeCode;
                         var recommendedSystemWorkout =
                             WebRecomp.Web.Services.WorkoutIntelligence.SystemWorkoutRecipeCatalog
                                 .GetDefaultPresentationForEngine(recommendedWorkoutTypeCode);
@@ -1078,12 +1078,12 @@
         }
     </section>
 
-    @if (Model.Engine30AdaptiveRecommendation is { ShowOnDashboard: true } adaptive)
+    @if (Model.RecompRecommendation is { ShowOnDashboard: true } adaptive)
     {
         <section class="dash-section dash-adaptive-recommendation">
             <div class="dash-section-heading">
                 <div>
-                    <div class="dash-kicker">ENGINE 3.0 &bull; ADAPTIVE RECOMMENDATION</div>
+                    <div class="dash-kicker">RECOMP ENGINE @adaptive.EngineVersionCode &bull; ADAPTIVE RECOMMENDATION</div>
                     <h2>@adaptive.Title</h2>
                 </div>
             </div>
