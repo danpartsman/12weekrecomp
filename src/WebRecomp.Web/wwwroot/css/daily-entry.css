@@ -1300,3 +1300,100 @@ body.test-live-preview.app-shell .daily-entry-v2-actions {
         min-height:180px !important;
     }
 }
+
+
+/* ===== v1013 completed workout cross-surface sync ===== */
+.daily-entry-actual-sync {
+    display:grid;
+    gap:.25rem;
+    margin:.75rem 0 1rem;
+    padding:.85rem 1rem;
+    border:1px solid #86d8a0;
+    border-radius:.8rem;
+    background:#f0fbf4;
+}
+
+.daily-entry-actual-sync strong {
+    color:#176438;
+    font-weight:900;
+}
+
+.daily-entry-actual-sync span {
+    color:#365744;
+    line-height:1.4;
+}
+
+.daily-entry-completed-actual {
+    display:grid;
+    gap:.65rem;
+    margin:.7rem 0 .85rem;
+    padding:.85rem .95rem;
+    border:1px solid #8fcba4;
+    border-radius:.75rem;
+    background:#f7fcf8;
+}
+
+.daily-entry-completed-actual-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    flex-wrap:wrap;
+}
+
+.daily-entry-completed-badge {
+    display:inline-flex;
+    align-items:center;
+    padding:.28rem .5rem;
+    border-radius:999px;
+    background:#dff7e7;
+    color:#176438;
+    font-size:.7rem;
+    font-weight:900;
+    letter-spacing:.06em;
+}
+
+.daily-entry-completed-stats {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:.55rem;
+}
+
+.daily-entry-completed-stats > div {
+    display:grid;
+    gap:.18rem;
+    padding:.55rem .65rem;
+    border:1px solid #d9e8de;
+    border-radius:.6rem;
+    background:#fff;
+}
+
+.daily-entry-completed-stats span {
+    color:#66756c;
+    font-size:.68rem;
+    font-weight:850;
+    text-transform:uppercase;
+    letter-spacing:.045em;
+}
+
+.daily-entry-completed-stats strong {
+    font-size:.9rem;
+}
+
+.daily-entry-completed-actual p {
+    margin:0;
+    color:#506259;
+    font-size:.78rem;
+    line-height:1.42;
+}
+
+.daily-entry-workout-card.is-completed-actual .daily-entry-grid,
+.daily-entry-workout-card.is-completed-actual > .daily-entry-notes {
+    display:none;
+}
+
+@media (max-width:650px) {
+    .daily-entry-completed-stats {
+        grid-template-columns:1fr;
+    }
+}
