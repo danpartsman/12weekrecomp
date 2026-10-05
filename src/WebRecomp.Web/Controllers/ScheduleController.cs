@@ -223,6 +223,7 @@ public sealed class ScheduleController(
             CurrentGoalDisplayName = GoalDisplayName(currentGoalCode),
             PreviewGoalCode = requestedPreviewGoalCode,
             PreviewGoalDisplayName = GoalDisplayName(requestedPreviewGoalCode),
+            PreviewGoalDescription = GoalDescription(requestedPreviewGoalCode),
             IsGoalPreview = isGoalPreview,
             CanChangeGoal = canChangeGoal,
             GoalOptions = GoalOptions(requestedPreviewGoalCode),
@@ -353,6 +354,23 @@ public sealed class ScheduleController(
                     ? context.Program.SelectedPlanCode
                     : planCodeForWeek;
 
+        IReadOnlyDictionary<DateOnly, Engine30DashboardDayProjection> goalPreviewTargets =
+            engine30Targets;
+
+        if (hasUsableWeight
+            && !string.Equals(
+                recommendationPlanCode,
+                planCodeForWeek,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            goalPreviewTargets =
+                await engine30Projection.BuildPlanningWeekAsync(
+                    context,
+                    start,
+                    recommendationPlanCode,
+                    cancellationToken);
+        }
+
         var recommendedTemplate =
             weeklyPlans.BuildRecommendedTemplate(
                 recommendationPlanCode,
@@ -375,6 +393,68 @@ public sealed class ScheduleController(
                         ? definition.DisplayName
                         : code.Replace('_', ' '))
             });
+        }
+
+        var recommendedMajorCount =
+            recommendedTemplate.Count(
+                code => code is
+                    "MAJOR_LEGS"
+                    or "MAJOR_PUSH"
+                    or "MAJOR_PULL"
+                    or "FULL_BODY_STRENGTH");
+
+        var recommendedAccessoryCount =
+            recommendedTemplate.Count(
+                code => code is
+                    "ACCESSORY"
+                    or "RESISTANCE_CIRCUIT");
+
+        var resistanceExposureCount =
+            recommendedMajorCount
+            + recommendedAccessoryCount;
+
+        vm.PreviewMuscleStimulus =
+            resistanceExposureCount >= 4
+                ? "HIGH"
+                : resistanceExposureCount >= 2
+                    ? "MODERATE"
+                    : "LOW";
+
+        vm.PreviewMuscleDirection =
+            BuildMuscleDirection(
+                recommendationPlanCode,
+                resistanceExposureCount);
+
+        if (goalPreviewTargets.Count > 0)
+        {
+            var weeklyMaintenance =
+                goalPreviewTargets.Values.Sum(
+                    x => x.MaintenanceEnergyKcal);
+
+            var weeklyPrescribed =
+                goalPreviewTargets.Values.Sum(
+                    x => x.PrescribedEnergyKcal);
+
+            var weeklyDeficit =
+                weeklyMaintenance
+                - weeklyPrescribed;
+
+            vm.PreviewWeeklyDeficitKcal =
+                Math.Round(
+                    weeklyDeficit,
+                    0);
+
+            vm.PreviewFatLossEnergyEquivalentLb =
+                Math.Round(
+                    weeklyDeficit / 3500m,
+                    2);
+
+            vm.PreviewFatDirection =
+                weeklyDeficit > 350m
+                    ? "FAT LOSS FAVORED"
+                    : weeklyDeficit < -350m
+                        ? "FAT GAIN POSSIBLE"
+                        : "NEAR MAINTENANCE";
         }
 
         if (recommendPlanChange)
@@ -877,6 +957,60 @@ public sealed class ScheduleController(
             _ =>
                 "RECOMP — Athletic Reconditioning"
         };
+
+    private static string GoalDescription(
+        string goalCode)
+        => NormalizeGoalCode(goalCode, null) switch
+        {
+            "MUSCLE_BUILD" =>
+                "Prioritizes three major strength anchors plus accessory volume when recovery and schedule allow. Best for users who want muscle gain or strong lean-mass preservation while still reducing body fat gradually.",
+
+            "FAT_LOSS_RECOMP" =>
+                "Keeps resistance training non-negotiable while using a larger controlled energy deficit and more lower-demand conditioning or recovery. Best when fat loss is the primary objective without sacrificing lean mass.",
+
+            "ATHLETIC_RECOMP" =>
+                "Combines three major strength anchors with a fourth demanding conditioning exposure when training availability supports it, plus easier aerobic or accessory work and a true recovery day.",
+
+            "HEALTH_RESET" =>
+                "A lower-stress reconditioning plan for beginners, deconditioned users, older adults returning to structured exercise, people with higher body weight or joint-load concerns, or anyone prioritizing consistency and health over aggressive training. Age or body weight alone does not require this plan.",
+
+            "PAIN_LIMITED" =>
+                "A conservative mobility and reconditioning plan for users whose pain, movement limitations, or current tolerance make normal training volume inappropriate. It emphasizes tolerable resistance work, easy aerobic activity, mobility, and recovery.",
+
+            _ =>
+                "A balanced athletic recomp approach that keeps resistance training central while improving conditioning and work capacity."
+        };
+
+    private static string BuildMuscleDirection(
+        string planCode,
+        int resistanceExposureCount)
+    {
+        if (resistanceExposureCount <= 1)
+            return "PRESERVATION IS THE PRIMARY REALISTIC TARGET";
+
+        return planCode.Trim().ToUpperInvariant() switch
+        {
+            "PLAN_3" =>
+                resistanceExposureCount >= 4
+                    ? "MUSCLE GAIN / PRESERVATION FAVORED"
+                    : "PRESERVATION FAVORED; GAIN POSSIBLE",
+
+            "PLAN_2" =>
+                "LEAN-MASS PRESERVATION FAVORED; GAIN POSSIBLE",
+
+            "PLAN_4" =>
+                "MAINTAIN / GAIN LEAN MASS WITH PERFORMANCE EMPHASIS",
+
+            "PLAN_1" =>
+                "GRADUAL LEAN-MASS GAIN / PRESERVATION FAVORED",
+
+            "PLAN_5" =>
+                "LEAN-MASS PRESERVATION / REBUILDING AS TOLERATED",
+
+            _ =>
+                "LEAN-MASS PRESERVATION FAVORED"
+        };
+    }
 
     private static List<SelectListItem> GoalOptions(
         string selectedGoalCode)
