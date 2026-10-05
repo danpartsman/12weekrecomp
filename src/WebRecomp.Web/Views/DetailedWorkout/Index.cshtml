@@ -191,14 +191,17 @@
                 }
             }
 
-            @if (!isLive && !Model.TemplateOnlyMode && !(isSystem && Model.SelectedSystemWorkout is not null))
+            @if (!isLive
+                && !isStart
+                && !Model.TemplateOnlyMode
+                && !(isSystem && Model.SelectedSystemWorkout is not null))
             {
-                <a class="button primary wi-header-start-workout @(isStart ? "is-active" : "")"
+                <a class="button primary wi-header-start-workout"
                    asp-action="Index"
                    asp-route-mode="start"
                    asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
                    asp-route-returnContext="@Model.ReturnContext">
-                    Start Workout
+                     Select Workout
                 </a>
             }
         </div>
@@ -401,7 +404,7 @@
                        asp-route-mode="start"
                        asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
                        asp-route-returnContext="@Model.ReturnContext">
-                        Start Workout
+                        Select Your Workout
                     </a>
                 </section>
 
