@@ -56,8 +56,8 @@ public sealed class RecommendationService(
         var clientToday =
             AppUserContextService.GetClientToday(client);
 
-        if (WeeklyStrategyService.WeekStart(actionDate) ==
-            WeeklyStrategyService.WeekStart(clientToday))
+        if (PlanningWeek.Start(actionDate) ==
+            PlanningWeek.Start(clientToday))
         {
             await weeklyPlans.EnsureCurrentWeekAsync(
                 client,
@@ -152,7 +152,7 @@ public sealed class RecommendationService(
             }
 
             var shadowWeekly =
-                await strategy.AssessWeekAsync(
+                await weeklyPlanning.AssessWeekAsync(
                     program.ProgramId,
                     shadowConfigId,
                     actionDate,
@@ -161,7 +161,7 @@ public sealed class RecommendationService(
                     cancellationToken);
 
             var shadowRegionRecovery =
-                await strategy.CalculateRegionRecoveryAsync(
+                await legacyRegionRecovery.CalculateAsync(
                     program.ProgramId,
                     actionDate,
                     shadowSettings,
@@ -771,7 +771,7 @@ public sealed class RecommendationService(
         RegionRecovery recovery,
         CancellationToken cancellationToken)
     {
-        var weekStart = WeeklyStrategyService.WeekStart(actionDate);
+        var weekStart = PlanningWeek.Start(actionDate);
         var weekEnd = weekStart.AddDays(6);
 
         var future = await db.PlannedWorkouts
@@ -806,7 +806,7 @@ public sealed class RecommendationService(
         IReadOnlyDictionary<string, WorkoutTypeDefinition> workoutTypes,
         CancellationToken cancellationToken)
     {
-        var weekEnd = WeeklyStrategyService.WeekStart(actionDate).AddDays(6);
+        var weekEnd = PlanningWeek.Start(actionDate).AddDays(6);
 
         var future = await db.PlannedWorkouts
             .Where(x => x.ProgramId == programId
