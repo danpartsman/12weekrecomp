@@ -23,6 +23,7 @@ public sealed class ScheduleController(
     public async Task<IActionResult> Index(
         DateOnly? weekStart,
         bool recommendPlanChange = false,
+        string? previewGoalCode = null,
         CancellationToken cancellationToken = default)
     {
         var context = await userContext.GetAsync(HttpContext, cancellationToken);
@@ -163,6 +164,32 @@ public sealed class ScheduleController(
         var planCodeForWeek = await planSelection.GetPlanCodeForDateAsync(
             context.Program, planReferenceDate, cancellationToken);
 
+        var currentGoalCode =
+            NormalizeGoalCode(
+                context.Program.GoalCode,
+                context.Program.SelectedPlanCode);
+
+        var canChangeGoal =
+            start >= currentWeek;
+
+        var requestedPreviewGoalCode =
+            canChangeGoal
+                ? NormalizeGoalCode(
+                    previewGoalCode,
+                    context.Program.SelectedPlanCode)
+                : currentGoalCode;
+
+        var isGoalPreview =
+            canChangeGoal
+            && !string.IsNullOrWhiteSpace(previewGoalCode)
+            && !string.Equals(
+                requestedPreviewGoalCode,
+                currentGoalCode,
+                StringComparison.OrdinalIgnoreCase);
+
+        var previewPlanCode =
+            GoalToPlan(requestedPreviewGoalCode);
+
         var hasUsableWeight =
             await db.Measurements
                 .AsNoTracking()
@@ -192,6 +219,13 @@ public sealed class ScheduleController(
             PlanCode = planCodeForWeek,
             PlanDisplayName = WeeklyPlanService.FriendlyPlanLabel(planCodeForWeek),
             PlanGuidance = WeeklyPlanService.FriendlyPlanGuidance(planCodeForWeek),
+            CurrentGoalCode = currentGoalCode,
+            CurrentGoalDisplayName = GoalDisplayName(currentGoalCode),
+            PreviewGoalCode = requestedPreviewGoalCode,
+            PreviewGoalDisplayName = GoalDisplayName(requestedPreviewGoalCode),
+            IsGoalPreview = isGoalPreview,
+            CanChangeGoal = canChangeGoal,
+            GoalOptions = GoalOptions(requestedPreviewGoalCode),
             SeededFromPlan = savedRows.Count > 0 && savedRows.All(x => x.SourceCode == "PLAN_DEFAULT"),
             AutoRolled = savedRows.Count > 0 && savedRows.All(x => x.SourceCode == "AUTO_ROLLOVER"),
             NextWeekHasPlan = nextWeekHasPlan,
@@ -313,9 +347,11 @@ public sealed class ScheduleController(
         // the user has actually planned. When a plan change is pending, the
         // recommendation reflects the newly selected plan.
         var recommendationPlanCode =
-            recommendPlanChange
-                ? context.Program.SelectedPlanCode
-                : planCodeForWeek;
+            isGoalPreview
+                ? previewPlanCode
+                : recommendPlanChange
+                    ? context.Program.SelectedPlanCode
+                    : planCodeForWeek;
 
         var recommendedTemplate =
             weeklyPlans.BuildRecommendedTemplate(
@@ -625,6 +661,122 @@ public sealed class ScheduleController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApplyGoal(
+        string goalCode,
+        DateOnly weekStart,
+        CancellationToken cancellationToken)
+    {
+        var context =
+            await userContext.GetAsync(
+                HttpContext,
+                cancellationToken);
+
+        if (context.Client is null || context.Program is null)
+            return RedirectToAction("Index", "Intake");
+
+        var normalizedGoal =
+            NormalizeGoalCode(
+                goalCode,
+                context.Program.SelectedPlanCode);
+
+        var newPlanCode =
+            GoalToPlan(normalizedGoal);
+
+        var currentGoal =
+            NormalizeGoalCode(
+                context.Program.GoalCode,
+                context.Program.SelectedPlanCode);
+
+        var today =
+            AppUserContextService.GetClientToday(
+                context.Client);
+
+        var currentWeek =
+            WeeklyStrategyService.WeekStart(today);
+
+        var requestedWeek =
+            WeeklyStrategyService.WeekStart(weekStart);
+
+        var returnWeek =
+            requestedWeek < currentWeek
+                ? currentWeek
+                : requestedWeek;
+
+        if (string.Equals(
+                normalizedGoal,
+                currentGoal,
+                StringComparison.OrdinalIgnoreCase)
+            && string.Equals(
+                newPlanCode,
+                context.Program.SelectedPlanCode,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["ScheduleStatus"] =
+                "That is already your current Primary Goal.";
+
+            return RedirectToAction(
+                "Index",
+                new
+                {
+                    weekStart =
+                        returnWeek.ToString("yyyy-MM-dd")
+                });
+        }
+
+        var oldPlanCode =
+            context.Program.SelectedPlanCode;
+
+        var oldGoalCode =
+            context.Program.GoalCode;
+
+        var now =
+            DateTime.UtcNow;
+
+        context.Program.SelectedPlanCode =
+            newPlanCode;
+
+        context.Program.GoalCode =
+            normalizedGoal;
+
+        context.Program.UpdatedAtUtc =
+            now;
+
+        db.ProgramPlanChanges.Add(
+            new ProgramPlanChange
+            {
+                ProgramPlanChangeId = Guid.NewGuid(),
+                ProgramId = context.Program.ProgramId,
+                ChangedByUserId = context.User.UserId,
+                OldPlanCode = oldPlanCode,
+                NewPlanCode = newPlanCode,
+                OldGoalCode = oldGoalCode,
+                NewGoalCode = normalizedGoal,
+                EffectiveDate = today,
+                ChangeSourceCode =
+                    "WEEKLY_PLAN_GOAL_SELECTOR",
+                ChangedAtUtc = now
+            });
+
+        await db.SaveChangesAsync(
+            cancellationToken);
+
+        TempData["ScheduleStatus"] =
+            $"Primary Goal changed to {GoalDisplayName(normalizedGoal)}. " +
+            "Your completed history and existing planned workouts were not overwritten. " +
+            "Review the new recommendation below and apply it only if you want to change the remaining schedule.";
+
+        return RedirectToAction(
+            "Index",
+            new
+            {
+                weekStart =
+                    returnWeek.ToString("yyyy-MM-dd"),
+                recommendPlanChange = true
+            });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ApplyRecommendedWeek(DateOnly weekStart, CancellationToken cancellationToken)
     {
         var context = await userContext.GetAsync(HttpContext, cancellationToken);
@@ -651,5 +803,115 @@ public sealed class ScheduleController(
         return RedirectToAction(
             "Index",
             new { weekStart = start.ToString("yyyy-MM-dd") });
+    }
+
+    private static string NormalizeGoalCode(
+        string? goalCode,
+        string? fallbackPlanCode)
+    {
+        var normalized =
+            (goalCode ?? string.Empty)
+                .Trim()
+                .ToUpperInvariant();
+
+        return normalized switch
+        {
+            "MUSCLE" or "MUSCLE_BUILD" =>
+                "MUSCLE_BUILD",
+
+            "FAT_LOSS" or "FAT_LOSS_RECOMP" =>
+                "FAT_LOSS_RECOMP",
+
+            "ATHLETIC" or "ATHLETIC_RECOMP" =>
+                "ATHLETIC_RECOMP",
+
+            "HEALTH" or "HEALTH_RESET" =>
+                "HEALTH_RESET",
+
+            "PAIN_LIMITED" or "MOBILITY" =>
+                "PAIN_LIMITED",
+
+            _ => (fallbackPlanCode ?? string.Empty)
+                .Trim()
+                .ToUpperInvariant() switch
+                {
+                    "PLAN_1" => "HEALTH_RESET",
+                    "PLAN_2" => "FAT_LOSS_RECOMP",
+                    "PLAN_3" => "MUSCLE_BUILD",
+                    "PLAN_5" => "PAIN_LIMITED",
+                    _ => "ATHLETIC_RECOMP"
+                }
+        };
+    }
+
+    private static string GoalToPlan(
+        string goalCode)
+        => NormalizeGoalCode(goalCode, null) switch
+        {
+            "HEALTH_RESET" => "PLAN_1",
+            "FAT_LOSS_RECOMP" => "PLAN_2",
+            "MUSCLE_BUILD" => "PLAN_3",
+            "PAIN_LIMITED" => "PLAN_5",
+            _ => "PLAN_4"
+        };
+
+    private static string GoalDisplayName(
+        string goalCode)
+        => NormalizeGoalCode(goalCode, null) switch
+        {
+            "MUSCLE_BUILD" =>
+                "RECOMP — Muscle Focus / Fat Loss Secondary",
+
+            "FAT_LOSS_RECOMP" =>
+                "RECOMP — Fat Loss Focus / Muscle Secondary",
+
+            "ATHLETIC_RECOMP" =>
+                "RECOMP — Athletic Reconditioning",
+
+            "HEALTH_RESET" =>
+                "SPECIALIZED — Health Reset",
+
+            "PAIN_LIMITED" =>
+                "SPECIALIZED — Pain-Limited / Mobility",
+
+            _ =>
+                "RECOMP — Athletic Reconditioning"
+        };
+
+    private static List<SelectListItem> GoalOptions(
+        string selectedGoalCode)
+    {
+        var selected =
+            NormalizeGoalCode(
+                selectedGoalCode,
+                null);
+
+        return
+        [
+            new SelectListItem(
+                "RECOMP — Muscle Focus / Fat Loss Secondary",
+                "MUSCLE_BUILD",
+                selected == "MUSCLE_BUILD"),
+
+            new SelectListItem(
+                "RECOMP — Fat Loss Focus / Muscle Secondary",
+                "FAT_LOSS_RECOMP",
+                selected == "FAT_LOSS_RECOMP"),
+
+            new SelectListItem(
+                "RECOMP — Athletic Reconditioning",
+                "ATHLETIC_RECOMP",
+                selected == "ATHLETIC_RECOMP"),
+
+            new SelectListItem(
+                "SPECIALIZED — Health Reset",
+                "HEALTH_RESET",
+                selected == "HEALTH_RESET"),
+
+            new SelectListItem(
+                "SPECIALIZED — Pain-Limited / Mobility",
+                "PAIN_LIMITED",
+                selected == "PAIN_LIMITED")
+        ];
     }
 }
