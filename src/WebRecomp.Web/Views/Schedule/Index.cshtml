@@ -90,8 +90,8 @@
     private static string CarbCycleLabel(string category) => category switch
     {
         "major" => "HIGH-CARB CYCLE",
-        "accessory" => "LOW-CARB CYCLE",
-        "cardio" => "LOW-CARB CYCLE",
+        "accessory" => "MODERATE-CARB CYCLE",
+        "cardio" => "VARIABLE-CARB CYCLE",
         "recovery" => "LOW-CARB CYCLE",
         _ => "PLAN ALL 7 DAYS"
     };
@@ -228,7 +228,7 @@
             <strong>Recommended vs planned workout mix</strong>
         </div>
         <button type="button" class="help-tip" aria-label="About workout categories"
-                data-tooltip="The darker top section shows Recomp's recommended weekly mix and carb cycle. The lighter lower section shows what you actually planned. Hard/major is the high-carb cycle; accessory, cardio and recovery/rest use the low-carb cycle.">?</button>
+                data-tooltip="The darker top section shows Recomp's recommended weekly mix and fueling cycle. The lighter lower section shows what you actually planned. Hard/major is typically high-carb, accessory is moderate-carb, cardio varies with intensity and glycogen demand, and recovery/rest is low-carb. Engine 3.0 still determines the actual daily macro grams.">?</button>
     </div>
     <section class="plan-week-mix" aria-label="Recommended versus planned weekly workout mix">
         <div class="plan-mix-item plan-mix-major" data-count-category="major">
