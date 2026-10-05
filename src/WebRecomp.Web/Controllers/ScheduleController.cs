@@ -13,12 +13,11 @@ namespace WebRecomp.Web.Controllers;
 public sealed class ScheduleController(
     RecompDbContext db,
     AppUserContextService userContext,
-    ConfigurationService configuration,
-    WorkoutMathService math,
     WeeklyStrategyService strategy,
     ProgramPlanService planSelection,
     WeeklyPlanService weeklyPlans,
-    Engine30WorkoutUiCatalogService engine30WorkoutCatalog) : Controller
+    Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
+    Engine30DashboardProjectionService engine30Projection) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(
@@ -142,29 +141,7 @@ public sealed class ScheduleController(
             myWorkouts.ToDictionary(
                 x => x.WorkoutTemplateId);
 
-        // Temporary shadow-phase bridge used only for the legacy target panel.
-        // Engine 3.0 runtime calculation uses the active Admin workout profile.
-        var legacyWorkoutMap =
-            await configuration.GetWorkoutTypesAsync(
-                context.Program.ConfigVersionId,
-                cancellationToken);
-
-        var settings =
-            await configuration.GetSettingsAsync(
-                context.Program.ConfigVersionId,
-                cancellationToken);
         var end = start.AddDays(6);
-
-        // Use the latest known weight on or before each planned date.
-        // A later weigh-in must not rewrite the displayed macro targets for an earlier date.
-        var weightHistory = await db.Measurements
-            .Where(x => x.ClientId == context.Client.ClientId
-                        && !x.IsDeleted
-                        && x.WeightLb != null
-                        && x.LocalMeasurementDate <= end)
-            .OrderBy(x => x.LocalMeasurementDate)
-            .ThenBy(x => x.MeasurementAtUtc)
-            .ToListAsync(cancellationToken);
 
         var savedRows = await db.PlannedWorkouts
             .Where(x => x.ProgramId == context.Program.ProgramId
@@ -185,6 +162,29 @@ public sealed class ScheduleController(
         var planReferenceDate = start == currentWeek ? today : start;
         var planCodeForWeek = await planSelection.GetPlanCodeForDateAsync(
             context.Program, planReferenceDate, cancellationToken);
+
+        var hasUsableWeight =
+            await db.Measurements
+                .AsNoTracking()
+                .AnyAsync(
+                    x =>
+                        x.ClientId == context.Client.ClientId
+                        && !x.IsDeleted
+                        && x.WeightLb != null,
+                    cancellationToken);
+
+        IReadOnlyDictionary<DateOnly, Engine30DashboardDayProjection> engine30Targets =
+            new Dictionary<DateOnly, Engine30DashboardDayProjection>();
+
+        if (hasUsableWeight)
+        {
+            engine30Targets =
+                await engine30Projection.BuildPlanningWeekAsync(
+                    context,
+                    start,
+                    planCodeForWeek,
+                    cancellationToken);
+        }
 
         var vm = new WeekPlanViewModel
         {
@@ -285,52 +285,24 @@ public sealed class ScheduleController(
                 day.WeeklyRole = type.WeeklyRoleCode;
                 day.Region = type.RegionCode;
 
-                var weightForDate = weightHistory
-                    .Where(x => x.LocalMeasurementDate <= date && x.WeightLb.HasValue)
-                    .OrderByDescending(x => x.LocalMeasurementDate)
-                    .ThenByDescending(x => x.MeasurementAtUtc)
-                    .Select(x => x.WeightLb)
-                    .FirstOrDefault();
+            }
 
-                if (weightForDate.HasValue)
-                {
-                    var legacyCode =
-                        Engine30WorkoutUiCatalogService
-                            .ToLegacyCompatibilityCode(
-                                normalizedWorkoutTypeCode);
-
-                    if (legacyWorkoutMap.TryGetValue(
-                            legacyCode,
-                            out var legacyWorkoutType))
-                    {
-                        var planCodeForDate =
-                            await planSelection.GetPlanCodeForDateAsync(
-                                context.Program,
-                                date,
-                                cancellationToken);
-
-                        var planForDate =
-                            await configuration.GetPlanAsync(
-                                context.Program.ConfigVersionId,
-                                planCodeForDate,
-                                cancellationToken);
-
-                        var targets =
-                            math.CalculatePlannedTargets(
-                                weightForDate.Value,
-                                planForDate,
-                                legacyWorkoutType,
-                                settings);
-
-                        day.Calories = targets.Calories;
-                        day.ProteinG = targets.ProteinG;
-                        day.BaseCarbsG = targets.CarbsG;
-                        day.FatG = targets.FatG;
-                        day.ScaledGlycogenBurnG =
-                            targets.ScaledGlycogenBurnG;
-                        day.TimingNote = targets.TimingNote;
-                    }
-                }
+            if (engine30Targets.TryGetValue(
+                    date,
+                    out var engine30Day))
+            {
+                day.Calories =
+                    engine30Day.PrescribedEnergyKcal;
+                day.ProteinG =
+                    engine30Day.ProteinG;
+                day.BaseCarbsG =
+                    engine30Day.RecommendedCarbsG;
+                day.FatG =
+                    engine30Day.FatG;
+                day.ScaledGlycogenBurnG =
+                    engine30Day.GlycogenDemandG;
+                day.TimingNote =
+                    "Engine 3.0 prescription";
             }
 
             vm.Days.Add(day);
