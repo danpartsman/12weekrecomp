@@ -50,7 +50,7 @@ public sealed class WeeklyPlanningRecoverySeparationTests
     }
 
     [Fact]
-    public void LegacyRegionalLoadsAreIsolatedFromCurrentPlanningAndDashboard()
+    public void LegacyRegionalLoadsAreRemovedFromCurrentRuntime()
     {
         var root = FindRepoRoot();
 
@@ -90,7 +90,8 @@ public sealed class WeeklyPlanningRecoverySeparationTests
                      weeklyStrategy,
                      planning,
                      dashboard,
-                     recovery
+                     recovery,
+                     legacyRecovery
                  })
         {
             Assert.DoesNotContain(
@@ -115,12 +116,12 @@ public sealed class WeeklyPlanningRecoverySeparationTests
         }
 
         Assert.Contains(
-            "CalculatedPushLoad",
+            "v1014D",
             legacyRecovery,
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "Legacy Engine 2.x regional-load compatibility only",
+            "obsolete compatibility/runtime service removed",
             legacyRecovery,
             StringComparison.Ordinal);
     }
