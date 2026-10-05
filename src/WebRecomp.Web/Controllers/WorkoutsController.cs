@@ -13,10 +13,8 @@ namespace WebRecomp.Web.Controllers;
 public sealed class WorkoutsController(
     RecompDbContext db,
     AppUserContextService userContext,
-    ConfigurationService configuration,
-    WorkoutMathService math,
     Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
-    IConfiguration appConfiguration) : Controller
+    WorkoutActualService workoutActuals) : Controller
 {
     private static readonly HashSet<string> HiddenLegacyDuplicateCodes =
         new(StringComparer.OrdinalIgnoreCase)
@@ -256,39 +254,6 @@ public sealed class WorkoutsController(
             }
         }
 
-        var legacyWorkoutTypes =
-            await configuration.GetWorkoutTypesAsync(
-                context.Program.ConfigVersionId,
-                cancellationToken);
-
-        var legacyCode =
-            Engine30WorkoutUiCatalogService.ToLegacyCompatibilityCode(
-                model.WorkoutTypeCode);
-
-        legacyWorkoutTypes.TryGetValue(
-            legacyCode,
-            out var workout);
-
-        if (workout is null)
-        {
-            ModelState.AddModelError(
-                nameof(model.WorkoutTypeCode),
-                "The selected workout cannot be mapped to this program configuration.");
-        }
-
-        var weight = await db.Measurements
-            .Where(x => x.ClientId == context.Client.ClientId
-                        && !x.IsDeleted
-                        && x.LocalMeasurementDate <= model.Date
-                        && x.WeightLb != null)
-            .OrderByDescending(x => x.LocalMeasurementDate)
-            .ThenByDescending(x => x.MeasurementAtUtc)
-            .Select(x => x.WeightLb)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (!weight.HasValue)
-            ModelState.AddModelError("", "A weight measurement is required on or before the workout date.");
-
         if (!ModelState.IsValid)
         {
             if (IsAjaxRequest())
@@ -346,9 +311,9 @@ public sealed class WorkoutsController(
             session.DeviceCalories = model.DeviceCalories;
             session.CompletedFlag = model.CompletedFlag;
             session.Notes = model.Notes;
-            session.CalculationEngineVersion =
-                appConfiguration["WebRecomp:EngineVersion"] ?? "1001.0";
-            session.UpdatedAtUtc = DateTime.UtcNow;
+            workoutActuals.ApplyCurrentEngineState(
+                session,
+                model.CompletedFlag);
         }
         else
         {
@@ -369,25 +334,16 @@ public sealed class WorkoutsController(
                 CompletedFlag = model.CompletedFlag,
                 Notes = model.Notes,
                 EntrySourceCode = RecompInputSourceCodes.Manual,
-                CalculationEngineVersion =
-                    appConfiguration["WebRecomp:EngineVersion"] ?? "1001.0",
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             };
 
+            workoutActuals.ApplyCurrentEngineState(
+                session,
+                model.CompletedFlag);
+
             db.WorkoutSessions.Add(session);
         }
-
-        var derived = math.CalculateActualWorkout(weight!.Value, session, workout!, await configuration.GetSettingsAsync(
-            context.Program.ConfigVersionId,
-            cancellationToken));
-
-        session.CalculatedWorkoutCalories = derived.WorkoutCalories;
-        session.CalculatedScaledGlycogenBurnG = derived.ScaledGlycogenBurnG;
-        session.CalculatedPushLoad = derived.PushLoad;
-        session.CalculatedPullLoad = derived.PullLoad;
-        session.CalculatedLegLoad = derived.LegLoad;
-        session.CalculatedCardioLoad = derived.CardioLoad;
 
         await db.SaveChangesAsync(cancellationToken);
 

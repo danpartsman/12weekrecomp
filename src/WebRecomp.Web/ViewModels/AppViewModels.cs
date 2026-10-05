@@ -186,6 +186,24 @@ public sealed class WeekPlanViewModel
     public string PlanCode { get; set; } = "";
     public string PlanDisplayName { get; set; } = "";
     public string PlanGuidance { get; set; } = "";
+
+    // Weekly Plan goal preview. Previewing never mutates the saved program;
+    // the user must explicitly choose "Use this goal" before it becomes active.
+    public string CurrentGoalCode { get; set; } = "";
+    public string CurrentGoalDisplayName { get; set; } = "";
+    public string PreviewGoalCode { get; set; } = "";
+    public string PreviewGoalDisplayName { get; set; } = "";
+    public string PreviewGoalDescription { get; set; } = "";
+    public bool IsGoalPreview { get; set; }
+    public bool CanChangeGoal { get; set; }
+    public List<SelectListItem> GoalOptions { get; set; } = [];
+
+    public decimal? PreviewWeeklyDeficitKcal { get; set; }
+    public decimal? PreviewFatLossEnergyEquivalentLb { get; set; }
+    public string PreviewFatDirection { get; set; } = "";
+    public string PreviewMuscleDirection { get; set; } = "";
+    public string PreviewMuscleStimulus { get; set; } = "";
+
     public bool SeededFromPlan { get; set; }
     public bool AutoRolled { get; set; }
     public bool NextWeekHasPlan { get; set; }
@@ -329,8 +347,9 @@ public sealed class DashboardViewModel
     public string FuelReasonCodes { get; set; } = "";
     // v1009 context-aware Yesterday + Trend interpretation.
     public WebRecomp.Web.Services.Engine30.Engine30DashboardAnalysisResult? Engine30Analysis { get; set; }
-    // v1009 adaptive workout + nutrition recommendation.
-    public WebRecomp.Web.Services.Engine30.Engine30AdaptiveRecommendationResult? Engine30AdaptiveRecommendation { get; set; }
+    // v1014A application-facing adaptive workout + nutrition recommendation.
+    // The Dashboard no longer depends on a concrete engine implementation.
+    public WebRecomp.Web.Services.Engine.RecompRecommendationResult? RecompRecommendation { get; set; }
     // Engine 3.0 actual-intake ENERGY carryover.
     public decimal? PreviousEnergyVarianceKcal { get; set; }
     public decimal? PreviousEligibleEnergyCarryoverKcal { get; set; }

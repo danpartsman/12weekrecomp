@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
+using WebRecomp.Web.Services.Engine30;
 using WebRecomp.Web.Services.WorkoutIntelligence;
 using WebRecomp.WorkoutIntelligence.Persistence;
 
@@ -10,10 +11,11 @@ public sealed class TestPersonaSeederService(
     RecompDbContext db,
     ConfigurationService configuration,
     WeeklyPlanService weeklyPlans,
-    WorkoutMathService workoutMath,
+    Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
+    Engine30DashboardProjectionService engine30Projection,
+    WorkoutActualService workoutActuals,
     IExerciseCatalogStore exerciseCatalog,
-    IDetailedWorkoutStore detailedWorkoutStore,
-    IConfiguration appConfiguration)
+    IDetailedWorkoutStore detailedWorkoutStore)
 {
     private const int HistoryDays = 28;
 
@@ -142,7 +144,7 @@ public sealed class TestPersonaSeederService(
             await transaction.CommitAsync(cancellationToken);
         });
 
-        var firstWeek = WeeklyStrategyService.WeekStart(programStart);
+        var firstWeek = PlanningWeek.Start(programStart);
         for (var week = 0; week < program.DurationWeeks; week++)
         {
             await weeklyPlans.SeedRecommendedWeekIfBlankAsync(
@@ -152,21 +154,15 @@ public sealed class TestPersonaSeederService(
                 cancellationToken);
         }
 
-        var planDefinition =
-            await configuration.GetPlanAsync(
-                program.ConfigVersionId,
-                spec.PlanCode,
-                cancellationToken);
-
-        var settings =
-            await configuration.GetSettingsAsync(
-                program.ConfigVersionId,
-                cancellationToken);
-
         var workoutTypes =
-            await configuration.GetWorkoutTypesAsync(
-                program.ConfigVersionId,
+            await engine30WorkoutCatalog.GetActiveMapAsync(
                 cancellationToken);
+
+        var engineContext =
+            new AppClientContext(
+                user,
+                client,
+                program);
 
         var recoveryType =
             workoutTypes.Values.FirstOrDefault(x => x.CountsRecovery)
@@ -244,44 +240,6 @@ public sealed class TestPersonaSeederService(
                 }
             }
 
-            var targets =
-                workoutMath.CalculatePlannedTargets(
-                    scaleWeight,
-                    planDefinition,
-                    workoutType,
-                    settings);
-
-            var protein = Round1(
-                targets.ProteinG * RandomBetween(random, 0.80m, 1.20m));
-            var carbs = Round1(
-                targets.CarbsG * RandomBetween(random, 0.80m, 1.20m));
-            var fat = Round1(
-                targets.FatG * RandomBetween(random, 0.80m, 1.20m));
-            var calories = Math.Round(
-                protein * 4m + carbs * 4m + fat * 9m,
-                0,
-                MidpointRounding.AwayFromZero);
-
-            db.NutritionDays.Add(
-                new NutritionDay
-                {
-                    NutritionDayId = Guid.NewGuid(),
-                    ClientId = client.ClientId,
-                    ProgramId = program.ProgramId,
-                    NutritionDate = date,
-                    ActualCalories = calories,
-                    ActualProteinG = protein,
-                    ActualCarbsG = carbs,
-                    ActualFatG = fat,
-                    FiberG = Round1(RandomBetween(random, 22m, 38m)),
-                    WaterOz = Round1(RandomBetween(random, 70m, 120m)),
-                    EntrySourceCode = "TEST_PERSONA_SEED",
-                    SourceRecordId = $"TESTPERSONA:{spec.Email}:NUTRITION:{date:yyyy-MM-dd}",
-                    Notes = "Synthetic nutrition actual randomized within +/-20% of the planned macro prescription.",
-                    CreatedAtUtc = now,
-                    UpdatedAtUtc = now
-                });
-
             var trained =
                 planned is not null
                 && !workoutType.CountsRecovery
@@ -320,7 +278,6 @@ public sealed class TestPersonaSeederService(
                     DurationMin = Round1(duration),
                     TypicalRestSec = workoutType.DefaultRestSec,
                     SessionRpe = Round1(sessionRpe),
-                    CompletedFlag = true,
                     EntrySourceCode = "TEST_PERSONA_SEED",
                     SourceRecordId = $"TESTPERSONA:{spec.Email}:WORKOUT:{date:yyyy-MM-dd}",
                     Notes = "Synthetic completed workout generated from the Weekly Plan.",
@@ -328,27 +285,79 @@ public sealed class TestPersonaSeederService(
                     UpdatedAtUtc = now.AddDays(date.DayNumber - today.DayNumber)
                 };
 
-                var derived =
-                    workoutMath.CalculateActualWorkout(
-                        scaleWeight,
-                        session,
-                        workoutType,
-                        settings);
-
-                session.CalculatedWorkoutCalories = derived.WorkoutCalories;
-                session.CalculatedScaledGlycogenBurnG = derived.ScaledGlycogenBurnG;
-                session.CalculatedPushLoad = derived.PushLoad;
-                session.CalculatedPullLoad = derived.PullLoad;
-                session.CalculatedLegLoad = derived.LegLoad;
-                session.CalculatedCardioLoad = derived.CardioLoad;
-                session.CalculationEngineVersion =
-                    appConfiguration["WebRecomp:EngineVersion"] ?? "TEST";
+                workoutActuals.ApplyCurrentEngineState(
+                    session,
+                    completed: true);
 
                 db.WorkoutSessions.Add(session);
 
                 if (recipe is not null && recipe.Slots.Count > 0)
-                    detailedSeeds.Add((session, recipe, StableSeed(spec.Email + ":DETAIL", date)));
+                {
+                    detailedSeeds.Add(
+                        (
+                            session,
+                            recipe,
+                            StableSeed(
+                                spec.Email + ":DETAIL",
+                                date)));
+                }
             }
+
+            // Persist the day's canonical actuals before asking Engine 3.0 for
+            // the prescription used to synthesize nutrition behavior.
+            await db.SaveChangesAsync(cancellationToken);
+
+            var projectedWeek =
+                await engine30Projection.BuildPlanningWeekAsync(
+                    engineContext,
+                    PlanningWeek.Start(date),
+                    spec.PlanCode,
+                    cancellationToken);
+
+            var engineDay =
+                projectedWeek[date];
+
+            var targets = new
+            {
+                Calories = engineDay.PrescribedEnergyKcal,
+                ProteinG = engineDay.ProteinG,
+                CarbsG = engineDay.RecommendedCarbsG,
+                FatG = engineDay.FatG
+            };
+
+            var protein = Round1(
+                targets.ProteinG * RandomBetween(random, 0.80m, 1.20m));
+
+            var carbs = Round1(
+                targets.CarbsG * RandomBetween(random, 0.80m, 1.20m));
+
+            var fat = Round1(
+                targets.FatG * RandomBetween(random, 0.80m, 1.20m));
+
+            var calories = Math.Round(
+                protein * 4m + carbs * 4m + fat * 9m,
+                0,
+                MidpointRounding.AwayFromZero);
+
+            db.NutritionDays.Add(
+                new NutritionDay
+                {
+                    NutritionDayId = Guid.NewGuid(),
+                    ClientId = client.ClientId,
+                    ProgramId = program.ProgramId,
+                    NutritionDate = date,
+                    ActualCalories = calories,
+                    ActualProteinG = protein,
+                    ActualCarbsG = carbs,
+                    ActualFatG = fat,
+                    FiberG = Round1(RandomBetween(random, 22m, 38m)),
+                    WaterOz = Round1(RandomBetween(random, 70m, 120m)),
+                    EntrySourceCode = "TEST_PERSONA_SEED",
+                    SourceRecordId = $"TESTPERSONA:{spec.Email}:NUTRITION:{date:yyyy-MM-dd}",
+                    Notes = "Synthetic nutrition actual randomized within +/-20% of the Engine 3.0 prescription.",
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                });
 
             await db.SaveChangesAsync(cancellationToken);
 

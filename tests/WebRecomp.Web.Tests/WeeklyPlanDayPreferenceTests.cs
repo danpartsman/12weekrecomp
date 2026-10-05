@@ -44,9 +44,38 @@ public sealed class WeeklyPlanDayPreferenceTests
         {
             var template = service.BuildRecommendedTemplate(plan, days, "INTERMEDIATE");
             Assert.Equal(7, template.Count);
-            Assert.DoesNotContain(Enumerable.Range(0, 7),
-                day => Hard(template[day]) && Hard(template[(day + 1) % 7]));
+
+            var hardCount = template.Count(Hard);
+            var hardAdjacencies = Enumerable.Range(0, 7)
+                .Count(day => Hard(template[day]) && Hard(template[(day + 1) % 7]));
+
+            // Four demanding exposures cannot be placed on a seven-day circular
+            // week without one adjacent hard pair. Athletic Reconditioning uses
+            // exactly that exception at 5+ available training days.
+            if (plan == "PLAN_4" && days >= 5)
+            {
+                Assert.Equal(4, hardCount);
+                Assert.Equal(1, hardAdjacencies);
+            }
+            else
+            {
+                Assert.Equal(0, hardAdjacencies);
+            }
         }
+    }
+
+    [Theory]
+    [InlineData((byte)5)]
+    [InlineData((byte)6)]
+    public void AthleticReconditioningAddsHardConditioningAsFourthDemandingExposure(byte days)
+    {
+        var service = new WeeklyPlanService(null!, null!);
+        var template = service.BuildRecommendedTemplate("PLAN_4", days, "INTERMEDIATE");
+
+        Assert.Equal(4, template.Count(Hard));
+        Assert.Contains("TRUE_HIIT", template);
+        Assert.Equal(3, template.Count(code => code is "MAJOR_LEGS" or "MAJOR_PUSH" or "MAJOR_PULL"));
+        Assert.Contains("REST", template);
     }
 
     [Fact]

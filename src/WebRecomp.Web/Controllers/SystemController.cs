@@ -17,9 +17,9 @@ public sealed class SystemController(
     {
         application = "Web Recomp",
         specification =
-            configuration["WebRecomp:SpecificationVersion"] ?? "1008",
+            configuration["WebRecomp:SpecificationVersion"] ?? "1014D",
         engine =
-            configuration["WebRecomp:EngineVersion"] ?? "1001.0",
+            configuration["WebRecomp:EngineVersion"] ?? "3000.0",
         status = "running"
     });
 

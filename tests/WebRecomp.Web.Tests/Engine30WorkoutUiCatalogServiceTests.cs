@@ -32,19 +32,18 @@ public sealed class Engine30WorkoutUiCatalogServiceTests
     }
 
     [Theory]
-    [InlineData("REST", "RECOVERY_0_RPE2")]
-    [InlineData("ZONE2_CARDIO", "Z2_40_RPE4")]
-    [InlineData("GENERAL_CARDIO", "PURE_CARDIO")]
-    [InlineData("FULL_BODY_STRENGTH", "MAJOR_60_RPE8")]
-    [InlineData("ACCESSORY", "ACCESSORY_45_RPE7")]
-    [InlineData("TRUE_HIIT", "HIIT_45_RPE9")]
-    [InlineData("ORANGETHEORY", "OTF_STANDARD")]
-    public void LegacyCompatibilityCode_IsExplicitAndDeterministic(
-        string engine30,
-        string expectedLegacy)
+    [InlineData("REST")]
+    [InlineData("ZONE2_CARDIO")]
+    [InlineData("GENERAL_CARDIO")]
+    [InlineData("FULL_BODY_STRENGTH")]
+    [InlineData("ACCESSORY")]
+    [InlineData("TRUE_HIIT")]
+    [InlineData("ORANGETHEORY")]
+    public void NormalizeCode_CurrentEngine30CodesPassThrough(
+        string engine30)
     {
         Assert.Equal(
-            expectedLegacy,
-            Engine30WorkoutUiCatalogService.ToLegacyCompatibilityCode(engine30));
+            engine30,
+            Engine30WorkoutUiCatalogService.NormalizeCode(engine30));
     }
 }

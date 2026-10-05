@@ -2140,3 +2140,617 @@ body.test-live-preview.app-shell .app-date-heading {
     font-weight: 800;
     color: #70e0f4 !important;
 }
+
+
+/* ===== v1013 weekly plan energy palette ===== */
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-item {
+    border: 2px solid #315a84 !important;
+    border-top-width: 2px !important;
+    background: #0b1c31 !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+}
+
+body.test-live-preview.app-shell .plan-mix-major {
+    border-color: #ff4d5a !important;
+    box-shadow: 0 0 18px rgba(255, 77, 90, .16);
+}
+body.test-live-preview.app-shell .plan-mix-major strong { color: #ff8790 !important; }
+
+body.test-live-preview.app-shell .plan-mix-accessory {
+    border-color: #ff982f !important;
+    box-shadow: 0 0 18px rgba(255, 152, 47, .16);
+}
+body.test-live-preview.app-shell .plan-mix-accessory strong { color: #ffb766 !important; }
+
+body.test-live-preview.app-shell .plan-mix-cardio {
+    border-color: #ffd84d !important;
+    box-shadow: 0 0 18px rgba(255, 216, 77, .14);
+}
+body.test-live-preview.app-shell .plan-mix-cardio strong { color: #ffe783 !important; }
+
+body.test-live-preview.app-shell .plan-mix-recovery {
+    border-color: #55e27a !important;
+    box-shadow: 0 0 18px rgba(85, 226, 122, .14);
+}
+body.test-live-preview.app-shell .plan-mix-recovery strong { color: #8cf0a7 !important; }
+
+body.test-live-preview.app-shell .plan-mix-other {
+    border-color: #39c8ee !important;
+}
+body.test-live-preview.app-shell .plan-mix-other strong { color: #7dddf7 !important; }
+
+body.test-live-preview.app-shell .plan-mix-unplanned {
+    border-color: #6f8ca8 !important;
+}
+body.test-live-preview.app-shell .plan-mix-unplanned strong { color: #a8bfd4 !important; }
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-item span {
+    color: #d3e0ee !important;
+}
+
+body.test-live-preview.app-shell .plan-day-row {
+    border-style: solid !important;
+    border-width: 2px 2px 2px 7px !important;
+    transition:
+        border-color .16s ease,
+        box-shadow .16s ease,
+        transform .16s ease,
+        background .16s ease;
+}
+
+body.test-live-preview.app-shell .plan-day-row.plan-cat-major {
+    border-color: #ff4d5a !important;
+    background:
+        linear-gradient(90deg, rgba(118, 24, 38, .36), rgba(10, 28, 49, .96) 24%) !important;
+    box-shadow: inset 5px 0 0 rgba(255, 77, 90, .22), 0 0 20px rgba(255, 77, 90, .10);
+}
+
+body.test-live-preview.app-shell .plan-day-row.plan-cat-accessory {
+    border-color: #ff982f !important;
+    background:
+        linear-gradient(90deg, rgba(126, 69, 13, .34), rgba(10, 28, 49, .96) 24%) !important;
+    box-shadow: inset 5px 0 0 rgba(255, 152, 47, .20), 0 0 20px rgba(255, 152, 47, .09);
+}
+
+body.test-live-preview.app-shell .plan-day-row.plan-cat-cardio {
+    border-color: #ffd84d !important;
+    background:
+        linear-gradient(90deg, rgba(110, 91, 17, .32), rgba(10, 28, 49, .96) 24%) !important;
+    box-shadow: inset 5px 0 0 rgba(255, 216, 77, .18), 0 0 20px rgba(255, 216, 77, .08);
+}
+
+body.test-live-preview.app-shell .plan-day-row.plan-cat-recovery {
+    border-color: #55e27a !important;
+    background:
+        linear-gradient(90deg, rgba(24, 91, 54, .34), rgba(10, 28, 49, .96) 24%) !important;
+    box-shadow: inset 5px 0 0 rgba(85, 226, 122, .18), 0 0 20px rgba(85, 226, 122, .08);
+}
+
+body.test-live-preview.app-shell .plan-day-row.plan-cat-other {
+    border-color: #39c8ee !important;
+    background:
+        linear-gradient(90deg, rgba(20, 79, 103, .30), rgba(10, 28, 49, .96) 24%) !important;
+}
+
+body.test-live-preview.app-shell .plan-day-row.plan-cat-unplanned {
+    border-color: #6f8ca8 !important;
+    background:
+        linear-gradient(90deg, rgba(50, 69, 89, .30), rgba(10, 28, 49, .96) 24%) !important;
+}
+
+body.test-live-preview.app-shell .plan-day-row.plan-cat-major .plan-category-badge {
+    border-color: #ff4d5a !important;
+    background: rgba(118, 24, 38, .52) !important;
+    color: #ffd9dc !important;
+}
+body.test-live-preview.app-shell .plan-day-row.plan-cat-accessory .plan-category-badge {
+    border-color: #ff982f !important;
+    background: rgba(126, 69, 13, .50) !important;
+    color: #ffe1bc !important;
+}
+body.test-live-preview.app-shell .plan-day-row.plan-cat-cardio .plan-category-badge {
+    border-color: #ffd84d !important;
+    background: rgba(110, 91, 17, .48) !important;
+    color: #fff1ae !important;
+}
+body.test-live-preview.app-shell .plan-day-row.plan-cat-recovery .plan-category-badge {
+    border-color: #55e27a !important;
+    background: rgba(24, 91, 54, .48) !important;
+    color: #d3ffdf !important;
+}
+body.test-live-preview.app-shell .plan-day-row.plan-cat-other .plan-category-badge {
+    border-color: #39c8ee !important;
+    background: rgba(20, 79, 103, .48) !important;
+    color: #d2f7ff !important;
+}
+body.test-live-preview.app-shell .plan-day-row.plan-cat-unplanned .plan-category-badge {
+    border-color: #6f8ca8 !important;
+    background: rgba(50, 69, 89, .46) !important;
+    color: #d5e3ef !important;
+}
+
+body.test-live-preview.app-shell .plan-day-row:hover {
+    transform: translateY(-1px);
+}
+
+body.test-live-preview.app-shell .plan-day-row.plan-pending-change {
+    outline: 3px solid #eef8ff !important;
+    outline-offset: 3px;
+    box-shadow:
+        0 0 0 2px #31d2f7,
+        0 0 30px rgba(49, 210, 247, .28) !important;
+    transform: translateY(-1px);
+}
+
+body.test-live-preview.app-shell .plan-day-row.plan-pending-change .plan-recalc-note {
+    display: inline-block;
+    margin-top: .55rem;
+    padding: .38rem .55rem;
+    border-left: 4px solid #ffd84d;
+    border-radius: 4px;
+    background: rgba(110, 91, 17, .30);
+    color: #fff1a8 !important;
+    font-weight: 900;
+}
+
+
+/* ===== v1013.1 weekly summary fills + picker category colors ===== */
+body.test-live-preview.app-shell .plan-week-mix {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-item {
+    min-height: 5.15rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-width: 2px !important;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .24);
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-major {
+    background: linear-gradient(145deg, #a51f36, #731426) !important;
+    border-color: #ff5968 !important;
+}
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-major strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-major span {
+    color: #fff !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-accessory {
+    background: linear-gradient(145deg, #bd5b12, #843b08) !important;
+    border-color: #ff9b38 !important;
+}
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-accessory strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-accessory span {
+    color: #fff !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-cardio {
+    background: linear-gradient(145deg, #e0ba19, #a88709) !important;
+    border-color: #ffe15a !important;
+}
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-cardio strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-cardio span {
+    color: #071526 !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recovery {
+    background: linear-gradient(145deg, #19844a, #105d33) !important;
+    border-color: #60ee89 !important;
+}
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recovery strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recovery span {
+    color: #fff !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-unplanned {
+    background: linear-gradient(145deg, #3b5873, #263d54) !important;
+    border-color: #7699b9 !important;
+}
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-unplanned strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-unplanned span {
+    color: #f3f8fc !important;
+}
+
+/* Closed picker inherits the day's semantic color. */
+body.test-live-preview.app-shell .plan-cat-major .plan-workout-select {
+    border-color: #ff5968 !important;
+    color: #ff8791 !important;
+}
+body.test-live-preview.app-shell .plan-cat-accessory .plan-workout-select {
+    border-color: #ff9b38 !important;
+    color: #ffb86e !important;
+}
+body.test-live-preview.app-shell .plan-cat-cardio .plan-workout-select {
+    border-color: #ffe15a !important;
+    color: #ffe77e !important;
+}
+body.test-live-preview.app-shell .plan-cat-recovery .plan-workout-select {
+    border-color: #60ee89 !important;
+    color: #91f3ad !important;
+}
+body.test-live-preview.app-shell .plan-cat-unplanned .plan-workout-select {
+    border-color: #7699b9 !important;
+    color: #c0d2e2 !important;
+}
+
+/* Native select menus are browser-rendered, but Chromium/Windows honors
+   option text colors. The closed selector styling above remains the fallback. */
+body.test-live-preview.app-shell .plan-workout-select option[data-category="major"] {
+    color: #d82942;
+    font-weight: 800;
+}
+body.test-live-preview.app-shell .plan-workout-select option[data-category="accessory"] {
+    color: #d5670f;
+    font-weight: 800;
+}
+body.test-live-preview.app-shell .plan-workout-select option[data-category="cardio"] {
+    color: #9a7a00;
+    font-weight: 800;
+}
+body.test-live-preview.app-shell .plan-workout-select option[data-category="recovery"] {
+    color: #168043;
+    font-weight: 800;
+}
+body.test-live-preview.app-shell .plan-workout-select option[data-category="unplanned"] {
+    color: #647c93;
+    font-weight: 800;
+}
+
+@media (max-width: 980px) {
+    body.test-live-preview.app-shell .plan-week-mix {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (max-width: 700px) {
+    body.test-live-preview.app-shell .plan-week-mix {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+
+/* ===== v1013.2 recommended vs planned split cards ===== */
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-item {
+    min-height: 0;
+    padding: 0 !important;
+    justify-content: stretch;
+    overflow: hidden;
+    background: transparent !important;
+}
+
+body.test-live-preview.app-shell .plan-mix-recommended,
+body.test-live-preview.app-shell .plan-mix-planned {
+    padding: .78rem .9rem;
+}
+
+body.test-live-preview.app-shell .plan-mix-recommended {
+    min-height: 6.35rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+body.test-live-preview.app-shell .plan-mix-planned {
+    min-height: 4.65rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-top: 1px solid rgba(5, 18, 32, .22);
+}
+
+body.test-live-preview.app-shell .plan-mix-section-label {
+    margin: 0 0 .42rem !important;
+    font-size: .67rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+body.test-live-preview.app-shell .plan-mix-value-line {
+    display: flex;
+    align-items: baseline;
+    gap: .48rem;
+}
+
+body.test-live-preview.app-shell .plan-mix-value-line strong {
+    display: inline-block;
+    flex: 0 0 auto;
+    font-size: 1.72rem;
+    line-height: 1;
+}
+
+body.test-live-preview.app-shell .plan-mix-value-line span {
+    display: inline-block;
+    margin: 0 !important;
+    font-size: .78rem !important;
+    line-height: 1.16;
+    font-weight: 900 !important;
+}
+
+body.test-live-preview.app-shell .plan-mix-recommended em {
+    display: block;
+    margin-top: .5rem;
+    font-size: .68rem;
+    line-height: 1;
+    font-style: normal;
+    font-weight: 950;
+    letter-spacing: .055em;
+}
+
+/* Dark recommendation headers: white lettering on the stronger category color. */
+body.test-live-preview.app-shell .plan-mix-major .plan-mix-recommended {
+    background: linear-gradient(145deg, #9b1d35, #701426) !important;
+}
+body.test-live-preview.app-shell .plan-mix-accessory .plan-mix-recommended {
+    background: linear-gradient(145deg, #aa520f, #773706) !important;
+}
+body.test-live-preview.app-shell .plan-mix-cardio .plan-mix-recommended {
+    background: linear-gradient(145deg, #917500, #675300) !important;
+}
+body.test-live-preview.app-shell .plan-mix-recovery .plan-mix-recommended {
+    background: linear-gradient(145deg, #14733e, #0d512c) !important;
+}
+body.test-live-preview.app-shell .plan-mix-unplanned .plan-mix-recommended {
+    background: linear-gradient(145deg, #39536c, #293d51) !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recommended strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recommended span,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-recommended em {
+    color: #ffffff !important;
+}
+
+/* Lighter lower cells: actual planned count in black for instant comparison. */
+body.test-live-preview.app-shell .plan-mix-major .plan-mix-planned {
+    background: #f4a9b5 !important;
+}
+body.test-live-preview.app-shell .plan-mix-accessory .plan-mix-planned {
+    background: #ffc188 !important;
+}
+body.test-live-preview.app-shell .plan-mix-cardio .plan-mix-planned {
+    background: #f8e583 !important;
+}
+body.test-live-preview.app-shell .plan-mix-recovery .plan-mix-planned {
+    background: #a9e8bb !important;
+}
+body.test-live-preview.app-shell .plan-mix-unplanned .plan-mix-planned {
+    background: #c8d8e6 !important;
+}
+
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-planned strong,
+body.test-live-preview.app-shell .plan-week-mix .plan-mix-planned span {
+    color: #07101a !important;
+}
+
+body.test-live-preview.app-shell .plan-mix-planned .plan-mix-section-label {
+    opacity: .72;
+}
+
+@media (max-width: 1100px) {
+    body.test-live-preview.app-shell .plan-mix-value-line {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: .24rem;
+    }
+}
+
+@media (max-width: 700px) {
+    body.test-live-preview.app-shell .plan-mix-recommended {
+        min-height: 5.9rem;
+    }
+
+    body.test-live-preview.app-shell .plan-mix-planned {
+        min-height: 4.35rem;
+    }
+}
+
+
+/* ===== v1013.3 Weekly Plan goal preview dark treatment ===== */
+body.test-live-preview.app-shell .plan-goal-preview {
+    border-color:#315a84 !important;
+    background:
+        linear-gradient(
+            135deg,
+            rgba(17, 36, 62, .98),
+            rgba(10, 27, 47, .98)) !important;
+    box-shadow:0 10px 28px rgba(0,0,0,.22);
+}
+
+body.test-live-preview.app-shell .plan-goal-preview.is-previewing {
+    border-color:#59baff !important;
+    box-shadow:
+        0 0 0 1px rgba(89,186,255,.24),
+        0 12px 30px rgba(0,0,0,.26);
+}
+
+body.test-live-preview.app-shell .plan-goal-preview h2 {
+    color:#f5f8ff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-preview p,
+body.test-live-preview.app-shell .plan-goal-engine-note {
+    color:#b8c9dc !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-preview-copy strong {
+    color:#ffffff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-preview-form label {
+    color:#9fdcff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-preview-form select {
+    border-color:#46719b !important;
+    background:#071a2d !important;
+    color:#f5f8ff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-preview-form select:focus {
+    border-color:#59baff !important;
+    outline:2px solid rgba(89,186,255,.20);
+    outline-offset:1px;
+}
+
+body.test-live-preview.app-shell .plan-goal-current-pill {
+    border-color:#55e27a !important;
+    background:rgba(24,91,54,.36) !important;
+    color:#bdf7cc !important;
+}
+
+
+/* ===== v1013.4 Weekly Plan closeout dark simulator ===== */
+body.test-live-preview.app-shell .weekly-plan-hero-head {
+    align-items:stretch;
+}
+
+body.test-live-preview.app-shell .weekly-plan-hero-image {
+    border-color:#315a84 !important;
+    background:#071a2d !important;
+    box-shadow:0 10px 28px rgba(0,0,0,.24);
+}
+
+body.test-live-preview.app-shell .weekly-plan-hero-image img {
+    filter:saturate(.94) contrast(1.02) brightness(.88);
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook {
+    border-color:#315a84 !important;
+    background:rgba(6,20,35,.70) !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook-head strong {
+    color:#f5f8ff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook-grid > div {
+    border-color:#315a84 !important;
+    background:#0a1a2d !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook-grid span {
+    color:#89a7c5 !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook-grid strong {
+    color:#f5f8ff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook > p {
+    color:#9fb2c8 !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-title-row .help-tip,
+body.test-live-preview.app-shell .plan-goal-outlook-head .help-tip {
+    border-color:#4d789f !important;
+    color:#9fdcff !important;
+    background:#0a1a2d !important;
+}
+
+
+/* ===== v1013.5 compact cardio + recovery dark treatment ===== */
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-intro {
+    border-color:#315a84 !important;
+    background:#0a1a2d !important;
+    color:#dce9f7 !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-intro strong {
+    color:#9fdcff !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log {
+    border-color:#315a84 !important;
+    background:
+        linear-gradient(
+            145deg,
+            #10243d,
+            #0a1a2d) !important;
+    box-shadow:0 10px 28px rgba(0,0,0,.22);
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-activity-field label,
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-number-field > span,
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-kicker {
+    color:#9fdcff !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-activity-field select,
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-number-field input {
+    border-color:#46719b !important;
+    background:#06182a !important;
+    color:#f5f8ff !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-activity-field select:focus,
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-number-field input:focus {
+    border-color:#59baff !important;
+    outline:2px solid rgba(89,186,255,.18);
+    outline-offset:1px;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-summary > small,
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-number-field small {
+    color:#9fb2c8 !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-actions {
+    border-top-color:#315a84 !important;
+}
+
+
+/* ===== v1013.6 completed workout sync dark treatment ===== */
+body.test-live-preview.app-shell .daily-entry-actual-sync {
+    border-color:#3d9960 !important;
+    background:rgba(20,74,45,.42) !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-actual-sync strong {
+    color:#9af8b1 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-actual-sync span {
+    color:#c8dfd0 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-completed-actual {
+    border-color:#315a84 !important;
+    background:#0a1a2d !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-completed-badge {
+    background:rgba(30,110,63,.42) !important;
+    color:#9af8b1 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-completed-stats > div {
+    border-color:#315a84 !important;
+    background:#08182a !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-completed-stats span,
+body.test-live-preview.app-shell .daily-entry-completed-actual p {
+    color:#a9bdd2 !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-completed-stats strong,
+body.test-live-preview.app-shell .daily-entry-completed-actual-head strong {
+    color:#f5f8ff !important;
+}
+
+
+/* ===== v1013.7 workout completion sync confirmation ===== */
+body.test-live-preview.app-shell .workout-intelligence-page .wi-complete-sync {
+    border-color:#3d9960 !important;
+    background:rgba(20,74,45,.38) !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-complete-sync > strong {
+    color:#9af8b1 !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-complete-sync > p {
+    color:#c8dfd0 !important;
+}

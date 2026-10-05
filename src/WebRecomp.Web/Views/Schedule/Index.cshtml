@@ -75,7 +75,7 @@
         if (c is "REST" or "MOBILITY_RECOVERY")
             return "recovery";
 
-        return "other";
+        return "unplanned";
     }
 
     private static string CategoryLabel(string category) => category switch
@@ -84,8 +84,16 @@
         "accessory" => "Accessory strength",
         "cardio" => "Conditioning / cardio",
         "recovery" => "Recovery / rest",
-        "other" => "Other activity",
         _ => "Unplanned"
+    };
+
+    private static string CarbCycleLabel(string category) => category switch
+    {
+        "major" => "HIGH-CARB CYCLE",
+        "accessory" => "MODERATE-CARB CYCLE",
+        "cardio" => "LOW–MODERATE-CARB CYCLE",
+        "recovery" => "LOW-CARB CYCLE",
+        _ => "PLAN ALL 7 DAYS"
     };
 }
 @{
@@ -97,8 +105,12 @@
     var accessoryCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "accessory");
     var cardioCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "cardio");
     var recoveryCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "recovery");
-    var otherCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "other");
     var unplannedCount = Model.Days.Count(x => CategoryFromDay(x.WorkoutTypeCode, x.WeeklyRole) == "unplanned");
+
+    var recommendedMajorCount = Model.RecommendedDays.Count(x => CategoryFromCode(x.WorkoutTypeCode) == "major");
+    var recommendedAccessoryCount = Model.RecommendedDays.Count(x => CategoryFromCode(x.WorkoutTypeCode) == "accessory");
+    var recommendedCardioCount = Model.RecommendedDays.Count(x => CategoryFromCode(x.WorkoutTypeCode) == "cardio");
+    var recommendedRecoveryCount = Model.RecommendedDays.Count(x => CategoryFromCode(x.WorkoutTypeCode) == "recovery");
 
     var systemCategoryOrder =
         WebRecomp.Web.Services.WorkoutIntelligence
@@ -113,22 +125,35 @@
     var statusMessage = TempData["ScheduleStatus"] as string ?? TempData["StatusMessage"] as string;
 }
 <div class="app-page app-page-workout">
-    <header class="app-page-head">
-        <div>
+    <header class="app-page-head weekly-plan-hero-head">
+        <div class="weekly-plan-hero-copy">
             <div class="app-kicker">WEEKLY • PLAN ONCE, ADJUST ANY TIME</div>
             <h1>Weekly Workout Plan</h1>
             <p class="lede">Start with the workouts you already do, then build a realistic seven-day mix around them.</p>
+
+            <div class="week-nav">
+                <a class="button"
+                   asp-action="Index"
+                   asp-route-weekStart="@previous"
+                   asp-route-previewGoalCode="@(Model.IsGoalPreview ? Model.PreviewGoalCode : null)">&larr; Prior week</a>
+                <a class="button"
+                   asp-action="Index"
+                   asp-route-weekStart="@next"
+                   asp-route-previewGoalCode="@(Model.IsGoalPreview ? Model.PreviewGoalCode : null)">Next week →</a>
+                <form asp-action="CopyToNextWeek" method="post" class="inline-week-action">
+                    <input type="hidden" name="weekStart" value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+                    <button class="button copy-week-button" type="submit" disabled="@(Model.NextWeekHasPlan ? "disabled" : null)"
+                            title="@(Model.NextWeekHasPlan ? "Next week already has a plan. Recomp will not overwrite it." : "Copy this saved week into next week")">
+                        Copy this week → next
+                    </button>
+                </form>
+            </div>
         </div>
-        <div class="week-nav">
-            <a class="button" asp-action="Index" asp-route-weekStart="@previous">&larr; Prior week</a>
-            <a class="button" asp-action="Index" asp-route-weekStart="@next">Next week →</a>
-            <form asp-action="CopyToNextWeek" method="post" class="inline-week-action">
-                <input type="hidden" name="weekStart" value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
-                <button class="button copy-week-button" type="submit" disabled="@(Model.NextWeekHasPlan ? "disabled" : null)"
-                        title="@(Model.NextWeekHasPlan ? "Next week already has a plan. Recomp will not overwrite it." : "Copy this saved week into next week")">
-                    Copy this week → next
-                </button>
-            </form>
+
+        <div class="weekly-plan-hero-image" aria-hidden="true">
+            <img src="~/images/marketing-v13/evidence-gym-group-clean.jpg"
+                 alt=""
+                 loading="eager" />
         </div>
     </header>
 
@@ -174,32 +199,6 @@
         <div class="plan-source-note"><strong>This week was carried forward automatically.</strong> The new week was blank, so Recomp copied your prior week. Review it and change anything that is different.</div>
     }
 
-    <section class="weekly-plan-guide" aria-labelledby="weekly-guide-title">
-        <div class="weekly-guide-main">
-            <div class="setup-intro-icon" aria-hidden="true">7</div>
-            <div>
-                <div class="section-heading-with-help">
-                    <h2 id="weekly-guide-title">Start with Recomp's recommendation, then make it yours.</h2>
-                    <button type="button" class="help-tip" aria-label="How to build your weekly plan"
-                            data-tooltip="Recomp creates the starting mix from your Primary Plan and available training days. Move workouts to the days that fit your life, replace them with activities you already do, or change any day. Saving recalculates fuel and macro targets.">?</button>
-                </div>
-                <p><strong>@Model.PlanDisplayName:</strong> @Model.PlanGuidance</p>
-                <div class="resistance-plan-note"><strong>Resistance first.</strong> Body-weight work, bands, machines, dumbbells, and barbells all count. Compared with easy cardio, demanding resistance work creates a stronger localized muscle-glycogen demand and, more importantly, the training stimulus Recomp is trying to protect. Cardio complements that work; it does not replace it.<br /><strong>Fueling rule:</strong> Protein stays high every day. Recomp keeps a base carbohydrate intake, then harder training can earn additional carbs to help replace the glycogen it used.</div>
-                <div class="weekly-target-chips" aria-label="Weekly planning principles">
-                    <span><strong>1</strong> start with workouts you already do</span>
-                    <span><strong>2</strong> keep enough muscle-focused work</span>
-                    <span><strong>3</strong> protect conditioning and recovery</span>
-                </div>
-                <p class="form-footnote">The schedule is a starting point, not a rule. Change it any time. If the next week is still completely blank when a new week begins, Recomp automatically carries the prior week forward rather than making you rebuild it from scratch.</p>
-            </div>
-        </div>
-        <div class="setup-progress" aria-label="Setup progress">
-            <span>1 • Initial setup</span>
-            <span class="active">2 • Weekly plan</span>
-            <span>3 • Daily tracking</span>
-        </div>
-    </section>
-
     <section class="app-status @(Model.WeeklyStatus == "GOOD" ? "good" : "review")">
         <div class="app-status-dot"></div>
         <div>
@@ -210,38 +209,241 @@
                 data-tooltip="This status is a quick check of the planned training mix. It is guidance, not a pass/fail grade. Recomp still calculates each day's targets from the workouts you save.">?</button>
     </section>
 
+    @if (Model.CanChangeGoal)
+    {
+        <section class="plan-goal-preview @(Model.IsGoalPreview ? "is-previewing" : "")"
+                 aria-labelledby="plan-goal-preview-title">
+            <div class="plan-goal-preview-copy">
+                <div class="app-kicker">PRIMARY GOAL • LIVE WEEKLY PREVIEW</div>
+                <div class="plan-goal-title-row">
+                    <h2 id="plan-goal-preview-title">
+                        Based on your selection of @Model.PreviewGoalDisplayName, here are Recomp's recommended days.
+                    </h2>
+                    <button type="button"
+                            class="help-tip plan-goal-info"
+                            aria-label="About @Model.PreviewGoalDisplayName"
+                            data-tooltip="@Model.PreviewGoalDescription">?</button>
+                </div>
+
+                @if (Model.IsGoalPreview)
+                {
+                    <p>
+                        <strong>Preview only.</strong>
+                        Your saved Primary Goal is still @Model.CurrentGoalDisplayName, and none of your planned workouts have been changed.
+                        The Recommended numbers below show how the weekly mix would change.
+                    </p>
+                }
+                else
+                {
+                    <p>
+                        Preview another Primary Goal to compare its recommended workout mix and fueling pattern.
+                        Your planned week will not change unless you explicitly apply a new goal and then choose to apply its recommended schedule.
+                    </p>
+                }
+
+                <p class="plan-goal-engine-note">
+                    Engine 3.0 still calculates the actual calories and macros for each day; the high/moderate/low-carb labels summarize the fueling pattern.
+                </p>
+            </div>
+
+            <div class="plan-goal-preview-controls">
+                <form asp-action="Index"
+                      method="get"
+                      class="plan-goal-preview-form">
+                    <input type="hidden"
+                           name="weekStart"
+                           value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+
+                    <label for="preview-goal-code">Preview another goal</label>
+                    <select id="preview-goal-code"
+                            name="previewGoalCode"
+                            asp-items="Model.GoalOptions"
+                            onchange="this.form.submit()">
+                    </select>
+                    <noscript>
+                        <button class="button" type="submit">Preview goal</button>
+                    </noscript>
+                </form>
+
+                @if (Model.IsGoalPreview)
+                {
+                    <div class="plan-goal-preview-actions">
+                        <form asp-action="ApplyGoal"
+                              method="post">
+                            <input type="hidden"
+                                   name="goalCode"
+                                   value="@Model.PreviewGoalCode" />
+                            <input type="hidden"
+                                   name="weekStart"
+                                   value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+                            <button class="primary"
+                                    type="submit">
+                                Use this goal from today
+                            </button>
+                        </form>
+
+                        <a class="button"
+                           asp-action="Index"
+                           asp-route-weekStart="@Model.WeekStart.ToString("yyyy-MM-dd")">
+                            Return to current goal
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <span class="plan-goal-current-pill">
+                        Current goal
+                    </span>
+                }
+            </div>
+
+            <div class="plan-goal-outlook" aria-label="Expected body composition direction">
+                <div class="plan-goal-outlook-head">
+                    <div>
+                        <span class="plan-mix-section-label">Expected direction this week</span>
+                        <strong>What this goal is trying to produce</strong>
+                    </div>
+                    <button type="button"
+                            class="help-tip"
+                            aria-label="About expected weekly direction"
+                            data-tooltip="The energy estimate uses this week's currently planned workouts with the selected goal. The Recommended cards below show the proposed training mix. Fat-loss pounds are an energy equivalent, not a guaranteed scale or body-fat change. Muscle change cannot be predicted precisely week to week.">?</button>
+                </div>
+
+                <div class="plan-goal-outlook-grid">
+                    <div>
+                        <span>Fat direction</span>
+                        <strong>@(string.IsNullOrWhiteSpace(Model.PreviewFatDirection) ? "CALCULATES WITH WEIGHT DATA" : Model.PreviewFatDirection)</strong>
+                    </div>
+                    <div>
+                        <span>Weekly energy balance</span>
+                        <strong>
+                            @(Model.PreviewWeeklyDeficitKcal.HasValue
+                                ? $"{Model.PreviewWeeklyDeficitKcal.Value:0} kcal deficit"
+                                : "—")
+                        </strong>
+                    </div>
+                    <div>
+                        <span>Fat-loss energy equivalent</span>
+                        <strong>
+                            @(Model.PreviewFatLossEnergyEquivalentLb.HasValue
+                                ? $"{Model.PreviewFatLossEnergyEquivalentLb.Value:0.00} lb"
+                                : "—")
+                        </strong>
+                    </div>
+                    <div>
+                        <span>Muscle stimulus</span>
+                        <strong>@Model.PreviewMuscleStimulus</strong>
+                    </div>
+                    <div class="plan-goal-outlook-wide">
+                        <span>Lean-mass direction</span>
+                        <strong>@Model.PreviewMuscleDirection</strong>
+                    </div>
+                </div>
+
+                <p>
+                    These are directional expectations, not guaranteed tissue changes. After you apply a different weekly mix, Engine 3.0 recalculates the actual daily targets.
+                </p>
+            </div>
+        </section>
+    }
+
     <div class="plan-week-mix-heading">
         <div>
             <div class="app-kicker">THIS WEEK AT A GLANCE</div>
-            <strong>Planned workout mix</strong>
+            <strong>Recommended vs planned workout mix</strong>
         </div>
         <button type="button" class="help-tip" aria-label="About workout categories"
-                data-tooltip="These categories help you scan the week. Hard/major and accessory sessions are strength-focused; conditioning/cardio includes HIIT and cardio-style sessions; recovery/rest protects adaptation and readiness.">?</button>
+                data-tooltip="The darker top section shows Recomp's recommended weekly mix and fueling cycle. The lighter lower section shows what you actually planned. Hard/major is typically high-carb, accessory is moderate-carb, cardio is generally low-to-moderate carb, and recovery/rest is low-carb. Hard interval or Orangetheory-style cardio can still receive more carbohydrate because Engine 3.0 determines the actual grams from glycogen demand.">?</button>
     </div>
-    <section class="plan-week-mix" aria-label="Weekly workout mix">
+    <section class="plan-week-mix" aria-label="Recommended versus planned weekly workout mix">
         <div class="plan-mix-item plan-mix-major" data-count-category="major">
-            <strong data-count-value>@majorCount</strong>
-            <span>Hard / Major</span>
+            <div class="plan-mix-recommended">
+                <span class="plan-mix-section-label">Recommended</span>
+                <div class="plan-mix-value-line">
+                    <strong>@recommendedMajorCount</strong>
+                    <span>Hard / Major workouts</span>
+                </div>
+                <em>@CarbCycleLabel("major")</em>
+            </div>
+            <div class="plan-mix-planned">
+                <span class="plan-mix-section-label">Planned</span>
+                <div class="plan-mix-value-line">
+                    <strong data-count-value>@majorCount</strong>
+                    <span>Hard / Major</span>
+                </div>
+            </div>
         </div>
+
         <div class="plan-mix-item plan-mix-accessory" data-count-category="accessory">
-            <strong data-count-value>@accessoryCount</strong>
-            <span>Accessory</span>
+            <div class="plan-mix-recommended">
+                <span class="plan-mix-section-label">Recommended</span>
+                <div class="plan-mix-value-line">
+                    <strong>@recommendedAccessoryCount</strong>
+                    <span>Accessory workouts</span>
+                </div>
+                <em>@CarbCycleLabel("accessory")</em>
+            </div>
+            <div class="plan-mix-planned">
+                <span class="plan-mix-section-label">Planned</span>
+                <div class="plan-mix-value-line">
+                    <strong data-count-value>@accessoryCount</strong>
+                    <span>Accessory</span>
+                </div>
+            </div>
         </div>
+
         <div class="plan-mix-item plan-mix-cardio" data-count-category="cardio">
-            <strong data-count-value>@cardioCount</strong>
-            <span>Cardio</span>
+            <div class="plan-mix-recommended">
+                <span class="plan-mix-section-label">Recommended</span>
+                <div class="plan-mix-value-line">
+                    <strong>@recommendedCardioCount</strong>
+                    <span>Cardio workouts</span>
+                </div>
+                <em>@CarbCycleLabel("cardio")</em>
+            </div>
+            <div class="plan-mix-planned">
+                <span class="plan-mix-section-label">Planned</span>
+                <div class="plan-mix-value-line">
+                    <strong data-count-value>@cardioCount</strong>
+                    <span>Cardio</span>
+                </div>
+            </div>
         </div>
+
         <div class="plan-mix-item plan-mix-recovery" data-count-category="recovery">
-            <strong data-count-value>@recoveryCount</strong>
-            <span>Recovery / Rest</span>
+            <div class="plan-mix-recommended">
+                <span class="plan-mix-section-label">Recommended</span>
+                <div class="plan-mix-value-line">
+                    <strong>@recommendedRecoveryCount</strong>
+                    <span>Recovery / Rest days</span>
+                </div>
+                <em>@CarbCycleLabel("recovery")</em>
+            </div>
+            <div class="plan-mix-planned">
+                <span class="plan-mix-section-label">Planned</span>
+                <div class="plan-mix-value-line">
+                    <strong data-count-value>@recoveryCount</strong>
+                    <span>Recovery / Rest</span>
+                </div>
+            </div>
         </div>
-        <div class="plan-mix-item plan-mix-other" data-count-category="other">
-            <strong data-count-value>@otherCount</strong>
-            <span>Other</span>
-        </div>
+
         <div class="plan-mix-item plan-mix-unplanned" data-count-category="unplanned">
-            <strong data-count-value>@unplannedCount</strong>
-            <span>Unplanned</span>
+            <div class="plan-mix-recommended">
+                <span class="plan-mix-section-label">Recommended</span>
+                <div class="plan-mix-value-line">
+                    <strong>0</strong>
+                    <span>Unplanned days</span>
+                </div>
+                <em>@CarbCycleLabel("unplanned")</em>
+            </div>
+            <div class="plan-mix-planned">
+                <span class="plan-mix-section-label">Planned</span>
+                <div class="plan-mix-value-line">
+                    <strong data-count-value>@unplannedCount</strong>
+                    <span>Unplanned</span>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -509,7 +711,6 @@
         accessory: "Accessory strength",
         cardio: "Conditioning / cardio",
         recovery: "Recovery / rest",
-        other: "Other activity",
         unplanned: "Unplanned"
     };
 
@@ -561,14 +762,20 @@
                 || labels.unplanned;
         }
 
+        const isChanged =
+            select.value
+                !== select.dataset.originalValue;
+
+        row.classList.toggle(
+            "plan-pending-change",
+            isChanged);
+
         const recalc =
             row.querySelector(
                 "[data-recalc-note]");
 
         if (recalc) {
-            recalc.hidden =
-                select.value
-                    === select.dataset.originalValue;
+            recalc.hidden = !isChanged;
         }
     }
 
@@ -800,7 +1007,7 @@
 
                 const category =
                     systemOption?.dataset.category
-                    || "other";
+                    || "unplanned";
 
                 activeSelect
                     .querySelectorAll(
@@ -888,6 +1095,9 @@
                     const row =
                         select.closest(
                             "[data-plan-day]");
+
+                    row?.classList.remove(
+                        "plan-pending-change");
 
                     const recalc =
                         row?.querySelector(

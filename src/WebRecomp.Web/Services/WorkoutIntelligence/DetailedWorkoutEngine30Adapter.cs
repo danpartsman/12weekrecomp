@@ -10,55 +10,42 @@ namespace WebRecomp.Web.Services.WorkoutIntelligence;
 /// Bridges detailed Workout Builder data into the existing Engine 3.0
 /// workout-session contract without changing Engine 3.0 formulas.
 ///
-/// Source precedence is date-scoped:
-/// 1. Completed Workout Builder sessions with detailed exercise data.
-/// 2. Otherwise completed Daily Entry/manual sessions.
-/// The two sources are never added together for the same date.
+/// v1014B canonical actual rule:
+/// every completed WorkoutSession is a real actual session, regardless of
+/// whether it was entered through Workout Builder, Cardio/Recovery quick-log,
+/// or Daily Tracking. Multiple legitimate sessions on the same date are
+/// preserved and aggregated by Engine 3.0.
 /// </summary>
 public static class DetailedWorkoutEngine30Adapter
 {
-    public static async Task<IReadOnlyList<WorkoutSession>> PreferBuilderSessionsAsync(
+    public static Task<IReadOnlyList<WorkoutSession>> CanonicalCompletedSessionsAsync(
         RecompDbContext db,
         IReadOnlyList<WorkoutSession> sessions,
         CancellationToken cancellationToken = default)
     {
-        if (sessions.Count == 0)
-            return sessions;
+        _ = db;
+        _ = cancellationToken;
 
-        var ids = sessions
-            .Select(x => x.WorkoutSessionId)
-            .ToArray();
+        IReadOnlyList<WorkoutSession> canonical =
+            sessions
+                .Where(x => x.CompletedFlag)
+                .OrderBy(x => x.WorkoutDate)
+                .ThenBy(x => x.CreatedAtUtc)
+                .ThenBy(x => x.WorkoutSessionId)
+                .ToArray();
 
-        var detailedIds = await db.DetailedWorkoutExercises
-            .AsNoTracking()
-            .Where(x => ids.Contains(x.WorkoutSessionId))
-            .Select(x => x.WorkoutSessionId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
-        var detailedSet = detailedIds.ToHashSet();
-
-        return sessions
-            .GroupBy(x => x.WorkoutDate)
-            .OrderBy(x => x.Key)
-            .SelectMany(group =>
-            {
-                var builder = group
-                    .Where(x =>
-                        detailedSet.Contains(x.WorkoutSessionId)
-                        && string.Equals(
-                            x.EntrySourceCode,
-                            RecompInputSourceCodes.DetailedWorkout,
-                            StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(x => x.CreatedAtUtc)
-                    .ToArray();
-
-                return builder.Length > 0
-                    ? builder
-                    : group.OrderBy(x => x.CreatedAtUtc).ToArray();
-            })
-            .ToArray();
+        return Task.FromResult(canonical);
     }
+
+    [Obsolete("Use CanonicalCompletedSessionsAsync. v1014B no longer suppresses valid same-day sessions by source.")]
+    public static Task<IReadOnlyList<WorkoutSession>> PreferBuilderSessionsAsync(
+        RecompDbContext db,
+        IReadOnlyList<WorkoutSession> sessions,
+        CancellationToken cancellationToken = default)
+        => CanonicalCompletedSessionsAsync(
+            db,
+            sessions,
+            cancellationToken);
 
     public static async Task<Engine30WorkoutSessionInput> BuildActualInputAsync(
         RecompDbContext db,

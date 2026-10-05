@@ -10,6 +10,7 @@ using WebRecomp.Web.Data;
 using WebRecomp.Web.Middleware;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
+using WebRecomp.Web.Services.Engine;
 using WebRecomp.Web.Services.Engine30;
 using WebRecomp.Web.Services.WorkoutIntelligence;
 using WebRecomp.WorkoutIntelligence;
@@ -165,7 +166,7 @@ builder.Services.AddScoped<AppUserContextService>();
 builder.Services.AddScoped<AccessEntitlementService>();
 builder.Services.AddScoped<PendingAccessCodeService>();
 builder.Services.AddScoped<ConfigurationService>();
-builder.Services.AddScoped<WorkoutMathService>();
+builder.Services.AddScoped<WorkoutActualService>();
 builder.Services.AddSingleton<IWorkoutIntelligenceGateway, WorkoutIntelligenceGateway>();
 builder.Services.AddScoped<IExerciseCatalogStore, SqlExerciseCatalogStore>();
 builder.Services.AddScoped<IDetailedWorkoutStore, SqlDetailedWorkoutStore>();
@@ -193,19 +194,14 @@ builder.Services.AddSingleton<Engine30EnergyCarryoverService>();
 builder.Services.AddScoped<Engine30DashboardProjectionService>();
 builder.Services.AddScoped<Engine30DashboardAnalysisService>();
 builder.Services.AddScoped<Engine30AdaptiveRecommendationService>();
+builder.Services.AddScoped<Engine30TrainingLoadRecoveryService>();
+builder.Services.AddScoped<IRecompRecommendationEngine, Engine30RecompRecommendationEngine>();
 builder.Services.AddSingleton<Engine30FuelStateService>();
 builder.Services.AddSingleton<Engine30WeeklyFuelProjectionService>();
 builder.Services.AddScoped<Engine30AdminFuelComparisonService>();
-builder.Services.AddScoped<Engine21EnergyService>();
-builder.Services.AddScoped<WeeklyStrategyService>();
+builder.Services.AddScoped<WeeklyPlanningAssessmentService>();
 builder.Services.AddScoped<ProgramPlanService>();
 builder.Services.AddScoped<WeeklyPlanService>();
-builder.Services.AddScoped<RecommendationService>();
-builder.Services.AddScoped<RecompEngineService>();
-builder.Services.AddScoped<RecompEngineConfigurationService>();
-builder.Services.AddScoped<RecompTrainingPrescriptionService>();
-builder.Services.AddScoped<RecompEngineOrchestrator>();
-builder.Services.AddScoped<RecompActualWorkoutAnalysisService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddHttpClient<IEmailService, MicrosoftGraphEmailService>();
 
@@ -226,16 +222,6 @@ if (builder.Configuration.GetValue<bool>("WebRecomp:EnableTestPersonas"))
     builder.Services.AddHostedService<TestPersonaNutritionSeederHostedService>();
 }
 
-builder.Services.AddScoped<Engine21PipelineService>();
-builder.Services.AddScoped<Engine21FuelWindowService>();
-builder.Services.AddScoped<Engine21CarbRequirementService>();
-builder.Services.AddScoped<Engine21MacroReconciliationService>();
-builder.Services.AddScoped<Engine21DailyMacroService>();
-builder.Services.AddScoped<Engine21ProjectedFuelWindowService>();
-builder.Services.AddScoped<Engine21WeeklyMacroProjectionService>();
-builder.Services.AddScoped<Engine21RealDataService>();
-builder.Services.AddScoped<Engine21WeeklyEnergyService>();
-builder.Services.AddScoped<Engine21DeficitService>();
 builder.Services.AddHealthChecks();
 builder.Services.AddProblemDetails();
 

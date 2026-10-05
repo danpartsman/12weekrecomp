@@ -18,6 +18,7 @@ public sealed class DetailedWorkoutController(
     IExerciseCatalogStore catalogStore,
     IDetailedWorkoutStore detailedWorkoutStore,
     Engine30DashboardProjectionService engine30Projection,
+    WorkoutActualService workoutActuals,
     IWorkoutIntelligenceGateway workoutIntelligence,
     Microsoft.Extensions.Logging.ILogger<DetailedWorkoutController> logger) : Controller
 {
@@ -568,7 +569,7 @@ public sealed class DetailedWorkoutController(
                 CompletedFlag = false,
                 EntrySourceCode =
                     RecompInputSourceCodes.DetailedWorkout,
-                CalculationEngineVersion = "3.0",
+                CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             };
@@ -2031,8 +2032,7 @@ public sealed class DetailedWorkoutController(
 
             var returnWeek =
                 model.ReturnWeekStart
-                ?? WeeklyStrategyService
-                    .WeekStart(plannedDate);
+                ?? PlanningWeek.Start(plannedDate);
 
             return RedirectToAction(
                 "Index",
@@ -2121,7 +2121,7 @@ public sealed class DetailedWorkoutController(
                     CompletedFlag = false,
                     EntrySourceCode =
                         RecompInputSourceCodes.DetailedWorkout,
-                    CalculationEngineVersion = "3.0",
+                    CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now
                 };
@@ -2260,12 +2260,25 @@ public sealed class DetailedWorkoutController(
             session.CompletedFlag = false;
             session.EntrySourceCode =
                 RecompInputSourceCodes.DetailedWorkout;
-            session.CalculationEngineVersion = "3.0";
+            session.CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode;
 
             // UpdatedAtUtc becomes the persisted Stop timestamp while
             // the workout is waiting for final review.
             session.UpdatedAtUtc =
                 stoppedAtUtc;
+        }
+
+        if (session.CompletedFlag
+            && model.EditCompleted
+            && !completeWorkout
+            && !stopWorkout)
+        {
+            // Editing a completed workout changes the same canonical actual
+            // row in place. Re-stamp it so no stale Engine 2.x derived values
+            // survive the correction.
+            workoutActuals.ApplyCurrentEngineState(
+                session,
+                completed: true);
         }
 
         if (saveTemplate)
@@ -2304,7 +2317,9 @@ public sealed class DetailedWorkoutController(
                         new
                         {
                             workoutSessionId =
-                                session.WorkoutSessionId
+                                session.WorkoutSessionId,
+                            returnContext =
+                                model.ReturnContext
                         });
                 }
         TempData["StatusMessage"] =
@@ -2456,6 +2471,10 @@ public sealed class DetailedWorkoutController(
             session.WorkoutDate.ToString(
                 "dddd, MMMM d");
 
+        ViewData["WorkoutDateIso"] =
+            session.WorkoutDate.ToString(
+                "yyyy-MM-dd");
+
         ViewData["DurationMinutes"] =
             durationMinutes;
 
@@ -2545,7 +2564,7 @@ public sealed class DetailedWorkoutController(
                 CompletedFlag = false,
                 EntrySourceCode =
                     RecompInputSourceCodes.DetailedWorkout,
-                CalculationEngineVersion = "3.0",
+                CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             };
@@ -2917,12 +2936,12 @@ public sealed class DetailedWorkoutController(
             session.TypicalRestSec = null;
         }
 
-        session.CompletedFlag = true;
         session.EntrySourceCode =
             RecompInputSourceCodes.DetailedWorkout;
-        session.CalculationEngineVersion = "3.0";
-        session.UpdatedAtUtc =
-            DateTime.UtcNow;
+
+        workoutActuals.ApplyCurrentEngineState(
+            session,
+            completed: true);
 
         await db.SaveChangesAsync(
             cancellationToken);
@@ -3232,10 +3251,204 @@ public sealed class DetailedWorkoutController(
     }
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CompleteRest(
+        DateOnly date,
+        string? returnContext,
+        CancellationToken cancellationToken)
+    {
+        var context =
+            await userContext.GetAsync(
+                HttpContext,
+                cancellationToken);
+
+        if (context.Client is null || context.Program is null)
+            return RedirectToAction("Index", "Intake");
+
+        var existing =
+            await db.WorkoutSessions
+                .Where(
+                    x =>
+                        x.ClientId == context.Client.ClientId
+                        && x.ProgramId == context.Program.ProgramId
+                        && x.WorkoutDate == date
+                        && x.WorkoutTypeCode == "REST"
+                        && x.CompletedFlag)
+                .OrderByDescending(x => x.UpdatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+
+        if (existing is null)
+        {
+            var now = DateTime.UtcNow;
+            var restSession =
+                new WorkoutSession
+                {
+                    WorkoutSessionId = Guid.NewGuid(),
+                    ClientId = context.Client.ClientId,
+                    ProgramId = context.Program.ProgramId,
+                    WorkoutDate = date,
+                    WorkoutName = "Rest / Recovery",
+                    SystemWorkoutCode = "REST",
+                    WorkoutTypeCode = "REST",
+                    DurationMin = 0m,
+                    SessionRpe = null,
+                    EntrySourceCode =
+                        RecompInputSourceCodes.DetailedWorkout,
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                };
+
+            workoutActuals.ApplyCurrentEngineState(
+                restSession,
+                completed: true);
+
+            db.WorkoutSessions.Add(restSession);
+
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        TempData["StatusMessage"] =
+            "Rest day completed. Daily Tracking and the Dashboard now use this completed actual.";
+
+        return string.Equals(
+                returnContext,
+                "daily",
+                StringComparison.OrdinalIgnoreCase)
+            ? RedirectToAction(
+                "Index",
+                "DailyEntry",
+                new { date = date.ToString("yyyy-MM-dd") })
+            : RedirectToAction("Index", "Dashboard");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CompleteCardio(
+        DateOnly date,
+        string cardioActivityCode,
+        decimal durationMin,
+        decimal sessionRpe,
+        bool addAnother,
+        string? returnContext,
+        CancellationToken cancellationToken)
+    {
+        var context =
+            await userContext.GetAsync(
+                HttpContext,
+                cancellationToken);
+
+        if (context.Client is null || context.Program is null)
+            return RedirectToAction("Index", "Intake");
+
+        if (!CardioActivityCatalog.TryGet(
+                cardioActivityCode,
+                out var activity)
+            || activity is null)
+        {
+            return BadRequest(
+                "Choose the cardio activity you actually performed.");
+        }
+
+        if (durationMin is < 1m or > 720m)
+            return BadRequest(
+                "Cardio duration must be between 1 and 720 minutes.");
+
+        if (sessionRpe is < 1m or > 10m)
+            return BadRequest(
+                "Cardio RPE must be between 1 and 10.");
+
+        var systemConfigVersionId =
+            await GetSystemWorkoutConfigVersionIdAsync(
+                cancellationToken);
+
+        if (!systemConfigVersionId.HasValue)
+            return BadRequest(
+                "The Engine 3.0 workout configuration is unavailable.");
+
+        var active =
+            await db.WorkoutTypeDefinitions
+                .AsNoTracking()
+                .AnyAsync(
+                    x =>
+                        x.ConfigVersionId == systemConfigVersionId.Value
+                        && x.WorkoutTypeCode == activity.EngineWorkoutTypeCode
+                        && x.IsActive
+                        && x.IsSelectable,
+                    cancellationToken);
+
+        if (!active)
+            return BadRequest(
+                "That cardio activity is not currently available.");
+
+        var now = DateTime.UtcNow;
+        var cardioSession =
+            new WorkoutSession
+            {
+                WorkoutSessionId = Guid.NewGuid(),
+                ClientId = context.Client.ClientId,
+                ProgramId = context.Program.ProgramId,
+                WorkoutDate = date,
+                WorkoutName = activity.DisplayName,
+                SystemWorkoutCode =
+                    CardioActivityCatalog.PresentationSystemCode,
+                WorkoutTypeCode =
+                    activity.EngineWorkoutTypeCode,
+                DurationMin =
+                    Math.Round(
+                        durationMin,
+                        1,
+                        MidpointRounding.AwayFromZero),
+                SessionRpe =
+                    Math.Round(
+                        sessionRpe,
+                        1,
+                        MidpointRounding.AwayFromZero),
+                EntrySourceCode =
+                    RecompInputSourceCodes.DetailedWorkout,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            };
+
+        workoutActuals.ApplyCurrentEngineState(
+            cardioSession,
+            completed: true);
+
+        db.WorkoutSessions.Add(cardioSession);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        TempData["StatusMessage"] =
+            $"{activity.DisplayName} completed. Daily Tracking and the Dashboard now use this actual session.";
+
+        if (addAnother)
+        {
+            return RedirectToAction(
+                nameof(Index),
+                new
+                {
+                    mode = "start",
+                    date = date.ToString("yyyy-MM-dd"),
+                    returnContext
+                });
+        }
+
+        return string.Equals(
+                returnContext,
+                "daily",
+                StringComparison.OrdinalIgnoreCase)
+            ? RedirectToAction(
+                "Index",
+                "DailyEntry",
+                new { date = date.ToString("yyyy-MM-dd") })
+            : RedirectToAction("Index", "Dashboard");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> UseTemplate(
         Guid templateId,
         DateOnly date,
         string? returnContext,
+        string? entryMode,
         CancellationToken cancellationToken)
     {
         var context =
@@ -3300,6 +3513,21 @@ public sealed class DetailedWorkoutController(
         {
             TempData["StatusMessage"] =
                 $"{template.TemplateName} is already open for this date. Reopening it instead of creating a duplicate.";
+
+            if (string.Equals(
+                    entryMode,
+                    "summary",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction(
+                    nameof(Review),
+                    new
+                    {
+                        workoutSessionId =
+                            existingOpenSession.WorkoutSessionId,
+                        returnContext
+                    });
+            }
 
             return RedirectToAction(
                 nameof(Index),
@@ -3387,6 +3615,24 @@ public sealed class DetailedWorkoutController(
         await detailedWorkoutStore.ReplaceAsync(
             detailed,
             cancellationToken);
+
+        if (string.Equals(
+                entryMode,
+                "summary",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["StatusMessage"] =
+                $"Review {template.TemplateName}, correct what you actually did, then save it.";
+
+            return RedirectToAction(
+                nameof(Review),
+                new
+                {
+                    workoutSessionId =
+                        session.WorkoutSessionId,
+                    returnContext
+                });
+        }
 
         TempData["StatusMessage"] =
             $"Started {template.TemplateName}.";
@@ -3574,6 +3820,7 @@ public sealed class DetailedWorkoutController(
         string systemCode,
         DateOnly date,
         string? returnContext,
+        string? entryMode,
         CancellationToken cancellationToken)
     {
         var context =
@@ -3629,6 +3876,39 @@ public sealed class DetailedWorkoutController(
 
         if (preview is null)
             return NotFound();
+
+        // Rest and generic Cardio are summary-only v1012 activities. Selecting
+        // either card opens its purpose-built completion UI instead of creating
+        // a fake live workout session.
+        if (preview.SystemCode.Equals(
+                "REST",
+                StringComparison.OrdinalIgnoreCase)
+            || preview.SystemCode.Equals(
+                CardioActivityCatalog.PresentationSystemCode,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return RedirectToAction(
+                nameof(Index),
+                new
+                {
+                    mode = "system",
+                    systemCode = preview.SystemCode,
+                    date = date.ToString("yyyy-MM-dd"),
+                    returnContext
+                });
+        }
+
+        var summaryOnly =
+            preview.GroupName.Equals(
+                "Orangetheory",
+                StringComparison.OrdinalIgnoreCase);
+
+        var useSummary =
+            summaryOnly
+            || string.Equals(
+                entryMode,
+                "summary",
+                StringComparison.OrdinalIgnoreCase);
 
         var treatSystemSetsAsRecovery =
             string.Equals(
@@ -3730,6 +4010,18 @@ public sealed class DetailedWorkoutController(
             TempData["StatusMessage"] =
                 $"{preview.DisplayName} is already open for this date. Reopening it instead of creating a duplicate.";
 
+            if (useSummary)
+            {
+                return RedirectToAction(
+                    nameof(Review),
+                    new
+                    {
+                        workoutSessionId =
+                            existingOpenSession.WorkoutSessionId,
+                        returnContext
+                    });
+            }
+
             return RedirectToAction(
                 nameof(Index),
                 new
@@ -3776,7 +4068,7 @@ public sealed class DetailedWorkoutController(
                 CompletedFlag = false,
                 EntrySourceCode =
                     RecompInputSourceCodes.DetailedWorkout,
-                CalculationEngineVersion = "3.0",
+                CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             };
@@ -3790,6 +4082,21 @@ public sealed class DetailedWorkoutController(
                 session.WorkoutSessionId,
                 detailedExercises),
             cancellationToken);
+
+        if (useSummary)
+        {
+            TempData["StatusMessage"] =
+                $"Review {preview.DisplayName}, enter what you actually completed, then save it.";
+
+            return RedirectToAction(
+                nameof(Review),
+                new
+                {
+                    workoutSessionId =
+                        session.WorkoutSessionId,
+                    returnContext
+                });
+        }
 
         TempData["StatusMessage"] =
             $"Started {preview.DisplayName}. Modify today's session below if you want.";
@@ -5232,6 +5539,19 @@ public sealed class DetailedWorkoutController(
                                         recipe,
                                         baseRpe)
                         };
+                    })
+                .ToList();
+
+        model.CardioActivities =
+            CardioActivityCatalog.All
+                .Where(x => byCode.ContainsKey(x.EngineWorkoutTypeCode))
+                .Select(
+                    x => new CardioActivityOptionViewModel
+                    {
+                        ActivityCode = x.ActivityCode,
+                        DisplayName = x.DisplayName,
+                        EngineWorkoutTypeCode = x.EngineWorkoutTypeCode,
+                        SearchTerms = x.SearchTerms
                     })
                 .ToList();
     }

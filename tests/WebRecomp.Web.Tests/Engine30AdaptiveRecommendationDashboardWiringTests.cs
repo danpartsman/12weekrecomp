@@ -3,64 +3,60 @@ using Xunit;
 namespace WebRecomp.Web.Tests;
 
 /// <summary>
-/// 12WR v1009 adaptive recommendation layer source-wiring regression.
+/// v1014A regression: the Dashboard consumes the engine-neutral recommendation
+/// contract and Engine 3.0 is the active implementation.
 /// </summary>
 public sealed class Engine30AdaptiveRecommendationDashboardWiringTests
 {
     [Fact]
-    public void DashboardIsWiredToAdaptiveRecommendationLayer()
+    public void DashboardUsesNeutralRecommendationContractWithEngine30Implementation()
     {
-        var root =
-            FindRepoRoot();
+        var root = FindRepoRoot();
 
-        var program =
-            File.ReadAllText(
-                Path.Combine(
-                    root,
-                    "src",
-                    "WebRecomp.Web",
-                    "Program.cs"));
+        var program = File.ReadAllText(
+            Path.Combine(
+                root,
+                "src",
+                "WebRecomp.Web",
+                "Program.cs"));
 
-        var service =
-            File.ReadAllText(
-                Path.Combine(
-                    root,
-                    "src",
-                    "WebRecomp.Web",
-                    "Services",
-                    "DashboardService.cs"));
+        var service = File.ReadAllText(
+            Path.Combine(
+                root,
+                "src",
+                "WebRecomp.Web",
+                "Services",
+                "DashboardService.cs"));
 
-        var model =
-            File.ReadAllText(
-                Path.Combine(
-                    root,
-                    "src",
-                    "WebRecomp.Web",
-                    "ViewModels",
-                    "AppViewModels.cs"));
+        var model = File.ReadAllText(
+            Path.Combine(
+                root,
+                "src",
+                "WebRecomp.Web",
+                "ViewModels",
+                "AppViewModels.cs"));
 
-        var view =
-            File.ReadAllText(
-                Path.Combine(
-                    root,
-                    "src",
-                    "WebRecomp.Web",
-                    "Views",
-                    "Dashboard",
-                    "Index.cshtml"));
+        var view = File.ReadAllText(
+            Path.Combine(
+                root,
+                "src",
+                "WebRecomp.Web",
+                "Views",
+                "Dashboard",
+                "Index.cshtml"));
 
         Assert.Contains(
-            "AddScoped<Engine30AdaptiveRecommendationService>()",
+            "AddScoped<IRecompRecommendationEngine, Engine30RecompRecommendationEngine>()",
             program,
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "Engine30AdaptiveRecommendationService adaptiveRecommendations",
+            "IRecompRecommendationEngine recommendationEngine",
             service,
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "adaptiveRecommendations.Evaluate",
+            "recommendationEngine.Evaluate",
             service,
             StringComparison.Ordinal);
 
@@ -75,17 +71,32 @@ public sealed class Engine30AdaptiveRecommendationDashboardWiringTests
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "Engine30AdaptiveRecommendation = engine30Adaptive",
+            "RecompRecommendation = recommendation",
+            service,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "RecommendationService recommendationService",
+            service,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "WorkoutMathService math",
+            service,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "Engine30LegacyWorkoutCompatibility",
             service,
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "Engine30AdaptiveRecommendationResult? Engine30AdaptiveRecommendation",
+            "RecompRecommendationResult? RecompRecommendation",
             model,
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "ENGINE 3.0 &bull; ADAPTIVE RECOMMENDATION",
+            "RECOMP ENGINE @adaptive.EngineVersionCode",
             view,
             StringComparison.Ordinal);
 
@@ -97,24 +108,20 @@ public sealed class Engine30AdaptiveRecommendationDashboardWiringTests
 
     private static string FindRepoRoot()
     {
-        var current =
-            new DirectoryInfo(
-                AppContext.BaseDirectory);
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
 
         while (current is not null)
         {
-            var candidate =
-                Path.Combine(
-                    current.FullName,
-                    "src",
-                    "WebRecomp.Web",
-                    "WebRecomp.Web.csproj");
+            var candidate = Path.Combine(
+                current.FullName,
+                "src",
+                "WebRecomp.Web",
+                "WebRecomp.Web.csproj");
 
             if (File.Exists(candidate))
                 return current.FullName;
 
-            current =
-                current.Parent;
+            current = current.Parent;
         }
 
         throw new DirectoryNotFoundException(

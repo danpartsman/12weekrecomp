@@ -33,19 +33,24 @@
             text-transform:uppercase;
         }
         .wm-study-title {
-            max-width:1200px;
+            width:100%;
+            max-width:100%;
             margin:0;
-            color:#fff;
+            color:#fff !important;
             font-family:"Bahnschrift Condensed","Arial Narrow",sans-serif;
-            font-size:clamp(2.3rem,5vw,5.2rem);
+            font-size:clamp(2rem,3.8vw,4.2rem);
             font-style:italic;
             font-weight:950;
             line-height:.94;
             letter-spacing:-.025em;
             text-transform:uppercase;
+            overflow-wrap:normal;
         }
-        .wm-study-title em {
-            color:#98ff31;
+        .wm-study-title .wm-title-line:first-child {
+            color:#fff !important;
+        }
+        .wm-study-title em.wm-title-line {
+            color:#98ff31 !important;
             font-style:inherit;
         }
         .wm-study-lede {
@@ -56,11 +61,34 @@
             font-weight:750;
             line-height:1.5;
         }
-        .wm-study-question {
-            margin:.2rem 0 1.45rem;
-            color:#98ff31;
-            font-size:clamp(1.05rem,1.8vw,1.4rem);
+        .wm-study-callout {
+            margin:1rem 0 .25rem;
+            color:#ffe24a !important;
+            font-size:clamp(1.12rem,1.55vw,1.5rem);
             font-weight:950;
+            line-height:1.22;
+        }
+        .wm-study-question {
+            margin:.25rem 0 1.45rem;
+            color:#7ceeff;
+            font-size:clamp(1rem,1.25vw,1.18rem);
+            font-weight:850;
+            line-height:1.4;
+        }
+        .wm-title-line {
+            display:block;
+            max-width:100%;
+            white-space:normal;
+            text-wrap:balance;
+        }
+        @@media (max-width:760px) {
+            .wm-study-title {
+                font-size:clamp(1.85rem,8.5vw,3rem);
+                line-height:.98;
+            }
+            .wm-study-callout {
+                font-size:clamp(1.05rem,4.8vw,1.3rem);
+            }
         }
         .wm-comparison {
             overflow:hidden;
@@ -446,11 +474,11 @@
     <section class="wm-hero wm-study-hero">
         <div class="wm-study-shell">
             <p class="wm-study-kicker">The study that explains why recomposition matters</p>
-            <h1 class="wm-study-title">Don't just lose weight. <em>Change what your body is made of.</em></h1>
+            <h1 class="wm-study-title"><span class="wm-title-line">Don't Just Lose Weight.</span><em class="wm-title-line">Change What Your Body Is Made Of.</em></h1>
             <ul class="wm-study-lede wm-study-bullets">
                 <li><strong>Retaining muscle</strong> doesn't just help you look, feel, and perform better. Lean mass and strength are important markers of healthy aging, and low lean mass is associated with higher mortality risk.</li>
-                <li><strong>This 1999 randomized trial</strong> shows why we <strong>RECOMPOSE OUR BODIES</strong>, not just lose weight.</li>
             </ul>
+            <h2 class="wm-study-callout">This 1999 randomized trial shows why we RECOMPOSE OUR BODIES, not just lose weight.</h2>
             <p class="wm-study-question">All three groups lost about 20–22 lb. Look at what that weight was made of. Don't you want the third result?</p>
 
             <div class="wm-comparison" aria-label="Kraemer 1999 comparison of diet alone, diet plus cardio, and diet plus cardio plus resistance training">

@@ -13,17 +13,17 @@ namespace WebRecomp.Web.Controllers;
 public sealed class ScheduleController(
     RecompDbContext db,
     AppUserContextService userContext,
-    ConfigurationService configuration,
-    WorkoutMathService math,
-    WeeklyStrategyService strategy,
+    WeeklyPlanningAssessmentService planningAssessment,
     ProgramPlanService planSelection,
     WeeklyPlanService weeklyPlans,
-    Engine30WorkoutUiCatalogService engine30WorkoutCatalog) : Controller
+    Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
+    Engine30DashboardProjectionService engine30Projection) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(
         DateOnly? weekStart,
         bool recommendPlanChange = false,
+        string? previewGoalCode = null,
         CancellationToken cancellationToken = default)
     {
         var context = await userContext.GetAsync(HttpContext, cancellationToken);
@@ -31,11 +31,11 @@ public sealed class ScheduleController(
             return RedirectToAction("Index", "Intake");
 
         var today = AppUserContextService.GetClientToday(context.Client);
-        var start = weekStart ?? WeeklyStrategyService.WeekStart(today);
-        start = WeeklyStrategyService.WeekStart(start);
+        var start = weekStart ?? PlanningWeek.Start(today);
+        start = PlanningWeek.Start(start);
 
-        var firstProgramWeek = WeeklyStrategyService.WeekStart(context.Program.StartDate);
-        var currentWeek = WeeklyStrategyService.WeekStart(today);
+        var firstProgramWeek = PlanningWeek.Start(context.Program.StartDate);
+        var currentWeek = PlanningWeek.Start(today);
 
         if (start == firstProgramWeek)
         {
@@ -61,7 +61,7 @@ public sealed class ScheduleController(
 
         var systemWorkouts =
             SystemWorkoutRecipeCatalog
-                .PresentationRecipes
+                .PlanningRecipes
                 .Where(
                     recipe =>
                         workoutMap.ContainsKey(
@@ -142,29 +142,7 @@ public sealed class ScheduleController(
             myWorkouts.ToDictionary(
                 x => x.WorkoutTemplateId);
 
-        // Temporary shadow-phase bridge used only for the legacy target panel.
-        // Engine 3.0 runtime calculation uses the active Admin workout profile.
-        var legacyWorkoutMap =
-            await configuration.GetWorkoutTypesAsync(
-                context.Program.ConfigVersionId,
-                cancellationToken);
-
-        var settings =
-            await configuration.GetSettingsAsync(
-                context.Program.ConfigVersionId,
-                cancellationToken);
         var end = start.AddDays(6);
-
-        // Use the latest known weight on or before each planned date.
-        // A later weigh-in must not rewrite the displayed macro targets for an earlier date.
-        var weightHistory = await db.Measurements
-            .Where(x => x.ClientId == context.Client.ClientId
-                        && !x.IsDeleted
-                        && x.WeightLb != null
-                        && x.LocalMeasurementDate <= end)
-            .OrderBy(x => x.LocalMeasurementDate)
-            .ThenBy(x => x.MeasurementAtUtc)
-            .ToListAsync(cancellationToken);
 
         var savedRows = await db.PlannedWorkouts
             .Where(x => x.ProgramId == context.Program.ProgramId
@@ -186,12 +164,69 @@ public sealed class ScheduleController(
         var planCodeForWeek = await planSelection.GetPlanCodeForDateAsync(
             context.Program, planReferenceDate, cancellationToken);
 
+        var currentGoalCode =
+            NormalizeGoalCode(
+                context.Program.GoalCode,
+                context.Program.SelectedPlanCode);
+
+        var canChangeGoal =
+            start >= currentWeek;
+
+        var requestedPreviewGoalCode =
+            canChangeGoal
+                ? NormalizeGoalCode(
+                    previewGoalCode,
+                    context.Program.SelectedPlanCode)
+                : currentGoalCode;
+
+        var isGoalPreview =
+            canChangeGoal
+            && !string.IsNullOrWhiteSpace(previewGoalCode)
+            && !string.Equals(
+                requestedPreviewGoalCode,
+                currentGoalCode,
+                StringComparison.OrdinalIgnoreCase);
+
+        var previewPlanCode =
+            GoalToPlan(requestedPreviewGoalCode);
+
+        var hasUsableWeight =
+            await db.Measurements
+                .AsNoTracking()
+                .AnyAsync(
+                    x =>
+                        x.ClientId == context.Client.ClientId
+                        && !x.IsDeleted
+                        && x.WeightLb != null,
+                    cancellationToken);
+
+        IReadOnlyDictionary<DateOnly, Engine30DashboardDayProjection> engine30Targets =
+            new Dictionary<DateOnly, Engine30DashboardDayProjection>();
+
+        if (hasUsableWeight)
+        {
+            engine30Targets =
+                await engine30Projection.BuildPlanningWeekAsync(
+                    context,
+                    start,
+                    planCodeForWeek,
+                    cancellationToken);
+        }
+
         var vm = new WeekPlanViewModel
         {
             WeekStart = start,
             PlanCode = planCodeForWeek,
             PlanDisplayName = WeeklyPlanService.FriendlyPlanLabel(planCodeForWeek),
             PlanGuidance = WeeklyPlanService.FriendlyPlanGuidance(planCodeForWeek),
+            CurrentGoalCode = currentGoalCode,
+            CurrentGoalDisplayName = GoalDisplayName(currentGoalCode),
+            PreviewGoalCode = requestedPreviewGoalCode,
+            PreviewGoalDisplayName = GoalDisplayName(requestedPreviewGoalCode),
+            PreviewGoalDescription = GoalDescription(requestedPreviewGoalCode),
+            IsGoalPreview = isGoalPreview,
+            CanChangeGoal = canChangeGoal,
+            GoalOptions = GoalOptions(requestedPreviewGoalCode),
             SeededFromPlan = savedRows.Count > 0 && savedRows.All(x => x.SourceCode == "PLAN_DEFAULT"),
             AutoRolled = savedRows.Count > 0 && savedRows.All(x => x.SourceCode == "AUTO_ROLLOVER"),
             NextWeekHasPlan = nextWeekHasPlan,
@@ -238,6 +273,11 @@ public sealed class ScheduleController(
                         ?.SystemCode;
             }
 
+            plannedSystemCode =
+                SystemWorkoutRecipeCatalog
+                    .NormalizePlanningSystemCode(
+                        plannedSystemCode);
+
             var plannedSystem =
                 !string.IsNullOrWhiteSpace(
                     plannedSystemCode)
@@ -280,88 +320,151 @@ public sealed class ScheduleController(
                 day.WeeklyRole = type.WeeklyRoleCode;
                 day.Region = type.RegionCode;
 
-                var weightForDate = weightHistory
-                    .Where(x => x.LocalMeasurementDate <= date && x.WeightLb.HasValue)
-                    .OrderByDescending(x => x.LocalMeasurementDate)
-                    .ThenByDescending(x => x.MeasurementAtUtc)
-                    .Select(x => x.WeightLb)
-                    .FirstOrDefault();
+            }
 
-                if (weightForDate.HasValue)
-                {
-                    var legacyCode =
-                        Engine30WorkoutUiCatalogService
-                            .ToLegacyCompatibilityCode(
-                                normalizedWorkoutTypeCode);
-
-                    if (legacyWorkoutMap.TryGetValue(
-                            legacyCode,
-                            out var legacyWorkoutType))
-                    {
-                        var planCodeForDate =
-                            await planSelection.GetPlanCodeForDateAsync(
-                                context.Program,
-                                date,
-                                cancellationToken);
-
-                        var planForDate =
-                            await configuration.GetPlanAsync(
-                                context.Program.ConfigVersionId,
-                                planCodeForDate,
-                                cancellationToken);
-
-                        var targets =
-                            math.CalculatePlannedTargets(
-                                weightForDate.Value,
-                                planForDate,
-                                legacyWorkoutType,
-                                settings);
-
-                        day.Calories = targets.Calories;
-                        day.ProteinG = targets.ProteinG;
-                        day.BaseCarbsG = targets.CarbsG;
-                        day.FatG = targets.FatG;
-                        day.ScaledGlycogenBurnG =
-                            targets.ScaledGlycogenBurnG;
-                        day.TimingNote = targets.TimingNote;
-                    }
-                }
+            if (engine30Targets.TryGetValue(
+                    date,
+                    out var engine30Day))
+            {
+                day.Calories =
+                    engine30Day.PrescribedEnergyKcal;
+                day.ProteinG =
+                    engine30Day.ProteinG;
+                day.BaseCarbsG =
+                    engine30Day.RecommendedCarbsG;
+                day.FatG =
+                    engine30Day.FatG;
+                day.ScaledGlycogenBurnG =
+                    engine30Day.GlycogenDemandG;
+                day.TimingNote =
+                    "Engine 3.0 prescription";
             }
 
             vm.Days.Add(day);
         }
 
-        if (recommendPlanChange)
+        // Always expose the recommended seven-day mix to the view so the
+        // at-a-glance cards can compare the program recommendation with what
+        // the user has actually planned. When a plan change is pending, the
+        // recommendation reflects the newly selected plan.
+        var recommendationPlanCode =
+            isGoalPreview
+                ? previewPlanCode
+                : recommendPlanChange
+                    ? context.Program.SelectedPlanCode
+                    : planCodeForWeek;
+
+        IReadOnlyDictionary<DateOnly, Engine30DashboardDayProjection> goalPreviewTargets =
+            engine30Targets;
+
+        if (hasUsableWeight
+            && !string.Equals(
+                recommendationPlanCode,
+                planCodeForWeek,
+                StringComparison.OrdinalIgnoreCase))
         {
-            var template = weeklyPlans.BuildRecommendedTemplate(
-                context.Program.SelectedPlanCode,
+            goalPreviewTargets =
+                await engine30Projection.BuildPlanningWeekAsync(
+                    context,
+                    start,
+                    recommendationPlanCode,
+                    cancellationToken);
+        }
+
+        var recommendedTemplate =
+            weeklyPlans.BuildRecommendedTemplate(
+                recommendationPlanCode,
                 context.Program.AvailableTrainingDaysWeek,
                 context.Client.TrainingExperienceCode);
 
-            for (var i = 0; i < 7; i++)
+        for (var i = 0; i < 7; i++)
+        {
+            var code = recommendedTemplate[i];
+            vm.RecommendedDays.Add(new RecommendedDayViewModel
             {
-                var code = template[i];
-                vm.RecommendedDays.Add(new RecommendedDayViewModel
-                {
-                    Date = start.AddDays(i),
-                    DayName = start.AddDays(i).DayOfWeek.ToString(),
-                    WorkoutTypeCode = code,
-                    WorkoutDisplayName =
-                        SystemWorkoutRecipeCatalog
-                            .GetDefaultPresentationForEngine(code)
-                            ?.DisplayName
-                        ?? (workoutMap.TryGetValue(code, out var definition)
-                            ? definition.DisplayName
-                            : code.Replace('_', ' '))
-                });
-            }
+                Date = start.AddDays(i),
+                DayName = start.AddDays(i).DayOfWeek.ToString(),
+                WorkoutTypeCode = code,
+                WorkoutDisplayName =
+                    SystemWorkoutRecipeCatalog
+                        .GetDefaultPresentationForEngine(code)
+                        ?.DisplayName
+                    ?? (workoutMap.TryGetValue(code, out var definition)
+                        ? definition.DisplayName
+                        : code.Replace('_', ' '))
+            });
+        }
 
+        var recommendedMajorCount =
+            recommendedTemplate.Count(
+                code => code is
+                    "MAJOR_LEGS"
+                    or "MAJOR_PUSH"
+                    or "MAJOR_PULL"
+                    or "FULL_BODY_STRENGTH");
+
+        var recommendedAccessoryCount =
+            recommendedTemplate.Count(
+                code => code is
+                    "ACCESSORY"
+                    or "RESISTANCE_CIRCUIT");
+
+        var resistanceExposureCount =
+            recommendedMajorCount
+            + recommendedAccessoryCount;
+
+        vm.PreviewMuscleStimulus =
+            resistanceExposureCount >= 4
+                ? "HIGH"
+                : resistanceExposureCount >= 2
+                    ? "MODERATE"
+                    : "LOW";
+
+        vm.PreviewMuscleDirection =
+            BuildMuscleDirection(
+                recommendationPlanCode,
+                resistanceExposureCount);
+
+        if (goalPreviewTargets.Count > 0)
+        {
+            var weeklyMaintenance =
+                goalPreviewTargets.Values.Sum(
+                    x => x.MaintenanceEnergyKcal);
+
+            var weeklyPrescribed =
+                goalPreviewTargets.Values.Sum(
+                    x => x.PrescribedEnergyKcal);
+
+            var weeklyDeficit =
+                weeklyMaintenance
+                - weeklyPrescribed;
+
+            vm.PreviewWeeklyDeficitKcal =
+                Math.Round(
+                    weeklyDeficit,
+                    0);
+
+            vm.PreviewFatLossEnergyEquivalentLb =
+                Math.Round(
+                    weeklyDeficit / 3500m,
+                    2);
+
+            vm.PreviewFatDirection =
+                weeklyDeficit > 350m
+                    ? "FAT LOSS FAVORED"
+                    : weeklyDeficit < -350m
+                        ? "FAT GAIN POSSIBLE"
+                        : "NEAR MAINTENANCE";
+        }
+
+        if (recommendPlanChange)
+        {
             vm.PlanCode = context.Program.SelectedPlanCode;
             vm.PlanDisplayName = WeeklyPlanService.FriendlyPlanLabel(context.Program.SelectedPlanCode);
             vm.PlanGuidance = WeeklyPlanService.FriendlyPlanGuidance(context.Program.SelectedPlanCode);
         }
 
-        var assessment = await strategy.AssessWeekAsync(
+        var assessment = await planningAssessment.AssessWeekAsync(
             context.Program.ProgramId,
             context.Program.ConfigVersionId,
             start,
@@ -619,7 +722,7 @@ public sealed class ScheduleController(
         if (context.Client is null || context.Program is null)
             return RedirectToAction("Index", "Intake");
 
-        var sourceStart = WeeklyStrategyService.WeekStart(weekStart);
+        var sourceStart = PlanningWeek.Start(weekStart);
         var targetStart = sourceStart.AddDays(7);
         var result = await weeklyPlans.CopyWeekIfTargetBlankAsync(
             context.Client,
@@ -638,6 +741,122 @@ public sealed class ScheduleController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApplyGoal(
+        string goalCode,
+        DateOnly weekStart,
+        CancellationToken cancellationToken)
+    {
+        var context =
+            await userContext.GetAsync(
+                HttpContext,
+                cancellationToken);
+
+        if (context.Client is null || context.Program is null)
+            return RedirectToAction("Index", "Intake");
+
+        var normalizedGoal =
+            NormalizeGoalCode(
+                goalCode,
+                context.Program.SelectedPlanCode);
+
+        var newPlanCode =
+            GoalToPlan(normalizedGoal);
+
+        var currentGoal =
+            NormalizeGoalCode(
+                context.Program.GoalCode,
+                context.Program.SelectedPlanCode);
+
+        var today =
+            AppUserContextService.GetClientToday(
+                context.Client);
+
+        var currentWeek =
+            PlanningWeek.Start(today);
+
+        var requestedWeek =
+            PlanningWeek.Start(weekStart);
+
+        var returnWeek =
+            requestedWeek < currentWeek
+                ? currentWeek
+                : requestedWeek;
+
+        if (string.Equals(
+                normalizedGoal,
+                currentGoal,
+                StringComparison.OrdinalIgnoreCase)
+            && string.Equals(
+                newPlanCode,
+                context.Program.SelectedPlanCode,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["ScheduleStatus"] =
+                "That is already your current Primary Goal.";
+
+            return RedirectToAction(
+                "Index",
+                new
+                {
+                    weekStart =
+                        returnWeek.ToString("yyyy-MM-dd")
+                });
+        }
+
+        var oldPlanCode =
+            context.Program.SelectedPlanCode;
+
+        var oldGoalCode =
+            context.Program.GoalCode;
+
+        var now =
+            DateTime.UtcNow;
+
+        context.Program.SelectedPlanCode =
+            newPlanCode;
+
+        context.Program.GoalCode =
+            normalizedGoal;
+
+        context.Program.UpdatedAtUtc =
+            now;
+
+        db.ProgramPlanChanges.Add(
+            new ProgramPlanChange
+            {
+                ProgramPlanChangeId = Guid.NewGuid(),
+                ProgramId = context.Program.ProgramId,
+                ChangedByUserId = context.User.UserId,
+                OldPlanCode = oldPlanCode,
+                NewPlanCode = newPlanCode,
+                OldGoalCode = oldGoalCode,
+                NewGoalCode = normalizedGoal,
+                EffectiveDate = today,
+                ChangeSourceCode =
+                    "WEEKLY_PLAN_GOAL_SELECTOR",
+                ChangedAtUtc = now
+            });
+
+        await db.SaveChangesAsync(
+            cancellationToken);
+
+        TempData["ScheduleStatus"] =
+            $"Primary Goal changed to {GoalDisplayName(normalizedGoal)}. " +
+            "Your completed history and existing planned workouts were not overwritten. " +
+            "Review the new recommendation below and apply it only if you want to change the remaining schedule.";
+
+        return RedirectToAction(
+            "Index",
+            new
+            {
+                weekStart =
+                    returnWeek.ToString("yyyy-MM-dd"),
+                recommendPlanChange = true
+            });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ApplyRecommendedWeek(DateOnly weekStart, CancellationToken cancellationToken)
     {
         var context = await userContext.GetAsync(HttpContext, cancellationToken);
@@ -645,8 +864,8 @@ public sealed class ScheduleController(
             return RedirectToAction("Index", "Intake");
 
         var today = AppUserContextService.GetClientToday(context.Client);
-        var start = WeeklyStrategyService.WeekStart(weekStart);
-        var effectiveDate = start == WeeklyStrategyService.WeekStart(today)
+        var start = PlanningWeek.Start(weekStart);
+        var effectiveDate = start == PlanningWeek.Start(today)
             ? today
             : start;
 
@@ -664,5 +883,169 @@ public sealed class ScheduleController(
         return RedirectToAction(
             "Index",
             new { weekStart = start.ToString("yyyy-MM-dd") });
+    }
+
+    private static string NormalizeGoalCode(
+        string? goalCode,
+        string? fallbackPlanCode)
+    {
+        var normalized =
+            (goalCode ?? string.Empty)
+                .Trim()
+                .ToUpperInvariant();
+
+        return normalized switch
+        {
+            "MUSCLE" or "MUSCLE_BUILD" =>
+                "MUSCLE_BUILD",
+
+            "FAT_LOSS" or "FAT_LOSS_RECOMP" =>
+                "FAT_LOSS_RECOMP",
+
+            "ATHLETIC" or "ATHLETIC_RECOMP" =>
+                "ATHLETIC_RECOMP",
+
+            "HEALTH" or "HEALTH_RESET" =>
+                "HEALTH_RESET",
+
+            "PAIN_LIMITED" or "MOBILITY" =>
+                "PAIN_LIMITED",
+
+            _ => (fallbackPlanCode ?? string.Empty)
+                .Trim()
+                .ToUpperInvariant() switch
+                {
+                    "PLAN_1" => "HEALTH_RESET",
+                    "PLAN_2" => "FAT_LOSS_RECOMP",
+                    "PLAN_3" => "MUSCLE_BUILD",
+                    "PLAN_5" => "PAIN_LIMITED",
+                    _ => "ATHLETIC_RECOMP"
+                }
+        };
+    }
+
+    private static string GoalToPlan(
+        string goalCode)
+        => NormalizeGoalCode(goalCode, null) switch
+        {
+            "HEALTH_RESET" => "PLAN_1",
+            "FAT_LOSS_RECOMP" => "PLAN_2",
+            "MUSCLE_BUILD" => "PLAN_3",
+            "PAIN_LIMITED" => "PLAN_5",
+            _ => "PLAN_4"
+        };
+
+    private static string GoalDisplayName(
+        string goalCode)
+        => NormalizeGoalCode(goalCode, null) switch
+        {
+            "MUSCLE_BUILD" =>
+                "RECOMP — Muscle Focus / Fat Loss Secondary",
+
+            "FAT_LOSS_RECOMP" =>
+                "RECOMP — Fat Loss Focus / Muscle Secondary",
+
+            "ATHLETIC_RECOMP" =>
+                "RECOMP — Athletic Reconditioning",
+
+            "HEALTH_RESET" =>
+                "SPECIALIZED — Health Reset",
+
+            "PAIN_LIMITED" =>
+                "SPECIALIZED — Pain-Limited / Mobility",
+
+            _ =>
+                "RECOMP — Athletic Reconditioning"
+        };
+
+    private static string GoalDescription(
+        string goalCode)
+        => NormalizeGoalCode(goalCode, null) switch
+        {
+            "MUSCLE_BUILD" =>
+                "Prioritizes three major strength anchors plus accessory volume when recovery and schedule allow. Best for users who want muscle gain or strong lean-mass preservation while still reducing body fat gradually.",
+
+            "FAT_LOSS_RECOMP" =>
+                "Keeps resistance training non-negotiable while using a larger controlled energy deficit and more lower-demand conditioning or recovery. Best when fat loss is the primary objective without sacrificing lean mass.",
+
+            "ATHLETIC_RECOMP" =>
+                "Combines three major strength anchors with a fourth demanding conditioning exposure when training availability supports it, plus easier aerobic or accessory work and a true recovery day.",
+
+            "HEALTH_RESET" =>
+                "A lower-stress reconditioning plan for beginners, deconditioned users, older adults returning to structured exercise, people with higher body weight or joint-load concerns, or anyone prioritizing consistency and health over aggressive training. Age or body weight alone does not require this plan.",
+
+            "PAIN_LIMITED" =>
+                "A conservative mobility and reconditioning plan for users whose pain, movement limitations, or current tolerance make normal training volume inappropriate. It emphasizes tolerable resistance work, easy aerobic activity, mobility, and recovery.",
+
+            _ =>
+                "A balanced athletic recomp approach that keeps resistance training central while improving conditioning and work capacity."
+        };
+
+    private static string BuildMuscleDirection(
+        string planCode,
+        int resistanceExposureCount)
+    {
+        if (resistanceExposureCount <= 1)
+            return "PRESERVATION IS THE PRIMARY REALISTIC TARGET";
+
+        return planCode.Trim().ToUpperInvariant() switch
+        {
+            "PLAN_3" =>
+                resistanceExposureCount >= 4
+                    ? "MUSCLE GAIN / PRESERVATION FAVORED"
+                    : "PRESERVATION FAVORED; GAIN POSSIBLE",
+
+            "PLAN_2" =>
+                "LEAN-MASS PRESERVATION FAVORED; GAIN POSSIBLE",
+
+            "PLAN_4" =>
+                "MAINTAIN / GAIN LEAN MASS WITH PERFORMANCE EMPHASIS",
+
+            "PLAN_1" =>
+                "GRADUAL LEAN-MASS GAIN / PRESERVATION FAVORED",
+
+            "PLAN_5" =>
+                "LEAN-MASS PRESERVATION / REBUILDING AS TOLERATED",
+
+            _ =>
+                "LEAN-MASS PRESERVATION FAVORED"
+        };
+    }
+
+    private static List<SelectListItem> GoalOptions(
+        string selectedGoalCode)
+    {
+        var selected =
+            NormalizeGoalCode(
+                selectedGoalCode,
+                null);
+
+        return
+        [
+            new SelectListItem(
+                "RECOMP — Muscle Focus / Fat Loss Secondary",
+                "MUSCLE_BUILD",
+                selected == "MUSCLE_BUILD"),
+
+            new SelectListItem(
+                "RECOMP — Fat Loss Focus / Muscle Secondary",
+                "FAT_LOSS_RECOMP",
+                selected == "FAT_LOSS_RECOMP"),
+
+            new SelectListItem(
+                "RECOMP — Athletic Reconditioning",
+                "ATHLETIC_RECOMP",
+                selected == "ATHLETIC_RECOMP"),
+
+            new SelectListItem(
+                "SPECIALIZED — Health Reset",
+                "HEALTH_RESET",
+                selected == "HEALTH_RESET"),
+
+            new SelectListItem(
+                "SPECIALIZED — Pain-Limited / Mobility",
+                "PAIN_LIMITED",
+                selected == "PAIN_LIMITED")
+        ];
     }
 }

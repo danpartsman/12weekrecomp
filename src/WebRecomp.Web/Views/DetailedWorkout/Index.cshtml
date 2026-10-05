@@ -163,7 +163,13 @@
     <header class="app-page-head wi-simple-head wi-analysis-head">
         <div class="wi-head-title">
             <div class="app-kicker">WORKOUT INTELLIGENCE</div>
-            <h1>@(isLive ? "Live Workout" : (Model.TemplateOnlyMode ? "Workout Builder" : "Live Workouts"))</h1>
+            <h1>@(isLive
+                    ? "Live Workout"
+                    : Model.TemplateOnlyMode
+                        ? "Workout Builder"
+                        : isStart
+                            ? "Select Your Workout"
+                            : "Workouts")</h1>
             @if (isLive && Model.WorkoutSessionId.HasValue)
             {
                 var timerSession =
@@ -185,14 +191,17 @@
                 }
             }
 
-            @if (!isLive && !Model.TemplateOnlyMode && !(isSystem && Model.SelectedSystemWorkout is not null))
+            @if (!isLive
+                && !isStart
+                && !Model.TemplateOnlyMode
+                && !(isSystem && Model.SelectedSystemWorkout is not null))
             {
-                <a class="button primary wi-header-start-workout @(isStart ? "is-active" : "")"
+                <a class="button primary wi-header-start-workout"
                    asp-action="Index"
                    asp-route-mode="start"
                    asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
                    asp-route-returnContext="@Model.ReturnContext">
-                    Start Workout
+                     Select Workout
                 </a>
             }
         </div>
@@ -374,7 +383,7 @@
                          height="768" />
                 </figure>
             }
-            else
+            else if (!isStart)
             {
             <section class="wi-workout-command-shell"
                      aria-label="Workout Intelligence">
@@ -387,7 +396,7 @@
                 <section class="card wi-live-command-card"
                          aria-label="Live Workout">
                     <div class="wi-command-label">
-                        Live Workout
+                        Ready to train?
                     </div>
 
                     <a class="button primary wi-command-start-workout"
@@ -395,7 +404,7 @@
                        asp-route-mode="start"
                        asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
                        asp-route-returnContext="@Model.ReturnContext">
-                        Start Workout
+                        Select Your Workout
                     </a>
                 </section>
 
@@ -591,8 +600,7 @@
                                     </span>
                                     <h2>Choose today's workout</h2>
                                     <p>
-                                        Tap a workout card to begin. Today's
-                                        assigned workout is shown first when available.
+                                        Select a workout to review it first. Start it from the workout detail screen when you are ready.
                                     </p>
                                 </div>
                             </div>
@@ -608,25 +616,12 @@
                                         out plannedMuscles);
                                 }
 
-                                <form asp-action="UseTemplate"
-                                      method="post"
-                                      class="wi-clickable-workout-form">
-                                    @Html.AntiForgeryToken()
-
-                                    <input type="hidden"
-                                           name="templateId"
-                                           value="@plannedTemplate.WorkoutTemplateId" />
-
-                                    <input type="hidden"
-                                           name="date"
-                                           value="@Model.Date.ToString("yyyy-MM-dd")" />
-
-                                    <input type="hidden"
-                                           name="returnContext"
-                                           value="@Model.ReturnContext" />
-
-                                    <button class="wi-clickable-workout-card wi-today-workout-card"
-                                            type="submit">
+                                <a class="wi-clickable-workout-card wi-today-workout-card"
+                                   asp-action="Index"
+                                   asp-route-mode="saved"
+                                   asp-route-templateId="@plannedTemplate.WorkoutTemplateId"
+                                   asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                   asp-route-returnContext="@Model.ReturnContext">
                                         <span class="wi-start-card-kicker">
                                             TODAY'S ASSIGNED WORKOUT
                                         </span>
@@ -650,8 +645,7 @@
                                         <span>
                                             @plannedTemplate.ExerciseCount exercise@(plannedTemplate.ExerciseCount == 1 ? "" : "s")
                                         </span>
-                                    </button>
-                                </form>
+                                    </a>
                             }
                             else if (plannedSystem is not null)
                             {
@@ -659,25 +653,12 @@
                                     SystemWorkoutTargets(
                                         plannedSystem.Code);
 
-                                <form asp-action="UseSystemWorkout"
-                                      method="post"
-                                      class="wi-clickable-workout-form">
-                                    @Html.AntiForgeryToken()
-
-                                    <input type="hidden"
-                                           name="systemCode"
-                                           value="@plannedSystem.Code" />
-
-                                    <input type="hidden"
-                                           name="date"
-                                           value="@Model.Date.ToString("yyyy-MM-dd")" />
-
-                                    <input type="hidden"
-                                           name="returnContext"
-                                           value="@Model.ReturnContext" />
-
-                                    <button class="wi-clickable-workout-card wi-today-workout-card"
-                                            type="submit">
+                                <a class="wi-clickable-workout-card wi-today-workout-card"
+                                   asp-action="Index"
+                                   asp-route-mode="system"
+                                   asp-route-systemCode="@plannedSystem.Code"
+                                   asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                   asp-route-returnContext="@Model.ReturnContext">
                                         <span class="wi-start-card-kicker">
                                             TODAY'S ASSIGNED WORKOUT
                                         </span>
@@ -697,8 +678,7 @@
                                                 Main targets: @plannedSystemTargets
                                             </span>
                                         }
-                                    </button>
-                                </form>
+                                    </a>
                             }
 
                             @if (Model.Templates.Count == 0)
@@ -727,25 +707,12 @@
                                                 out launchMuscles);
                                         }
 
-                                        <form asp-action="UseTemplate"
-                                              method="post"
-                                              class="wi-clickable-workout-form">
-                                            @Html.AntiForgeryToken()
-
-                                            <input type="hidden"
-                                                   name="templateId"
-                                                   value="@template.WorkoutTemplateId" />
-
-                                            <input type="hidden"
-                                                   name="date"
-                                                   value="@Model.Date.ToString("yyyy-MM-dd")" />
-
-                                            <input type="hidden"
-                                                   name="returnContext"
-                                                   value="@Model.ReturnContext" />
-
-                                            <button class="wi-clickable-workout-card"
-                                                    type="submit">
+                                        <a class="wi-clickable-workout-card"
+                                           asp-action="Index"
+                                           asp-route-mode="saved"
+                                           asp-route-templateId="@template.WorkoutTemplateId"
+                                           asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                           asp-route-returnContext="@Model.ReturnContext">
                                                 <strong>
                                                     @template.TemplateName
                                                 </strong>
@@ -765,140 +732,152 @@
                                                 <span>
                                                     @template.ExerciseCount exercise@(template.ExerciseCount == 1 ? "" : "s")
                                                 </span>
-                                            </button>
-                                        </form>
+                                            </a>
                                     }
                                 </div>
                             }
                         }
                         else
                         {
-                            <div class="wi-start-section-heading">
+                            var requestedSystemCategory =
+                                Context.Request.Query["systemCategory"]
+                                    .ToString()
+                                    .Trim();
+
+                            var availableSystemCategories =
+                                systemCategoryOrder
+                                    .Where(
+                                        categoryName =>
+                                            Model.WorkoutTypes.Any(
+                                                option =>
+                                                    SystemWorkoutCategory(
+                                                        option.GroupName,
+                                                        option.EngineWorkoutTypeCode)
+                                                        .Equals(
+                                                            categoryName,
+                                                            StringComparison.OrdinalIgnoreCase)))
+                                    .ToList();
+
+                            var selectedSystemCategory =
+                                availableSystemCategories
+                                    .FirstOrDefault(
+                                        categoryName =>
+                                            categoryName.Equals(
+                                                requestedSystemCategory,
+                                                StringComparison.OrdinalIgnoreCase));
+
+                            <div class="wi-start-section-heading wi-start-system-heading">
                                 <div>
                                     <span class="wi-start-card-kicker">
                                         SYSTEM WORKOUTS
                                     </span>
                                     <h2>Choose a 12WR System Workout</h2>
                                     <p>
-                                        Tap a workout card to begin. Today's
-                                        assigned System Workout is shown first.
+                                        Choose a category, then select a workout to review it. The workout detail screen is where you actually start it.
                                     </p>
                                 </div>
                             </div>
 
-                            @if (plannedSystem is not null)
+                            <nav class="wi-system-category-tabs wi-start-system-categories"
+                                 aria-label="System Workout categories">
+                                @foreach (var categoryName in availableSystemCategories)
+                                {
+                                    var categorySelected =
+                                        categoryName.Equals(
+                                            selectedSystemCategory,
+                                            StringComparison.OrdinalIgnoreCase);
+
+                                    <a class="wi-system-category-button @(categorySelected ? "is-active" : "")"
+                                       asp-action="Index"
+                                       asp-route-mode="start"
+                                       asp-route-startCategory="system"
+                                       asp-route-systemCategory="@categoryName"
+                                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                       asp-route-returnContext="@Model.ReturnContext">
+                                        @categoryName
+                                    </a>
+                                }
+                            </nav>
+
+                            @if (string.IsNullOrWhiteSpace(selectedSystemCategory))
                             {
-                                var plannedSystemTargets =
-                                    SystemWorkoutTargets(
-                                        plannedSystem.Code);
-
-                                <form asp-action="UseSystemWorkout"
-                                      method="post"
-                                      class="wi-clickable-workout-form">
-                                    @Html.AntiForgeryToken()
-
-                                    <input type="hidden"
-                                           name="systemCode"
-                                           value="@plannedSystem.Code" />
-
-                                    <input type="hidden"
-                                           name="date"
-                                           value="@Model.Date.ToString("yyyy-MM-dd")" />
-
-                                    <input type="hidden"
-                                           name="returnContext"
-                                           value="@Model.ReturnContext" />
-
-                                    <button class="wi-clickable-workout-card wi-today-workout-card"
-                                            type="submit">
+                                @if (plannedSystem is not null)
+                                {
+                                    <a class="wi-clickable-workout-card wi-today-workout-card wi-start-planned-system"
+                                       asp-action="Index"
+                                       asp-route-mode="system"
+                                       asp-route-systemCode="@plannedSystem.Code"
+                                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                       asp-route-returnContext="@Model.ReturnContext">
                                         <span class="wi-start-card-kicker">
                                             TODAY'S SYSTEM WORKOUT
                                         </span>
-
-                                        <strong>
-                                            @plannedSystem.DisplayName
-                                        </strong>
-
-                                        <span>
-                                            @plannedSystem.GroupName
-                                        </span>
-
-                                        @if (!string.IsNullOrWhiteSpace(
-                                            plannedSystemTargets))
-                                        {
-                                            <span>
-                                                Main targets: @plannedSystemTargets
-                                            </span>
+                                        <strong>@plannedSystem.DisplayName</strong>
+                                        <span>@plannedSystem.GroupName</span>
+                                        @{
+                                            var plannedSystemTargets =
+                                                SystemWorkoutTargets(
+                                                    plannedSystem.Code);
                                         }
-                                    </button>
-                                </form>
-                            }
+                                        @if (!string.IsNullOrWhiteSpace(plannedSystemTargets))
+                                        {
+                                            <span>Main targets: @plannedSystemTargets</span>
+                                        }
+                                    </a>
+                                }
 
-                            @if (Model.WorkoutTypes.Count == 0)
-                            {
-                                <div class="wi-workspace-empty">
-                                    No System Workouts are available.
+                                <div class="wi-system-category-prompt">
+                                    Select a category above to see its workouts.
                                 </div>
                             }
                             else
                             {
-                                <div class="wi-clickable-workout-list">
+                                <div class="wi-clickable-workout-list wi-start-system-workout-list">
                                     @foreach (
                                         var option in Model.WorkoutTypes
                                             .Where(
                                                 x =>
-                                                    string.IsNullOrWhiteSpace(
-                                                        Model.PlannedSystemWorkoutCode)
-                                                    || !x.Code.Equals(
-                                                        Model.PlannedSystemWorkoutCode,
-                                                        StringComparison.OrdinalIgnoreCase))
+                                                    SystemWorkoutCategory(
+                                                        x.GroupName,
+                                                        x.EngineWorkoutTypeCode)
+                                                        .Equals(
+                                                            selectedSystemCategory,
+                                                            StringComparison.OrdinalIgnoreCase))
                                             .OrderBy(
-                                                x => x.GroupName,
-                                                StringComparer.OrdinalIgnoreCase)
-                                            .ThenBy(
                                                 x => x.DisplayName,
                                                 StringComparer.OrdinalIgnoreCase))
                                     {
+                                        var isPlanned =
+                                            !string.IsNullOrWhiteSpace(
+                                                Model.PlannedSystemWorkoutCode)
+                                            && option.Code.Equals(
+                                                Model.PlannedSystemWorkoutCode,
+                                                StringComparison.OrdinalIgnoreCase);
+
                                         var systemTargets =
                                             SystemWorkoutTargets(
                                                 option.Code);
 
-                                        <form asp-action="UseSystemWorkout"
-                                              method="post"
-                                              class="wi-clickable-workout-form">
-                                            @Html.AntiForgeryToken()
-
-                                            <input type="hidden"
-                                                   name="systemCode"
-                                                   value="@option.Code" />
-
-                                            <input type="hidden"
-                                                   name="date"
-                                                   value="@Model.Date.ToString("yyyy-MM-dd")" />
-
-                                            <input type="hidden"
-                                                   name="returnContext"
-                                                   value="@Model.ReturnContext" />
-
-                                            <button class="wi-clickable-workout-card"
-                                                    type="submit">
-                                                <strong>
-                                                    @option.DisplayName
-                                                </strong>
-
-                                                <span>
-                                                    @option.GroupName
+                                        <a class="wi-clickable-workout-card @(isPlanned ? "wi-today-workout-card" : "")"
+                                           asp-action="Index"
+                                           asp-route-mode="system"
+                                           asp-route-systemCategory="@selectedSystemCategory"
+                                           asp-route-systemCode="@option.Code"
+                                           asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                           asp-route-returnContext="@Model.ReturnContext">
+                                            @if (isPlanned)
+                                            {
+                                                <span class="wi-start-card-kicker">
+                                                    TODAY'S SYSTEM WORKOUT
                                                 </span>
-
-                                                @if (!string.IsNullOrWhiteSpace(
-                                                    systemTargets))
-                                                {
-                                                    <span>
-                                                        Main targets: @systemTargets
-                                                    </span>
-                                                }
-                                            </button>
-                                        </form>
+                                            }
+                                            <strong>@option.DisplayName</strong>
+                                            <span>@option.GroupName</span>
+                                            @if (!string.IsNullOrWhiteSpace(systemTargets))
+                                            {
+                                                <span>Main targets: @systemTargets</span>
+                                            }
+                                        </a>
                                     }
                                 </div>
                             }
@@ -1398,6 +1377,22 @@
                                 </div>
 
                                 <div class="wi-actions">
+                                    <form asp-action="UseTemplate" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="templateId" value="@Model.SelectedTemplate.WorkoutTemplateId" />
+                                        <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                        <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                                        <button class="button primary" type="submit">Start Workout</button>
+                                    </form>
+
+                                    <form asp-action="UseTemplate" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="templateId" value="@Model.SelectedTemplate.WorkoutTemplateId" />
+                                        <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                        <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                                        <input type="hidden" name="entryMode" value="summary" />
+                                        <button class="button" type="submit">Complete After Workout</button>
+                                    </form>
 
                                     <a class="button"
                                        asp-action="Index"
@@ -1766,6 +1761,21 @@
                                     var selectedSystemTargets =
                                         SystemWorkoutTargets(
                                             Model.SelectedSystemWorkout.SystemCode);
+
+                                    var selectedIsCardio =
+                                        Model.SelectedSystemWorkout.SystemCode.Equals(
+                                            WebRecomp.Web.Services.WorkoutIntelligence.CardioActivityCatalog.PresentationSystemCode,
+                                            StringComparison.OrdinalIgnoreCase);
+
+                                    var selectedIsRest =
+                                        Model.SelectedSystemWorkout.SystemCode.Equals(
+                                            "REST",
+                                            StringComparison.OrdinalIgnoreCase);
+
+                                    var selectedIsOrangetheory =
+                                        Model.SelectedSystemWorkout.GroupName.Equals(
+                                            "Orangetheory",
+                                            StringComparison.OrdinalIgnoreCase);
                                 }
 
                                 @if (!string.IsNullOrWhiteSpace(
@@ -1780,12 +1790,17 @@
                                         </span>
                                     </div>
                                 }
-                                <p class="small">
-                                    @Model.SelectedSystemWorkout.GroupName - @Model.SelectedSystemWorkout.DefaultMinutes.ToString("0") min - RPE @Model.SelectedSystemWorkout.DefaultRpe.ToString("0.#")
-                                </p>
+                                @if (!selectedIsRest && !selectedIsCardio)
+                                {
+                                    <p class="small">
+                                        @Model.SelectedSystemWorkout.GroupName - @Model.SelectedSystemWorkout.DefaultMinutes.ToString("0") min - RPE @Model.SelectedSystemWorkout.DefaultRpe.ToString("0.#")
+                                    </p>
+                                }
 
-                                @if (!string.IsNullOrWhiteSpace(
-                                    Model.SelectedSystemWorkout.Description))
+                                @if (!selectedIsRest
+                                    && !selectedIsCardio
+                                    && !string.IsNullOrWhiteSpace(
+                                        Model.SelectedSystemWorkout.Description))
                                 {
                                     <p class="small">
                                         @Model.SelectedSystemWorkout.Description
@@ -1834,41 +1849,176 @@
                                         }
                                     </div>
                                 }
+                                else if (selectedIsRest)
+                                {
+                                    <div class="wi-quick-log-intro wi-quick-log-intro--recovery">
+                                        <strong>Recovery day</strong>
+                                        <span>No timer, sets, reps, duration or RPE needed. Just confirm that this was a no-training recovery day.</span>
+                                    </div>
+                                }
+                                else if (selectedIsCardio)
+                                {
+                                    <div class="wi-quick-log-intro wi-quick-log-intro--cardio">
+                                        <strong>Quick cardio log</strong>
+                                        <span>Choose what you did, enter the actual duration and RPE, and save it. That is all 12WR needs.</span>
+                                    </div>
+                                }
                                 else
                                 {
                                     <div class="wi-workspace-empty">
-                                        This workout is driven by its Engine 3.0 duration/intensity prescription. 12WR intentionally does not create fake rep-based lifting sets for it.
+                                        This workout is completed from its duration and intensity. No artificial lifting sets are required.
                                     </div>
                                 }
 
-                                <div class="wi-actions">
-                                    <form asp-action="UseSystemWorkout" method="post">
+                                @if (selectedIsRest)
+                                {
+                                    <div class="wi-quick-log wi-quick-log--recovery">
+                                        <div class="wi-quick-log-summary">
+                                            <span class="wi-quick-log-kicker">RECOVERY / REST</span>
+                                            <strong>Nothing else to enter.</strong>
+                                            <small>Completing this records a true rest day with zero workout duration and no artificial RPE.</small>
+                                        </div>
+
+                                        <div class="wi-actions wi-quick-log-actions">
+                                            <form asp-action="CompleteRest" method="post">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                                <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                                                <button class="button primary" type="submit">Complete Rest Day</button>
+                                            </form>
+
+                                            <a class="button"
+                                               asp-action="Index"
+                                               asp-route-mode="start"
+                                               asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                               asp-route-returnContext="@Model.ReturnContext">
+                                                Back to Workouts
+                                            </a>
+                                        </div>
+                                    </div>
+                                }
+                                else if (selectedIsCardio)
+                                {
+                                    <form asp-action="CompleteCardio"
+                                          method="post"
+                                          class="wi-cardio-complete wi-quick-log wi-quick-log--cardio">
                                         @Html.AntiForgeryToken()
-                                        <input type="hidden" name="systemCode" value="@Model.SelectedSystemWorkout.SystemCode" />
                                         <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
                                         <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
-                                        <button class="button primary" type="submit">Start Workout</button>
+
+                                        <div class="wi-cardio-activity-field">
+                                            <label for="cardio-activity">Cardio activity</label>
+                                            <select id="cardio-activity"
+                                                    name="cardioActivityCode"
+                                                    required>
+                                                <option value="">Choose what you did...</option>
+                                                @foreach (var activity in Model.CardioActivities)
+                                                {
+                                                    <option value="@activity.ActivityCode">
+                                                        @activity.DisplayName
+                                                    </option>
+                                                }
+                                            </select>
+                                        </div>
+
+                                        <div class="wi-cardio-number-row">
+                                            <label class="wi-cardio-number-field">
+                                                <span>Duration</span>
+                                                <div class="wi-review-input-unit">
+                                                    <input type="number"
+                                                           name="durationMin"
+                                                           min="1"
+                                                           max="720"
+                                                           step="1"
+                                                           value=""
+                                                           placeholder="30"
+                                                           inputmode="numeric"
+                                                           required />
+                                                    <small>min</small>
+                                                </div>
+                                            </label>
+
+                                            <label class="wi-cardio-number-field">
+                                                <span>RPE</span>
+                                                <input type="number"
+                                                       name="sessionRpe"
+                                                       min="1"
+                                                       max="10"
+                                                       step="0.5"
+                                                       value="@Math.Max(1m, Model.SelectedSystemWorkout.DefaultRpe).ToString("0.#")"
+                                                       inputmode="decimal"
+                                                       required />
+                                                <small>1–10 effort</small>
+                                            </label>
+                                        </div>
+
+                                        <div class="wi-actions wi-quick-log-actions">
+                                            <button class="button primary" type="submit">Complete Cardio</button>
+                                            <button class="button"
+                                                    type="submit"
+                                                    name="addAnother"
+                                                    value="true">
+                                                Complete &amp; Add Another
+                                            </button>
+                                            <a class="button"
+                                               asp-action="Index"
+                                               asp-route-mode="start"
+                                               asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                               asp-route-returnContext="@Model.ReturnContext">
+                                                Back to Workouts
+                                            </a>
+                                        </div>
                                     </form>
+                                }
+                                else
+                                {
+                                    <div class="wi-actions">
+                                        @if (!selectedIsOrangetheory)
+                                        {
+                                            <form asp-action="UseSystemWorkout" method="post">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="systemCode" value="@Model.SelectedSystemWorkout.SystemCode" />
+                                                <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                                <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                                                <button class="button primary" type="submit">Start Workout</button>
+                                            </form>
+                                        }
 
-                                    <a class="button"
-                                       asp-action="Index"
-                                       asp-route-mode="start"
-                                       asp-route-startCategory="system"
-                                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
-                                       asp-route-returnContext="@Model.ReturnContext">
-                                        Choose Another Workout
-                                    </a>
+                                        <form asp-action="UseSystemWorkout" method="post">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="systemCode" value="@Model.SelectedSystemWorkout.SystemCode" />
+                                            <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                            <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                                            <input type="hidden" name="entryMode" value="summary" />
+                                            <button class="button @(selectedIsOrangetheory ? "primary" : "")"
+                                                    type="submit">
+                                                @(selectedIsOrangetheory ? "Complete After Class" : "Complete After Workout")
+                                            </button>
+                                        </form>
 
-                                    <a class="button"
-                                       asp-action="Index"
-                                       asp-route-mode="system"
-                                       asp-route-systemCode="@Model.SelectedSystemWorkout.SystemCode"
-                                       asp-route-modifySelection="true"
-                                       asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
-                                       asp-route-returnContext="@Model.ReturnContext">
-                                        Edit as My Workout
-                                    </a>
-                                </div>
+                                        <a class="button"
+                                           asp-action="Index"
+                                           asp-route-mode="start"
+                                           asp-route-startCategory="system"
+                                           asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                           asp-route-returnContext="@Model.ReturnContext">
+                                            Choose Another Workout
+                                        </a>
+
+                                        @if (!selectedIsOrangetheory)
+                                        {
+                                            <a class="button"
+                                               asp-action="Index"
+                                               asp-route-mode="system"
+                                               asp-route-systemCode="@Model.SelectedSystemWorkout.SystemCode"
+                                               asp-route-modifySelection="true"
+                                               asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                                               asp-route-returnContext="@Model.ReturnContext">
+                                                Edit as My Workout
+                                            </a>
+                                        }
+                                    </div>
+                                }
                             </div>
                         }
                         else

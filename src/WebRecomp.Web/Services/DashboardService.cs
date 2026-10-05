@@ -2,19 +2,20 @@ using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.ViewModels;
+using WebRecomp.Web.Services.Engine;
 using WebRecomp.Web.Services.Engine30;
 
 namespace WebRecomp.Web.Services;
 
 public sealed class DashboardService(
     RecompDbContext db,
-    RecommendationService recommendationService,
-    ConfigurationService configuration,
-    WorkoutMathService math,
     ProgramPlanService planSelection,
     Engine30DashboardProjectionService engine30Dashboard,
     Engine30DashboardAnalysisService dashboardAnalysis,
-    Engine30AdaptiveRecommendationService adaptiveRecommendations)
+    Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
+    Engine30TrainingLoadRecoveryService trainingLoadRecovery,
+    WorkoutActualService workoutActuals,
+    IRecompRecommendationEngine recommendationEngine)
 {
     public async Task<DashboardViewModel> BuildAsync(
         AppClientContext context,
@@ -26,11 +27,19 @@ public sealed class DashboardService(
 
         var client = context.Client;
         var program = context.Program;
-        var result = await recommendationService.CalculateAndStoreAsync(context, actionDate, cancellationToken);
 
-        var settings = await configuration.GetSettingsAsync(program.ConfigVersionId, cancellationToken);
-        var workoutTypes = await configuration.GetWorkoutTypesAsync(program.ConfigVersionId, cancellationToken);
-        var actionPlanCode = await planSelection.GetPlanCodeForDateAsync(program, actionDate, cancellationToken);
+        // v1014A: current Dashboard recommendations are Engine 3.0 only.
+        // The application consumes an engine-neutral recommendation contract;
+        // no current Dashboard path invokes legacy Engine 2.x recommendation math.
+        var workoutTypes =
+            await engine30WorkoutCatalog.GetActiveMapAsync(
+                cancellationToken);
+
+        var actionPlanCode =
+            await planSelection.GetPlanCodeForDateAsync(
+                program,
+                actionDate,
+                cancellationToken);
         var engine30Projection =
             await engine30Dashboard.BuildTodayTomorrowAsync(
                 context,
@@ -47,38 +56,27 @@ public sealed class DashboardService(
                 context,
                 actionDate,
                 cancellationToken);
-        var currentMeasurement = await db.Measurements
-            .Where(x => x.ClientId == client.ClientId
-                        && !x.IsDeleted
-                        && x.LocalMeasurementDate <= actionDate
-                        && x.WeightLb != null)
-            .OrderByDescending(x => x.LocalMeasurementDate)
-            .ThenByDescending(x => x.MeasurementAtUtc)
-            .FirstOrDefaultAsync(cancellationToken);
-
         var todayCheckin = await db.DailyCheckins
             .SingleOrDefaultAsync(x => x.ProgramId == program.ProgramId
                                        && x.CheckinDate == actionDate,
                                   cancellationToken);
 
-        var todayPlan = await db.PlannedWorkouts
-            .SingleOrDefaultAsync(x => x.ProgramId == program.ProgramId
-                                       && x.PlannedDate == actionDate,
-                                  cancellationToken);
+        WorkoutTypeDefinition? todayPlannedType =
+            ResolveWorkoutType(
+                workoutTypes,
+                engine30Projection.Today.WorkoutTypeCode);
 
-        WorkoutTypeDefinition todayPlannedType = result.ScheduledWorkout;
-        if (todayPlan is not null && Engine30LegacyWorkoutCompatibility.TryResolve(workoutTypes, todayPlan.WorkoutTypeCode, out var explicitPlannedType))
-            todayPlannedType = explicitPlannedType;
+        var actualSessions =
+            await workoutActuals.GetCompletedSessionsAsync(
+                client.ClientId,
+                program.ProgramId,
+                actionDate,
+                cancellationToken);
 
-        var actualSessions = await db.WorkoutSessions
-            .Where(x => x.ClientId == client.ClientId
-                        && x.ProgramId == program.ProgramId
-                        && x.WorkoutDate == actionDate
-                        && x.CompletedFlag)
-            .OrderBy(x => x.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
-
-        var workoutActual = BuildActualWorkoutSummary(actualSessions, workoutTypes);
+        var workoutActual =
+            BuildActualWorkoutSummary(
+                actualSessions,
+                workoutTypes);
 
         var nutritionActual = await db.NutritionDays
             .SingleOrDefaultAsync(x => x.ClientId == client.ClientId
@@ -87,27 +85,10 @@ public sealed class DashboardService(
                                   cancellationToken);
 
         var tomorrowDate = actionDate.AddDays(1);
-        var tomorrowPlan = await db.PlannedWorkouts
-            .SingleOrDefaultAsync(x => x.ProgramId == program.ProgramId
-                                       && x.PlannedDate == tomorrowDate,
-                                  cancellationToken);
-
-        WorkoutTypeDefinition? tomorrowType = null;
-        MacroTargets? tomorrowTargets = null;
-        if (tomorrowPlan is not null
-            && Engine30LegacyWorkoutCompatibility.TryResolve(workoutTypes, tomorrowPlan.WorkoutTypeCode, out var plannedTomorrowType))
-        {
-            tomorrowType = plannedTomorrowType;
-            if (currentMeasurement?.WeightLb is decimal currentWeight)
-            {
-                var tomorrowPlanCode = await planSelection.GetPlanCodeForDateAsync(program, tomorrowDate, cancellationToken);
-                var tomorrowProgramPlan = await configuration.GetPlanAsync(
-                    program.ConfigVersionId,
-                    tomorrowPlanCode,
-                    cancellationToken);
-                tomorrowTargets = math.CalculatePlannedTargets(currentWeight, tomorrowProgramPlan, tomorrowType, settings);
-            }
-        }
+        WorkoutTypeDefinition? tomorrowType =
+            ResolveWorkoutType(
+                workoutTypes,
+                engine30Projection.Tomorrow.WorkoutTypeCode);
 
         // ------------------------------------------------------------
         // v1009 Dashboard analysis evidence.
@@ -389,15 +370,20 @@ public sealed class DashboardService(
 
                     TrendEndMuscleMassLb:
                         lastTrendMeasurement?.MuscleMassLb));
+        var recoveryEvidence =
+            trainingLoadRecovery.Evaluate(
+                engine30Impact,
+                todayCheckin);
+
         // ------------------------------------------------------------
-        // v1009 adaptive decision layer.
+        // v1014C adaptive decision layer.
         //
         // This interprets Engine 3.0 evidence; it does not rewrite the
         // Weekly Plan and it never creates exercise calorie eat-back.
         // ------------------------------------------------------------
-        var engine30Adaptive =
-            adaptiveRecommendations.Evaluate(
-                new Engine30AdaptiveRecommendationInput(
+        var recommendation =
+            recommendationEngine.Evaluate(
+                new RecompRecommendationInput(
                     HasPlannedWorkout:
                         engine30Projection.Today.HasPlannedWorkout,
                     PlannedWorkoutTypeCode:
@@ -408,26 +394,22 @@ public sealed class DashboardService(
                         engine30Projection.Today.WorkoutCategoryCode,
                     PlannedGlycogenDemandG:
                         engine30Impact.TodayPlannedGlycogenDemandG,
-
                     PreWorkoutRescueG:
                         engine30Impact.PreWorkoutRescueG,
                     IncomingReadinessBandCode:
                         engine30Impact.IncomingReadinessBandCode,
                     ProjectedReadinessBandCode:
                         engine30Impact.ProjectedReadinessBandCode,
-
                     PreviousTargetCalories:
                         engine30Impact.PreviousTargetCalories,
                     PreviousEnergyVarianceKcal:
                         engine30Impact.PreviousEnergyVarianceKcal,
                     PreviousEligibleEnergyCarryoverKcal:
                         engine30Impact.PreviousEligibleEnergyCarryoverKcal,
-
                     FourDayHardDays:
-                        engine30Impact.FourDayHardDays,
+                        recoveryEvidence.FourDayHardDays,
                     FourDayModerateHardDays:
-                        engine30Impact.FourDayModerateHardDays,
-
+                        recoveryEvidence.FourDayModerateHardDays,
                     SleepHours:
                         todayCheckin?.SleepHours,
                     EnergyScore:
@@ -438,7 +420,19 @@ public sealed class DashboardService(
                         todayCheckin?.PainFlag ?? false,
                     IllnessFlag:
                         todayCheckin?.IllnessFlag ?? false));
-        var coach = BuildCoachRecommendation(result, todayCheckin);
+
+        var recommendedType =
+            ResolveWorkoutType(
+                workoutTypes,
+                recommendation.RecommendedWorkoutTypeCode)
+            ?? todayPlannedType;
+
+        var coach =
+            BuildCoachRecommendation(
+                recommendation,
+                todayCheckin,
+                engine30Impact,
+                recoveryEvidence);
 
         return new DashboardViewModel
         {
@@ -459,18 +453,22 @@ public sealed class DashboardService(
             Engine30MaintenanceKcal = engine30Projection.Today.MaintenanceEnergyKcal,
             Engine30EffectiveDeficitPct = engine30Projection.Today.EffectiveDeficitPct,
 
-            TodayStatusLabel = BuildStatusLabel(result),
-            TodayStatusClass = BuildStatusClass(result),
+            TodayStatusLabel = BuildStatusLabel(recommendation),
+            TodayStatusClass = BuildStatusClass(recommendation),
             PlannedWorkout = engine30Projection.Today.HasPlannedWorkout ? engine30Projection.Today.WorkoutDisplayName : "No workout planned",
-            RecommendedWorkout = result.RecommendedWorkout.DisplayName,
-            ScheduleChangeRecommended = result.Recommendation.ScheduleChangeRecommended,
-            WorkoutRecommendationLabel = todayPlan is null
-                ? $"Use {result.RecommendedWorkout.DisplayName}"
-                : result.Recommendation.ScheduleChangeRecommended
-                    ? $"Change to {result.RecommendedWorkout.DisplayName}"
-                    : $"Keep {todayPlannedType.DisplayName}",
-            WorkoutFocus = BuildWorkoutFocus(todayPlannedType),
-            WorkoutDescription = BuildWorkoutDescription(todayPlannedType),
+            RecommendedWorkout = recommendation.RecommendedWorkoutDisplayName,
+            ScheduleChangeRecommended = recommendation.WorkoutChangeRecommended,
+            WorkoutRecommendationLabel = !engine30Projection.Today.HasPlannedWorkout
+                ? $"Use {recommendation.RecommendedWorkoutDisplayName}"
+                : recommendation.WorkoutChangeRecommended
+                    ? $"Change to {recommendation.RecommendedWorkoutDisplayName}"
+                    : $"Keep {engine30Projection.Today.WorkoutDisplayName}",
+            WorkoutFocus = recommendedType is null
+                ? HumanizeCode(engine30Projection.Today.WorkoutCategoryCode)
+                : BuildWorkoutFocus(recommendedType),
+            WorkoutDescription = recommendedType is null
+                ? recommendation.Summary
+                : BuildWorkoutDescription(recommendedType),
             WorkoutDurationMin = engine30Projection.Today.PlannedDurationMinutes,
             WorkoutEffort = engine30Projection.Today.PlannedRpe.HasValue ? $"RPE {engine30Projection.Today.PlannedRpe.Value:0.#}" : "Recovery / no planned effort",
             WorkoutActual = engine30ActualWorkout.WorkoutSummary ?? workoutActual,
@@ -490,13 +488,15 @@ public sealed class DashboardService(
                 ? engine30ActualWorkout.TotalDurationMinutes
                 : null,
             ActualWorkoutRpe = engine30ActualWorkout.DurationWeightedRpe,
-            WorkoutRecommendationRationale = BuildWorkoutRecommendationRationale(result, todayPlan is not null),
+            WorkoutRecommendationRationale = BuildWorkoutRecommendationRationale(
+                recommendation,
+                engine30Projection.Today.HasPlannedWorkout),
             Calories = engine30Projection.Today.PrescribedEnergyKcal,
             ProteinG = engine30Projection.Today.ProteinG,
             CarbsG = engine30Projection.Today.RecommendedCarbsG,
             FatG = engine30Projection.Today.FatG,
-            NutritionDayLabel = BuildNutritionDayLabel(result.RecommendedWorkout),
-            NutritionTip = BuildNutritionTip(result.RecommendedWorkout, actionDate),
+            NutritionDayLabel = BuildNutritionDayLabel(recommendedType),
+            NutritionTip = recommendation.NutritionSummary,
             NutritionActualLogged = nutritionActual is not null,
             ActualCalories = nutritionActual?.ActualCalories,
             ActualProteinG = nutritionActual?.ActualProteinG,
@@ -505,7 +505,11 @@ public sealed class DashboardService(
 
             CoachTitle = coach.Title,
             CoachRecommendation = coach.Body,
-            CoachWhy = BuildCoachWhy(result, todayCheckin),
+            CoachWhy = BuildCoachWhy(
+                recommendation,
+                engine30Impact,
+                recoveryEvidence,
+                todayCheckin),
             EnergyScore = todayCheckin?.EnergyScore,
             SorenessScore = todayCheckin?.SorenessScore,
             SleepHours = todayCheckin?.SleepHours,
@@ -533,7 +537,7 @@ public sealed class DashboardService(
             FuelActionLabel = engine30Impact.FuelActionLabel,
             FuelReasonCodes = string.Join(", ", engine30Impact.ReasonCodes),
             Engine30Analysis = engine30Analysis,
-            Engine30AdaptiveRecommendation = engine30Adaptive,
+            RecompRecommendation = recommendation,
             PreviousEnergyVarianceKcal = engine30Impact.PreviousEnergyVarianceKcal,
             PreviousEligibleEnergyCarryoverKcal = engine30Impact.PreviousEligibleEnergyCarryoverKcal,
             WeekEnergyOverageKcal = engine30Impact.WeekEnergyOverageKcal,
@@ -579,10 +583,12 @@ public sealed class DashboardService(
             PreviousRestorationRatio = engine30Impact.PreviousRestorationRatio,
             PreviousFuelSummary = engine30Impact.PreviousFuelSummary,
 
-            WeeklyStatus = HumanizeWeeklyStatus(result.WeeklyStrategy.StatusCode),
-            WeeklyNote = HumanizeWeeklyNote(result.WeeklyStrategy),
-            StrengthPriority = HumanizeStrengthPriority(result.Recommendation.RegionPriorityCode),
-            CardioNeed = HumanizeCardioNeed(result.Recommendation.CardioNeedCode)
+            WeeklyStatus = recommendation.WorkoutChangeRecommended
+                ? "Adaptive change recommended"
+                : "On target",
+            WeeklyNote = recommendation.Summary,
+            StrengthPriority = null,
+            CardioNeed = null
         };
     }
 
@@ -595,228 +601,286 @@ public sealed class DashboardService(
 
         return string.Join(" + ", sessions.Select(x =>
         {
-            var displayName = Engine30LegacyWorkoutCompatibility.TryResolve(workoutTypes, x.WorkoutTypeCode, out var type)
-                ? type.DisplayName
-                : x.WorkoutTypeCode;
-            var rpe = x.SessionRpe.HasValue ? $", RPE {x.SessionRpe.Value:0.#}" : "";
+            var normalizedCode =
+                Engine30WorkoutUiCatalogService.NormalizeCode(
+                    x.WorkoutTypeCode);
+
+            var displayName =
+                workoutTypes.TryGetValue(
+                    normalizedCode,
+                    out var type)
+                    ? type.DisplayName
+                    : normalizedCode;
+
+            var rpe =
+                x.SessionRpe.HasValue
+                    ? $", RPE {x.SessionRpe.Value:0.#}"
+                    : "";
+
             return $"{displayName} — {x.DurationMin:0} min{rpe}";
         }));
     }
 
+    private static WorkoutTypeDefinition? ResolveWorkoutType(
+        IReadOnlyDictionary<string, WorkoutTypeDefinition> workoutTypes,
+        string? workoutTypeCode)
+    {
+        var normalized =
+            Engine30WorkoutUiCatalogService.NormalizeCode(
+                workoutTypeCode);
+
+        return !string.IsNullOrWhiteSpace(normalized)
+            && workoutTypes.TryGetValue(
+                normalized,
+                out var workout)
+                ? workout
+                : null;
+    }
+
     private static string BuildWorkoutRecommendationRationale(
-        RecommendationResult result,
+        RecompRecommendationResult recommendation,
         bool hasPlannedWorkout)
     {
         if (!hasPlannedWorkout)
-            return "No workout is scheduled in Workout Plan for today, so Recomp is using the available recovery and training context.";
-
-        return result.Recommendation.RecommendationBasisCode switch
         {
-            "SAFETY_PAIN" =>
-                "Pain or an injury was reported, so Recomp recommends adjusting the planned workout.",
-            "SAFETY_ILLNESS" =>
-                "Illness or systemic fatigue was reported, so Recomp recommends a recovery-focused adjustment.",
-            "REGION_NOT_RECOVERED" =>
-                "The primary muscle region has not recovered enough for the planned major session.",
-            "SWAP_HEAVY_DAY" =>
-                "The planned region is not recovered, so Recomp recommends a recovered heavy-session swap to preserve weekly structure.",
-            "VERY_LOW_FUEL_READINESS" =>
-                "Fuel readiness is too low for the planned high-output workout, so Recomp recommends a lower-demand alternative.",
-            _ =>
-                "Recovery, recent training load, and fuel status support the planned workout."
-        };
+            return
+                "No workout is scheduled in Workout Plan for today. "
+                + recommendation.Summary;
+        }
+
+        return recommendation.Summary;
     }
 
-    private static string BuildStatusLabel(RecommendationResult result)
-        => result.Recommendation.RecommendationBasisCode switch
+    private static string BuildStatusLabel(
+        RecompRecommendationResult recommendation)
+        => recommendation.DecisionCode switch
         {
-            "SAFETY_PAIN" or "SAFETY_ILLNESS" => "Recovery priority",
-            _ when result.Recommendation.ScheduleChangeRecommended => "Plan adjusted",
-            _ when result.WeeklyStrategy.StatusCode == "GOOD" => "On track",
-            _ => "Review plan"
+            RecompRecommendationDecisionCodes.SafetyRecovery =>
+                "Recovery priority",
+
+            _ when recommendation.WorkoutChangeRecommended =>
+                "Plan adjusted",
+
+            _ =>
+                "On track"
         };
 
-    private static string BuildStatusClass(RecommendationResult result)
-        => result.Recommendation.RecommendationBasisCode switch
+    private static string BuildStatusClass(
+        RecompRecommendationResult recommendation)
+        => recommendation.DecisionCode switch
         {
-            "SAFETY_PAIN" or "SAFETY_ILLNESS" => "danger",
-            _ when result.Recommendation.ScheduleChangeRecommended => "warning",
-            _ when result.WeeklyStrategy.StatusCode == "GOOD" => "good",
-            _ => "neutral"
+            RecompRecommendationDecisionCodes.SafetyRecovery =>
+                "danger",
+
+            _ when recommendation.WorkoutChangeRecommended =>
+                "warning",
+
+            _ =>
+                "good"
         };
 
-    private static string BuildWorkoutFocus(WorkoutTypeDefinition workout)
+    private static string BuildWorkoutFocus(
+        WorkoutTypeDefinition workout)
     {
-        if (!string.IsNullOrWhiteSpace(workout.PrimaryFocusCode))
-            return workout.PrimaryFocusCode.Replace("/", " / ");
+        if (!string.IsNullOrWhiteSpace(
+                workout.PrimaryFocusCode))
+        {
+            return workout.PrimaryFocusCode.Replace(
+                "/",
+                " / ");
+        }
 
-        if (!string.IsNullOrWhiteSpace(workout.RegionCode))
+        if (!string.IsNullOrWhiteSpace(
+                workout.RegionCode))
+        {
             return workout.RegionCode.ToUpperInvariant() switch
             {
-                "PUSH" => "Chest / shoulders / triceps",
-                "PULL" => "Back / rear delts / biceps",
-                "LEGS" => "Quads / hamstrings / glutes",
-                _ => HumanizeCode(workout.RegionCode)
-            };
+                "PUSH" =>
+                    "Chest / shoulders / triceps",
 
-        return HumanizeCode(workout.WeeklyRoleCode);
+                "PULL" =>
+                    "Back / rear delts / biceps",
+
+                "LEGS" =>
+                    "Quads / hamstrings / glutes",
+
+                _ =>
+                    HumanizeCode(
+                        workout.RegionCode)
+            };
+        }
+
+        return HumanizeCode(
+            workout.WeeklyRoleCode);
     }
 
-    private static string BuildWorkoutDescription(WorkoutTypeDefinition workout)
+    private static string BuildWorkoutDescription(
+        WorkoutTypeDefinition workout)
     {
-        if (!string.IsNullOrWhiteSpace(workout.PlanningNote))
+        if (!string.IsNullOrWhiteSpace(
+                workout.PlanningNote))
+        {
             return workout.PlanningNote;
+        }
 
         return workout.WeeklyRoleCode switch
         {
-            "HEAVY" or "HEAVY_GENERIC" => "Primary strength session with a high training stimulus.",
-            "LIGHT_STRENGTH" => "Moderate strength work that supports the major sessions without matching their fatigue cost.",
-            "CONDITIONING" => "Conditioning-focused work with meaningful systemic demand.",
-            "RECOVERY_CARDIO" => "Easy aerobic work intended to support recovery and aerobic capacity.",
-            "RECOVERY" => "Recovery-focused day with minimal training stress.",
-            _ => "Planned activity for the day."
+            "HEAVY" or "HEAVY_GENERIC" =>
+                "Primary strength session with a high training stimulus.",
+
+            "LIGHT_STRENGTH" =>
+                "Moderate strength work that supports the major sessions without matching their fatigue cost.",
+
+            "CONDITIONING" =>
+                "Conditioning-focused work with meaningful systemic demand.",
+
+            "RECOVERY_CARDIO" =>
+                "Easy aerobic work intended to support recovery and aerobic capacity.",
+
+            "RECOVERY" =>
+                "Recovery-focused day with minimal training stress.",
+
+            _ =>
+                "Planned activity for the day."
         };
     }
 
-    private static string BuildEffortLabel(WorkoutTypeDefinition workout)
-        => workout.WeeklyRoleCode switch
-        {
-            "HEAVY" or "HEAVY_GENERIC" => "RPE 7–9",
-            "LIGHT_STRENGTH" => "RPE 6–8",
-            "CONDITIONING" => workout.FuelScore >= 4m ? "RPE 7–9" : "RPE 6–8",
-            "RECOVERY_CARDIO" => "RPE 3–5",
-            "RECOVERY" => "RPE 1–3",
-            "OTHER_LOAD" => "RPE 4–7",
-            _ => "Use planned effort"
-        };
-
-    private static string BuildNutritionDayLabel(WorkoutTypeDefinition workout)
-        => workout.FuelPriorityCode.ToUpperInvariant() switch
-        {
-            "HIGH" => "Higher-carb training day",
-            "MODERATE" => "Moderate-carb training day",
-            "LOW" => "Lower-carb / recovery day",
-            _ => "Balanced nutrition day"
-        };
-
-    private static string BuildNutritionTip(WorkoutTypeDefinition workout, DateOnly date)
+    private static string BuildNutritionDayLabel(
+        WorkoutTypeDefinition? workout)
     {
-        string[] tips = workout.FuelPriorityCode.ToUpperInvariant() switch
+        if (workout is null)
+            return "Engine-guided nutrition day";
+
+        return workout.FuelPriorityCode.ToUpperInvariant() switch
         {
             "HIGH" =>
-            [
-                "Put a meaningful share of today's carbohydrates around training. A planned higher-carb treat fits better today than on a recovery day when it still fits the calorie target.",
-                "Don't underfuel the session early and then chase hunger at night. Put carbohydrates around training on purpose and keep protein steady.",
-                "Performance and recovery are the priority today. A carbohydrate-rich post-workout meal is a good use of the day's larger carb budget."
-            ],
-            "MODERATE" =>
-            [
-                "Keep protein evenly distributed and place a moderate share of your carbohydrates around the session.",
-                "Use carbohydrates where they help the workout most, but keep the rest of the day controlled rather than grazing.",
-                "This is a middle-ground fuel day: enough carbohydrate to support training without treating it like a major-session carb day."
-            ],
-            _ =>
-            [
-                "Keep protein high, make carbohydrates purposeful, and watch unplanned grazing on this lower-demand day.",
-                "Favor lean protein, vegetables, and filling foods. You do not need to chase a major-training-day carbohydrate intake today.",
-                "Recovery still needs food, but lower activity makes portion control more important. Keep snacks intentional rather than automatic."
-            ]
-        };
+                "Higher-carb training day",
 
-        return tips[Math.Abs(date.DayNumber) % tips.Length];
+            "MODERATE" =>
+                "Moderate-carb training day",
+
+            "LOW" =>
+                "Lower-carb / recovery day",
+
+            _ =>
+                "Balanced nutrition day"
+        };
     }
 
     private static (string Title, string Body) BuildCoachRecommendation(
-        RecommendationResult result,
-        DailyCheckin? checkin)
+        RecompRecommendationResult recommendation,
+        DailyCheckin? checkin,
+        Engine30DashboardYesterdayImpactProjection impact,
+        Engine30TrainingLoadRecoveryResult recovery)
     {
-        var recommendation = result.Recommendation;
-
-        if (checkin?.PainFlag == true)
+        if (recommendation.WorkoutChangeRecommended
+            || recommendation.DecisionCode
+                == RecompRecommendationDecisionCodes.SafetyRecovery
+            || recommendation.DecisionCode
+                == RecompRecommendationDecisionCodes.FuelRescueKeepPlan
+            || recommendation.DecisionCode
+                == RecompRecommendationDecisionCodes.LowFuelDowngrade)
         {
             return (
-                "Recovery takes priority",
-                $"Pain or an injury is logged today. Recomp has overridden the harder plan with {result.RecommendedWorkout.DisplayName}. Avoid movements that reproduce pain and use the recovery recommendation instead of trying to train through it.");
-        }
-
-        if (checkin?.IllnessFlag == true)
-        {
-            return (
-                "Recovery takes priority",
-                $"Illness or systemic fatigue is logged today. Recomp recommends {result.RecommendedWorkout.DisplayName} rather than hard training. Focus on recovery and resume harder work when you are feeling recovered.");
-        }
-
-        if (recommendation.ScheduleChangeRecommended)
-        {
-            return (
-                "Adjust today's plan",
-                $"Recomp recommends {result.RecommendedWorkout.DisplayName} instead of the planned {result.SelectedWorkout.DisplayName}. The change protects recovery while keeping the weekly training structure intact.");
+                recommendation.Title,
+                recommendation.Summary);
         }
 
         if (checkin?.EnergyScore is <= 3)
         {
             return (
                 "Energy is low",
-                $"The engine has not triggered a schedule change, but your energy score is {checkin.EnergyScore}/10. Keep {result.RecommendedWorkout.DisplayName} controlled, skip optional extra volume, and reassess if your energy drops further during the session.");
+                $"Keep {recommendation.RecommendedWorkoutDisplayName} controlled, skip optional extra volume, and reassess if energy drops further during the session.");
         }
 
         if (checkin?.SorenessScore is >= 8)
         {
             return (
                 "Soreness is elevated",
-                $"Your soreness score is {checkin.SorenessScore}/10. The planned session still fits today's recovery picture, but avoid bonus work and keep technique and range of motion clean.");
+                $"Soreness is {checkin.SorenessScore}/10. The Engine recommendation still supports {recommendation.RecommendedWorkoutDisplayName}, but keep the session disciplined and avoid unnecessary bonus volume.");
         }
 
         if (checkin?.SleepHours is < 5.5m)
         {
             return (
                 "Recovery needs attention",
-                $"Sleep was {checkin.SleepHours:0.#} hours. The plan has not been automatically downgraded, but keep today's effort disciplined and prioritize recovery after training.");
+                $"Sleep was {checkin.SleepHours:0.#} hours. Keep {recommendation.RecommendedWorkoutDisplayName} inside the intended effort range and prioritize recovery afterward.");
         }
 
-        if (recommendation.GlycogenReadinessCode is "VERY_LOW" or "LOW" or "MODERATELY_LOW" or "SLIGHTLY_REDUCED")
+        if (recovery.RecoveryBandCode
+            == Engine30RecoveryBandCodes.Watch
+            && !recommendation.WorkoutChangeRecommended)
         {
-            var carbLine = recommendation.PreWorkoutPortionG > 0
-                ? $" Put about {recommendation.PreWorkoutPortionG:0} g of the planned carbohydrates before training."
-                : " Keep today's carbohydrate intake purposeful around the session.";
+            return (
+                "Recovery deserves attention",
+                $"Recent training load is {recovery.TrainingLoadBandCode.ToLowerInvariant()} and recovery is in the watch range. Keep {recommendation.RecommendedWorkoutDisplayName} within the intended effort and skip optional bonus volume.");
+        }
 
+        if (impact.PreWorkoutRescueG > 0m)
+        {
             return (
                 "Fuel before training",
-                $"Glycogen recovery is {HumanizeReadiness(recommendation.GlycogenReadinessCode).ToLowerInvariant()}, but recovery and recent workload still support {result.RecommendedWorkout.DisplayName}.{carbLine}");
+                $"Use about {impact.PreWorkoutRescueG:0} g of today's already-prescribed carbohydrate before {recommendation.RecommendedWorkoutDisplayName}. This is timing within the target, not exercise calorie eat-back.");
         }
 
         if (checkin?.EnergyScore is >= 7)
         {
             return (
                 "You're good to go",
-                $"Fuel readiness is adequate and energy is {checkin.EnergyScore}/10. Follow the {result.RecommendedWorkout.DisplayName} plan and keep the session inside the intended effort range.");
+                $"Current recovery and fuel evidence support {recommendation.RecommendedWorkoutDisplayName}. Follow the plan and keep the session inside the intended effort range.");
         }
 
         return (
-            "Stay the course",
-            $"Recovery, recent workload, and fuel status support {result.RecommendedWorkout.DisplayName}. Hit the planned nutrition and keep the session within the intended effort range.");
+            recommendation.Title,
+            recommendation.Summary);
     }
 
-    private static string BuildCoachWhy(RecommendationResult result, DailyCheckin? checkin)
+    private static string BuildCoachWhy(
+        RecompRecommendationResult recommendation,
+        Engine30DashboardYesterdayImpactProjection impact,
+        Engine30TrainingLoadRecoveryResult recovery,
+        DailyCheckin? checkin)
     {
         var factors = new List<string>
         {
-            $"fuel readiness {HumanizeReadiness(result.Recommendation.GlycogenReadinessCode).ToLowerInvariant()}",
-            $"4-day carbohydrate recovery {result.Recommendation.AbsoluteRestorationRatio:P0}"
+            $"fuel readiness {Engine30DashboardProjectionService.HumanizeReadiness(impact.IncomingReadinessBandCode).ToLowerInvariant()}",
+            $"4-day carbohydrate recovery {impact.AbsoluteRestorationRatio:P0}",
+            $"training load {recovery.TrainingLoadBandCode.ToLowerInvariant()}",
+            $"recovery {recovery.RecoveryBandCode.ToLowerInvariant().Replace('_', ' ')}"
         };
+
+        if (impact.PreWorkoutRescueG > 0m)
+            factors.Add($"pre-workout carb timing {impact.PreWorkoutRescueG:0} g");
 
         if (checkin?.EnergyScore is not null)
             factors.Add($"energy {checkin.EnergyScore}/10");
+
         if (checkin?.SorenessScore is not null)
             factors.Add($"soreness {checkin.SorenessScore}/10");
+
         if (checkin?.SleepHours is not null)
             factors.Add($"sleep {checkin.SleepHours:0.#} h");
+
         if (checkin?.PainFlag == true)
             factors.Add("pain/injury flag active");
+
         if (checkin?.IllnessFlag == true)
             factors.Add("illness/systemic-fatigue flag active");
 
-        return "Based on " + string.Join(", ", factors) + ".";
+        if (recommendation.ReasonCodes.Count > 0)
+        {
+            factors.Add(
+                "engine decision "
+                + HumanizeCode(
+                    recommendation.DecisionCode)
+                    .ToLowerInvariant());
+        }
+
+        return "Based on "
+            + string.Join(
+                ", ",
+                factors)
+            + ".";
     }
 
     private static string BuildTomorrowTip(WorkoutTypeDefinition? workout, DateOnly date)
@@ -894,45 +958,6 @@ public sealed class DashboardService(
             "VERY_LOW" => "Very low",
             _ => HumanizeCode(code)
         };
-
-    private static string? HumanizeStrengthPriority(string? code)
-        => code switch
-        {
-            "PUSH" => "Push",
-            "PULL" => "Pull",
-            "LEGS" => "Legs",
-            "NONE" or null or "" => "No additional strength priority",
-            _ => HumanizeCode(code)
-        };
-
-    private static string? HumanizeCardioNeed(string? code)
-        => code switch
-        {
-            "HIGH" => "High",
-            "MODERATE" => "Moderate",
-            "LOW" => "Low",
-            null or "" => "Not enough information",
-            _ => HumanizeCode(code)
-        };
-
-    private static string HumanizeWeeklyStatus(string code)
-        => code switch
-        {
-            "GOOD" => "On target",
-            "REVIEW" => "Needs review",
-            "NOT_PLANNED" => "Not planned yet",
-            _ => HumanizeCode(code)
-        };
-
-    private static string HumanizeWeeklyNote(WeeklyStrategyAssessment weekly)
-    {
-        if (weekly.StatusCode == "NOT_PLANNED")
-            return "Set up the week on the Weekly Plan page so Recomp can evaluate the weekly structure.";
-
-        return string.IsNullOrWhiteSpace(weekly.Note)
-            ? "Recomp is evaluating this week's structure against your current Primary Plan."
-            : weekly.Note;
-    }
 
     private static string HumanizeCode(string code)
         => string.Join(" ", code

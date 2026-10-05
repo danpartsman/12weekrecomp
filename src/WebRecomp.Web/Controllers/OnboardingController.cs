@@ -245,7 +245,7 @@ public sealed class OnboardingController(
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            planWeekStart = WeeklyStrategyService.WeekStart(today);
+            planWeekStart = PlanningWeek.Start(today);
         });
 
         await weeklyPlans.SeedRecommendedWeekIfBlankAsync(
