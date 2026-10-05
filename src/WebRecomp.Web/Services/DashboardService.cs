@@ -2,19 +2,18 @@ using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.ViewModels;
+using WebRecomp.Web.Services.Engine;
 using WebRecomp.Web.Services.Engine30;
 
 namespace WebRecomp.Web.Services;
 
 public sealed class DashboardService(
     RecompDbContext db,
-    RecommendationService recommendationService,
-    ConfigurationService configuration,
-    WorkoutMathService math,
     ProgramPlanService planSelection,
     Engine30DashboardProjectionService engine30Dashboard,
     Engine30DashboardAnalysisService dashboardAnalysis,
-    Engine30AdaptiveRecommendationService adaptiveRecommendations)
+    Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
+    IRecompRecommendationEngine recommendationEngine)
 {
     public async Task<DashboardViewModel> BuildAsync(
         AppClientContext context,
@@ -26,11 +25,19 @@ public sealed class DashboardService(
 
         var client = context.Client;
         var program = context.Program;
-        var result = await recommendationService.CalculateAndStoreAsync(context, actionDate, cancellationToken);
 
-        var settings = await configuration.GetSettingsAsync(program.ConfigVersionId, cancellationToken);
-        var workoutTypes = await configuration.GetWorkoutTypesAsync(program.ConfigVersionId, cancellationToken);
-        var actionPlanCode = await planSelection.GetPlanCodeForDateAsync(program, actionDate, cancellationToken);
+        // v1014A: current Dashboard recommendations are Engine 3.0 only.
+        // The application consumes an engine-neutral recommendation contract;
+        // no current Dashboard path invokes legacy Engine 2.x recommendation math.
+        var workoutTypes =
+            await engine30WorkoutCatalog.GetActiveMapAsync(
+                cancellationToken);
+
+        var actionPlanCode =
+            await planSelection.GetPlanCodeForDateAsync(
+                program,
+                actionDate,
+                cancellationToken);
         var engine30Projection =
             await engine30Dashboard.BuildTodayTomorrowAsync(
                 context,
@@ -66,9 +73,10 @@ public sealed class DashboardService(
                                        && x.PlannedDate == actionDate,
                                   cancellationToken);
 
-        WorkoutTypeDefinition todayPlannedType = result.ScheduledWorkout;
-        if (todayPlan is not null && Engine30LegacyWorkoutCompatibility.TryResolve(workoutTypes, todayPlan.WorkoutTypeCode, out var explicitPlannedType))
-            todayPlannedType = explicitPlannedType;
+        WorkoutTypeDefinition? todayPlannedType =
+            ResolveWorkoutType(
+                workoutTypes,
+                engine30Projection.Today.WorkoutTypeCode);
 
         var actualSessions = await db.WorkoutSessions
             .Where(x => x.ClientId == client.ClientId
@@ -92,21 +100,10 @@ public sealed class DashboardService(
                                        && x.PlannedDate == tomorrowDate,
                                   cancellationToken);
 
-        WorkoutTypeDefinition? tomorrowType = null;
-        MacroTargets? tomorrowTargets = null;
-        if (tomorrowPlan is not null
-            && Engine30LegacyWorkoutCompatibility.TryResolve(workoutTypes, tomorrowPlan.WorkoutTypeCode, out var plannedTomorrowType))
-        {
-            tomorrowType = plannedTomorrowType;
-            if (currentMeasurement?.WeightLb is decimal currentWeight)
-            {
-                var tomorrowPlanCode = await planSelection.GetPlanCodeForDateAsync(program, tomorrowDate, cancellationToken);
-                var tomorrowProgramPlan = await configuration.GetPlanAsync(
-                    program.ConfigVersionId,
-                    tomorrowPlanCode,
-                    cancellationToken);
-                tomorrowTargets = math.CalculatePlannedTargets(currentWeight, tomorrowProgramPlan, tomorrowType, settings);
-            }
+        WorkoutTypeDefinition? tomorrowType =
+            ResolveWorkoutType(
+                workoutTypes,
+                engine30Projection.Tomorrow.WorkoutTypeCode);
         }
 
         // ------------------------------------------------------------
@@ -395,9 +392,9 @@ public sealed class DashboardService(
         // This interprets Engine 3.0 evidence; it does not rewrite the
         // Weekly Plan and it never creates exercise calorie eat-back.
         // ------------------------------------------------------------
-        var engine30Adaptive =
-            adaptiveRecommendations.Evaluate(
-                new Engine30AdaptiveRecommendationInput(
+        var recommendation =
+            recommendationEngine.Evaluate(
+                new RecompRecommendationInput(
                     HasPlannedWorkout:
                         engine30Projection.Today.HasPlannedWorkout,
                     PlannedWorkoutTypeCode:
@@ -408,26 +405,22 @@ public sealed class DashboardService(
                         engine30Projection.Today.WorkoutCategoryCode,
                     PlannedGlycogenDemandG:
                         engine30Impact.TodayPlannedGlycogenDemandG,
-
                     PreWorkoutRescueG:
                         engine30Impact.PreWorkoutRescueG,
                     IncomingReadinessBandCode:
                         engine30Impact.IncomingReadinessBandCode,
                     ProjectedReadinessBandCode:
                         engine30Impact.ProjectedReadinessBandCode,
-
                     PreviousTargetCalories:
                         engine30Impact.PreviousTargetCalories,
                     PreviousEnergyVarianceKcal:
                         engine30Impact.PreviousEnergyVarianceKcal,
                     PreviousEligibleEnergyCarryoverKcal:
                         engine30Impact.PreviousEligibleEnergyCarryoverKcal,
-
                     FourDayHardDays:
                         engine30Impact.FourDayHardDays,
                     FourDayModerateHardDays:
                         engine30Impact.FourDayModerateHardDays,
-
                     SleepHours:
                         todayCheckin?.SleepHours,
                     EnergyScore:
@@ -438,7 +431,18 @@ public sealed class DashboardService(
                         todayCheckin?.PainFlag ?? false,
                     IllnessFlag:
                         todayCheckin?.IllnessFlag ?? false));
-        var coach = BuildCoachRecommendation(result, todayCheckin);
+
+        var recommendedType =
+            ResolveWorkoutType(
+                workoutTypes,
+                recommendation.RecommendedWorkoutTypeCode)
+            ?? todayPlannedType;
+
+        var coach =
+            BuildCoachRecommendation(
+                recommendation,
+                todayCheckin,
+                engine30Impact);
 
         return new DashboardViewModel
         {
