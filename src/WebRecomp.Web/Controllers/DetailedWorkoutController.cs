@@ -5234,6 +5234,19 @@ public sealed class DetailedWorkoutController(
                         };
                     })
                 .ToList();
+
+        model.CardioActivities =
+            CardioActivityCatalog.All
+                .Where(x => byCode.ContainsKey(x.EngineWorkoutTypeCode))
+                .Select(
+                    x => new CardioActivityOptionViewModel
+                    {
+                        ActivityCode = x.ActivityCode,
+                        DisplayName = x.DisplayName,
+                        EngineWorkoutTypeCode = x.EngineWorkoutTypeCode,
+                        SearchTerms = x.SearchTerms
+                    })
+                .ToList();
     }
 
     private async Task<Guid?> GetSystemWorkoutConfigVersionIdAsync(
