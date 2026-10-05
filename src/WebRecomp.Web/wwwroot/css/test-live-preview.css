@@ -2599,3 +2599,52 @@ body.test-live-preview.app-shell .plan-goal-current-pill {
     background:rgba(24,91,54,.36) !important;
     color:#bdf7cc !important;
 }
+
+
+/* ===== v1013.4 Weekly Plan closeout dark simulator ===== */
+body.test-live-preview.app-shell .weekly-plan-hero-head {
+    align-items:stretch;
+}
+
+body.test-live-preview.app-shell .weekly-plan-hero-image {
+    border-color:#315a84 !important;
+    background:#071a2d !important;
+    box-shadow:0 10px 28px rgba(0,0,0,.24);
+}
+
+body.test-live-preview.app-shell .weekly-plan-hero-image img {
+    filter:saturate(.94) contrast(1.02) brightness(.88);
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook {
+    border-color:#315a84 !important;
+    background:rgba(6,20,35,.70) !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook-head strong {
+    color:#f5f8ff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook-grid > div {
+    border-color:#315a84 !important;
+    background:#0a1a2d !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook-grid span {
+    color:#89a7c5 !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook-grid strong {
+    color:#f5f8ff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-outlook > p {
+    color:#9fb2c8 !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-title-row .help-tip,
+body.test-live-preview.app-shell .plan-goal-outlook-head .help-tip {
+    border-color:#4d789f !important;
+    color:#9fdcff !important;
+    background:#0a1a2d !important;
+}
