@@ -11,11 +11,10 @@ public sealed record GuidedDemoSeedResult(
 
 public sealed class GuidedDemoSeederService(
     RecompDbContext db,
-    IConfiguration appConfiguration,
     ConfigurationService configuration,
     WeeklyPlanService weeklyPlans,
-    WorkoutMathService workoutMath,
-    RecommendationService recommendations)
+    WebRecomp.Web.Services.Engine30.Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
+    WorkoutActualService workoutActuals)
 {
     private const string SupportedScenario = "RECOMP_STANDARD_01";
 
@@ -177,7 +176,7 @@ public sealed class GuidedDemoSeederService(
         // This keeps the four-day rolling window meaningful even if the scenario
         // anchor falls near the beginning of a week.
         var actionWeekStart =
-            WeeklyStrategyService.WeekStart(actionDate);
+            PlanningWeek.Start(actionDate);
 
         await weeklyPlans.SeedRecommendedWeekIfBlankAsync(
             client,
@@ -200,14 +199,8 @@ public sealed class GuidedDemoSeederService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        var settings =
-            await configuration.GetSettingsAsync(
-                program.ConfigVersionId,
-                cancellationToken);
-
         var workoutTypes =
-            await configuration.GetWorkoutTypesAsync(
-                program.ConfigVersionId,
+            await engine30WorkoutCatalog.GetActiveMapAsync(
                 cancellationToken);
 
         await SeedRecentTrainingAndNutritionAsync(
@@ -216,7 +209,6 @@ public sealed class GuidedDemoSeederService(
             program,
             actionDate,
             now,
-            settings,
             workoutTypes,
             cancellationToken);
 
@@ -242,20 +234,8 @@ public sealed class GuidedDemoSeederService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        // Generate yesterday's target through the real RecommendationService.
-        // The current Dashboard will generate today's recommendation itself.
-        var context =
-            new AppClientContext(
-                await db.UserAccounts.SingleAsync(
-                    x => x.UserId == workspace.UserId,
-                    cancellationToken),
-                client,
-                program);
-
-        await recommendations.CalculateAndStoreAsync(
-            context,
-            actionDate.AddDays(-1),
-            cancellationToken);
+        // v1014D: Dashboard and Engine 3.0 derive current recommendations directly
+        // from canonical plan, nutrition, check-in, and completed-workout data.
 
         return new GuidedDemoSeedResult(
             client,
@@ -359,7 +339,6 @@ public sealed class GuidedDemoSeederService(
         ProgramRecord program,
         DateOnly actionDate,
         DateTime now,
-        IReadOnlyDictionary<string, decimal> settings,
         IReadOnlyDictionary<string, WorkoutTypeDefinition> workoutTypes,
         CancellationToken cancellationToken)
     {
@@ -376,9 +355,6 @@ public sealed class GuidedDemoSeederService(
 
         var plannedByDate =
             planned.ToDictionary(x => x.PlannedDate);
-
-        // Use the most recent pre-action measurement for actual-workout scaling.
-        const decimal historicalWeightLb = 211.5m;
 
         for (var offset = -4; offset <= -1; offset++)
         {
@@ -431,34 +407,9 @@ public sealed class GuidedDemoSeederService(
                     UpdatedAtUtc = now
                 };
 
-                var derived =
-                    workoutMath.CalculateActualWorkout(
-                        historicalWeightLb,
-                        session,
-                        type,
-                        settings);
-
-                session.CalculatedWorkoutCalories =
-                    derived.WorkoutCalories;
-
-                session.CalculatedScaledGlycogenBurnG =
-                    derived.ScaledGlycogenBurnG;
-
-                session.CalculatedPushLoad =
-                    derived.PushLoad;
-
-                session.CalculatedPullLoad =
-                    derived.PullLoad;
-
-                session.CalculatedLegLoad =
-                    derived.LegLoad;
-
-                session.CalculatedCardioLoad =
-                    derived.CardioLoad;
-
-                session.CalculationEngineVersion =
-                    appConfiguration["WebRecomp:EngineVersion"]
-                    ?? "1001.0";
+                workoutActuals.ApplyCurrentEngineState(
+                    session,
+                    completed: true);
 
                 db.WorkoutSessions.Add(session);
             }
