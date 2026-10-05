@@ -13,6 +13,7 @@ public sealed class DashboardService(
     Engine30DashboardProjectionService engine30Dashboard,
     Engine30DashboardAnalysisService dashboardAnalysis,
     Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
+    WorkoutActualService workoutActuals,
     IRecompRecommendationEngine recommendationEngine)
 {
     public async Task<DashboardViewModel> BuildAsync(
@@ -64,15 +65,17 @@ public sealed class DashboardService(
                 workoutTypes,
                 engine30Projection.Today.WorkoutTypeCode);
 
-        var actualSessions = await db.WorkoutSessions
-            .Where(x => x.ClientId == client.ClientId
-                        && x.ProgramId == program.ProgramId
-                        && x.WorkoutDate == actionDate
-                        && x.CompletedFlag)
-            .OrderBy(x => x.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
+        var actualSessions =
+            await workoutActuals.GetCompletedSessionsAsync(
+                client.ClientId,
+                program.ProgramId,
+                actionDate,
+                cancellationToken);
 
-        var workoutActual = BuildActualWorkoutSummary(actualSessions, workoutTypes);
+        var workoutActual =
+            BuildActualWorkoutSummary(
+                actualSessions,
+                workoutTypes);
 
         var nutritionActual = await db.NutritionDays
             .SingleOrDefaultAsync(x => x.ClientId == client.ClientId
