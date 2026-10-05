@@ -196,7 +196,7 @@ public sealed class WeeklyPlanningAssessmentService(
 
                 var conditioningGood =
                     available < 4
-                    || conditioning >= 1;
+                    || conditioning + zone2 >= 1;
 
                 good =
                     strengthGood
