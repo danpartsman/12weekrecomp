@@ -747,7 +747,7 @@
                         <span class="dash-pa-label">ACTUAL</span>
                         @if (!string.IsNullOrWhiteSpace(Model.WorkoutActual))
                         {
-                            <span class="dash-pa-badge actual">COMPLETED ENTRY</span>
+                            <span class="dash-pa-badge actual">COMPLETED WORKOUT</span>
                         }
                         else
                         {
@@ -789,7 +789,7 @@
                         </div>
 
                         <p class="dash-pa-note">
-                            Engine 3.0 is using the completed actual session for today's training analysis.
+                            Synced from the completed WorkoutSession. Daily Tracking and Engine 3.0 are using this actual session instead of the planned estimate.
                         </p>
                     }
                     else
