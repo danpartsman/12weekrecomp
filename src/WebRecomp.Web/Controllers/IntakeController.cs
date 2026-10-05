@@ -199,8 +199,7 @@ public sealed class IntakeController(
                 new
                 {
                     weekStart =
-                        WeeklyStrategyService
-                            .WeekStart(today)
+                        PlanningWeek.Start(today)
                             .ToString("yyyy-MM-dd"),
 
                     recommendPlanChange = true
