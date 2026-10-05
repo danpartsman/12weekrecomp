@@ -18,6 +18,7 @@ public sealed class DetailedWorkoutController(
     IExerciseCatalogStore catalogStore,
     IDetailedWorkoutStore detailedWorkoutStore,
     Engine30DashboardProjectionService engine30Projection,
+    WorkoutActualService workoutActuals,
     IWorkoutIntelligenceGateway workoutIntelligence,
     Microsoft.Extensions.Logging.ILogger<DetailedWorkoutController> logger) : Controller
 {
@@ -568,7 +569,7 @@ public sealed class DetailedWorkoutController(
                 CompletedFlag = false,
                 EntrySourceCode =
                     RecompInputSourceCodes.DetailedWorkout,
-                CalculationEngineVersion = "3.0",
+                CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             };
@@ -2121,7 +2122,7 @@ public sealed class DetailedWorkoutController(
                     CompletedFlag = false,
                     EntrySourceCode =
                         RecompInputSourceCodes.DetailedWorkout,
-                    CalculationEngineVersion = "3.0",
+                    CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now
                 };
@@ -2260,7 +2261,7 @@ public sealed class DetailedWorkoutController(
             session.CompletedFlag = false;
             session.EntrySourceCode =
                 RecompInputSourceCodes.DetailedWorkout;
-            session.CalculationEngineVersion = "3.0";
+            session.CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode;
 
             // UpdatedAtUtc becomes the persisted Stop timestamp while
             // the workout is waiting for final review.
@@ -2551,7 +2552,7 @@ public sealed class DetailedWorkoutController(
                 CompletedFlag = false,
                 EntrySourceCode =
                     RecompInputSourceCodes.DetailedWorkout,
-                CalculationEngineVersion = "3.0",
+                CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             };
@@ -2923,12 +2924,12 @@ public sealed class DetailedWorkoutController(
             session.TypicalRestSec = null;
         }
 
-        session.CompletedFlag = true;
         session.EntrySourceCode =
             RecompInputSourceCodes.DetailedWorkout;
-        session.CalculationEngineVersion = "3.0";
-        session.UpdatedAtUtc =
-            DateTime.UtcNow;
+
+        workoutActuals.ApplyCurrentEngineState(
+            session,
+            completed: true);
 
         await db.SaveChangesAsync(
             cancellationToken);
@@ -3281,7 +3282,7 @@ public sealed class DetailedWorkoutController(
                     CompletedFlag = true,
                     EntrySourceCode =
                         RecompInputSourceCodes.DetailedWorkout,
-                    CalculationEngineVersion = "3.0",
+                    CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now
                 });
@@ -3390,7 +3391,7 @@ public sealed class DetailedWorkoutController(
                 CompletedFlag = true,
                 EntrySourceCode =
                     RecompInputSourceCodes.DetailedWorkout,
-                CalculationEngineVersion = "3.0",
+                CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             });
@@ -4049,7 +4050,7 @@ public sealed class DetailedWorkoutController(
                 CompletedFlag = false,
                 EntrySourceCode =
                     RecompInputSourceCodes.DetailedWorkout,
-                CalculationEngineVersion = "3.0",
+                CalculationEngineVersion = WorkoutActualService.ActiveEngineVersionCode,
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             };
