@@ -26,6 +26,7 @@ public sealed class DetailedWorkoutReviewHotfixController(
     [HttpGet("/DetailedWorkout/Review")]
     public async Task<IActionResult> Review(
         Guid workoutSessionId,
+        string? returnContext,
         CancellationToken cancellationToken)
     {
         var context =
@@ -63,18 +64,21 @@ public sealed class DetailedWorkoutReviewHotfixController(
                 workoutSessionId,
                 cancellationToken);
 
-        if (detailed is null
-            || detailed.Exercises.Count == 0)
-        {
-            return BadRequest(
-                "Add at least one exercise before reviewing the workout.");
-        }
+        detailed ??=
+            new DetailedWorkoutSession(
+                workoutSessionId,
+                Array.Empty<DetailedWorkoutExerciseEntry>());
 
-        var analysis =
-            await BuildReviewAnalysisAsync(
-                detailed,
-                session.DurationMin,
-                cancellationToken);
+        WorkoutIntelligenceHandoff? analysis = null;
+
+        if (detailed.Exercises.Count > 0)
+        {
+            analysis =
+                await BuildReviewAnalysisAsync(
+                    detailed,
+                    session.DurationMin,
+                    cancellationToken);
+        }
 
         var reviewRpe =
             ResolveReviewRpe(session);
@@ -120,19 +124,25 @@ public sealed class DetailedWorkoutReviewHotfixController(
             totalRecordedReps;
 
         ViewData["ExerciseCount"] =
-            analysis.ExerciseCount;
+            analysis?.ExerciseCount
+            ?? detailed.Exercises.Count;
 
         ViewData["PrimaryMuscles"] =
-            string.Join(
-                ", ",
-                analysis.MuscleDemand
-                    .OrderByDescending(
-                        x => x.WeightedSetEquivalents)
-                    .Take(3)
-                    .Select(
-                        x =>
-                            x.MuscleSlug
-                                .Replace("-", " ")));
+            analysis is null
+                ? ""
+                : string.Join(
+                    ", ",
+                    analysis.MuscleDemand
+                        .OrderByDescending(
+                            x => x.WeightedSetEquivalents)
+                        .Take(3)
+                        .Select(
+                            x =>
+                                x.MuscleSlug
+                                    .Replace("-", " ")));
+
+        ViewData["ReturnContext"] =
+            returnContext;
 
         ViewData["ReviewDeadlineUtc"] =
             DateTime.SpecifyKind(
@@ -155,6 +165,9 @@ public sealed class DetailedWorkoutReviewHotfixController(
         int extraSets,
         Guid? extraExerciseId,
         Dictionary<Guid, int?>? reviewReps,
+        Dictionary<Guid, decimal?>? reviewLoads,
+        bool addAnother,
+        string? returnContext,
         CancellationToken cancellationToken)
     {
         var context =
@@ -204,11 +217,39 @@ public sealed class DetailedWorkoutReviewHotfixController(
                 extraSets,
                 extraExerciseId,
                 reviewReps,
+                reviewLoads,
                 cancellationToken);
         }
 
         TempData["StatusMessage"] =
             "Workout saved and completed.";
+
+        if (addAnother)
+        {
+            return RedirectToAction(
+                "Index",
+                "DetailedWorkout",
+                new
+                {
+                    mode = "start",
+                    date = session.WorkoutDate.ToString("yyyy-MM-dd"),
+                    returnContext
+                });
+        }
+
+        if (string.Equals(
+                returnContext,
+                "daily",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return RedirectToAction(
+                "Index",
+                "DailyEntry",
+                new
+                {
+                    date = session.WorkoutDate.ToString("yyyy-MM-dd")
+                });
+        }
 
         return RedirectToAction(
             "Index",
@@ -222,6 +263,7 @@ public sealed class DetailedWorkoutReviewHotfixController(
         int extraSets,
         Guid? extraExerciseId,
         Dictionary<Guid, int?>? reviewReps,
+        Dictionary<Guid, decimal?>? reviewLoads,
         CancellationToken cancellationToken)
     {
         var detailed =
@@ -229,43 +271,122 @@ public sealed class DetailedWorkoutReviewHotfixController(
                 session.WorkoutSessionId,
                 cancellationToken);
 
-        if (detailed is null
-            || detailed.Exercises.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "A detailed workout is required before finalization.");
-        }
+        detailed ??=
+            new DetailedWorkoutSession(
+                session.WorkoutSessionId,
+                Array.Empty<DetailedWorkoutExerciseEntry>());
 
-        if (reviewReps is { Count: > 0 })
+        if ((reviewReps is { Count: > 0 })
+            || (reviewLoads is { Count: > 0 }))
         {
-            if (reviewReps.Values.Any(reps => reps is < 0 or > 500))
-                throw new InvalidOperationException("Review reps must be between 0 and 500.");
+            if (reviewReps is { Count: > 0 }
+                && reviewReps.Values.Any(reps => reps is < 0 or > 500))
+            {
+                throw new InvalidOperationException(
+                    "Review reps must be between 0 and 500.");
+            }
+
+            if (reviewLoads is { Count: > 0 }
+                && reviewLoads.Values.Any(load => load is < 0m or > 10000m))
+            {
+                throw new InvalidOperationException(
+                    "Review load must be between 0 and 10000.");
+            }
 
             var knownSetIds = detailed.Exercises
                 .SelectMany(exercise => exercise.Sets)
                 .Select(set => set.DetailedSetId)
                 .ToHashSet();
 
-            if (reviewReps.Keys.Any(id => !knownSetIds.Contains(id)))
-                throw new InvalidOperationException("A reviewed set is not part of this workout.");
+            if (reviewReps is { Count: > 0 }
+                && reviewReps.Keys.Any(id => !knownSetIds.Contains(id)))
+            {
+                throw new InvalidOperationException(
+                    "A reviewed set is not part of this workout.");
+            }
+
+            if (reviewLoads is { Count: > 0 }
+                && reviewLoads.Keys.Any(id => !knownSetIds.Contains(id)))
+            {
+                throw new InvalidOperationException(
+                    "A reviewed load is not part of this workout.");
+            }
 
             var revised = detailed.Exercises
-                .Select(exercise => exercise with
-                {
-                    Sets = exercise.Sets
-                        .Select(set => reviewReps.TryGetValue(set.DetailedSetId, out var reps)
-                            ? set with { Reps = reps }
-                            : set)
-                        .ToArray()
-                })
+                .Select(
+                    exercise =>
+                    {
+                        var sets =
+                            exercise.Sets
+                                .Select(
+                                    set =>
+                                    {
+                                        var revisedSet = set;
+
+                                        if (reviewReps is { Count: > 0 }
+                                            && reviewReps.TryGetValue(
+                                                set.DetailedSetId,
+                                                out var reps))
+                                        {
+                                            revisedSet =
+                                                revisedSet with
+                                                {
+                                                    Reps = reps
+                                                };
+                                        }
+
+                                        if (reviewLoads is { Count: > 0 }
+                                            && reviewLoads.TryGetValue(
+                                                set.DetailedSetId,
+                                                out var load))
+                                        {
+                                            revisedSet =
+                                                revisedSet with
+                                                {
+                                                    Load = load
+                                                };
+                                        }
+
+                                        return revisedSet;
+                                    })
+                                .ToArray();
+
+                        var maxLoad =
+                            sets
+                                .Where(x => x.Load.HasValue)
+                                .Select(x => x.Load!.Value)
+                                .DefaultIfEmpty()
+                                .Max();
+
+                        return exercise with
+                        {
+                            Sets = sets,
+                            MaxWeight =
+                                maxLoad > 0m
+                                    ? maxLoad
+                                    : exercise.MaxWeight
+                        };
+                    })
                 .ToArray();
 
-            detailed = new DetailedWorkoutSession(detailed.WorkoutSessionId, revised);
-            await detailedWorkoutStore.ReplaceAsync(detailed, cancellationToken);
+            detailed =
+                new DetailedWorkoutSession(
+                    detailed.WorkoutSessionId,
+                    revised);
+
+            await detailedWorkoutStore.ReplaceAsync(
+                detailed,
+                cancellationToken);
         }
 
         if (extraSets > 0)
         {
+            if (detailed.Exercises.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "Untracked sets require at least one exercise.");
+            }
+
             var targetExercise =
                 await ResolveExtraSetExerciseAsync(
                     detailed,
