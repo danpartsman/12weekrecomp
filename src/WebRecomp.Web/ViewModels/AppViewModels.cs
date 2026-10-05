@@ -193,6 +193,7 @@ public sealed class WeekPlanViewModel
     public string CurrentGoalDisplayName { get; set; } = "";
     public string PreviewGoalCode { get; set; } = "";
     public string PreviewGoalDisplayName { get; set; } = "";
+    public string PreviewGoalDescription { get; set; } = "";
     public bool IsGoalPreview { get; set; }
     public bool CanChangeGoal { get; set; }
     public List<SelectListItem> GoalOptions { get; set; } = [];
