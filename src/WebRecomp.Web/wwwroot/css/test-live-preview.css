@@ -2739,3 +2739,18 @@ body.test-live-preview.app-shell .daily-entry-completed-stats strong,
 body.test-live-preview.app-shell .daily-entry-completed-actual-head strong {
     color:#f5f8ff !important;
 }
+
+
+/* ===== v1013.7 workout completion sync confirmation ===== */
+body.test-live-preview.app-shell .workout-intelligence-page .wi-complete-sync {
+    border-color:#3d9960 !important;
+    background:rgba(20,74,45,.38) !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-complete-sync > strong {
+    color:#9af8b1 !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-complete-sync > p {
+    color:#c8dfd0 !important;
+}
