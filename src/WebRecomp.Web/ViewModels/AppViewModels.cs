@@ -186,6 +186,17 @@ public sealed class WeekPlanViewModel
     public string PlanCode { get; set; } = "";
     public string PlanDisplayName { get; set; } = "";
     public string PlanGuidance { get; set; } = "";
+
+    // Weekly Plan goal preview. Previewing never mutates the saved program;
+    // the user must explicitly choose "Use this goal" before it becomes active.
+    public string CurrentGoalCode { get; set; } = "";
+    public string CurrentGoalDisplayName { get; set; } = "";
+    public string PreviewGoalCode { get; set; } = "";
+    public string PreviewGoalDisplayName { get; set; } = "";
+    public bool IsGoalPreview { get; set; }
+    public bool CanChangeGoal { get; set; }
+    public List<SelectListItem> GoalOptions { get; set; } = [];
+
     public bool SeededFromPlan { get; set; }
     public bool AutoRolled { get; set; }
     public bool NextWeekHasPlan { get; set; }
