@@ -4315,3 +4315,30 @@ body.test-live-preview
         width:100%;
     }
 }
+
+
+/* ===== v1013 completed workout sync confirmation ===== */
+.workout-intelligence-page .wi-complete-sync {
+    display:grid;
+    gap:.55rem;
+    margin-top:1rem;
+    padding:.9rem 1rem;
+    border:1px solid #8fcba4;
+    border-radius:.8rem;
+    background:#f4fbf6;
+}
+
+.workout-intelligence-page .wi-complete-sync > strong {
+    color:#176438;
+    font-size:1rem;
+}
+
+.workout-intelligence-page .wi-complete-sync > p {
+    margin:0;
+    color:#52645a;
+    line-height:1.45;
+}
+
+.workout-intelligence-page .wi-complete-sync .wi-actions {
+    margin-top:.15rem;
+}
