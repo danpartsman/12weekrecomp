@@ -2545,3 +2545,57 @@ body.test-live-preview.app-shell .plan-mix-planned .plan-mix-section-label {
         min-height: 4.35rem;
     }
 }
+
+
+/* ===== v1013.3 Weekly Plan goal preview dark treatment ===== */
+body.test-live-preview.app-shell .plan-goal-preview {
+    border-color:#315a84 !important;
+    background:
+        linear-gradient(
+            135deg,
+            rgba(17, 36, 62, .98),
+            rgba(10, 27, 47, .98)) !important;
+    box-shadow:0 10px 28px rgba(0,0,0,.22);
+}
+
+body.test-live-preview.app-shell .plan-goal-preview.is-previewing {
+    border-color:#59baff !important;
+    box-shadow:
+        0 0 0 1px rgba(89,186,255,.24),
+        0 12px 30px rgba(0,0,0,.26);
+}
+
+body.test-live-preview.app-shell .plan-goal-preview h2 {
+    color:#f5f8ff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-preview p,
+body.test-live-preview.app-shell .plan-goal-engine-note {
+    color:#b8c9dc !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-preview-copy strong {
+    color:#ffffff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-preview-form label {
+    color:#9fdcff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-preview-form select {
+    border-color:#46719b !important;
+    background:#071a2d !important;
+    color:#f5f8ff !important;
+}
+
+body.test-live-preview.app-shell .plan-goal-preview-form select:focus {
+    border-color:#59baff !important;
+    outline:2px solid rgba(89,186,255,.20);
+    outline-offset:1px;
+}
+
+body.test-live-preview.app-shell .plan-goal-current-pill {
+    border-color:#55e27a !important;
+    background:rgba(24,91,54,.36) !important;
+    color:#bdf7cc !important;
+}
