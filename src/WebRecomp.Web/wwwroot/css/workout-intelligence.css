@@ -4249,3 +4249,69 @@ body.test-live-preview
         justify-content:center;
     }
 }
+
+
+/* ===== v1013 unified workout selection + compact cardio row ===== */
+.workout-intelligence-page .wi-cardio-complete.wi-quick-log--cardio {
+    display:grid;
+    grid-template-columns:1fr;
+    align-items:start;
+}
+
+.workout-intelligence-page .wi-cardio-number-row {
+    display:grid;
+    grid-template-columns:repeat(2, 8.5rem);
+    gap:.8rem;
+    width:max-content;
+    max-width:100%;
+    align-items:start;
+}
+
+.workout-intelligence-page .wi-cardio-number-field {
+    width:8.5rem;
+    align-self:start;
+}
+
+.workout-intelligence-page .wi-cardio-number-field > span {
+    min-height:1.2rem;
+    display:flex;
+    align-items:center;
+}
+
+.workout-intelligence-page .wi-cardio-number-field input,
+.workout-intelligence-page .wi-cardio-number-field .wi-review-input-unit {
+    width:100%;
+}
+
+.workout-intelligence-page .wi-start-system-categories {
+    margin:.2rem 0 .7rem;
+}
+
+.workout-intelligence-page .wi-start-planned-system {
+    margin-bottom:.15rem;
+}
+
+.workout-intelligence-page .wi-start-system-workout-list {
+    margin-top:.1rem;
+}
+
+.workout-intelligence-page.wi-start-page-minimal .wi-workspace {
+    max-width:58rem;
+    margin-left:auto;
+    margin-right:auto;
+}
+
+.workout-intelligence-page.wi-start-page-minimal .wi-start-launcher-v2 {
+    max-width:58rem;
+}
+
+@media (max-width:700px) {
+    .workout-intelligence-page .wi-cardio-number-row {
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        width:100%;
+    }
+
+    .workout-intelligence-page .wi-cardio-number-field {
+        width:100%;
+    }
+}
