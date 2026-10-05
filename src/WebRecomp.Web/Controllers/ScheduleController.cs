@@ -308,31 +308,41 @@ public sealed class ScheduleController(
             vm.Days.Add(day);
         }
 
-        if (recommendPlanChange)
-        {
-            var template = weeklyPlans.BuildRecommendedTemplate(
-                context.Program.SelectedPlanCode,
+        // Always expose the recommended seven-day mix to the view so the
+        // at-a-glance cards can compare the program recommendation with what
+        // the user has actually planned. When a plan change is pending, the
+        // recommendation reflects the newly selected plan.
+        var recommendationPlanCode =
+            recommendPlanChange
+                ? context.Program.SelectedPlanCode
+                : planCodeForWeek;
+
+        var recommendedTemplate =
+            weeklyPlans.BuildRecommendedTemplate(
+                recommendationPlanCode,
                 context.Program.AvailableTrainingDaysWeek,
                 context.Client.TrainingExperienceCode);
 
-            for (var i = 0; i < 7; i++)
+        for (var i = 0; i < 7; i++)
+        {
+            var code = recommendedTemplate[i];
+            vm.RecommendedDays.Add(new RecommendedDayViewModel
             {
-                var code = template[i];
-                vm.RecommendedDays.Add(new RecommendedDayViewModel
-                {
-                    Date = start.AddDays(i),
-                    DayName = start.AddDays(i).DayOfWeek.ToString(),
-                    WorkoutTypeCode = code,
-                    WorkoutDisplayName =
-                        SystemWorkoutRecipeCatalog
-                            .GetDefaultPresentationForEngine(code)
-                            ?.DisplayName
-                        ?? (workoutMap.TryGetValue(code, out var definition)
-                            ? definition.DisplayName
-                            : code.Replace('_', ' '))
-                });
-            }
+                Date = start.AddDays(i),
+                DayName = start.AddDays(i).DayOfWeek.ToString(),
+                WorkoutTypeCode = code,
+                WorkoutDisplayName =
+                    SystemWorkoutRecipeCatalog
+                        .GetDefaultPresentationForEngine(code)
+                        ?.DisplayName
+                    ?? (workoutMap.TryGetValue(code, out var definition)
+                        ? definition.DisplayName
+                        : code.Replace('_', ' '))
+            });
+        }
 
+        if (recommendPlanChange)
+        {
             vm.PlanCode = context.Program.SelectedPlanCode;
             vm.PlanDisplayName = WeeklyPlanService.FriendlyPlanLabel(context.Program.SelectedPlanCode);
             vm.PlanGuidance = WeeklyPlanService.FriendlyPlanGuidance(context.Program.SelectedPlanCode);
