@@ -13,10 +13,8 @@ namespace WebRecomp.Web.Controllers;
 public sealed class DailyEntryController(
     RecompDbContext db,
     AppUserContextService userContext,
-    ConfigurationService configuration,
-    WorkoutMathService workoutMath,
-    IConfiguration appConfiguration,
     Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
+    WorkoutActualService workoutActuals,
     INutritionFoodLogStore nutritionStore) : Controller
 {
     [HttpGet]
@@ -317,31 +315,6 @@ public sealed class DailyEntryController(
             await engine30WorkoutCatalog
                 .GetActiveMapAsync(cancellationToken);
 
-        // Temporary compatibility map for fields still populated for frozen
-        // Engine 2.0 displays. Engine 3.0 runtime uses the saved Engine 3.0 code.
-        var legacyWorkoutTypes =
-            await configuration.GetWorkoutTypesAsync(
-                program.ConfigVersionId,
-                cancellationToken);
-
-        var settings =
-            await configuration.GetSettingsAsync(
-                program.ConfigVersionId,
-                cancellationToken);
-
-        var currentWeight =
-            model.WeightLb
-            ?? await db.Measurements
-                .Where(x =>
-                    x.ClientId == client.ClientId
-                    && !x.IsDeleted
-                    && x.LocalMeasurementDate <= model.Date
-                    && x.WeightLb != null)
-                .OrderByDescending(x => x.LocalMeasurementDate)
-                .ThenByDescending(x => x.MeasurementAtUtc)
-                .Select(x => x.WeightLb)
-                .FirstOrDefaultAsync(cancellationToken);
-
         foreach (var input in model.Workouts.Where(x => x.HasAnyEntry))
         {
             SystemWorkoutRecipe? selectedSystemWorkout = null;
@@ -536,45 +509,9 @@ public sealed class DailyEntryController(
             input.WorkoutSessionId =
                 session.WorkoutSessionId;
 
-            if (currentWeight.HasValue)
-            {
-                var legacyCode =
-                    Engine30WorkoutUiCatalogService
-                        .ToLegacyCompatibilityCode(
-                            input.WorkoutTypeCode);
-
-                if (legacyWorkoutTypes.TryGetValue(
-                        legacyCode,
-                        out var legacyWorkoutType))
-                {
-                    var derived =
-                        workoutMath.CalculateActualWorkout(
-                            currentWeight.Value,
-                            session,
-                            legacyWorkoutType,
-                            settings);
-
-                    session.CalculatedWorkoutCalories =
-                        derived.WorkoutCalories;
-
-                    session.CalculatedScaledGlycogenBurnG =
-                        derived.ScaledGlycogenBurnG;
-
-                    session.CalculatedPushLoad =
-                        derived.PushLoad;
-                    session.CalculatedPullLoad =
-                        derived.PullLoad;
-                    session.CalculatedLegLoad =
-                        derived.LegLoad;
-                    session.CalculatedCardioLoad =
-                        derived.CardioLoad;
-
-                    session.CalculationEngineVersion =
-                        appConfiguration[
-                            "WebRecomp:EngineVersion"]
-                        ?? "1001.0";
-                }
-            }
+            workoutActuals.ApplyCurrentEngineState(
+                session,
+                completed: true);
         }
 
         if (!ModelState.IsValid)
@@ -747,29 +684,15 @@ public sealed class DailyEntryController(
                     && x.NutritionDate == date,
                 cancellationToken);
 
-        var sessions = await db.WorkoutSessions
-            .Where(x =>
-                x.ClientId == client.ClientId
-                && x.ProgramId == program.ProgramId
-                && x.WorkoutDate == date
-                && x.CompletedFlag)
-            .OrderBy(x => x.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
-        // B2.35.27 ENGINE ACTUAL WORKOUT CARDS
-        // Use the exact same date-level source precedence as Engine 3.0:
-        //   completed Detailed Workout / Builder session(s) if any exist;
-        //   otherwise completed Daily Entry/manual session(s).
-        //
-        // The view already renders one FULL workout card per Model.Workouts item,
-        // so every session left in this canonical collection becomes its own card.
-        sessions =
-            (await WebRecomp.Web.Services.WorkoutIntelligence
-                .DetailedWorkoutEngine30Adapter
-                .PreferBuilderSessionsAsync(
-                    db,
-                    sessions,
-                    cancellationToken))
-            .ToList();
+        // v1014B: Daily Tracking reads the same canonical completed
+        // WorkoutSession rows used by Dashboard and Engine 3.0. Multiple real
+        // sessions on the same day are all preserved.
+        var sessions =
+            await workoutActuals.GetCompletedSessionsAsync(
+                client.ClientId,
+                program.ProgramId,
+                date,
+                cancellationToken);
 
         var model = new DailyEntryViewModel
         {
