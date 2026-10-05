@@ -203,7 +203,6 @@ builder.Services.AddScoped<Engine30AdminFuelComparisonService>();
 builder.Services.AddScoped<Engine21EnergyService>();
 builder.Services.AddScoped<WeeklyPlanningAssessmentService>();
 builder.Services.AddScoped<LegacyEngine2RegionRecoveryService>();
-builder.Services.AddScoped<WeeklyStrategyService>();
 builder.Services.AddScoped<ProgramPlanService>();
 builder.Services.AddScoped<WeeklyPlanService>();
 builder.Services.AddScoped<RecommendationService>();
