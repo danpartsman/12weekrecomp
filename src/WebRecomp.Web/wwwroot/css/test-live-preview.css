@@ -2648,3 +2648,54 @@ body.test-live-preview.app-shell .plan-goal-outlook-head .help-tip {
     color:#9fdcff !important;
     background:#0a1a2d !important;
 }
+
+
+/* ===== v1013.5 compact cardio + recovery dark treatment ===== */
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-intro {
+    border-color:#315a84 !important;
+    background:#0a1a2d !important;
+    color:#dce9f7 !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-intro strong {
+    color:#9fdcff !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log {
+    border-color:#315a84 !important;
+    background:
+        linear-gradient(
+            145deg,
+            #10243d,
+            #0a1a2d) !important;
+    box-shadow:0 10px 28px rgba(0,0,0,.22);
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-activity-field label,
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-number-field > span,
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-kicker {
+    color:#9fdcff !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-activity-field select,
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-number-field input {
+    border-color:#46719b !important;
+    background:#06182a !important;
+    color:#f5f8ff !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-activity-field select:focus,
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-number-field input:focus {
+    border-color:#59baff !important;
+    outline:2px solid rgba(89,186,255,.18);
+    outline-offset:1px;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-summary > small,
+body.test-live-preview.app-shell .workout-intelligence-page .wi-cardio-number-field small {
+    color:#9fb2c8 !important;
+}
+
+body.test-live-preview.app-shell .workout-intelligence-page .wi-quick-log-actions {
+    border-top-color:#315a84 !important;
+}
