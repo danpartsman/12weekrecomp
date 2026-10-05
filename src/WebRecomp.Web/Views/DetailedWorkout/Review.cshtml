@@ -45,6 +45,10 @@
         ViewData["ReviewDeadlineUtc"] as string
         ?? "";
 
+    var returnContext =
+        ViewData["ReturnContext"] as string
+        ?? "";
+
 }
 
 <div class="app-page workout-intelligence-page wi-review-page">
@@ -68,6 +72,9 @@
             <input type="hidden"
                    name="workoutSessionId"
                    value="@workoutSessionId" />
+            <input type="hidden"
+                   name="returnContext"
+                   value="@returnContext" />
 
             <div class="wi-review-fields">
                 <label>
@@ -120,8 +127,8 @@
             @if (reviewExercises.Count > 0)
             {
                 <section class="wi-review-reps" aria-label="Review exercise repetitions">
-                    <h2>Check your sets and reps</h2>
-                    <p>Correct any rep count before saving. Duration and RPE above can also be changed.</p>
+                    <h2>Check your sets, reps and load</h2>
+                    <p>Correct what you actually performed before saving. Duration and RPE above can also be changed.</p>
                     @foreach (var exercise in reviewExercises.OrderBy(x => x.ExerciseOrder))
                     {
                         <div class="wi-review-reps__exercise">
@@ -129,17 +136,30 @@
                             <div class="wi-review-reps__sets">
                                 @foreach (var set in exercise.Sets.OrderBy(x => x.SetOrder))
                                 {
-                                    <label>
-                                        <span>Set @set.SetOrder reps</span>
-                                        <input type="number"
-                                               name="reviewReps[@set.DetailedSetId]"
-                                               min="0"
-                                               max="500"
-                                               step="1"
-                                               inputmode="numeric"
-                                               value="@set.Reps"
-                                               placeholder="Timed" />
-                                    </label>
+                                    <div class="wi-review-set-edit">
+                                        <label>
+                                            <span>Set @set.SetOrder reps</span>
+                                            <input type="number"
+                                                   name="reviewReps[@set.DetailedSetId]"
+                                                   min="0"
+                                                   max="500"
+                                                   step="1"
+                                                   inputmode="numeric"
+                                                   value="@set.Reps"
+                                                   placeholder="Timed" />
+                                        </label>
+                                        <label>
+                                            <span>Load (@set.LoadUnitCode.ToLowerInvariant())</span>
+                                            <input type="number"
+                                                   name="reviewLoads[@set.DetailedSetId]"
+                                                   min="0"
+                                                   max="10000"
+                                                   step="0.5"
+                                                   inputmode="decimal"
+                                                   value="@(set.Load.HasValue ? set.Load.Value.ToString("0.##") : "")"
+                                                   placeholder="Optional" />
+                                        </label>
+                                    </div>
                                 }
                             </div>
                         </div>
@@ -155,10 +175,19 @@
                 </div>
             }
 
-            <button class="button primary wi-review-finalize"
-                    type="submit">
-                Save Workout
-            </button>
+            <div class="wi-review-save-actions">
+                <button class="button primary wi-review-finalize"
+                        type="submit">
+                    Save Workout
+                </button>
+
+                <button class="button wi-review-finalize"
+                        type="submit"
+                        name="addAnother"
+                        value="true">
+                    Save &amp; Add Another Activity
+                </button>
+            </div>
 
             <div class="wi-review-auto">
                 Automatically saves in
@@ -271,6 +300,9 @@
 .wi-review-reps__exercise { padding: .8rem 0; border-top: 1px solid rgba(148, 163, 184, .18); }
 .wi-review-reps__exercise > strong { display: block; margin-bottom: .6rem; }
 .wi-review-reps__sets { display: flex; flex-wrap: wrap; gap: .65rem; }
-.wi-review-reps__sets label { display: grid; gap: .3rem; width: 105px; font-size: .8rem; }
+.wi-review-reps__sets { align-items: flex-start; }
+.wi-review-set-edit { display: grid; grid-template-columns: repeat(2, minmax(92px, 118px)); gap: .5rem; padding: .5rem; border: 1px solid rgba(148, 163, 184, .14); border-radius: 10px; }
+.wi-review-reps__sets label { display: grid; gap: .3rem; width: auto; font-size: .8rem; }
 .wi-review-reps__sets input { width: 100%; }
+.wi-review-save-actions { display: flex; gap: .75rem; flex-wrap: wrap; }
 </style>
