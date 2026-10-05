@@ -13,7 +13,7 @@ namespace WebRecomp.Web.Controllers;
 public sealed class ScheduleController(
     RecompDbContext db,
     AppUserContextService userContext,
-    WeeklyStrategyService strategy,
+    WeeklyPlanningAssessmentService planningAssessment,
     ProgramPlanService planSelection,
     WeeklyPlanService weeklyPlans,
     Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
@@ -31,11 +31,11 @@ public sealed class ScheduleController(
             return RedirectToAction("Index", "Intake");
 
         var today = AppUserContextService.GetClientToday(context.Client);
-        var start = weekStart ?? WeeklyStrategyService.WeekStart(today);
-        start = WeeklyStrategyService.WeekStart(start);
+        var start = weekStart ?? PlanningWeek.Start(today);
+        start = PlanningWeek.Start(start);
 
-        var firstProgramWeek = WeeklyStrategyService.WeekStart(context.Program.StartDate);
-        var currentWeek = WeeklyStrategyService.WeekStart(today);
+        var firstProgramWeek = PlanningWeek.Start(context.Program.StartDate);
+        var currentWeek = PlanningWeek.Start(today);
 
         if (start == firstProgramWeek)
         {
@@ -464,7 +464,7 @@ public sealed class ScheduleController(
             vm.PlanGuidance = WeeklyPlanService.FriendlyPlanGuidance(context.Program.SelectedPlanCode);
         }
 
-        var assessment = await strategy.AssessWeekAsync(
+        var assessment = await planningAssessment.AssessWeekAsync(
             context.Program.ProgramId,
             context.Program.ConfigVersionId,
             start,
@@ -722,7 +722,7 @@ public sealed class ScheduleController(
         if (context.Client is null || context.Program is null)
             return RedirectToAction("Index", "Intake");
 
-        var sourceStart = WeeklyStrategyService.WeekStart(weekStart);
+        var sourceStart = PlanningWeek.Start(weekStart);
         var targetStart = sourceStart.AddDays(7);
         var result = await weeklyPlans.CopyWeekIfTargetBlankAsync(
             context.Client,
@@ -772,10 +772,10 @@ public sealed class ScheduleController(
                 context.Client);
 
         var currentWeek =
-            WeeklyStrategyService.WeekStart(today);
+            PlanningWeek.Start(today);
 
         var requestedWeek =
-            WeeklyStrategyService.WeekStart(weekStart);
+            PlanningWeek.Start(weekStart);
 
         var returnWeek =
             requestedWeek < currentWeek
@@ -864,8 +864,8 @@ public sealed class ScheduleController(
             return RedirectToAction("Index", "Intake");
 
         var today = AppUserContextService.GetClientToday(context.Client);
-        var start = WeeklyStrategyService.WeekStart(weekStart);
-        var effectiveDate = start == WeeklyStrategyService.WeekStart(today)
+        var start = PlanningWeek.Start(weekStart);
+        var effectiveDate = start == PlanningWeek.Start(today)
             ? today
             : start;
 
