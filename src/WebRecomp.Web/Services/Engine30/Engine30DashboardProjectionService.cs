@@ -334,7 +334,7 @@ public sealed class Engine30DashboardProjectionService(
 
         actualSessions =
             (await DetailedWorkoutEngine30Adapter
-                .PreferBuilderSessionsAsync(
+                .CanonicalCompletedSessionsAsync(
                     db,
                     actualSessions,
                     cancellationToken))
@@ -678,7 +678,7 @@ public sealed class Engine30DashboardProjectionService(
 
         sessions =
             (await DetailedWorkoutEngine30Adapter
-                .PreferBuilderSessionsAsync(
+                .CanonicalCompletedSessionsAsync(
                     db,
                     sessions,
                     cancellationToken))
@@ -1027,7 +1027,7 @@ public sealed class Engine30DashboardProjectionService(
 
         completedSessions =
             (await DetailedWorkoutEngine30Adapter
-                .PreferBuilderSessionsAsync(
+                .CanonicalCompletedSessionsAsync(
                     db,
                     completedSessions,
                     cancellationToken))
