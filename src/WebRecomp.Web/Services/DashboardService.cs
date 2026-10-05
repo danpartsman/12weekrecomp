@@ -54,23 +54,9 @@ public sealed class DashboardService(
                 context,
                 actionDate,
                 cancellationToken);
-        var currentMeasurement = await db.Measurements
-            .Where(x => x.ClientId == client.ClientId
-                        && !x.IsDeleted
-                        && x.LocalMeasurementDate <= actionDate
-                        && x.WeightLb != null)
-            .OrderByDescending(x => x.LocalMeasurementDate)
-            .ThenByDescending(x => x.MeasurementAtUtc)
-            .FirstOrDefaultAsync(cancellationToken);
-
         var todayCheckin = await db.DailyCheckins
             .SingleOrDefaultAsync(x => x.ProgramId == program.ProgramId
                                        && x.CheckinDate == actionDate,
-                                  cancellationToken);
-
-        var todayPlan = await db.PlannedWorkouts
-            .SingleOrDefaultAsync(x => x.ProgramId == program.ProgramId
-                                       && x.PlannedDate == actionDate,
                                   cancellationToken);
 
         WorkoutTypeDefinition? todayPlannedType =
@@ -95,11 +81,6 @@ public sealed class DashboardService(
                                   cancellationToken);
 
         var tomorrowDate = actionDate.AddDays(1);
-        var tomorrowPlan = await db.PlannedWorkouts
-            .SingleOrDefaultAsync(x => x.ProgramId == program.ProgramId
-                                       && x.PlannedDate == tomorrowDate,
-                                  cancellationToken);
-
         WorkoutTypeDefinition? tomorrowType =
             ResolveWorkoutType(
                 workoutTypes,
@@ -950,45 +931,6 @@ public sealed class DashboardService(
             "VERY_LOW" => "Very low",
             _ => HumanizeCode(code)
         };
-
-    private static string? HumanizeStrengthPriority(string? code)
-        => code switch
-        {
-            "PUSH" => "Push",
-            "PULL" => "Pull",
-            "LEGS" => "Legs",
-            "NONE" or null or "" => "No additional strength priority",
-            _ => HumanizeCode(code)
-        };
-
-    private static string? HumanizeCardioNeed(string? code)
-        => code switch
-        {
-            "HIGH" => "High",
-            "MODERATE" => "Moderate",
-            "LOW" => "Low",
-            null or "" => "Not enough information",
-            _ => HumanizeCode(code)
-        };
-
-    private static string HumanizeWeeklyStatus(string code)
-        => code switch
-        {
-            "GOOD" => "On target",
-            "REVIEW" => "Needs review",
-            "NOT_PLANNED" => "Not planned yet",
-            _ => HumanizeCode(code)
-        };
-
-    private static string HumanizeWeeklyNote(WeeklyStrategyAssessment weekly)
-    {
-        if (weekly.StatusCode == "NOT_PLANNED")
-            return "Set up the week on the Weekly Plan page so Recomp can evaluate the weekly structure.";
-
-        return string.IsNullOrWhiteSpace(weekly.Note)
-            ? "Recomp is evaluating this week's structure against your current Primary Plan."
-            : weekly.Note;
-    }
 
     private static string HumanizeCode(string code)
         => string.Join(" ", code
