@@ -104,7 +104,6 @@ public sealed class DashboardService(
             ResolveWorkoutType(
                 workoutTypes,
                 engine30Projection.Tomorrow.WorkoutTypeCode);
-        }
 
         // ------------------------------------------------------------
         // v1009 Dashboard analysis evidence.
@@ -463,18 +462,22 @@ public sealed class DashboardService(
             Engine30MaintenanceKcal = engine30Projection.Today.MaintenanceEnergyKcal,
             Engine30EffectiveDeficitPct = engine30Projection.Today.EffectiveDeficitPct,
 
-            TodayStatusLabel = BuildStatusLabel(result),
-            TodayStatusClass = BuildStatusClass(result),
+            TodayStatusLabel = BuildStatusLabel(recommendation),
+            TodayStatusClass = BuildStatusClass(recommendation),
             PlannedWorkout = engine30Projection.Today.HasPlannedWorkout ? engine30Projection.Today.WorkoutDisplayName : "No workout planned",
-            RecommendedWorkout = result.RecommendedWorkout.DisplayName,
-            ScheduleChangeRecommended = result.Recommendation.ScheduleChangeRecommended,
-            WorkoutRecommendationLabel = todayPlan is null
-                ? $"Use {result.RecommendedWorkout.DisplayName}"
-                : result.Recommendation.ScheduleChangeRecommended
-                    ? $"Change to {result.RecommendedWorkout.DisplayName}"
-                    : $"Keep {todayPlannedType.DisplayName}",
-            WorkoutFocus = BuildWorkoutFocus(todayPlannedType),
-            WorkoutDescription = BuildWorkoutDescription(todayPlannedType),
+            RecommendedWorkout = recommendation.RecommendedWorkoutDisplayName,
+            ScheduleChangeRecommended = recommendation.WorkoutChangeRecommended,
+            WorkoutRecommendationLabel = !engine30Projection.Today.HasPlannedWorkout
+                ? $"Use {recommendation.RecommendedWorkoutDisplayName}"
+                : recommendation.WorkoutChangeRecommended
+                    ? $"Change to {recommendation.RecommendedWorkoutDisplayName}"
+                    : $"Keep {engine30Projection.Today.WorkoutDisplayName}",
+            WorkoutFocus = recommendedType is null
+                ? HumanizeCode(engine30Projection.Today.WorkoutCategoryCode)
+                : BuildWorkoutFocus(recommendedType),
+            WorkoutDescription = recommendedType is null
+                ? recommendation.Summary
+                : BuildWorkoutDescription(recommendedType),
             WorkoutDurationMin = engine30Projection.Today.PlannedDurationMinutes,
             WorkoutEffort = engine30Projection.Today.PlannedRpe.HasValue ? $"RPE {engine30Projection.Today.PlannedRpe.Value:0.#}" : "Recovery / no planned effort",
             WorkoutActual = engine30ActualWorkout.WorkoutSummary ?? workoutActual,
@@ -494,13 +497,15 @@ public sealed class DashboardService(
                 ? engine30ActualWorkout.TotalDurationMinutes
                 : null,
             ActualWorkoutRpe = engine30ActualWorkout.DurationWeightedRpe,
-            WorkoutRecommendationRationale = BuildWorkoutRecommendationRationale(result, todayPlan is not null),
+            WorkoutRecommendationRationale = BuildWorkoutRecommendationRationale(
+                recommendation,
+                engine30Projection.Today.HasPlannedWorkout),
             Calories = engine30Projection.Today.PrescribedEnergyKcal,
             ProteinG = engine30Projection.Today.ProteinG,
             CarbsG = engine30Projection.Today.RecommendedCarbsG,
             FatG = engine30Projection.Today.FatG,
-            NutritionDayLabel = BuildNutritionDayLabel(result.RecommendedWorkout),
-            NutritionTip = BuildNutritionTip(result.RecommendedWorkout, actionDate),
+            NutritionDayLabel = BuildNutritionDayLabel(recommendedType),
+            NutritionTip = recommendation.NutritionSummary,
             NutritionActualLogged = nutritionActual is not null,
             ActualCalories = nutritionActual?.ActualCalories,
             ActualProteinG = nutritionActual?.ActualProteinG,
@@ -509,7 +514,7 @@ public sealed class DashboardService(
 
             CoachTitle = coach.Title,
             CoachRecommendation = coach.Body,
-            CoachWhy = BuildCoachWhy(result, todayCheckin),
+            CoachWhy = BuildCoachWhy(recommendation, engine30Impact, todayCheckin),
             EnergyScore = todayCheckin?.EnergyScore,
             SorenessScore = todayCheckin?.SorenessScore,
             SleepHours = todayCheckin?.SleepHours,
@@ -537,7 +542,7 @@ public sealed class DashboardService(
             FuelActionLabel = engine30Impact.FuelActionLabel,
             FuelReasonCodes = string.Join(", ", engine30Impact.ReasonCodes),
             Engine30Analysis = engine30Analysis,
-            Engine30AdaptiveRecommendation = engine30Adaptive,
+            RecompRecommendation = recommendation,
             PreviousEnergyVarianceKcal = engine30Impact.PreviousEnergyVarianceKcal,
             PreviousEligibleEnergyCarryoverKcal = engine30Impact.PreviousEligibleEnergyCarryoverKcal,
             WeekEnergyOverageKcal = engine30Impact.WeekEnergyOverageKcal,
@@ -583,10 +588,12 @@ public sealed class DashboardService(
             PreviousRestorationRatio = engine30Impact.PreviousRestorationRatio,
             PreviousFuelSummary = engine30Impact.PreviousFuelSummary,
 
-            WeeklyStatus = HumanizeWeeklyStatus(result.WeeklyStrategy.StatusCode),
-            WeeklyNote = HumanizeWeeklyNote(result.WeeklyStrategy),
-            StrengthPriority = HumanizeStrengthPriority(result.Recommendation.RegionPriorityCode),
-            CardioNeed = HumanizeCardioNeed(result.Recommendation.CardioNeedCode)
+            WeeklyStatus = recommendation.WorkoutChangeRecommended
+                ? "Adaptive change recommended"
+                : "On target",
+            WeeklyNote = recommendation.Summary,
+            StrengthPriority = null,
+            CardioNeed = null
         };
     }
 
