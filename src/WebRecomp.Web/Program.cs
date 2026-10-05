@@ -167,6 +167,7 @@ builder.Services.AddScoped<AccessEntitlementService>();
 builder.Services.AddScoped<PendingAccessCodeService>();
 builder.Services.AddScoped<ConfigurationService>();
 builder.Services.AddScoped<WorkoutMathService>();
+builder.Services.AddScoped<WorkoutActualService>();
 builder.Services.AddSingleton<IWorkoutIntelligenceGateway, WorkoutIntelligenceGateway>();
 builder.Services.AddScoped<IExerciseCatalogStore, SqlExerciseCatalogStore>();
 builder.Services.AddScoped<IDetailedWorkoutStore, SqlDetailedWorkoutStore>();
