@@ -2458,6 +2458,10 @@ public sealed class DetailedWorkoutController(
             session.WorkoutDate.ToString(
                 "dddd, MMMM d");
 
+        ViewData["WorkoutDateIso"] =
+            session.WorkoutDate.ToString(
+                "yyyy-MM-dd");
+
         ViewData["DurationMinutes"] =
             durationMinutes;
 
@@ -3286,7 +3290,7 @@ public sealed class DetailedWorkoutController(
         }
 
         TempData["StatusMessage"] =
-            "Rest day completed.";
+            "Rest day completed. Daily Tracking and the Dashboard now use this completed actual.";
 
         return string.Equals(
                 returnContext,
@@ -3394,7 +3398,7 @@ public sealed class DetailedWorkoutController(
         await db.SaveChangesAsync(cancellationToken);
 
         TempData["StatusMessage"] =
-            $"{activity.DisplayName} saved as a completed cardio activity.";
+            $"{activity.DisplayName} completed. Daily Tracking and the Dashboard now use this actual session.";
 
         if (addAnother)
         {
