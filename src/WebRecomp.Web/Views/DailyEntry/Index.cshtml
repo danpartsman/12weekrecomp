@@ -326,6 +326,16 @@
                 <strong>@Model.PlannedWorkoutName</strong>
             </div>
 
+            @if (Model.Workouts.Any(x => x.WorkoutSessionId.HasValue))
+            {
+                <div class="daily-entry-actual-sync">
+                    <strong>✓ Completed workout synced from Workouts</strong>
+                    <span>
+                        Training is complete for this day. Daily Tracking and the Dashboard now use the completed actual session instead of the planned estimate.
+                    </span>
+                </div>
+            }
+
             <div class="daily-entry-info">
                 <strong>Your plan is already doing work</strong>
                 <span>
@@ -368,7 +378,7 @@
                     var workout = Model.Workouts[i];
                     var isSaved = workout.WorkoutSessionId.HasValue;
 
-                    <article class="daily-entry-workout-card"
+                    <article class="daily-entry-workout-card @(isSaved ? "is-completed-actual" : "")"
                              data-workout-row>
 
                         <input asp-for="Workouts[i].WorkoutSessionId"
@@ -426,6 +436,35 @@
                                 </div>
                             }
                         </div>
+
+                        @if (isSaved)
+                        {
+                            <div class="daily-entry-completed-actual">
+                                <div class="daily-entry-completed-actual-head">
+                                    <span class="daily-entry-completed-badge">COMPLETED ACTUAL</span>
+                                    <strong>Dashboard updated</strong>
+                                </div>
+
+                                <div class="daily-entry-completed-stats">
+                                    <div>
+                                        <span>Duration</span>
+                                        <strong>@(workout.DurationMin.HasValue ? $"{workout.DurationMin.Value:0.#} min" : "—")</strong>
+                                    </div>
+                                    <div>
+                                        <span>RPE</span>
+                                        <strong>@(workout.SessionRpe.HasValue ? workout.SessionRpe.Value.ToString("0.#") : "—")</strong>
+                                    </div>
+                                    <div>
+                                        <span>Source</span>
+                                        <strong>@(string.IsNullOrWhiteSpace(workout.SourceLabel) ? "Workouts" : workout.SourceLabel)</strong>
+                                    </div>
+                                </div>
+
+                                <p>
+                                    This completed WorkoutSession is the actual training record used by Daily Tracking and Engine 3.0 on the Dashboard.
+                                </p>
+                            </div>
+                        }
 
                         <div class="daily-entry-grid">
 
