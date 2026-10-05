@@ -171,7 +171,8 @@ public sealed class WeeklyPlanningRecoverySeparationTests
         var checkin =
             new DailyCheckin
             {
-                DailyCheckinId = Guid.NewGuid(),
+                CheckinId = Guid.NewGuid(),
+                ClientId = Guid.NewGuid(),
                 ProgramId = Guid.NewGuid(),
                 CheckinDate = new DateOnly(2026, 10, 5),
                 SleepHours = 6m,
@@ -219,7 +220,8 @@ public sealed class WeeklyPlanningRecoverySeparationTests
         var checkin =
             new DailyCheckin
             {
-                DailyCheckinId = Guid.NewGuid(),
+                CheckinId = Guid.NewGuid(),
+                ClientId = Guid.NewGuid(),
                 ProgramId = Guid.NewGuid(),
                 CheckinDate = new DateOnly(2026, 10, 5),
                 SleepHours = 8m,
