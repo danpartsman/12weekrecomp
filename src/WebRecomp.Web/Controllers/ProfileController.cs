@@ -9,7 +9,8 @@ namespace WebRecomp.Web.Controllers;
 
 public sealed class ProfileController(
     RecompDbContext db,
-    AppUserContextService userContext) : Controller
+    AppUserContextService userContext,
+    LearningOrchestratorService learning) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -138,8 +139,9 @@ public sealed class ProfileController(
                 ? "SYSTEM"
                 : context.User.ThemeCode.ToUpperInvariant(),
             PreferredCoachCode =
-                CoachCatalog.Resolve(
-                    context.User.PreferredCoachCode).Code,
+                await learning.GetPreferredCoachCodeAsync(
+                    context.User.UserId,
+                    cancellationToken),
             HasActiveProgram = context.Program is not null,
             DetailedWorkoutEntryEnabled =
                 context.Program?.DetailedWorkoutEntryEnabled ?? false,
@@ -158,22 +160,16 @@ public sealed class ProfileController(
         if (!new[] { "SYSTEM", "LIGHT", "DARK" }.Contains(model.ThemeCode))
             ModelState.AddModelError(nameof(model.ThemeCode), "Choose System, Light, or Dark.");
 
-        model.PreferredCoachCode =
-            CoachCatalog.Resolve(model.PreferredCoachCode).Code;
-
-        if (!CoachCatalog.IsValid(model.PreferredCoachCode))
-            ModelState.AddModelError(nameof(model.PreferredCoachCode), "Choose an available coach.");
-
-        model.PreferredCoachCode =
-            CoachCatalog.Resolve(
-                model.PreferredCoachCode).Code;
-
         if (!CoachCatalog.IsValid(model.PreferredCoachCode))
         {
             ModelState.AddModelError(
                 nameof(model.PreferredCoachCode),
                 "Choose one of the available coaches.");
         }
+
+        model.PreferredCoachCode =
+            CoachCatalog.Resolve(
+                model.PreferredCoachCode).Code;
 
         if (!ModelState.IsValid)
         {
@@ -189,7 +185,6 @@ public sealed class ProfileController(
             ? null
             : model.ContactEmail.Trim();
         context.User.ThemeCode = model.ThemeCode;
-        context.User.PreferredCoachCode = model.PreferredCoachCode;
         context.User.UpdatedAtUtc = DateTime.UtcNow;
 
         if (context.Program is not null)
@@ -202,6 +197,12 @@ public sealed class ProfileController(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        await learning.SetPreferredCoachAsync(
+            context.User.UserId,
+            model.PreferredCoachCode,
+            cancellationToken);
+
         TempData["StatusMessage"] = "Settings saved.";
         return RedirectToAction(nameof(Settings));
     }
