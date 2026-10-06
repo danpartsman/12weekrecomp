@@ -101,10 +101,48 @@
             }
 
             if (bg.tagName === "IMG") {
-                bg.style.setProperty(
-                    "opacity",
-                    "0",
-                    "important");
+                if (horizontalSwipe) {
+                    bg.src = artworkUrl;
+                    bg.removeAttribute("srcset");
+                    bg.style.setProperty(
+                        "opacity",
+                        "1",
+                        "important");
+                    bg.style.setProperty(
+                        "display",
+                        "block",
+                        "important");
+                    bg.style.setProperty(
+                        "inset",
+                        "0",
+                        "important");
+                    bg.style.setProperty(
+                        "width",
+                        "100%",
+                        "important");
+                    bg.style.setProperty(
+                        "height",
+                        "100%",
+                        "important");
+                    bg.style.setProperty(
+                        "object-fit",
+                        "cover",
+                        "important");
+                    bg.style.setProperty(
+                        "object-position",
+                        "left center",
+                        "important");
+                    bg.style.setProperty(
+                        "filter",
+                        "none",
+                        "important");
+                }
+                else {
+                    bg.style.setProperty(
+                        "opacity",
+                        "0",
+                        "important");
+                }
             }
 
             if (horizontalSwipe) {
@@ -129,7 +167,7 @@
                             Math.max(
                                 0,
                                 Math.round(
-                                    coach.scrollWidth * .255));
+                                    coach.scrollWidth * .08));
                     });
                 }
             }
