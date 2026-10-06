@@ -620,7 +620,7 @@ public sealed class Engine30SubstratePartitionCalculator
          */
         var progression =
             Clamp(
-                (elapsedMidpointMinutes - 30m) / 150m,
+                (elapsedMidpointMinutes - 30m) / 120m,
                 0m,
                 1m);
 
