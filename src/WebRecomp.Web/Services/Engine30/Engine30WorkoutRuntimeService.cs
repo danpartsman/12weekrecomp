@@ -13,7 +13,9 @@ public sealed record Engine30WorkoutRuntimeResult(
     Engine30WorkoutRuntimeProfileProvenance ProfileProvenance,
     Engine30ResolvedWorkoutSession ResolvedSession,
     Engine30WorkoutEnergyAdapterResult Energy,
-    Engine30WorkoutGlycogenAdapterResult Glycogen);
+    Engine30WorkoutGlycogenAdapterResult Glycogen,
+    Engine30SubstratePartitionResult? SubstratePartition = null,
+    string GlycogenReconciliationCode = "LEGACY");
 
 /// <summary>
 /// Engine 3.0 runtime workout orchestrator.
@@ -30,6 +32,7 @@ public sealed class Engine30WorkoutRuntimeService(
     private readonly Engine30WorkoutSessionResolver _resolver = new();
     private readonly Engine30WorkoutEnergyAdapter _energy = new();
     private readonly Engine30WorkoutGlycogenAdapter _glycogen = new();
+    private readonly Engine30SubstratePartitionCalculator _substrates = new();
 
     public async Task<Engine30WorkoutRuntimeResult> CalculateAsync(
         Engine30WorkoutRuntimeRequest request,
@@ -91,71 +94,139 @@ public sealed class Engine30WorkoutRuntimeService(
                     BaselineGlycogenGPerKgMuscle: request.BaselineGlycogenGPerKgMuscle,
                     ResistanceTrainingStatusCode: request.ResistanceTrainingStatusCode));
 
-        // Physiological consistency guardrail.
-        //
-        // Glycogen depletion is modeled independently from workout energy so
-        // calories never become a glycogen proxy.  The independent estimates
-        // must nevertheless obey conservation of energy: muscle glycogen
-        // energy cannot exceed the carbohydrate share of total exercise
-        // energy.  Ninety percent is deliberately a generous ceiling for
-        // very carbohydrate-dominant high-intensity work; it is a safety
-        // boundary, not an assertion that every workout is 90% carbohydrate.
-        var glycogen =
-            ApplyExerciseEnergyConsistencyGuardrail(
+        var substratePartition =
+            _substrates.Calculate(
+                resolved,
+                admin,
+                energy);
+
+        /*
+         * v1015a substrate reconciliation.
+         *
+         * The muscle/set/cardio workload model remains the primary local
+         * glycogen estimate.  The independent whole-workout substrate model
+         * answers a different question: "Could this much of the workout's
+         * total energy plausibly have come from muscle glycogen?"
+         *
+         * We keep the historical 90%-of-gross-energy ceiling only as an
+         * absolute conservation sanity check.  The operative ceiling is now
+         * the substrate-partition estimate plus an uncertainty allowance.
+         *
+         * Resistance receives the widest allowance because oxygen-consumption
+         * based workout-energy estimates under-resolve anaerobic ATP turnover.
+         * Continuous cardio receives the narrowest allowance because its
+         * substrate partition is better represented by tracer/calorimetry
+         * literature.  This is intentionally asymmetric rather than pretending
+         * every workout modality has equal measurement certainty.
+         */
+        var reconciliation =
+            ReconcileGlycogenWithSubstratePartition(
                 modeledGlycogen,
+                substratePartition,
+                resolved.WorkoutFamilyCode,
                 energy.GrossWorkoutEnergyKcal);
 
         return new Engine30WorkoutRuntimeResult(
             ProfileProvenance: profileResolution.Provenance,
             ResolvedSession: resolved,
             Energy: energy,
-            Glycogen: glycogen);
+            Glycogen: reconciliation.Glycogen,
+            SubstratePartition: substratePartition,
+            GlycogenReconciliationCode: reconciliation.Code);
     }
 
-    private static Engine30WorkoutGlycogenAdapterResult ApplyExerciseEnergyConsistencyGuardrail(
-        Engine30WorkoutGlycogenAdapterResult modeled,
-        decimal grossWorkoutEnergyKcal)
+    private static (
+        Engine30WorkoutGlycogenAdapterResult Glycogen,
+        string Code)
+        ReconcileGlycogenWithSubstratePartition(
+            Engine30WorkoutGlycogenAdapterResult modeled,
+            Engine30SubstratePartitionResult substrate,
+            string workoutFamilyCode,
+            decimal grossWorkoutEnergyKcal)
     {
         if (grossWorkoutEnergyKcal <= 0m
             || modeled.EstimatedGlycogenDepletedG <= 0m)
         {
-            return modeled;
+            return (
+                modeled,
+                "NO_GLYCOGEN_RECONCILIATION_REQUIRED");
         }
 
         const decimal kcalPerGramCarbohydrate = 4m;
-        const decimal maximumCarbohydrateEnergyFraction = 0.90m;
+        const decimal absoluteMaximumCarbohydrateEnergyFraction = 0.90m;
 
-        var maximumPhysiologicallyPossibleGlycogenG =
+        var absoluteEnergyCeilingG =
             grossWorkoutEnergyKcal
-            * maximumCarbohydrateEnergyFraction
+            * absoluteMaximumCarbohydrateEnergyFraction
             / kcalPerGramCarbohydrate;
 
+        var family =
+            string.IsNullOrWhiteSpace(workoutFamilyCode)
+                ? ""
+                : workoutFamilyCode.Trim().ToUpperInvariant();
+
+        var substrateUncertaintyMultiplier =
+            family switch
+            {
+                Engine30WorkoutFamilyCodes.Resistance => 1.40m,
+                Engine30WorkoutFamilyCodes.Composite => 1.25m,
+                Engine30WorkoutFamilyCodes.Intervals => 1.25m,
+                _ => 1.20m
+            };
+
+        var substrateCeilingG =
+            substrate.EstimatedMuscleGlycogenG > 0m
+                ? substrate.EstimatedMuscleGlycogenG
+                  * substrateUncertaintyMultiplier
+                : absoluteEnergyCeilingG;
+
+        var reconciledCeilingG =
+            Math.Min(
+                absoluteEnergyCeilingG,
+                substrateCeilingG);
+
         if (modeled.EstimatedGlycogenDepletedG
-            <= maximumPhysiologicallyPossibleGlycogenG)
+            <= reconciledCeilingG)
         {
-            return modeled;
+            return (
+                modeled,
+                "LOCAL_MODEL_WITHIN_SUBSTRATE_BOUND");
         }
 
         var scale =
-            maximumPhysiologicallyPossibleGlycogenG
+            reconciledCeilingG
             / modeled.EstimatedGlycogenDepletedG;
 
         var depleted =
-            Round(maximumPhysiologicallyPossibleGlycogenG, 2);
+            Round(
+                reconciledCeilingG,
+                2);
 
         var restoration =
-            Round(modeled.TargetGlycogenRestorationG * scale, 2);
+            Round(
+                modeled.TargetGlycogenRestorationG
+                * scale,
+                2);
 
         var reload =
-            Round(modeled.CarbohydrateReloadRequirementG * scale, 2);
+            Round(
+                modeled.CarbohydrateReloadRequirementG
+                * scale,
+                2);
 
-        return modeled with
-        {
-            EstimatedGlycogenDepletedG = depleted,
-            TargetGlycogenRestorationG = restoration,
-            CarbohydrateReloadRequirementG = reload,
-            CarbohydrateReloadEnergyKcal = Round(reload * kcalPerGramCarbohydrate, 2)
-        };
+        return (
+            modeled with
+            {
+                EstimatedGlycogenDepletedG = depleted,
+                TargetGlycogenRestorationG = restoration,
+                CarbohydrateReloadRequirementG = reload,
+                CarbohydrateReloadEnergyKcal =
+                    Round(
+                        reload
+                        * kcalPerGramCarbohydrate,
+                        2)
+            },
+            "SUBSTRATE_PARTITION_BOUND_APPLIED");
     }
 
     private static decimal Round(decimal value, int decimals)

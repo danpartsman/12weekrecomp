@@ -72,6 +72,135 @@ public sealed class Engine30WorkoutRuntimeServiceTests
     }
 
     [Fact]
+    public async Task SubstratePartition_SeparatesMuscleGlycogenFromOtherWorkoutFuels()
+    {
+        var profile =
+            CardioProfile(
+                kcalPerMinute: 7m,
+                depletion: 0.70m);
+
+        var result =
+            await Calculate(
+                profile,
+                "E30-ZONE2_CARDIO-V0015",
+                plannedMinutes: 120m);
+
+        Assert.NotNull(
+            result.SubstratePartition);
+
+        var substrate =
+            result.SubstratePartition!;
+
+        Assert.True(
+            substrate.MuscleGlycogenEnergyKcal > 0m);
+
+        Assert.True(
+            substrate.BloodGlucoseEnergyKcal > 0m);
+
+        Assert.True(
+            substrate.FatEnergyKcal > 0m);
+
+        Assert.True(
+            substrate.ProteinEnergyKcal > 0m);
+
+        Assert.True(
+            substrate.MuscleGlycogenEnergyKcal
+            < substrate.GrossEnergyKcal);
+
+        Assert.True(
+            substrate.TotalCarbohydrateEnergyFraction < 0.90m);
+
+        Assert.Equal(
+            "SUBSTRATE_PARTITION_BOUND_APPLIED",
+            result.GlycogenReconciliationCode);
+
+        var substrateCeilingG =
+            substrate.EstimatedMuscleGlycogenG
+            * 1.20m;
+
+        Assert.True(
+            result.Glycogen.EstimatedGlycogenDepletedG
+            <= substrateCeilingG + 0.02m);
+    }
+
+    [Fact]
+    public async Task LongModerateCardio_ShiftsAwayFromMuscleGlycogenAsDurationAccumulates()
+    {
+        var result =
+            await Calculate(
+                CardioProfile(
+                    kcalPerMinute: 7m,
+                    depletion: 0.12m),
+                "E30-ZONE2_CARDIO-V0016",
+                plannedMinutes: 120m);
+
+        var blocks =
+            Assert.Single(
+                result.SubstratePartition!.Segments)
+                .Blocks;
+
+        Assert.True(blocks.Count >= 10);
+
+        var first = blocks.First();
+        var last = blocks.Last();
+
+        Assert.True(
+            last.MuscleGlycogenFraction
+            < first.MuscleGlycogenFraction);
+
+        Assert.True(
+            last.FatFraction
+            > first.FatFraction);
+
+        Assert.True(
+            last.BloodGlucoseFraction
+            > first.BloodGlucoseFraction);
+    }
+
+    [Fact]
+    public async Task HeartRateZoneEvidence_IsPreferredOverRpeForSubstrateIntensity()
+    {
+        var profile =
+            CardioProfile(
+                kcalPerMinute: 7m,
+                depletion: 0.12m);
+
+        var provider =
+            new FakeProfileProvider(
+                profile,
+                "E30-ZONE2_CARDIO-V0017");
+
+        var service =
+            new Engine30WorkoutRuntimeService(
+                provider);
+
+        var result =
+            await service.CalculateAsync(
+                new Engine30WorkoutRuntimeRequest(
+                    Session:
+                        new Engine30WorkoutSessionInput(
+                            WorkoutTypeCode: "ZONE2_CARDIO",
+                            PlannedDurationMinutes: 60m,
+                            MonitorData:
+                                new Engine30WorkoutMonitorData(
+                                    MinutesZone1: 5m,
+                                    MinutesZone2: 45m,
+                                    MinutesZone3: 10m)),
+                    BaseLivingEnergyKcal: BaseLiving,
+                    WeightLb: WeightLb,
+                    FatFreeMassLb: FfmLb,
+                    SkeletalMuscleFractionOfFfm: SkeletalMuscleFraction,
+                    BaselineGlycogenGPerKgMuscle: BaselineGlycogen));
+
+        Assert.All(
+            result.SubstratePartition!.Segments.Single().Blocks,
+            block =>
+                Assert.Equal(
+                    Engine30SubstratePartitionSourceCodes.HeartRateZones,
+                    block.IntensitySourceCode));
+    }
+
+    [Fact]
     public async Task RuntimeResult_PreservesActiveProfileProvenance()
     {
         var result =
