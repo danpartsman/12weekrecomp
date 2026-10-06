@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
+using WebRecomp.Web.Services.Learning;
 using WebRecomp.Web.ViewModels;
 
 namespace WebRecomp.Web.Controllers;
@@ -57,6 +58,13 @@ public sealed class OnboardingController(
         }
 
         Normalize(model);
+
+        if (!CoachCatalog.IsValid(model.PreferredCoachCode))
+        {
+            ModelState.AddModelError(
+                nameof(model.PreferredCoachCode),
+                "Choose one of the available coaches.");
+        }
 
         if (!ModelState.IsValid)
         {
@@ -149,6 +157,12 @@ public sealed class OnboardingController(
                 client.ClientStatusCode = "ACTIVE";
                 client.UpdatedAtUtc = now;
             }
+
+            context.User.PreferredCoachCode =
+                model.PreferredCoachCode;
+
+            context.User.UpdatedAtUtc =
+                now;
 
             await db.SaveChangesAsync(cancellationToken);
 
@@ -281,7 +295,10 @@ public sealed class OnboardingController(
             {
                 ClientName = fallbackName,
                 TrainingExperienceCode = "INTERMEDIATE",
-                AvailableTrainingDaysWeek = 4
+                AvailableTrainingDaysWeek = 4,
+                PreferredCoachCode =
+                    CoachCatalog.Resolve(
+                        context.User.PreferredCoachCode).Code
             };
         }
 
@@ -323,7 +340,10 @@ public sealed class OnboardingController(
             StartingVisceralFatRating = latestMeasurement?.VisceralFatRating,
             LifestyleActivityCode = client.LifestyleActivityCode,
             BaselineStepsDay = client.BaselineStepsDay,
-            BaselineSleepHours = client.BaselineSleepHours
+            BaselineSleepHours = client.BaselineSleepHours,
+            PreferredCoachCode =
+                CoachCatalog.Resolve(
+                    context.User.PreferredCoachCode).Code
         };
     }
 
@@ -367,6 +387,10 @@ public sealed class OnboardingController(
         model.TimeZone = string.IsNullOrWhiteSpace(model.TimeZone)
             ? "America/Los_Angeles"
             : model.TimeZone.Trim();
+        model.PreferredCoachCode =
+            CoachCatalog.Resolve(
+                model.PreferredCoachCode).Code;
+
         model.LifestyleActivityCode = string.IsNullOrWhiteSpace(model.LifestyleActivityCode)
             ? null
             : model.LifestyleActivityCode.Trim().ToUpperInvariant();
