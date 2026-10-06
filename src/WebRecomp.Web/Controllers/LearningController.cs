@@ -92,6 +92,14 @@ public sealed class LearningController(
             targetUrl,
             cancellationToken);
 
+        if (string.Equals(
+                Request.Headers["X-Requested-With"].ToString(),
+                "XMLHttpRequest",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return NoContent();
+        }
+
         if (!string.IsNullOrWhiteSpace(targetUrl)
             && Url.IsLocalUrl(targetUrl)
             && interactionCode.Equals(
