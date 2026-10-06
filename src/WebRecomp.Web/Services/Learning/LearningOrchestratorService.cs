@@ -64,11 +64,20 @@ public sealed class LearningSchemaHostedService(
                         """
                         SET XACT_ABORT ON;
 
-                        IF COL_LENGTH('app.UserAccounts', 'preferred_coach_code') IS NULL
+                        IF OBJECT_ID('app.LearningCoachPreferences', 'U') IS NULL
                         BEGIN
-                            ALTER TABLE app.UserAccounts
-                                ADD preferred_coach_code varchar(30) NOT NULL
-                                    CONSTRAINT DF_UserAccounts_preferred_coach_code DEFAULT ('MARISOL');
+                            CREATE TABLE app.LearningCoachPreferences
+                            (
+                                user_id uniqueidentifier NOT NULL,
+                                preferred_coach_code varchar(30) NOT NULL
+                                    CONSTRAINT DF_LearningCoachPreferences_coach DEFAULT ('MARISOL'),
+                                created_at_utc datetime2 NOT NULL,
+                                updated_at_utc datetime2 NOT NULL,
+                                CONSTRAINT PK_LearningCoachPreferences PRIMARY KEY (user_id),
+                                CONSTRAINT FK_LearningCoachPreferences_UserAccounts
+                                    FOREIGN KEY (user_id) REFERENCES app.UserAccounts(user_id)
+                                    ON DELETE CASCADE
+                            );
                         END;
 
                         IF OBJECT_ID('app.LearningSeriesProgress', 'U') IS NULL
@@ -170,7 +179,7 @@ public sealed class LearningSchemaHostedService(
         command.CommandText =
             """
             SELECT CASE
-                WHEN COL_LENGTH('app.UserAccounts', 'preferred_coach_code') IS NULL THEN 0
+                WHEN OBJECT_ID('app.LearningCoachPreferences', 'U') IS NULL THEN 0
                 WHEN OBJECT_ID('app.LearningSeriesProgress', 'U') IS NULL THEN 0
                 WHEN OBJECT_ID('app.LearningInteractions', 'U') IS NULL THEN 0
                 ELSE 1
@@ -433,6 +442,72 @@ public static class LearningContentCatalog
 public sealed class LearningOrchestratorService(
     RecompDbContext db)
 {
+    public async Task<string> GetPreferredCoachCodeAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!LearningSchemaReadiness.IsReady)
+            return "MARISOL";
+
+        var preference =
+            await db.LearningCoachPreferences
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    x => x.UserId == userId,
+                    cancellationToken);
+
+        return CoachCatalog.Resolve(
+            preference?.PreferredCoachCode).Code;
+    }
+
+    public async Task SetPreferredCoachAsync(
+        Guid userId,
+        string coachCode,
+        CancellationToken cancellationToken = default)
+    {
+        if (!LearningSchemaReadiness.IsReady)
+            throw new InvalidOperationException(
+                "Learning preferences are temporarily unavailable.");
+
+        var resolved =
+            CoachCatalog.Resolve(coachCode);
+
+        var now =
+            DateTime.UtcNow;
+
+        var preference =
+            await db.LearningCoachPreferences
+                .SingleOrDefaultAsync(
+                    x => x.UserId == userId,
+                    cancellationToken);
+
+        if (preference is null)
+        {
+            preference =
+                new LearningCoachPreference
+                {
+                    UserId = userId,
+                    PreferredCoachCode = resolved.Code,
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                };
+
+            db.LearningCoachPreferences.Add(
+                preference);
+        }
+        else
+        {
+            preference.PreferredCoachCode =
+                resolved.Code;
+
+            preference.UpdatedAtUtc =
+                now;
+        }
+
+        await db.SaveChangesAsync(
+            cancellationToken);
+    }
+
     public async Task<LearningPresentation?> ResolveAsync(
         UserAccount user,
         string surfaceCode,
@@ -468,7 +543,10 @@ public sealed class LearningOrchestratorService(
             ?? candidates.First();
 
         var coach =
-            CoachCatalog.Resolve(user.PreferredCoachCode);
+            CoachCatalog.Resolve(
+                await GetPreferredCoachCodeAsync(
+                    user.UserId,
+                    cancellationToken));
 
         return new LearningPresentation(
             coach,
