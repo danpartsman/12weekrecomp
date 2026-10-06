@@ -48,6 +48,38 @@
 
         const artworkUrl = "/images/coach/marisol-card-background-v1012.webp?v=card1540x620e";
 
+        /*
+         * Dedicated mobile portrait pane.
+         *
+         * Do not rely on the full-card background or the legacy hidden <img>
+         * for Marisol on phones. Use the exact approved desktop artwork as a
+         * separate left-side crop, above decorative overlays and below the
+         * prescription panel.
+         */
+        let mobileMarisol =
+            coach.querySelector(
+                ":scope > .journey-coach-mobile-marisol");
+
+        if (!mobileMarisol) {
+            mobileMarisol =
+                document.createElement("div");
+
+            mobileMarisol.className =
+                "journey-coach-mobile-marisol";
+
+            mobileMarisol.setAttribute(
+                "aria-hidden",
+                "true");
+
+            mobileMarisol.style.setProperty(
+                "--marisol-artwork",
+                `url("${artworkUrl}")`);
+
+            coach.insertBefore(
+                mobileMarisol,
+                panel);
+        }
+
         const syncPinnedArtwork = () => {
             const desktop =
                 window.matchMedia("(min-width: 1281px)").matches;
@@ -163,11 +195,9 @@
                          * prescription. The user can swipe left for the coach
                          * image or right across the prescription metrics.
                          */
-                        scrollHost.scrollLeft =
-                            Math.max(
-                                0,
-                                Math.round(
-                                    coach.scrollWidth * .08));
+                        // Start all the way left so Marisol is immediately
+                        // visible. The user can swipe right into the metrics.
+                        scrollHost.scrollLeft = 0;
                     });
                 }
             }
