@@ -139,7 +139,6 @@ builder.Services.AddScoped<IPasswordHasher<UserAccount>, PasswordHasher<UserAcco
 builder.Services.AddScoped<LocalAuthService>();
 builder.Services.AddSingleton<LocalPasswordResetTokenService>();
 builder.Services.AddScoped<LocalPasswordResetService>();
-builder.Services.AddHostedService<TestDuplicateBootstrapAccountCleanupService>();
 
 // v1011 Nutrition Intelligence composition root.
 // Nutrition Intelligence remains independent; Web owns provider wiring.
