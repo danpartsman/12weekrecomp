@@ -327,6 +327,15 @@
         }
     </header>
 
+    <div class="learning-surface-label">YOUR COACH · TRAINING</div>
+    @await Component.InvokeAsync(
+        "CoachLearning",
+        new
+        {
+            surfaceCode = "WORKOUT",
+            displayMode = "thumbnail"
+        })
+
     @if (isLive && Model.WorkoutSessionId.HasValue)
     {
         <output class="wi-scroll-countdown" data-set-timer-sticky hidden aria-label="Set countdown" aria-live="off">02:00</output>
