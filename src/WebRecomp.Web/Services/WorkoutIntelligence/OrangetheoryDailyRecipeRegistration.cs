@@ -251,6 +251,85 @@ internal static class OrangetheoryDailyRecipeRegistration
             GroupName: "Orangetheory",
             PlannedMinutes: 60m);
 
+
+    internal static SystemWorkoutRecipe Create20261006Recipe()
+        => new SystemWorkoutRecipe(
+            "OTF_2G_2026_10_06",
+            "OTF 2G - 2026-10-06",
+            "ORANGETHEORY",
+            "October 6 E-P-S 2G. Published treadmill timing and inclines are preserved exactly. Coach-choice lift-or-row buy-ins remain explicit alternatives rather than being double-counted; repeat-until-time floor work is represented conservatively for workload estimation.",
+            [
+                Slot("OTF_1006_T1_PUSH_2", "Treadmill Push", 1, 1, "Tread Block 1.", true, "Tread Block 1", "Endurance", 120, null, 5m, null, false, "2 min push (PW 5%+)"),
+                Slot("OTF_1006_T1_BASE_1", "Treadmill Base", 1, 1, "Tread Block 1.", true, "Tread Block 1", "Endurance", 60, null, null, null, false, "1 min base"),
+                Slot("OTF_1006_T1_PUSH_1", "Treadmill Push", 1, 1, "Tread Block 1.", true, "Tread Block 1", "Endurance", 60, null, 5m, null, false, "1 min push (PW 5%+)"),
+                Slot("OTF_1006_T1_BASE_2", "Treadmill Base", 1, 1, "Tread Block 1.", true, "Tread Block 1", "Endurance", 60, null, null, null, false, "1 min base"),
+                Slot("OTF_1006_T1_PUSH_2B", "Treadmill Push", 1, 1, "Tread Block 1.", true, "Tread Block 1", "Endurance", 120, null, 5m, null, false, "2 min push (PW 5%+)"),
+                Slot("OTF_1006_WR_1", "Walking Recovery", 1, 1, "90 sec walking recovery; return to base when ready.", true, "Tread Recovery 1", "Recovery", 90, null, null, null, false, "90 sec WR"),
+
+                Slot("OTF_1006_T2_AO_60A", "Treadmill All Out", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Power", 60, null, 10m, null, false, "1 min AO (PW 10%+)"),
+                Slot("OTF_1006_T2_WR_60A", "Walking Recovery", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Recovery", 60, null, null, null, false, "1 min WR"),
+                Slot("OTF_1006_T2_AO_45A", "Treadmill All Out", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Power", 45, null, 10m, null, false, "45 sec AO (PW 10%+)"),
+                Slot("OTF_1006_T2_WR_45A", "Walking Recovery", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Recovery", 45, null, null, null, false, "45 sec WR"),
+                Slot("OTF_1006_T2_AO_30", "Treadmill All Out", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Power", 30, null, 10m, null, false, "30 sec AO (PW 10%+)"),
+                Slot("OTF_1006_T2_WR_30", "Walking Recovery", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Recovery", 30, null, null, null, false, "30 sec WR"),
+                Slot("OTF_1006_T2_AO_45B", "Treadmill All Out", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Power", 45, null, 10m, null, false, "45 sec AO (PW 10%+)"),
+                Slot("OTF_1006_T2_WR_45B", "Walking Recovery", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Recovery", 45, null, null, null, false, "45 sec WR"),
+                Slot("OTF_1006_T2_AO_60B", "Treadmill All Out", 1, 1, "Tread Block 2.", true, "Tread Block 2", "Power", 60, null, 10m, null, false, "1 min AO (PW 10%+)"),
+                Slot("OTF_1006_WR_2", "Walking Recovery", 1, 1, "90 sec walking recovery; return to base when ready.", true, "Tread Recovery 2", "Recovery", 90, null, null, null, false, "90 sec WR"),
+
+                Slot("OTF_1006_T3_INC_6A", "Treadmill Incline", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Strength", 60, null, 6m, null, false, "1 min @ 6%"),
+                Slot("OTF_1006_T3_INC_4A", "Treadmill Incline", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Strength", 60, null, 4m, null, false, "1 min @ 4%"),
+                Slot("OTF_1006_T3_INC_2", "Treadmill Incline", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Strength", 60, null, 2m, null, false, "1 min @ 2%"),
+                Slot("OTF_1006_T3_INC_4B", "Treadmill Incline", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Strength", 60, null, 4m, null, false, "1 min @ 4%"),
+                Slot("OTF_1006_T3_INC_6B", "Treadmill Incline", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Strength", 60, null, 6m, null, false, "1 min @ 6%"),
+                Slot("OTF_1006_T3_FLAT", "Treadmill", 1, 1, "Tread Block 3.", true, "Tread Block 3", "Strength", 90, null, 1m, null, false, "90 sec @ 1%"),
+
+                Slot("OTF_1006_F1_VUP", "Bodyweight Full V-Up", 1, 25, "Floor Block 1 coach-choice buy-in: perform this OR the 500 m push row once.", false, "Floor Block 1", "Coach Choice", null, null, null, null, false, "25 reps OR 500 m push row"),
+                Slot("OTF_1006_F1_ROW", "Row", 1, 1, "Floor Block 1 coach-choice buy-in: perform this OR 25 full V-ups once.", true, "Floor Block 1", "Coach Choice", null, 500m, null, null, false, "500 m push row OR 25 V-ups"),
+                Slot("OTF_1006_F1_TAP_FRONT_SQUAT", "Dumbbell Tap Front Squat", 3, 8, "AMRAP with rest; repeat until the 7-minute block ends. Three rounds are an estimation anchor, not a published round count.", false, "Floor Block 1", "Work / Rest", 420, null, null, 3, true, "AMRAP + rest; ~3 rounds for calculation"),
+
+                Slot("OTF_1006_F2_SKIER", "Skier Swing", 1, 25, "Floor Block 2 coach-choice buy-in: perform this OR the 250 m all-out row once.", false, "Floor Block 2", "Coach Choice", null, null, null, null, false, "25 reps OR 250 m AO row"),
+                Slot("OTF_1006_F2_ROW", "Row", 1, 1, "Floor Block 2 coach-choice buy-in: perform this OR 25 skier swings once.", true, "Floor Block 2", "Coach Choice", null, 250m, null, null, false, "250 m AO row OR 25 skier swings"),
+                Slot("OTF_1006_F2_SNATCH", "Single Arm Snatch", 3, 10, "5 each side; paired with squat jumps; repeat circuit until time. Three rounds used only as an estimation anchor.", false, "Floor Block 2", "Circuit", 420, null, null, 3, true, "5/side x ~3 rounds"),
+                Slot("OTF_1006_F2_SQUAT_JUMP", "Bodyweight Squat Jump", 3, 5, "Back-to-back with snatches; rest after pair.", false, "Floor Block 2", "Circuit", 420, null, null, 3, true, "5 reps x ~3 rounds"),
+                Slot("OTF_1006_F2_LUNGE_CLEAN", "Dumbbell Lateral Lunge to Single Arm Clean", 3, 10, "5 each side; paired with speed skaters; repeat circuit until time.", false, "Floor Block 2", "Circuit", 420, null, null, 3, true, "5/side x ~3 rounds"),
+                Slot("OTF_1006_F2_SPEED_SKATER", "Speed Skater", 3, 10, "10 total; back-to-back with lateral lunge to clean; rest after pair.", false, "Floor Block 2", "Circuit", 420, null, null, 3, true, "10 total x ~3 rounds"),
+
+                Slot("OTF_1006_F3_CHEST_PRESS", "Chest Press", 1, 25, "Floor Block 3 coach-choice buy-in: perform this OR the 250 m row once.", false, "Floor Block 3", "Coach Choice", null, null, null, null, false, "25 reps OR 250 m row"),
+                Slot("OTF_1006_F3_ROW", "Row", 1, 1, "Floor Block 3 coach-choice buy-in: perform this OR 25 chest presses once; row at 20-24 spm.", true, "Floor Block 3", "Coach Choice", null, 250m, null, null, false, "250 m @ 20-24 spm OR 25 chest presses"),
+                Slot("OTF_1006_F3_PULLOVER", "Dumbbell Bench Pullover", 3, 6, "6 reps, rest; repeat until finisher. Three rounds used only as an estimation anchor.", false, "Floor Block 3", "Work / Rest", 390, null, null, 3, true, "6 reps + rest; ~3 rounds"),
+                Slot("OTF_1006_F3_BURPEE", "Full Burpee", 1, 1, "Finisher work interval.", false, "Floor Block 3", "Finisher", 60, null, null, null, false, "1 min"),
+                Slot("OTF_1006_F3_WALKOUT", "Walkout", 1, 1, "Finisher active-recovery interval.", false, "Floor Block 3", "Finisher", 90, null, null, null, false, "90 sec")
+            ],
+            GroupName: "Orangetheory",
+            PlannedMinutes: 60m);
+
+    internal static SystemWorkoutRecipe Create20261006Strength50Recipe()
+        => new SystemWorkoutRecipe(
+            "OTF_STRENGTH50_2026_10_06",
+            "OTF Strength 50 Lower - 2026-10-06",
+            "RESISTANCE_CIRCUIT",
+            "October 6 Strength 50 Lower Body template. Published 9:30, 22:30, and 3:00 blocks are preserved. Community correction is reflected: the first block uses a lateral shift rather than a lateral lunge, the second block uses the lateral step-over variation, and the final bridge interval is noted as 90 seconds.",
+            [
+                Slot("OTF_S50_1006_HIGH_PLANK_KNEE_DRIVE", "High Plank Knee Drive", 3, 12, "9:30 block; repeat circuit until time.", false, "Block 1 - 9:30", "Circuit", 570, null, null, 3, true, "12 reps x ~3 rounds"),
+                Slot("OTF_S50_1006_SIDE_PLANK_LEG_LIFT", "Side Plank With Leg Lift", 3, 12, "9:30 block; 12 total/side as coached; repeat circuit until time.", false, "Block 1 - 9:30", "Circuit", 570, null, null, 3, true, "12 reps x ~3 rounds"),
+                Slot("OTF_S50_1006_DB_BRIDGE_BENCH", "Dumbbell Bridge With Back On Bench", 3, 12, "9:30 block; repeat circuit until time.", false, "Block 1 - 9:30", "Circuit", 570, null, null, 3, true, "12 reps x ~3 rounds"),
+                Slot("OTF_S50_1006_LATERAL_SHIFT", "Single Dumbbell Alternating Lateral Shift", 3, 12, "9:30 block. Community correction: lateral shift, not lateral lunge.", false, "Block 1 - 9:30", "Circuit", 570, null, null, 3, true, "12 total x ~3 rounds"),
+
+                Slot("OTF_S50_1006_REV_LUNGE_ROTATION", "Goblet Alternating Reverse Lunge With Torso Rotation", 3, 12, "22:30 block; repeat long strength circuit until time.", false, "Block 2 - 22:30", "Strength Circuit", 1350, null, null, 3, true, "12 total x ~3 rounds"),
+                Slot("OTF_S50_1006_STEP_UP", "Dumbbell Bench Step-Up", 3, 12, "22:30 block; 12 total.", false, "Block 2 - 22:30", "Strength Circuit", 1350, null, null, 3, true, "12 total x ~3 rounds"),
+                Slot("OTF_S50_1006_REV_LUNGE_STEP_OVER", "Goblet Reverse Lunge With Torso Rotation to Lateral Step-Over", 3, 12, "22:30 block; 6 each side. Community follow-up described the lateral movement as a step-over variation.", false, "Block 2 - 22:30", "Strength Circuit", 1350, null, null, 3, true, "6/side x ~3 rounds"),
+                Slot("OTF_S50_1006_SUMO_SQUAT", "Sumo Squat", 3, 5, "22:30 block.", false, "Block 2 - 22:30", "Strength Circuit", 1350, null, null, 3, true, "5 reps x ~3 rounds"),
+                Slot("OTF_S50_1006_SUMO_DEADLIFT", "Sumo Deadlift", 3, 5, "22:30 block.", false, "Block 2 - 22:30", "Strength Circuit", 1350, null, null, 3, true, "5 reps x ~3 rounds"),
+                Slot("OTF_S50_1006_SUMO_COMBO", "Sumo Squat to Deadlift Combo", 3, 5, "22:30 block.", false, "Block 2 - 22:30", "Strength Circuit", 1350, null, null, 3, true, "5 reps x ~3 rounds"),
+
+                Slot("OTF_S50_1006_FINISH_PLANK_1", "High Plank Cross Knee Drive", 1, 1, "Final 3-minute block, first interval.", false, "Finisher - 3:00", "Finisher", 60, null, null, null, false, "1 min"),
+                Slot("OTF_S50_1006_FINISH_BRIDGE", "Dumbbell Bridge With Alternating Knee Lift", 1, 1, "Final block. Community correction reports this bridge interval as 90 seconds.", false, "Finisher - 3:00", "Finisher", 90, null, null, null, false, "90 sec"),
+                Slot("OTF_S50_1006_FINISH_PLANK_2", "High Plank Cross Knee Drive", 1, 1, "Final plank interval; preserve coach timing if studio demo differs.", false, "Finisher - 3:00", "Finisher", 30, null, null, null, false, "30 sec to complete 3:00 block")
+            ],
+            GroupName: "Orangetheory",
+            PlannedMinutes: 50m);
+
     private static SystemWorkoutExerciseSlot Slot(
         string slotCode,
         string exerciseName,
