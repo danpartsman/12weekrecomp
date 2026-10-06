@@ -140,72 +140,68 @@ public sealed class TestDiagnosticsController(
         Guid userId,
         CancellationToken cancellationToken)
     {
-        var connection = db.Database.GetDbConnection();
-        var closeWhenDone = connection.State != ConnectionState.Open;
+        long total = 0;
 
-        if (closeWhenDone)
-            await connection.OpenAsync(cancellationToken);
+        var accessRows = await db.UserClientAccess
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .ToListAsync(cancellationToken);
 
-        try
+        total += accessRows.Count;
+
+        var clientIds = accessRows
+            .Select(x => x.ClientId)
+            .Distinct()
+            .ToArray();
+
+        if (clientIds.Length > 0)
         {
-            var references = new List<(string Schema, string Table, string Column)>();
-
-            await using (var metadata = connection.CreateCommand())
-            {
-                metadata.CommandText = """
-                    SELECT
-                        OBJECT_SCHEMA_NAME(fkc.parent_object_id) AS schema_name,
-                        OBJECT_NAME(fkc.parent_object_id) AS table_name,
-                        COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS column_name
-                    FROM sys.foreign_key_columns AS fkc
-                    WHERE fkc.referenced_object_id = OBJECT_ID(N'app.UserAccounts')
-                      AND COL_NAME(
-                            fkc.referenced_object_id,
-                            fkc.referenced_column_id) = N'user_id'
-                      AND NOT (
-                            OBJECT_SCHEMA_NAME(fkc.parent_object_id) = N'app'
-                            AND OBJECT_NAME(fkc.parent_object_id) = N'LocalAuthCredentials'
-                      );
-                    """;
-
-                await using var reader =
-                    await metadata.ExecuteReaderAsync(cancellationToken);
-
-                while (await reader.ReadAsync(cancellationToken))
-                {
-                    references.Add((
-                        reader.GetString(0),
-                        reader.GetString(1),
-                        reader.GetString(2)));
-                }
-            }
-
-            long total = 0;
-
-            foreach (var reference in references)
-            {
-                await using var count = connection.CreateCommand();
-                count.CommandText =
-                    $"SELECT COUNT_BIG(*) FROM [{reference.Schema.Replace("]", "]]", StringComparison.Ordinal)}].[{reference.Table.Replace("]", "]]", StringComparison.Ordinal)}] WHERE [{reference.Column.Replace("]", "]]", StringComparison.Ordinal)}] = @userId;";
-
-                var parameter = count.CreateParameter();
-                parameter.ParameterName = "@userId";
-                parameter.Value = userId;
-                count.Parameters.Add(parameter);
-
-                var scalar = await count.ExecuteScalarAsync(cancellationToken);
-                total += scalar is null || scalar is DBNull
-                    ? 0
-                    : Convert.ToInt64(scalar);
-            }
-
-            return total;
+            total += await db.Programs.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
+            total += await db.Measurements.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
+            total += await db.DailyCheckins.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
+            total += await db.PlannedWorkouts.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
+            total += await db.WorkoutSessions.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
+            total += await db.NutritionDays.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
+            total += await db.AnalysisRuns.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
+            total += await db.Recommendations.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
+            total += await db.WorkoutTemplates.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
+            total += await db.ClientExercisePreferences.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
+            total += await db.ClientOccupationalActivities.AsNoTracking()
+                .LongCountAsync(x => clientIds.Contains(x.ClientId), cancellationToken);
         }
-        finally
-        {
-            if (closeWhenDone)
-                await connection.CloseAsync();
-        }
+
+        total += await db.ProgramPlanChanges.AsNoTracking()
+            .LongCountAsync(x => x.ChangedByUserId == userId, cancellationToken);
+        total += await db.UserEntitlements.AsNoTracking()
+            .LongCountAsync(x => x.UserId == userId, cancellationToken);
+        total += await db.PromoCodeRedemptions.AsNoTracking()
+            .LongCountAsync(x => x.UserId == userId, cancellationToken);
+        total += await db.DemoWorkspaces.AsNoTracking()
+            .LongCountAsync(x => x.UserId == userId || x.ConvertedToUserId == userId, cancellationToken);
+        total += await db.DemoInvites.AsNoTracking()
+            .LongCountAsync(x => x.CreatedByUserId == userId, cancellationToken);
+        total += await db.GiveawayCodeBatches.AsNoTracking()
+            .LongCountAsync(x => x.CreatedByUserId == userId, cancellationToken);
+        total += await db.GiveawayCodes.AsNoTracking()
+            .LongCountAsync(x => x.RedeemedByUserId == userId || x.RevokedByUserId == userId, cancellationToken);
+        total += await db.PromoCodes.AsNoTracking()
+            .LongCountAsync(x => x.CreatedByUserId == userId, cancellationToken);
+        total += await db.ContactSettings.AsNoTracking()
+            .LongCountAsync(x => x.UpdatedByUserId == userId, cancellationToken);
+        total += await db.ContactMessages.AsNoTracking()
+            .LongCountAsync(x => x.ReadByUserId == userId || x.ArchivedByUserId == userId, cancellationToken);
+
+        return total;
     }
 
     private async Task<bool> LocalCredentialExistsAsync(Guid userId, CancellationToken cancellationToken)
