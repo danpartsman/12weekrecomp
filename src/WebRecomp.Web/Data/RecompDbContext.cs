@@ -6,6 +6,7 @@ namespace WebRecomp.Web.Data;
 public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) : DbContext(options)
 {
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+    public DbSet<LearningCoachPreference> LearningCoachPreferences => Set<LearningCoachPreference>();
     public DbSet<LearningSeriesProgress> LearningSeriesProgress => Set<LearningSeriesProgress>();
     public DbSet<LearningInteraction> LearningInteractions => Set<LearningInteraction>();
     public DbSet<Client> Clients => Set<Client>();
@@ -147,10 +148,16 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
             "app",
             nameof(ContactMessage.ContactMessageId));
 
-        modelBuilder.Entity<UserAccount>()
+        modelBuilder.Entity<LearningCoachPreference>()
             .Property(x => x.PreferredCoachCode)
             .HasMaxLength(30)
             .IsUnicode(false);
+
+        modelBuilder.Entity<LearningCoachPreference>()
+            .HasOne<UserAccount>()
+            .WithOne()
+            .HasForeignKey<LearningCoachPreference>(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<LearningSeriesProgress>()
             .Property(x => x.SeriesCode)
