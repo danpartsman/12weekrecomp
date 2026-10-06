@@ -129,3 +129,44 @@ body.test-live-preview.journey-dashboard .recomp-dashboard
         pointer-events: none !important;
     }
 }
+
+
+/* v1015 mobile Marisol pane — independent of hidden/background artwork */
+body.test-live-preview.journey-dashboard .recomp-dashboard
+.journey-coach-mobile-marisol {
+    display: none;
+}
+
+@media (max-width: 940px) {
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > .journey-coach-p8__bg {
+        opacity: 0 !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > .journey-coach-mobile-marisol {
+        position: absolute !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        z-index: 3 !important;
+        display: block !important;
+        width: 34% !important;
+        min-width: 333px !important;
+        pointer-events: none !important;
+        background-image: var(--marisol-artwork) !important;
+        background-repeat: no-repeat !important;
+        background-position: left top !important;
+        background-size: 980px 620px !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > .journey-coach-p8__panel {
+        z-index: 4 !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > .journey-coach-p10__left-tag {
+        z-index: 5 !important;
+    }
+}
