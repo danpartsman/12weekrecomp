@@ -85,7 +85,19 @@ jobs:
       - name: Verify v1015c learning schema
         shell: pwsh
         run: |
-          $uri = "https://test.12weekrecomp.com/TestDiagnostics/LearningSchemaState"
+          $defaultHost = az webapp show `
+              --name recomp-test `
+              --resource-group $env:RECOMP_TEST_RG `
+              --query defaultHostName `
+              -o tsv
+
+          if ([string]::IsNullOrWhiteSpace($defaultHost)) {
+              throw "Could not resolve recomp-test defaultHostName."
+          }
+
+          $uri = "https://$defaultHost/TestDiagnostics/LearningSchemaState"
+          Write-Host "Checking v1015c schema through Azure default host: $defaultHost"
+
           $deadline = (Get-Date).AddMinutes(3)
           $state = $null
 
