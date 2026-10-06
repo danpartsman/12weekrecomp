@@ -4,6 +4,7 @@ using WebRecomp.Web.Models;
 using WebRecomp.Web.ViewModels;
 using WebRecomp.Web.Services.Engine;
 using WebRecomp.Web.Services.Engine30;
+using WebRecomp.Web.Services.Learning;
 
 namespace WebRecomp.Web.Services;
 
@@ -15,7 +16,8 @@ public sealed class DashboardService(
     Engine30WorkoutUiCatalogService engine30WorkoutCatalog,
     Engine30TrainingLoadRecoveryService trainingLoadRecovery,
     WorkoutActualService workoutActuals,
-    IRecompRecommendationEngine recommendationEngine)
+    IRecompRecommendationEngine recommendationEngine,
+    LearningOrchestratorService learning)
 {
     public async Task<DashboardViewModel> BuildAsync(
         AppClientContext context,
@@ -441,9 +443,9 @@ public sealed class DashboardService(
             ProgramWeek = Math.Max(1, (actionDate.DayNumber - program.StartDate.DayNumber) / 7 + 1),
             PlanCode = actionPlanCode,
             PreferredCoachCode =
-                string.IsNullOrWhiteSpace(context.User.PreferredCoachCode)
-                    ? "MARISOL"
-                    : context.User.PreferredCoachCode.Trim().ToUpperInvariant(),
+                await learning.GetPreferredCoachCodeAsync(
+                    context.User.UserId,
+                    cancellationToken),
             Engine30VersionCode = engine30Projection.Today.EngineVersionCode,
             Engine30ConfigVersionCode = engine30Projection.Today.ConfigVersionCode,
             Engine30WorkoutProfileVersionCode = engine30Projection.Today.WorkoutProfileVersionCode,
