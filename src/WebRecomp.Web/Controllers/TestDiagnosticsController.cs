@@ -202,6 +202,84 @@ public sealed class TestDiagnosticsController(
     }
 
     [AllowAnonymous]
+    [HttpGet("/TestDiagnostics/LearningSchemaState")]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public async Task<IActionResult> LearningSchemaState(
+        CancellationToken cancellationToken)
+    {
+        var host =
+            Request.Host.Host
+                .Trim()
+                .ToLowerInvariant();
+
+        if (host is not ("test.12weekrecomp.com" or "recomp-test.azurewebsites.net"))
+            return NotFound();
+
+        var connection =
+            db.Database.GetDbConnection();
+
+        var closeWhenDone =
+            connection.State != ConnectionState.Open;
+
+        if (closeWhenDone)
+            await connection.OpenAsync(cancellationToken);
+
+        try
+        {
+            await using var command =
+                connection.CreateCommand();
+
+            command.CommandText =
+                """
+                SELECT
+                    CASE WHEN OBJECT_ID('app.LearningCoachPreferences', 'U') IS NULL THEN 0 ELSE 1 END,
+                    CASE WHEN OBJECT_ID('app.LearningSeriesProgress', 'U') IS NULL THEN 0 ELSE 1 END,
+                    CASE WHEN OBJECT_ID('app.LearningInteractions', 'U') IS NULL THEN 0 ELSE 1 END;
+                """;
+
+            await using var reader =
+                await command.ExecuteReaderAsync(
+                    cancellationToken);
+
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                return Json(new
+                {
+                    ready = false,
+                    coachPreferences = false,
+                    seriesProgress = false,
+                    interactions = false
+                });
+            }
+
+            var coachPreferences =
+                reader.GetInt32(0) == 1;
+
+            var seriesProgress =
+                reader.GetInt32(1) == 1;
+
+            var interactions =
+                reader.GetInt32(2) == 1;
+
+            return Json(new
+            {
+                ready =
+                    coachPreferences
+                    && seriesProgress
+                    && interactions,
+                coachPreferences,
+                seriesProgress,
+                interactions
+            });
+        }
+        finally
+        {
+            if (closeWhenDone)
+                await connection.CloseAsync();
+        }
+    }
+
+    [AllowAnonymous]
     [IgnoreAntiforgeryToken]
     [HttpPost("/TestDiagnostics/DeleteEmptyBootstrapDuplicate")]
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
