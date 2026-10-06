@@ -32,7 +32,7 @@ public sealed class Engine30WorkoutRuntimeServiceTests
     [Fact]
     public async Task ActiveAdminGlycogenCalibration_ChangesRuntimeGlycogen()
     {
-        var low = CardioProfile(kcalPerMinute: 6m, depletion: 0.08m);
+        var low = CardioProfile(kcalPerMinute: 6m, depletion: 0.04m);
         var high = CardioProfile(kcalPerMinute: 6m, depletion: 0.18m);
 
         var lowResult = await Calculate(low, "E30-ZONE2_CARDIO-V0004");
@@ -114,13 +114,9 @@ public sealed class Engine30WorkoutRuntimeServiceTests
             "SUBSTRATE_PARTITION_BOUND_APPLIED",
             result.GlycogenReconciliationCode);
 
-        var substrateCeilingG =
-            substrate.EstimatedMuscleGlycogenG
-            * 1.20m;
-
         Assert.True(
             result.Glycogen.EstimatedGlycogenDepletedG
-            <= substrateCeilingG + 0.02m);
+            <= substrate.EstimatedMuscleGlycogenG + 0.02m);
     }
 
     [Fact]
@@ -155,6 +151,39 @@ public sealed class Engine30WorkoutRuntimeServiceTests
         Assert.True(
             last.BloodGlucoseFraction
             > first.BloodGlucoseFraction);
+    }
+
+    [Fact]
+    public async Task ThreeHourModerateCardio_DoesNotRepeatFirstHourFuelMix()
+    {
+        var result =
+            await Calculate(
+                CardioProfile(
+                    kcalPerMinute: 7m,
+                    depletion: 0.25m),
+                "E30-ZONE2_CARDIO-V0018",
+                plannedMinutes: 180m);
+
+        var blocks =
+            Assert.Single(
+                result.SubstratePartition!.Segments)
+                .Blocks;
+
+        var firstThirty =
+            blocks
+                .Where(x => x.EndMinute <= 30m)
+                .Average(x => x.MuscleGlycogenFraction);
+
+        var finalThirty =
+            blocks
+                .Where(x => x.StartMinute >= 150m)
+                .Average(x => x.MuscleGlycogenFraction);
+
+        Assert.True(finalThirty < firstThirty * 0.55m);
+
+        Assert.True(
+            result.Glycogen.EstimatedGlycogenDepletedG
+            <= result.SubstratePartition.EstimatedMuscleGlycogenG + 0.02m);
     }
 
     [Fact]
