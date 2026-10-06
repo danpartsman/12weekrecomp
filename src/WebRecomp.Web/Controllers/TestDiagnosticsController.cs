@@ -72,6 +72,8 @@ public sealed class TestDiagnosticsController(
         if (matches.Length != 1)
         {
             var candidates = new List<object>();
+            var candidateStates = new List<(UserAccount User, bool HasCredential, long References)>();
+
             for (var i = 0; i < matches.Length; i++)
             {
                 var candidate = matches[i];
@@ -91,6 +93,8 @@ public sealed class TestDiagnosticsController(
                         candidate.UserId,
                         cancellationToken);
 
+                candidateStates.Add((candidate, hasCredential, applicationReferenceCount));
+
                 candidates.Add(new
                 {
                     slot = i + 1,
@@ -104,11 +108,71 @@ public sealed class TestDiagnosticsController(
                 });
             }
 
+            if (candidateStates.Count == 2)
+            {
+                var empty = candidateStates.SingleOrDefault(x =>
+                    x.References == 0
+                    && !x.HasCredential);
+
+                var keeper = candidateStates.SingleOrDefault(x =>
+                    x.References > 0
+                    && x.HasCredential);
+
+                if (empty.User is not null && keeper.User is not null)
+                {
+                    var strategy = db.Database.CreateExecutionStrategy();
+
+                    await strategy.ExecuteAsync(async () =>
+                    {
+                        await using var transaction =
+                            await db.Database.BeginTransactionAsync(cancellationToken);
+
+                        await db.Database.ExecuteSqlInterpolatedAsync(
+                            $"""
+                            DELETE FROM app.LocalAuthCredentials
+                            WHERE UserId = {empty.User.UserId};
+                            """,
+                            cancellationToken);
+
+                        var deletedRows = await db.Database.ExecuteSqlInterpolatedAsync(
+                            $"""
+                            DELETE FROM app.UserAccounts
+                            WHERE user_id = {empty.User.UserId};
+                            """,
+                            cancellationToken);
+
+                        if (deletedRows != 1)
+                            throw new InvalidOperationException(
+                                $"Expected one duplicate UserAccount row to be deleted, but deleted {deletedRows}.");
+
+                        await transaction.CommitAsync(cancellationToken);
+                    });
+
+                    return Json(new
+                    {
+                        configured = true,
+                        matchCount = 1,
+                        userExists = true,
+                        cleanupPerformed = true,
+                        accountStatus = keeper.User.AccountStatusCode,
+                        subjectType = "LOCAL",
+                        hasLocalCredential = keeper.HasCredential,
+                        applicationReferenceCount = keeper.References,
+                        resetEligible = string.Equals(
+                            keeper.User.AccountStatusCode,
+                            "ACTIVE",
+                            StringComparison.OrdinalIgnoreCase),
+                        contactEmailPresent = !string.IsNullOrWhiteSpace(keeper.User.ContactEmail)
+                    });
+                }
+            }
+
             return Json(new
             {
                 configured = true,
                 matchCount = matches.Length,
                 userExists = matches.Length > 0,
+                cleanupPerformed = false,
                 candidates
             });
         }
