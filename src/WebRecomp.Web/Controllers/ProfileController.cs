@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Services;
+using WebRecomp.Web.Services.Learning;
 using WebRecomp.Web.ViewModels;
 
 namespace WebRecomp.Web.Controllers;
@@ -136,6 +137,9 @@ public sealed class ProfileController(
             ThemeCode = string.IsNullOrWhiteSpace(context.User.ThemeCode)
                 ? "SYSTEM"
                 : context.User.ThemeCode.ToUpperInvariant(),
+            PreferredCoachCode =
+                CoachCatalog.Resolve(
+                    context.User.PreferredCoachCode).Code,
             HasActiveProgram = context.Program is not null,
             DetailedWorkoutEntryEnabled =
                 context.Program?.DetailedWorkoutEntryEnabled ?? false,
@@ -154,6 +158,17 @@ public sealed class ProfileController(
         if (!new[] { "SYSTEM", "LIGHT", "DARK" }.Contains(model.ThemeCode))
             ModelState.AddModelError(nameof(model.ThemeCode), "Choose System, Light, or Dark.");
 
+        model.PreferredCoachCode =
+            CoachCatalog.Resolve(
+                model.PreferredCoachCode).Code;
+
+        if (!CoachCatalog.IsValid(model.PreferredCoachCode))
+        {
+            ModelState.AddModelError(
+                nameof(model.PreferredCoachCode),
+                "Choose one of the available coaches.");
+        }
+
         if (!ModelState.IsValid)
         {
             model.SignInEmail = context.User.EmailNormalized;
@@ -168,6 +183,7 @@ public sealed class ProfileController(
             ? null
             : model.ContactEmail.Trim();
         context.User.ThemeCode = model.ThemeCode;
+        context.User.PreferredCoachCode = model.PreferredCoachCode;
         context.User.UpdatedAtUtc = DateTime.UtcNow;
 
         if (context.Program is not null)
