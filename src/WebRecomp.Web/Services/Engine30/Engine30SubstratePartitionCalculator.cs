@@ -485,10 +485,10 @@ public sealed class Engine30SubstratePartitionCalculator
                 elapsedMidpointMinutes,
                 maximumRelativeGlycogenReduction:
                     intensity < 0.75m
-                        ? 0.50m
+                        ? 0.65m
                         : intensity < 0.85m
-                            ? 0.35m
-                            : 0.20m);
+                            ? 0.50m
+                            : 0.30m);
 
         var proteinTarget =
             EnduranceProteinFraction(
@@ -608,9 +608,19 @@ public sealed class Engine30SubstratePartitionCalculator
          * rather than multiplying the first 10 minutes across the entire
          * workout.
          */
+        /*
+         * The classic tracer data show a large fall in muscle-glycogen
+         * contribution across the first ~2 h of moderate exercise. v1015A
+         * extends the transition through 3 h rather than freezing the 120-min
+         * partition and repeating it for every later minute.
+         *
+         * This is a constrained engineering interpolation around the human
+         * tracer evidence, not a claim that every athlete follows an identical
+         * three-hour curve.
+         */
         var progression =
             Clamp(
-                (elapsedMidpointMinutes - 30m) / 90m,
+                (elapsedMidpointMinutes - 30m) / 150m,
                 0m,
                 1m);
 
