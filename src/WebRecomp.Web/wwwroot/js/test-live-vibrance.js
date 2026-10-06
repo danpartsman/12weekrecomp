@@ -345,7 +345,10 @@
              * card background.
              */
             if (coach.classList.contains("journey-coach-horizontal-swipe")) {
-                setImportant(image, "opacity", "0");
+                /*
+                 * Pass 10 deliberately keeps the real artwork image visible
+                 * on phones so Marisol remains part of the swipe composition.
+                 */
                 return true;
             }
 
