@@ -136,6 +136,97 @@ public sealed class TestDiagnosticsController(
         });
     }
 
+    [AllowAnonymous]
+    [IgnoreAntiforgeryToken]
+    [HttpPost("/TestDiagnostics/DeleteEmptyBootstrapDuplicate")]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public async Task<IActionResult> DeleteEmptyBootstrapDuplicate(
+        CancellationToken cancellationToken)
+    {
+        var host = Request.Host.Host.Trim().ToLowerInvariant();
+        if (host is not ("test.12weekrecomp.com" or "recomp-test.azurewebsites.net"))
+            return NotFound();
+
+        var configuredHash = configuration["WebRecomp:BootstrapAdministratorEmailSha256"]?
+            .Trim()
+            .ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(configuredHash))
+            return Json(new { deleted = false, reason = "not_configured" });
+
+        var users = await db.UserAccounts
+            .Where(x => x.EmailNormalized != null)
+            .Take(2000)
+            .ToListAsync(cancellationToken);
+
+        var matches = users
+            .Where(x => FixedTimeHexEquals(
+                Sha256Hex(x.EmailNormalized!.Trim().ToLowerInvariant()),
+                configuredHash))
+            .ToArray();
+
+        if (matches.Length != 2)
+            return Json(new { deleted = false, reason = "match_count", matchCount = matches.Length });
+
+        var firstRefs = await CountApplicationReferencesAsync(matches[0].UserId, cancellationToken);
+        var secondRefs = await CountApplicationReferencesAsync(matches[1].UserId, cancellationToken);
+        var firstCredential = await LocalCredentialExistsAsync(matches[0].UserId, cancellationToken);
+        var secondCredential = await LocalCredentialExistsAsync(matches[1].UserId, cancellationToken);
+
+        UserAccount? duplicate = null;
+
+        if (firstRefs == 0 && !firstCredential && secondRefs > 0 && secondCredential)
+            duplicate = matches[0];
+        else if (secondRefs == 0 && !secondCredential && firstRefs > 0 && firstCredential)
+            duplicate = matches[1];
+
+        if (duplicate is null)
+        {
+            return Json(new
+            {
+                deleted = false,
+                reason = "ambiguous",
+                firstReferences = firstRefs,
+                secondReferences = secondRefs,
+                firstHasCredential = firstCredential,
+                secondHasCredential = secondCredential
+            });
+        }
+
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction =
+                await db.Database.BeginTransactionAsync(cancellationToken);
+
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                DELETE FROM app.LocalAuthCredentials
+                WHERE UserId = {duplicate.UserId};
+                """,
+                cancellationToken);
+
+            var deletedRows = await db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                DELETE FROM app.UserAccounts
+                WHERE user_id = {duplicate.UserId};
+                """,
+                cancellationToken);
+
+            if (deletedRows != 1)
+                throw new InvalidOperationException(
+                    $"Expected one duplicate UserAccount row to be deleted, but deleted {deletedRows}.");
+
+            await transaction.CommitAsync(cancellationToken);
+        });
+
+        return Json(new
+        {
+            deleted = true,
+            preservedAccountReferences = Math.Max(firstRefs, secondRefs)
+        });
+    }
+
     private async Task<long> CountApplicationReferencesAsync(
         Guid userId,
         CancellationToken cancellationToken)
