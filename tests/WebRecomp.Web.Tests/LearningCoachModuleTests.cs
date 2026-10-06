@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using WebRecomp.Web.Data;
+using WebRecomp.Web.Models;
 using WebRecomp.Web.Services.Learning;
 using Xunit;
 
@@ -80,6 +84,36 @@ public sealed class LearningCoachModuleTests
         Assert.Contains("preferred_coach_code", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("LearningSeriesProgress", sql, StringComparison.Ordinal);
         Assert.Contains("LearningInteractions", sql, StringComparison.Ordinal);
+    }
+
+
+    [Theory]
+    [InlineData(typeof(LearningCoachPreference), "LearningCoachPreferences", "UserId", "user_id")]
+    [InlineData(typeof(LearningSeriesProgress), "LearningSeriesProgress", "LearningSeriesProgressId", "learning_series_progress_id")]
+    [InlineData(typeof(LearningInteraction), "LearningInteractions", "LearningInteractionId", "learning_interaction_id")]
+    public void SqlServerModel_ValidatesLearningEntitiesAgainstPersistentSchema(
+        Type entityType,
+        string tableName,
+        string keyProperty,
+        string keyColumn)
+    {
+        // Accessing Model runs the same provider validation used at startup,
+        // without opening a database connection.
+        var options = new DbContextOptionsBuilder<RecompDbContext>()
+            .UseSqlServer("Server=localhost;Database=ModelValidation;Integrated Security=true;TrustServerCertificate=true")
+            .Options;
+
+        using var db = new RecompDbContext(options);
+        var entity = db.Model.FindEntityType(entityType);
+        Assert.NotNull(entity);
+        Assert.Equal("app", entity.GetSchema());
+        Assert.Equal(tableName, entity.GetTableName());
+
+        var key = entity.FindPrimaryKey();
+        Assert.NotNull(key);
+        var property = Assert.Single(key.Properties);
+        Assert.Equal(keyProperty, property.Name);
+        Assert.Equal(keyColumn, property.GetColumnName(StoreObjectIdentifier.Table(tableName, "app")));
     }
 
     private static string FindRepoRoot()
