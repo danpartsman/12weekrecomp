@@ -15,6 +15,16 @@
              data-learning-coach
              data-content-code="@lesson.ContentCode"
              data-series-code="@lesson.SeriesCode">
+        <form asp-controller="Learning"
+              asp-action="Interact"
+              method="post"
+              data-learning-log-form
+              hidden>
+            <input type="hidden" name="contentCode" value="@lesson.ContentCode" />
+            <input type="hidden" name="surfaceCode" value="@lesson.SurfaceCode" />
+            <input type="hidden" name="interactionCode" value="" data-learning-interaction-code />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+        </form>
         @if (isFull)
         {
             <div class="learning-full-image">
