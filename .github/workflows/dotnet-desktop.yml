@@ -85,7 +85,7 @@ jobs:
       - name: Verify TEST duplicate admin cleanup
         shell: pwsh
         run: |
-          $uri = "https://recomp-test.azurewebsites.net/TestDiagnostics/BootstrapAuthState"
+          $uri = "https://test.12weekrecomp.com/TestDiagnostics/BootstrapAuthState"
           $state = $null
 
           for ($attempt = 1; $attempt -le 12; $attempt++) {
