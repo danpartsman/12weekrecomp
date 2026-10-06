@@ -131,22 +131,27 @@ public sealed class DashboardCoachResponsiveLayoutTests
                 "journey-v1012-pass10-opaque.css"));
 
         Assert.Contains(
-            "bg.src = artworkUrl",
+            "journey-coach-mobile-marisol",
             pass10,
             StringComparison.Ordinal);
 
         Assert.Contains(
-            ".journey-coach-horizontal-swipe > .journey-coach-p8__bg",
+            "coach.insertBefore",
+            pass10,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            ".journey-coach-horizontal-swipe > .journey-coach-mobile-marisol",
             css,
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "opacity: 1 !important",
+            "background-size: 980px 620px !important",
             css,
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "coach.scrollWidth * .08",
+            "scrollHost.scrollLeft = 0",
             pass10,
             StringComparison.Ordinal);
     }
