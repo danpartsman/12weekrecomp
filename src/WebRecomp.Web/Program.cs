@@ -137,6 +137,8 @@ builder.Services.AddDbContext<RecompDbContext>(options =>
 builder.Services.AddHostedService<LocalAuthSchemaHostedService>();
 builder.Services.AddScoped<IPasswordHasher<UserAccount>, PasswordHasher<UserAccount>>();
 builder.Services.AddScoped<LocalAuthService>();
+builder.Services.AddSingleton<LocalPasswordResetTokenService>();
+builder.Services.AddScoped<LocalPasswordResetService>();
 
 // v1011 Nutrition Intelligence composition root.
 // Nutrition Intelligence remains independent; Web owns provider wiring.

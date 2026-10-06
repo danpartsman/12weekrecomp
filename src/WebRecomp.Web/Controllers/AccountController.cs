@@ -14,7 +14,8 @@ namespace WebRecomp.Web.Controllers;
 public sealed class AccountController(
     PendingAccessCodeService pendingCodes,
     TestPersonaSessionService testPersonaSessions,
-    LocalAuthService localAuth) : Controller
+    LocalAuthService localAuth,
+    LocalPasswordResetService passwordReset) : Controller
 {
     [HttpGet]
     public IActionResult SignIn(string? returnUrl = null)
@@ -76,6 +77,131 @@ public sealed class AccountController(
     }
 
     [HttpGet]
+    public IActionResult ForgotPassword()
+    {
+        SetPublicAuthViewData();
+        return View(new LocalForgotPasswordViewModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("local-auth")]
+    public async Task<IActionResult> ForgotPassword(
+        LocalForgotPasswordViewModel model,
+        CancellationToken cancellationToken)
+    {
+        SetPublicAuthViewData();
+
+        if (!localAuth.IsAvailable)
+        {
+            AddNativeAuthUnavailableError();
+            return View(model);
+        }
+
+        if (!ModelState.IsValid)
+            return View(model);
+
+        var ticket =
+            await passwordReset.CreateTicketAsync(
+                model.Email,
+                cancellationToken);
+
+        if (ticket is not null)
+        {
+            var resetUrl =
+                BuildPasswordResetUrl(
+                    ticket.Token);
+
+            if (!string.IsNullOrWhiteSpace(resetUrl))
+            {
+                await passwordReset.SendResetEmailAsync(
+                    ticket,
+                    resetUrl,
+                    cancellationToken);
+            }
+        }
+
+        // Always show the same result. Do not reveal whether an account exists.
+        return RedirectToAction(
+            nameof(ForgotPasswordConfirmation));
+    }
+
+    [HttpGet]
+    public IActionResult ForgotPasswordConfirmation()
+    {
+        SetPublicAuthViewData();
+        return View();
+    }
+
+    [HttpGet]
+    public IActionResult ResetPassword(
+        string? token)
+    {
+        SetPublicAuthViewData();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return RedirectToAction(
+                nameof(ForgotPassword));
+        }
+
+        return View(
+            new LocalResetPasswordViewModel
+            {
+                Token = token
+            });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("local-auth")]
+    public async Task<IActionResult> ResetPassword(
+        LocalResetPasswordViewModel model,
+        CancellationToken cancellationToken)
+    {
+        SetPublicAuthViewData();
+
+        if (!localAuth.IsAvailable)
+        {
+            AddNativeAuthUnavailableError();
+            return View(model);
+        }
+
+        if (!ModelState.IsValid)
+            return View(model);
+
+        var result =
+            await passwordReset.ResetAsync(
+                model.Token,
+                model.Password,
+                cancellationToken);
+
+        switch (result.Status)
+        {
+            case LocalPasswordResetStatus.Success:
+                return RedirectToAction(
+                    nameof(ResetPasswordConfirmation));
+
+            case LocalPasswordResetStatus.Unavailable:
+                AddNativeAuthUnavailableError();
+                return View(model);
+
+            default:
+                ModelState.AddModelError(
+                    "",
+                    "This password reset link is invalid or has expired. Request a new reset link.");
+                return View(model);
+        }
+    }
+
+    [HttpGet]
+    public IActionResult ResetPasswordConfirmation()
+    {
+        SetPublicAuthViewData();
+        return View();
+    }
+
+    [HttpGet]
     public IActionResult CreateAccount(string? returnUrl = null)
     {
         if (User.Identity?.IsAuthenticated == true)
@@ -124,7 +250,7 @@ public sealed class AccountController(
             case LocalRegistrationStatus.ExistingExternalAccount:
                 ModelState.AddModelError(
                     nameof(model.Email),
-                    "That email is already associated with a 12 Week Recomp account. Please sign in or contact support.");
+                    "That email is already associated with a 12 Week Recomp account. Use Forgot password to create or reset its 12WR password.");
                 return View(model);
 
             case LocalRegistrationStatus.EmailConflict:
@@ -229,6 +355,34 @@ public sealed class AccountController(
 
     private const string NativeAuthUnavailableMessage =
         "12 Week Recomp account sign-in is temporarily unavailable. Please try again shortly.";
+
+    private string? BuildPasswordResetUrl(
+        string token)
+    {
+        var host =
+            Request.Host.Host
+                .Trim()
+                .ToLowerInvariant();
+
+        var knownHost =
+            host is "test.12weekrecomp.com"
+                or "12weekrecomp.com"
+                or "www.12weekrecomp.com"
+                or "recomp-test.azurewebsites.net"
+                or "recomp-live.azurewebsites.net"
+                or "localhost"
+                or "127.0.0.1";
+
+        if (!knownHost)
+            return null;
+
+        return Url.Action(
+            nameof(ResetPassword),
+            "Account",
+            new { token },
+            Request.Scheme,
+            Request.Host.Value);
+    }
 
     private string? SafeReturnUrl(string? returnUrl)
         => !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
