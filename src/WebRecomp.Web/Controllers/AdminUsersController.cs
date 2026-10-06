@@ -116,6 +116,106 @@ public sealed class AdminUsersController(RecompDbContext db) : Controller
         return RedirectToAction(nameof(Index), new { search });
     }
 
+    [HttpPost("{userId:guid}/update")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateUser(
+        Guid userId,
+        string? displayName,
+        string? email,
+        string? search,
+        CancellationToken cancellationToken)
+    {
+        var user = await db.UserAccounts.SingleOrDefaultAsync(
+            x => x.UserId == userId,
+            cancellationToken);
+
+        if (user is null)
+            return NotFound();
+
+        var normalizedEmail = (email ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            TempData["StatusMessage"] = "Email cannot be blank.";
+            return RedirectToAction(nameof(Index), new { search });
+        }
+
+        var conflict = await db.UserAccounts.AnyAsync(
+            x => x.UserId != userId && x.EmailNormalized == normalizedEmail,
+            cancellationToken);
+
+        if (conflict)
+        {
+            TempData["StatusMessage"] =
+                "That email is already used by another account. Change or delete the duplicate first.";
+            return RedirectToAction(nameof(Index), new { search });
+        }
+
+        var name = (displayName ?? string.Empty).Trim();
+        user.EmailNormalized = normalizedEmail;
+        user.ContactEmail = normalizedEmail;
+        user.DisplayName = string.IsNullOrWhiteSpace(name) ? null : name;
+        user.PreferredDisplayName = string.IsNullOrWhiteSpace(name) ? null : name;
+        user.UpdatedAtUtc = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        TempData["StatusMessage"] = "User account updated.";
+        return RedirectToAction(nameof(Index), new { search });
+    }
+
+    [HttpPost("{userId:guid}/delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteUser(
+        Guid userId,
+        string? search,
+        CancellationToken cancellationToken)
+    {
+        if (CurrentUserId() == userId)
+        {
+            TempData["StatusMessage"] =
+                "You cannot delete the administrator account you are currently using.";
+            return RedirectToAction(nameof(Index), new { search });
+        }
+
+        var user = await db.UserAccounts.SingleOrDefaultAsync(
+            x => x.UserId == userId,
+            cancellationToken);
+
+        if (user is null)
+            return RedirectToAction(nameof(Index), new { search });
+
+        try
+        {
+            var strategy = db.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction =
+                    await db.Database.BeginTransactionAsync(cancellationToken);
+
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                    DELETE FROM app.LocalAuthCredentials
+                    WHERE UserId = {userId};
+                    """,
+                    cancellationToken);
+
+                db.UserAccounts.Remove(user);
+                await db.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            });
+
+            TempData["StatusMessage"] =
+                "User account deleted.";
+        }
+        catch (DbException)
+        {
+            TempData["StatusMessage"] =
+                "That account still has 12WR data attached to it, so it was not deleted. Suspend it or move/clean up its data first.";
+        }
+
+        return RedirectToAction(nameof(Index), new { search });
+    }
+
     private Guid? CurrentUserId()
     {
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);
