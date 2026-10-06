@@ -208,6 +208,7 @@ builder.Services.AddScoped<ProgramPlanService>();
 builder.Services.AddScoped<WeeklyPlanService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<LearningOrchestratorService>();
+builder.Services.AddHostedService<LearningSchemaHostedService>();
 builder.Services.AddHttpClient<IEmailService, MicrosoftGraphEmailService>();
 
 // v1006 demo infrastructure.
