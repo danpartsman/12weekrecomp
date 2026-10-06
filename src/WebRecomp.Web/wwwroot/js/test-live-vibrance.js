@@ -54,7 +54,7 @@
 
     if (!document.querySelector('script[data-12wr-journey="v1012"]')) {
         const journeyScript = document.createElement("script");
-        journeyScript.src = "/js/journey-v1012.js?v=1015coachresponsive1";
+        journeyScript.src = "/js/journey-v1012.js?v=1015coachportrait1";
         journeyScript.dataset["12wrJourney"] = "v1012";
         document.head.appendChild(journeyScript);
     }
