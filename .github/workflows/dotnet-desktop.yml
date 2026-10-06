@@ -75,6 +75,39 @@ jobs:
               --level information `
               --web-server-logging filesystem | Out-Null
 
+
+      - name: Apply learning schema with TEST deployment identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ("${{ github.ref }}" -ne "refs/heads/test") {
+              throw "Learning schema migration is restricted to the TEST branch."
+          }
+
+          $connectionString = az webapp config connection-string list `
+              --name recomp-test `
+              --resource-group $env:RECOMP_TEST_RG `
+              --query "[?name=='RecompDatabase'].connectionString | [0]" `
+              --output tsv --only-show-errors
+
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($connectionString)) {
+              throw "Could not resolve the recomp-test database connection setting."
+          }
+
+          Write-Output "::add-mask::$connectionString"
+          $env:RECOMP_RUNTIME_CONNECTION_STRING = $connectionString
+
+          try {
+              dotnet run --project tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj `
+                  --configuration Release -- --learning-coach
+              if ($LASTEXITCODE -ne 0) {
+                  throw "TEST learning schema migration failed. The running application has not been replaced."
+              }
+          }
+          finally {
+              Remove-Item Env:RECOMP_RUNTIME_CONNECTION_STRING -ErrorAction SilentlyContinue
+          }
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
