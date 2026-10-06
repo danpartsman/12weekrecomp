@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Learning;
 
 namespace WebRecomp.Web.ViewComponents;
