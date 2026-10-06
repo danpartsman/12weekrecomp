@@ -1,0 +1,77 @@
+@model IReadOnlyList<WebRecomp.Web.Services.Learning.CoachProfile>
+@{
+    ViewData["Title"] = "Choose Your Coach";
+    var preferred = ViewData["PreferredCoachCode"] as string ?? "MARISOL";
+}
+
+<div class="page-head">
+    <div>
+        <div class="eyebrow">LEARNING · YOUR COACH</div>
+        <h1>Choose who teaches you.</h1>
+        <p class="lede">Your coach follows you through Dashboard lessons, nutrition topics, workout topics and “The Why” learning series.</p>
+    </div>
+    <a class="button" asp-controller="Profile" asp-action="Settings">Back to settings</a>
+</div>
+
+@if (TempData["StatusMessage"] is string status)
+{
+    <div class="status-card good">@status</div>
+}
+
+<div class="coach-gallery-page">
+    @foreach (var coach in Model)
+    {
+        var selected =
+            coach.Code.Equals(
+                preferred,
+                StringComparison.OrdinalIgnoreCase);
+
+        var images =
+            coach.GalleryImages
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Cast<string>()
+                .ToArray();
+
+        <section class="card coach-gallery-card @(selected ? "is-selected" : "")">
+            <div class="coach-gallery-heading">
+                <div>
+                    <div class="learning-kicker">@(selected ? "YOUR COACH" : "COACH")</div>
+                    <h2>@coach.Name</h2>
+                    <p>@coach.Tagline</p>
+                    <small>@coach.Style</small>
+                </div>
+
+                <form asp-action="ChooseCoach" method="post">
+                    <input type="hidden" name="coachCode" value="@coach.Code" />
+                    <button type="submit" class="@(selected ? "button" : "primary")">
+                        @(selected ? "Selected" : $"Choose {coach.Name}")
+                    </button>
+                </form>
+            </div>
+
+            <div class="coach-gallery-strip" aria-label="@coach.Name image gallery">
+                @if (images.Length > 0)
+                {
+                    @foreach (var image in images)
+                    {
+                        <figure><img src="@image" alt="@coach.Name coaching" /></figure>
+                    }
+                }
+                else
+                {
+                    @for (var i = 0; i < 5; i++)
+                    {
+                        <figure class="coach-gallery-placeholder" aria-label="Gallery image coming soon">
+                            <span>@coach.Name[0]</span>
+                            <small>Gallery @((i + 1).ToString())</small>
+                        </figure>
+                    }
+                }
+            </div>
+        </section>
+    }
+</div>
+
+<style>
+.coach-gallery-page{display:grid;gap:18px}.coach-gallery-card{border:1px solid rgba(84,192,229,.25)}.coach-gallery-card.is-selected{border-color:#53f29e;box-shadow:0 0 0 1px rgba(83,242,158,.16)}.coach-gallery-heading{display:flex;justify-content:space-between;gap:18px;align-items:center}.coach-gallery-heading h2{margin:.2rem 0}.coach-gallery-heading p{margin:.2rem 0}.coach-gallery-heading small{color:#9fb4c2}.coach-gallery-strip{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;overflow-x:auto;margin-top:14px;padding-bottom:4px}.coach-gallery-strip figure{margin:0;min-width:120px;height:190px;overflow:hidden;border-radius:14px;background:#07131d}.coach-gallery-strip img{width:100%;height:100%;display:block;object-fit:cover;object-position:center top}.coach-gallery-placeholder{display:grid;place-items:center;align-content:center;gap:4px;background:linear-gradient(145deg,#0b2736,#0d3b32)!important}.coach-gallery-placeholder span{font-size:2.3rem;font-weight:950;color:#dfff27}.coach-gallery-placeholder small{color:#a9c0cf}@media(max-width:720px){.coach-gallery-heading{align-items:flex-start;flex-direction:column}.coach-gallery-strip{grid-template-columns:repeat(5,150px)}}    
+</style>
