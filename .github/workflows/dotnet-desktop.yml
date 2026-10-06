@@ -82,6 +82,34 @@ jobs:
           slot-name: Production
           package: ./publish
 
+      - name: Verify v1015c learning schema
+        shell: pwsh
+        run: |
+          $uri = "https://test.12weekrecomp.com/TestDiagnostics/LearningSchemaState"
+          $deadline = (Get-Date).AddMinutes(3)
+          $state = $null
+
+          do {
+              try {
+                  $state = Invoke-RestMethod -Uri $uri -Method Get -TimeoutSec 20
+              }
+              catch {
+                  Start-Sleep -Seconds 6
+                  continue
+              }
+
+              if ($state.ready -eq $true) {
+                  Write-Host "v1015c learning schema is ready."
+                  break
+              }
+
+              Start-Sleep -Seconds 6
+          } while ((Get-Date) -lt $deadline)
+
+          if ($null -eq $state -or $state.ready -ne $true) {
+              throw "v1015c learning schema did not become ready after TEST deployment."
+          }
+
       - name: Verify TEST duplicate admin cleanup
         shell: pwsh
         run: |
