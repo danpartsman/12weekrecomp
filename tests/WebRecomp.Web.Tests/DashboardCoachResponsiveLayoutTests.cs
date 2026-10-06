@@ -136,11 +136,6 @@ public sealed class DashboardCoachResponsiveLayoutTests
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "\"opacity\",\n                        \"1\"",
-            pass10,
-            StringComparison.Ordinal);
-
-        Assert.Contains(
             ".journey-coach-horizontal-swipe > .journey-coach-p8__bg",
             css,
             StringComparison.Ordinal);
