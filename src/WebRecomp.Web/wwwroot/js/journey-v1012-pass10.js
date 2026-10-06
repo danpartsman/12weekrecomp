@@ -47,6 +47,7 @@
         if (!bg || !panel || !header || !lead || !grid) return false;
 
         const artworkUrl = "/images/coach/marisol-card-background-v1012.webp?v=card1540x620e";
+        const mobilePortraitUrl = "/images/coach/marisol-coach-avatar.webp?v=known-good-mobile1";
 
         /*
          * Dedicated mobile portrait pane.
@@ -62,18 +63,26 @@
 
         if (!mobileMarisol) {
             mobileMarisol =
-                document.createElement("div");
+                document.createElement("img");
 
             mobileMarisol.className =
                 "journey-coach-mobile-marisol";
 
+            mobileMarisol.src =
+                mobilePortraitUrl;
+
+            mobileMarisol.alt =
+                "";
+
+            mobileMarisol.loading =
+                "eager";
+
+            mobileMarisol.fetchPriority =
+                "high";
+
             mobileMarisol.setAttribute(
                 "aria-hidden",
                 "true");
-
-            mobileMarisol.style.setProperty(
-                "--marisol-artwork",
-                `url("${artworkUrl}")`);
 
             coach.insertBefore(
                 mobileMarisol,
@@ -134,42 +143,23 @@
 
             if (bg.tagName === "IMG") {
                 if (horizontalSwipe) {
-                    bg.src = artworkUrl;
-                    bg.removeAttribute("srcset");
-                    bg.style.setProperty(
-                        "opacity",
-                        "1",
-                        "important");
+                    /*
+                     * The old composite card asset is not reliable as an IMG
+                     * source in TEST. Keep the legacy image hidden and let the
+                     * dedicated, known-good Marisol portrait own the left pane.
+                     */
                     bg.style.setProperty(
                         "display",
-                        "block",
-                        "important");
-                    bg.style.setProperty(
-                        "inset",
-                        "0",
-                        "important");
-                    bg.style.setProperty(
-                        "width",
-                        "100%",
-                        "important");
-                    bg.style.setProperty(
-                        "height",
-                        "100%",
-                        "important");
-                    bg.style.setProperty(
-                        "object-fit",
-                        "cover",
-                        "important");
-                    bg.style.setProperty(
-                        "object-position",
-                        "left center",
-                        "important");
-                    bg.style.setProperty(
-                        "filter",
                         "none",
+                        "important");
+                    bg.style.setProperty(
+                        "opacity",
+                        "0",
                         "important");
                 }
                 else {
+                    bg.style.removeProperty(
+                        "display");
                     bg.style.setProperty(
                         "opacity",
                         "0",
