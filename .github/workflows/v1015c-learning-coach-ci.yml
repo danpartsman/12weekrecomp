@@ -1,0 +1,31 @@
+name: v1015c Learning Coach CI
+
+on:
+  push:
+    branches:
+      - v1015c-learning-coach
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore web project
+        run: dotnet restore src/WebRecomp.Web/WebRecomp.Web.csproj
+
+      - name: Restore test project
+        run: dotnet restore tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj
+
+      - name: Build web project
+        run: dotnet build src/WebRecomp.Web/WebRecomp.Web.csproj --configuration Release --no-restore
+
+      - name: Run automated tests
+        run: dotnet test tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj --configuration Release --no-restore
