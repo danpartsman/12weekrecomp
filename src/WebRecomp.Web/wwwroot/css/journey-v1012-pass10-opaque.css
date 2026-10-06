@@ -110,3 +110,22 @@ body.test-live-preview.journey-dashboard .recomp-dashboard
         font-size: 2.95rem !important;
     }
 }
+
+
+/* v1015 mobile coach portrait restore */
+@media (max-width: 940px) {
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > .journey-coach-p8__bg {
+        position: absolute !important;
+        inset: 0 !important;
+        z-index: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        display: block !important;
+        opacity: 1 !important;
+        object-fit: cover !important;
+        object-position: left center !important;
+        filter: none !important;
+        pointer-events: none !important;
+    }
+}
