@@ -5,11 +5,19 @@
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
 
-IF COL_LENGTH('app.UserAccounts', 'preferred_coach_code') IS NULL
+IF OBJECT_ID('app.LearningCoachPreferences', 'U') IS NULL
 BEGIN
-    ALTER TABLE app.UserAccounts
-        ADD preferred_coach_code varchar(30) NOT NULL
-            CONSTRAINT DF_UserAccounts_preferred_coach_code DEFAULT ('MARISOL');
+    CREATE TABLE app.LearningCoachPreferences
+    (
+        user_id uniqueidentifier NOT NULL,
+        preferred_coach_code varchar(30) NOT NULL
+            CONSTRAINT DF_LearningCoachPreferences_coach DEFAULT ('MARISOL'),
+        created_at_utc datetime2 NOT NULL,
+        updated_at_utc datetime2 NOT NULL,
+        CONSTRAINT PK_LearningCoachPreferences PRIMARY KEY (user_id),
+        CONSTRAINT FK_LearningCoachPreferences_UserAccounts
+            FOREIGN KEY (user_id) REFERENCES app.UserAccounts(user_id) ON DELETE CASCADE
+    );
 END;
 
 IF OBJECT_ID('app.LearningSeriesProgress', 'U') IS NULL
