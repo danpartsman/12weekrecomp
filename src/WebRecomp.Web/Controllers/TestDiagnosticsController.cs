@@ -71,11 +71,39 @@ public sealed class TestDiagnosticsController(
 
         if (matches.Length != 1)
         {
+            var candidates = new List<object>();
+            for (var i = 0; i < matches.Length; i++)
+            {
+                var candidate = matches[i];
+                var hasCredential = await LocalCredentialExistsAsync(
+                    candidate.UserId,
+                    cancellationToken);
+
+                var candidateSubject = candidate.ExternalSubject ?? string.Empty;
+                var candidateSubjectType = candidateSubject.StartsWith(
+                    "local:",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "LOCAL"
+                    : "LEGACY_EXTERNAL";
+
+                candidates.Add(new
+                {
+                    slot = i + 1,
+                    accountStatus = candidate.AccountStatusCode,
+                    subjectType = candidateSubjectType,
+                    hasLocalCredential = hasCredential,
+                    createdAtUtc = candidate.CreatedAtUtc,
+                    updatedAtUtc = candidate.UpdatedAtUtc,
+                    contactEmailPresent = !string.IsNullOrWhiteSpace(candidate.ContactEmail)
+                });
+            }
+
             return Json(new
             {
                 configured = true,
                 matchCount = matches.Length,
-                userExists = matches.Length > 0
+                userExists = matches.Length > 0,
+                candidates
             });
         }
 
