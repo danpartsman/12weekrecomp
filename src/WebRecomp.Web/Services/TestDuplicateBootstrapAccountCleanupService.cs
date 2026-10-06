@@ -41,17 +41,12 @@ public sealed class TestDuplicateBootstrapAccountCleanupService(
             .ToLowerInvariant();
 
         if (string.IsNullOrWhiteSpace(configuredHash))
-        {
-            logger.LogWarning(
-                "TEST duplicate-account cleanup skipped because the bootstrap administrator hash is not configured.");
             return;
-        }
 
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<RecompDbContext>();
 
         var users = await db.UserAccounts
-            .AsNoTracking()
             .Where(x => x.EmailNormalized != null)
             .Take(2000)
             .ToListAsync(cancellationToken);
@@ -62,50 +57,29 @@ public sealed class TestDuplicateBootstrapAccountCleanupService(
                 configuredHash))
             .ToArray();
 
-        if (matches.Length != 2)
-        {
-            logger.LogInformation(
-                "TEST duplicate-account cleanup found {MatchCount} bootstrap administrator rows; no cleanup performed.",
-                matches.Length);
+        if (matches.Length < 2)
             return;
-        }
 
-        var firstReferences = await CountApplicationReferencesAsync(
-            db,
-            matches[0].UserId,
-            cancellationToken);
-
-        var secondReferences = await CountApplicationReferencesAsync(
-            db,
-            matches[1].UserId,
-            cancellationToken);
-
-        logger.LogInformation(
-            "TEST duplicate-account cleanup reference comparison: first={FirstReferences}, second={SecondReferences}.",
-            firstReferences,
-            secondReferences);
-
-        UserAccount? duplicate = null;
-        UserAccount? keeper = null;
-
-        if (firstReferences == 0 && secondReferences > 0)
+        var ranked = new List<(UserAccount User, long References)>();
+        foreach (var user in matches)
         {
-            duplicate = matches[0];
-            keeper = matches[1];
+            ranked.Add((
+                user,
+                await CountApplicationReferencesAsync(
+                    db,
+                    user.UserId,
+                    cancellationToken)));
         }
-        else if (secondReferences == 0 && firstReferences > 0)
-        {
-            duplicate = matches[1];
-            keeper = matches[0];
-        }
-        else
-        {
-            logger.LogWarning(
-                "TEST duplicate-account cleanup refused the delete because the duplicate rows were ambiguous. first={FirstReferences}, second={SecondReferences}.",
-                firstReferences,
-                secondReferences);
-            return;
-        }
+
+        var keeper = ranked
+            .OrderByDescending(x => x.References)
+            .ThenBy(x => x.User.CreatedAtUtc)
+            .First()
+            .User;
+
+        var duplicates = ranked
+            .Where(x => x.User.UserId != keeper.UserId)
+            .ToArray();
 
         var strategy = db.Database.CreateExecutionStrategy();
         await strategy.ExecuteAsync(async () =>
@@ -113,32 +87,26 @@ public sealed class TestDuplicateBootstrapAccountCleanupService(
             await using var transaction =
                 await db.Database.BeginTransactionAsync(cancellationToken);
 
-            // A stray native-auth credential does not count as application data.
-            // Remove it first so the UserAccounts FK cannot block the cleanup.
-            await db.Database.ExecuteSqlInterpolatedAsync(
-                $"""
-                DELETE FROM app.LocalAuthCredentials
-                WHERE UserId = {duplicate.UserId};
-                """,
-                cancellationToken);
+            foreach (var duplicate in duplicates)
+            {
+                duplicate.User.EmailNormalized =
+                    $"duplicate-{duplicate.User.UserId:N}@invalid.local";
+                duplicate.User.ContactEmail = null;
+                duplicate.User.AccountStatusCode = "SUSPENDED";
+                duplicate.User.UpdatedAtUtc = DateTime.UtcNow;
+            }
 
-            var deleted = await db.Database.ExecuteSqlInterpolatedAsync(
-                $"""
-                DELETE FROM app.UserAccounts
-                WHERE user_id = {duplicate.UserId};
-                """,
-                cancellationToken);
+            keeper.AccountStatusCode = "ACTIVE";
+            keeper.UpdatedAtUtc = DateTime.UtcNow;
 
-            if (deleted != 1)
-                throw new InvalidOperationException(
-                    $"Expected to delete exactly one duplicate TEST UserAccount row, but deleted {deleted}.");
-
+            await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         });
 
         logger.LogWarning(
-            "TEST duplicate bootstrap administrator row was removed safely. KeeperUserId={KeeperUserId}; removed row had zero application-data references.",
-            keeper!.UserId);
+            "TEST bootstrap administrator collision repaired. Preserved richer account {KeeperUserId}; quarantined {DuplicateCount} duplicate row(s).",
+            keeper.UserId,
+            duplicates.Length);
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
