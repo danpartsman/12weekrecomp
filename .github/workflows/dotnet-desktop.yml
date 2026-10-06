@@ -82,6 +82,32 @@ jobs:
           slot-name: Production
           package: ./publish
 
+      - name: Verify TEST duplicate admin cleanup
+        shell: pwsh
+        run: |
+          $uri = "https://recomp-test.azurewebsites.net/TestDiagnostics/BootstrapAuthState"
+          $state = $null
+
+          for ($attempt = 1; $attempt -le 12; $attempt++) {
+              try {
+                  $state = Invoke-RestMethod -Uri $uri -TimeoutSec 20
+                  if ($null -ne $state) { break }
+              }
+              catch {
+                  Start-Sleep -Seconds 5
+              }
+          }
+
+          if ($null -eq $state) {
+              throw "Could not read TEST bootstrap auth state."
+          }
+
+          if ($state.matchCount -ne 1) {
+              throw "TEST bootstrap administrator still has duplicate account rows."
+          }
+
+          Write-Host "TEST duplicate bootstrap account cleanup verified: exactly one account row remains."
+
       - name: Capture TEST startup diagnostics
         if: failure()
         shell: pwsh
