@@ -1016,6 +1016,16 @@
         </section>
     </div>
 
+    <section class="dash-learning-section" aria-label="The Why learning">
+        @await Component.InvokeAsync(
+            "CoachLearning",
+            new
+            {
+                surfaceCode = "DASHBOARD",
+                displayMode = "full"
+            })
+    </section>
+
     <section class="dash-tomorrow-repeat-section">
         <div class="dash-section-heading dash-tomorrow-heading">
             <div>
