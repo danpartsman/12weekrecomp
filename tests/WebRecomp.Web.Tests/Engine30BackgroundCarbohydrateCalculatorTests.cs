@@ -54,11 +54,11 @@ public sealed class Engine30BackgroundCarbohydrateCalculatorTests
         Assert.Equal(4.80m, result.HomeActivityCarbohydrateG);
         Assert.Equal(0m, result.LifestyleActivityCarbohydrateG);
         Assert.Equal(13.93m, result.HabitualActivityCarbohydrateG);
-        Assert.Equal(113.93m, result.TotalBackgroundCarbohydrateRequirementG);
+        Assert.Equal(100m, result.TotalBackgroundCarbohydrateRequirementG);
     }
 
     [Fact]
-    public void MoreHabitualWork_ProducesMoreBackgroundCarbohydrate()
+    public void MoreHabitualWork_ChangesOxidationDiagnostic_NotDietaryEatBack()
     {
         var sedentary =
             _habitual.Calculate(
@@ -85,9 +85,11 @@ public sealed class Engine30BackgroundCarbohydrateCalculatorTests
         var sedentaryResult = _carbs.Calculate(sedentary);
         var physicalResult = _carbs.Calculate(physical);
 
-        Assert.True(
-            physicalResult.TotalBackgroundCarbohydrateRequirementG
-            > sedentaryResult.TotalBackgroundCarbohydrateRequirementG);
+        Assert.Equal(
+            sedentaryResult.TotalBackgroundCarbohydrateRequirementG,
+            physicalResult.TotalBackgroundCarbohydrateRequirementG);
+
+        Assert.Equal(100m, physicalResult.TotalBackgroundCarbohydrateRequirementG);
 
         Assert.True(
             physicalResult.HabitualActivityCarbohydrateG
@@ -105,7 +107,7 @@ public sealed class Engine30BackgroundCarbohydrateCalculatorTests
                         WorkoutCategoryCode:
                             Engine30PrescriptionCategoryCodes.ConditioningCardio,
                         GlycogenReloadRequirementG: 78m,
-                        BackgroundCarbohydrateRequirementG: 113.93m))
+                        BackgroundCarbohydrateRequirementG: 100m))
                 .ToArray();
 
         var result =
@@ -116,15 +118,17 @@ public sealed class Engine30BackgroundCarbohydrateCalculatorTests
                     heightIn: 73m,
                     days: days);
 
+        Assert.Equal(150m, result.Days[0].RecommendedCarbsG);
+
         Assert.All(
-            result.Days.Take(6),
-            day => Assert.Equal(185m, day.RecommendedCarbsG));
+            result.Days.Skip(1).Take(5),
+            day => Assert.Equal(180m, day.RecommendedCarbsG));
 
         Assert.Equal(
-            170m,
+            175m,
             result.Days[^1].RecommendedCarbsG);
 
-        Assert.Equal(113.93m, result.BaseRestCarbsG);
+        Assert.Equal(100m, result.BaseRestCarbsG);
         Assert.DoesNotContain(
             result.Days,
             day => day.CarbGoverningRuleCode == "ENERGY_BALANCE");
