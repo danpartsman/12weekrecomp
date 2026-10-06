@@ -106,6 +106,56 @@ public sealed class DashboardCoachResponsiveLayoutTests
             StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void MobileCoachSwipe_KeepsMarisolArtworkVisible()
+    {
+        var root = FindRepoRoot();
+
+        var pass10 = File.ReadAllText(
+            Path.Combine(
+                root,
+                "src",
+                "WebRecomp.Web",
+                "wwwroot",
+                "js",
+                "journey-v1012-pass10.js"));
+
+        var css = File.ReadAllText(
+            Path.Combine(
+                root,
+                "src",
+                "WebRecomp.Web",
+                "wwwroot",
+                "css",
+                "journey-v1012-pass10-opaque.css"));
+
+        Assert.Contains(
+            "bg.src = artworkUrl",
+            pass10,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "\"opacity\",\n                        \"1\"",
+            pass10,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            ".journey-coach-horizontal-swipe > .journey-coach-p8__bg",
+            css,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "opacity: 1 !important",
+            css,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "coach.scrollWidth * .08",
+            pass10,
+            StringComparison.Ordinal);
+    }
+
     private static string FindRepoRoot()
     {
         var current =
