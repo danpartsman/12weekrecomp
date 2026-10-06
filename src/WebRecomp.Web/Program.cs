@@ -19,6 +19,7 @@ using WebRecomp.CatalogSync;
 using WebRecomp.CatalogSync.Providers;
 using WebRecomp.Web.Services.CatalogSync;
 using WebRecomp.Web.Services.Nutrition;
+using WebRecomp.Web.Services.Learning;
 using WebRecomp.NutritionIntelligence.Contracts;
 using WebRecomp.NutritionIntelligence.Persistence;
 using WebRecomp.NutritionIntelligence.Providers.FatSecret;
@@ -206,6 +207,7 @@ builder.Services.AddScoped<WeeklyPlanningAssessmentService>();
 builder.Services.AddScoped<ProgramPlanService>();
 builder.Services.AddScoped<WeeklyPlanService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<LearningOrchestratorService>();
 builder.Services.AddHttpClient<IEmailService, MicrosoftGraphEmailService>();
 
 // v1006 demo infrastructure.
