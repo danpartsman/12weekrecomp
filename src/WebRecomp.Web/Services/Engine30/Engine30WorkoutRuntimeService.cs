@@ -101,23 +101,16 @@ public sealed class Engine30WorkoutRuntimeService(
                 energy);
 
         /*
-         * v1015a substrate reconciliation.
+         * v1015A REDO:
          *
-         * The muscle/set/cardio workload model remains the primary local
-         * glycogen estimate.  The independent whole-workout substrate model
-         * answers a different question: "Could this much of the workout's
-         * total energy plausibly have come from muscle glycogen?"
+         * Total workout energy is first partitioned into muscle glycogen,
+         * circulating glucose, fat, phosphagen and protein. The local regional
+         * glycogen model may refine the estimate downward, but it may not claim
+         * more muscle-glycogen energy than the substrate model assigns.
          *
-         * We keep the historical 90%-of-gross-energy ceiling only as an
-         * absolute conservation sanity check.  The operative ceiling is now
-         * the substrate-partition estimate plus an uncertainty allowance.
-         *
-         * Resistance receives the widest allowance because oxygen-consumption
-         * based workout-energy estimates under-resolve anaerobic ATP turnover.
-         * Continuous cardio receives the narrowest allowance because its
-         * substrate partition is better represented by tracer/calorimetry
-         * literature.  This is intentionally asymmetric rather than pretending
-         * every workout modality has equal measurement certainty.
+         * This deliberately removes the previous uncertainty multiplier that
+         * allowed normal high-output sessions to pass through essentially
+         * unchanged.
          */
         var reconciliation =
             ReconcileGlycogenWithSubstratePartition(
@@ -153,80 +146,115 @@ public sealed class Engine30WorkoutRuntimeService(
         }
 
         const decimal kcalPerGramCarbohydrate = 4m;
-        const decimal absoluteMaximumCarbohydrateEnergyFraction = 0.90m;
 
+        /*
+         * Absolute physical ceiling only.
+         *
+         * Even if an upstream model becomes pathological, muscle glycogen
+         * cannot supply more energy than the entire workout. This is NOT a
+         * prescription target and is deliberately separate from substrate
+         * partitioning.
+         */
         var absoluteEnergyCeilingG =
             grossWorkoutEnergyKcal
-            * absoluteMaximumCarbohydrateEnergyFraction
             / kcalPerGramCarbohydrate;
 
-        var family =
-            string.IsNullOrWhiteSpace(workoutFamilyCode)
-                ? ""
-                : workoutFamilyCode.Trim().ToUpperInvariant();
-
-        var substrateUncertaintyMultiplier =
-            family switch
-            {
-                Engine30WorkoutFamilyCodes.Resistance => 1.40m,
-                Engine30WorkoutFamilyCodes.Composite => 1.25m,
-                Engine30WorkoutFamilyCodes.Intervals => 1.25m,
-                _ => 1.20m
-            };
-
         var substrateCeilingG =
-            substrate.EstimatedMuscleGlycogenG > 0m
-                ? substrate.EstimatedMuscleGlycogenG
-                  * substrateUncertaintyMultiplier
-                : absoluteEnergyCeilingG;
+            Math.Max(
+                0m,
+                substrate.EstimatedMuscleGlycogenG);
 
+        /*
+         * v1015A REDO:
+         * The substrate model already separates muscle glycogen from blood
+         * glucose, fat, phosphagen and protein. Do not inflate that estimate
+         * with an arbitrary 20-40% uncertainty multiplier.
+         *
+         * The local muscle model still matters: it can be LOWER than the
+         * whole-session substrate estimate because only recruited regions are
+         * exposed. The final value is therefore the lower of:
+         *   - local muscle / set / regional depletion model
+         *   - whole-session muscle-glycogen substrate estimate
+         *   - absolute total-energy conservation ceiling
+         */
         var reconciledCeilingG =
             Math.Min(
                 absoluteEnergyCeilingG,
-                substrateCeilingG);
+                substrateCeilingG > 0m
+                    ? substrateCeilingG
+                    : absoluteEnergyCeilingG);
 
         if (modeled.EstimatedGlycogenDepletedG
-            <= reconciledCeilingG)
+            <= reconciledCeilingG + 0.001m)
         {
             return (
                 modeled,
-                "LOCAL_MODEL_WITHIN_SUBSTRATE_BOUND");
+                "LOCAL_MODEL_BELOW_SUBSTRATE_ESTIMATE");
         }
 
         var scale =
             reconciledCeilingG
             / modeled.EstimatedGlycogenDepletedG;
 
+        return (
+            ScaleGlycogenResult(
+                modeled,
+                scale),
+            "SUBSTRATE_PARTITION_BOUND_APPLIED");
+    }
+
+    private static Engine30WorkoutGlycogenAdapterResult ScaleGlycogenResult(
+        Engine30WorkoutGlycogenAdapterResult modeled,
+        decimal scale)
+    {
+        scale =
+            Math.Clamp(
+                scale,
+                0m,
+                1m);
+
         var depleted =
             Round(
-                reconciledCeilingG,
+                modeled.EstimatedGlycogenDepletedG * scale,
                 2);
 
         var restoration =
             Round(
-                modeled.TargetGlycogenRestorationG
-                * scale,
+                modeled.TargetGlycogenRestorationG * scale,
                 2);
 
         var reload =
             Round(
-                modeled.CarbohydrateReloadRequirementG
-                * scale,
+                modeled.CarbohydrateReloadRequirementG * scale,
                 2);
 
-        return (
-            modeled with
-            {
-                EstimatedGlycogenDepletedG = depleted,
-                TargetGlycogenRestorationG = restoration,
-                CarbohydrateReloadRequirementG = reload,
-                CarbohydrateReloadEnergyKcal =
-                    Round(
-                        reload
-                        * kcalPerGramCarbohydrate,
-                        2)
-            },
-            "SUBSTRATE_PARTITION_BOUND_APPLIED");
+        var regions =
+            modeled.Regions?
+                .Select(region =>
+                    region with
+                    {
+                        EstimatedGlycogenDepletedG =
+                            Round(
+                                region.EstimatedGlycogenDepletedG * scale,
+                                2),
+                        EffectiveRegionalDepletionFraction =
+                            Round(
+                                region.EffectiveRegionalDepletionFraction * scale,
+                                4)
+                    })
+                .ToArray();
+
+        return modeled with
+        {
+            EstimatedGlycogenDepletedG = depleted,
+            TargetGlycogenRestorationG = restoration,
+            CarbohydrateReloadRequirementG = reload,
+            CarbohydrateReloadEnergyKcal =
+                Round(
+                    reload * 4m,
+                    2),
+            Regions = regions
+        };
     }
 
     private static decimal Round(decimal value, int decimals)
