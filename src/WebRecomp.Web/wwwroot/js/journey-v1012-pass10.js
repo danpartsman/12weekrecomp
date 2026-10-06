@@ -49,39 +49,88 @@
         const artworkUrl = "/images/coach/marisol-card-background-v1012.webp?v=card1540x620e";
 
         const syncPinnedArtwork = () => {
-            const desktop = window.matchMedia("(min-width: 1281px)").matches;
+            const desktop =
+                window.matchMedia("(min-width: 1281px)").matches;
+
+            const horizontalSwipe =
+                window.matchMedia("(max-width: 940px)").matches;
+
+            coach.classList.toggle(
+                "journey-coach-horizontal-swipe",
+                horizontalSwipe);
+
+            /*
+             * Keep the same approved artwork composition at every width.
+             * On phones the surrounding Coach panel becomes the scroll host,
+             * so the card stays intentionally wide and can be swiped left/right.
+             */
+            coach.style.setProperty(
+                "background-image",
+                `url("${artworkUrl}")`,
+                "important");
+            coach.style.setProperty(
+                "background-size",
+                "100% 100%",
+                "important");
+            coach.style.setProperty(
+                "background-position",
+                "left top",
+                "important");
+            coach.style.setProperty(
+                "background-repeat",
+                "no-repeat",
+                "important");
 
             if (desktop) {
-                coach.style.setProperty("aspect-ratio", "1540 / 620", "important");
-                coach.style.setProperty("height", "auto", "important");
-                coach.style.setProperty("min-height", "0", "important");
-                coach.style.setProperty("background-image", `url("${artworkUrl}")`, "important");
-                coach.style.setProperty("background-size", "100% 100%", "important");
-                coach.style.setProperty("background-position", "left top", "important");
-                coach.style.setProperty("background-repeat", "no-repeat", "important");
+                coach.style.setProperty(
+                    "aspect-ratio",
+                    "1540 / 620",
+                    "important");
+                coach.style.setProperty(
+                    "height",
+                    "auto",
+                    "important");
+                coach.style.setProperty(
+                    "min-height",
+                    "0",
+                    "important");
+            }
+            else {
+                coach.style.removeProperty(
+                    "aspect-ratio");
+            }
 
-                if (bg.tagName === "IMG") {
-                    bg.style.setProperty("opacity", "0", "important");
-                }
-            } else {
-                coach.style.removeProperty("aspect-ratio");
-                coach.style.removeProperty("height");
-                coach.style.removeProperty("min-height");
-                coach.style.removeProperty("background-image");
-                coach.style.removeProperty("background-size");
-                coach.style.removeProperty("background-position");
-                coach.style.removeProperty("background-repeat");
+            if (bg.tagName === "IMG") {
+                bg.style.setProperty(
+                    "opacity",
+                    "0",
+                    "important");
+            }
 
-                if (bg.tagName === "IMG") {
-                    bg.src = artworkUrl;
-                    bg.removeAttribute("srcset");
-                    bg.style.removeProperty("opacity");
-                    bg.style.setProperty("inset", "0", "important");
-                    bg.style.setProperty("width", "100%", "important");
-                    bg.style.setProperty("height", "100%", "important");
-                    bg.style.setProperty("object-position", "left center", "important");
-                    bg.style.setProperty("filter", "none", "important");
-                    bg.style.setProperty("object-fit", "cover", "important");
+            if (horizontalSwipe) {
+                const scrollHost =
+                    coach.closest(
+                        ".journey-mission-coach");
+
+                if (
+                    scrollHost
+                    && scrollHost.dataset.coachSwipeInitialized !== "true"
+                ) {
+                    scrollHost.dataset.coachSwipeInitialized =
+                        "true";
+
+                    window.requestAnimationFrame(() => {
+                        /*
+                         * Start near the transition from portrait to
+                         * prescription. The user can swipe left for the coach
+                         * image or right across the prescription metrics.
+                         */
+                        scrollHost.scrollLeft =
+                            Math.max(
+                                0,
+                                Math.round(
+                                    coach.scrollWidth * .255));
+                    });
                 }
             }
         };
