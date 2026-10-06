@@ -588,10 +588,11 @@ public sealed class Engine30WorkoutGlycogenAdapter
                             Round(regionBaseline),
                         EffectiveRegionalDepletionFraction:
                             regionBaseline > 0m
-                                ? Round(
+                                ? Math.Round(
                                     muscle.EstimatedGlycogenDepletedG
                                     / regionBaseline,
-                                    4)
+                                    4,
+                                    MidpointRounding.AwayFromZero)
                                 : 0m,
                         EstimatedGlycogenDepletedG:
                             muscle.EstimatedGlycogenDepletedG);
