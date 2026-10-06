@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
+using WebRecomp.Web.Models;
 
 namespace WebRecomp.Web.Controllers;
 
