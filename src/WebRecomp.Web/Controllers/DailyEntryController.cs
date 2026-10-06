@@ -461,8 +461,35 @@ public sealed class DailyEntryController(
                         cancellationToken);
             }
 
+            // Autosave idempotency: a manual row carries a stable source key
+            // before its first POST. If the browser has not yet received the
+            // generated WorkoutSessionId, a repeated POST must update the same
+            // row rather than inserting another physical workout.
+            if (session is null
+                && !string.IsNullOrWhiteSpace(input.SourceRecordId))
+            {
+                var sourceRecordId =
+                    input.SourceRecordId.Trim();
+
+                session = await db.WorkoutSessions
+                    .SingleOrDefaultAsync(
+                        x =>
+                            x.ClientId == client.ClientId
+                            && x.ProgramId == program.ProgramId
+                            && x.WorkoutDate == model.Date
+                            && x.EntrySourceCode == RecompInputSourceCodes.Manual
+                            && x.SourceRecordId == sourceRecordId,
+                        cancellationToken);
+            }
+
             if (session is null)
             {
+                if (string.IsNullOrWhiteSpace(input.SourceRecordId))
+                {
+                    input.SourceRecordId =
+                        NewManualWorkoutSourceRecordId();
+                }
+
                 session = new WorkoutSession
                 {
                     WorkoutSessionId = Guid.NewGuid(),
@@ -474,6 +501,7 @@ public sealed class DailyEntryController(
                         input.SystemWorkoutCode,
                     WorkoutTypeCode = input.WorkoutTypeCode!,
                     EntrySourceCode = RecompInputSourceCodes.Manual,
+                    SourceRecordId = input.SourceRecordId,
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now
                 };
@@ -506,8 +534,27 @@ public sealed class DailyEntryController(
             if (string.IsNullOrWhiteSpace(session.EntrySourceCode))
                 session.EntrySourceCode = RecompInputSourceCodes.Manual;
 
+            if (string.Equals(
+                    session.EntrySourceCode,
+                    RecompInputSourceCodes.Manual,
+                    StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(session.SourceRecordId))
+            {
+                if (string.IsNullOrWhiteSpace(input.SourceRecordId))
+                {
+                    input.SourceRecordId =
+                        NewManualWorkoutSourceRecordId();
+                }
+
+                session.SourceRecordId =
+                    input.SourceRecordId;
+            }
+
             input.WorkoutSessionId =
                 session.WorkoutSessionId;
+
+            input.SourceRecordId =
+                session.SourceRecordId;
 
             workoutActuals.ApplyCurrentEngineState(
                 session,
@@ -546,6 +593,11 @@ public sealed class DailyEntryController(
                     model.Workouts
                         .Select(x =>
                             x.WorkoutSessionId?.ToString())
+                        .ToArray(),
+                workoutSourceRecordIds =
+                    model.Workouts
+                        .Select(x =>
+                            x.SourceRecordId)
                         .ToArray(),
                 nutrition = new
                 {
@@ -780,6 +832,7 @@ public sealed class DailyEntryController(
             .Select(x => new DailyEntryWorkoutInput
             {
                 WorkoutSessionId = x.WorkoutSessionId,
+                SourceRecordId = x.SourceRecordId,
                 WorkoutTemplateId = x.WorkoutTemplateId,
                 SystemWorkoutCode =
                     CardioActivityCatalog.IsCollapsedCardioEngineCode(
@@ -1024,7 +1077,11 @@ public sealed class DailyEntryController(
             // Daily Entry is the canonical ACTUAL summary. Leave its manual
             // row blank until the user explicitly records training.
             model.Workouts.Add(
-                new DailyEntryWorkoutInput());
+                new DailyEntryWorkoutInput
+                {
+                    SourceRecordId =
+                        NewManualWorkoutSourceRecordId()
+                });
         }
     }
 
@@ -1106,6 +1163,9 @@ public sealed class DailyEntryController(
                .FirstOrDefault(x =>
                    !string.IsNullOrWhiteSpace(x))
            ?? fallback;
+    private static string NewManualWorkoutSourceRecordId()
+        => $"daily:{Guid.NewGuid():N}";
+
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value)
             ? null
