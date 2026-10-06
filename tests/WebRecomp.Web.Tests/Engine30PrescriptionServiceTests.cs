@@ -24,7 +24,7 @@ public sealed class Engine30PrescriptionServiceTests
 
             Assert.Equal(100m, result.BaseRestCarbsG);
             Assert.Contains(
-                "BACKGROUND_CARB_EAR_100G",
+                "BACKGROUND_CARB_DRI_ANCHOR_100G",
                 result.ReasonCodes);
         }
     }
@@ -43,15 +43,15 @@ public sealed class Engine30PrescriptionServiceTests
         var first = result.Days[0];
         var rest = result.Days[^1];
 
-        Assert.Equal(180m, first.RecommendedCarbsG);
-        Assert.Equal(100m, rest.RecommendedCarbsG);
+        Assert.Equal(155m, first.RecommendedCarbsG);
+        Assert.Equal(125m, rest.RecommendedCarbsG);
 
         Assert.Equal(
             first.PhysiologicalCarbFloorG,
             first.RecommendedCarbsG);
 
         Assert.Equal(
-            "BACKGROUND_PLUS_GLYCOGEN_RELOAD",
+            "BACKGROUND_PLUS_24H_GLYCOGEN_RECOVERY",
             first.CarbGoverningRuleCode);
     }
 
@@ -108,11 +108,11 @@ public sealed class Engine30PrescriptionServiceTests
         Assert.Equal(0.80m, rest.CategoryWeight);
 
         Assert.Equal(
-            80m,
+            30m,
             major.RecommendedCarbsG - rest.RecommendedCarbsG);
 
         Assert.Equal(
-            320m,
+            120m,
             major.PrescribedEnergyKcal - rest.PrescribedEnergyKcal);
     }
 
@@ -210,14 +210,20 @@ public sealed class Engine30PrescriptionServiceTests
             a.WeeklyMaintenanceEnergyKcal,
             b.WeeklyMaintenanceEnergyKcal);
 
-        Assert.Equal(180m, a.Days[0].RecommendedCarbsG);
-        Assert.Equal(240m, b.Days[0].RecommendedCarbsG);
+        Assert.Equal(155m, a.Days[0].RecommendedCarbsG);
+        Assert.Equal(200m, b.Days[0].RecommendedCarbsG);
 
-        // Same-day recovery is deliberately tapered across the 24-hour horizon.
+        // The additional day-0 depletion is split across the workout date and
+        // following date rather than prescribed almost entirely at once.
         Assert.Equal(
-            60m,
+            45m,
             b.Days[0].RecommendedCarbsG
             - a.Days[0].RecommendedCarbsG);
+
+        Assert.Equal(
+            45m,
+            b.Days[1].RecommendedCarbsG
+            - a.Days[1].RecommendedCarbsG);
 
         // Calories always reconcile from the macros. If the weekly energy
         // safety guardrail is active, additional carbohydrate can legitimately
