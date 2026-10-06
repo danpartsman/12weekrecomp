@@ -13,7 +13,8 @@ public sealed class OnboardingController(
     AppUserContextService userContext,
     AccessEntitlementService entitlements,
     ConfigurationService configuration,
-    WeeklyPlanService weeklyPlans) : Controller
+    WeeklyPlanService weeklyPlans,
+    LearningOrchestratorService learning) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -158,13 +159,12 @@ public sealed class OnboardingController(
                 client.UpdatedAtUtc = now;
             }
 
-            context.User.PreferredCoachCode =
-                model.PreferredCoachCode;
-
-            context.User.UpdatedAtUtc =
-                now;
-
             await db.SaveChangesAsync(cancellationToken);
+
+            await learning.SetPreferredCoachAsync(
+                context.User.UserId,
+                model.PreferredCoachCode,
+                cancellationToken);
 
             var today = AppUserContextService.GetClientToday(client);
 
@@ -297,8 +297,9 @@ public sealed class OnboardingController(
                 TrainingExperienceCode = "INTERMEDIATE",
                 AvailableTrainingDaysWeek = 4,
                 PreferredCoachCode =
-                    CoachCatalog.Resolve(
-                        context.User.PreferredCoachCode).Code
+                    await learning.GetPreferredCoachCodeAsync(
+                        context.User.UserId,
+                        cancellationToken)
             };
         }
 
@@ -342,8 +343,9 @@ public sealed class OnboardingController(
             BaselineStepsDay = client.BaselineStepsDay,
             BaselineSleepHours = client.BaselineSleepHours,
             PreferredCoachCode =
-                CoachCatalog.Resolve(
-                    context.User.PreferredCoachCode).Code
+                await learning.GetPreferredCoachCodeAsync(
+                    context.User.UserId,
+                    cancellationToken)
         };
     }
 
