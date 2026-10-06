@@ -170,3 +170,25 @@ body.test-live-preview.journey-dashboard .recomp-dashboard
         z-index: 5 !important;
     }
 }
+
+
+/* v1015 mobile Marisol known-good asset override */
+@media (max-width: 940px) {
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > img.journey-coach-mobile-marisol {
+        position: absolute !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        z-index: 3 !important;
+        display: block !important;
+        width: 340px !important;
+        height: 620px !important;
+        max-width: none !important;
+        opacity: 1 !important;
+        object-fit: cover !important;
+        object-position: 50% 50% !important;
+        filter: none !important;
+        pointer-events: none !important;
+    }
+}
