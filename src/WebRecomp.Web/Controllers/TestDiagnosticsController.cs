@@ -86,12 +86,18 @@ public sealed class TestDiagnosticsController(
                     ? "LOCAL"
                     : "LEGACY_EXTERNAL";
 
+                var applicationReferenceCount =
+                    await CountApplicationReferencesAsync(
+                        candidate.UserId,
+                        cancellationToken);
+
                 candidates.Add(new
                 {
                     slot = i + 1,
                     accountStatus = candidate.AccountStatusCode,
                     subjectType = candidateSubjectType,
                     hasLocalCredential = hasCredential,
+                    applicationReferenceCount,
                     createdAtUtc = candidate.CreatedAtUtc,
                     updatedAtUtc = candidate.UpdatedAtUtc,
                     contactEmailPresent = !string.IsNullOrWhiteSpace(candidate.ContactEmail)
@@ -128,6 +134,78 @@ public sealed class TestDiagnosticsController(
             resetEligible = string.Equals(user.AccountStatusCode, "ACTIVE", StringComparison.OrdinalIgnoreCase),
             contactEmailPresent = !string.IsNullOrWhiteSpace(user.ContactEmail)
         });
+    }
+
+    private async Task<long> CountApplicationReferencesAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var connection = db.Database.GetDbConnection();
+        var closeWhenDone = connection.State != ConnectionState.Open;
+
+        if (closeWhenDone)
+            await connection.OpenAsync(cancellationToken);
+
+        try
+        {
+            var references = new List<(string Schema, string Table, string Column)>();
+
+            await using (var metadata = connection.CreateCommand())
+            {
+                metadata.CommandText = """
+                    SELECT
+                        OBJECT_SCHEMA_NAME(fkc.parent_object_id) AS schema_name,
+                        OBJECT_NAME(fkc.parent_object_id) AS table_name,
+                        COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS column_name
+                    FROM sys.foreign_key_columns AS fkc
+                    WHERE fkc.referenced_object_id = OBJECT_ID(N'app.UserAccounts')
+                      AND COL_NAME(
+                            fkc.referenced_object_id,
+                            fkc.referenced_column_id) = N'user_id'
+                      AND NOT (
+                            OBJECT_SCHEMA_NAME(fkc.parent_object_id) = N'app'
+                            AND OBJECT_NAME(fkc.parent_object_id) = N'LocalAuthCredentials'
+                      );
+                    """;
+
+                await using var reader =
+                    await metadata.ExecuteReaderAsync(cancellationToken);
+
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    references.Add((
+                        reader.GetString(0),
+                        reader.GetString(1),
+                        reader.GetString(2)));
+                }
+            }
+
+            long total = 0;
+
+            foreach (var reference in references)
+            {
+                await using var count = connection.CreateCommand();
+                count.CommandText =
+                    $"SELECT COUNT_BIG(*) FROM [{reference.Schema.Replace("]", "]]", StringComparison.Ordinal)}].[{reference.Table.Replace("]", "]]", StringComparison.Ordinal)}] WHERE [{reference.Column.Replace("]", "]]", StringComparison.Ordinal)}] = @userId;";
+
+                var parameter = count.CreateParameter();
+                parameter.ParameterName = "@userId";
+                parameter.Value = userId;
+                count.Parameters.Add(parameter);
+
+                var scalar = await count.ExecuteScalarAsync(cancellationToken);
+                total += scalar is null || scalar is DBNull
+                    ? 0
+                    : Convert.ToInt64(scalar);
+            }
+
+            return total;
+        }
+        finally
+        {
+            if (closeWhenDone)
+                await connection.CloseAsync();
+        }
     }
 
     private async Task<bool> LocalCredentialExistsAsync(Guid userId, CancellationToken cancellationToken)
