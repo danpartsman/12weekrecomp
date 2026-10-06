@@ -58,7 +58,11 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         Map<UserAccount>(modelBuilder, "UserAccounts", "app", nameof(UserAccount.UserId));
-        Map<LearningSeriesProgress>(modelBuilder, "LearningSeriesProgress", "app", nameof(LearningSeriesProgress.LearningSeriesProgressId));
+        Map<LearningSeriesProgress>(
+            modelBuilder,
+            "LearningSeriesProgress",
+            "app",
+            nameof(WebRecomp.Web.Models.LearningSeriesProgress.LearningSeriesProgressId));
         Map<LearningInteraction>(modelBuilder, "LearningInteractions", "app", nameof(LearningInteraction.LearningInteractionId));
         Map<Client>(modelBuilder, "Clients", "app", nameof(Client.ClientId));
         Map<ClientOccupationalActivity>(
