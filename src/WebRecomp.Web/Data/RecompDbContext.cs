@@ -6,6 +6,8 @@ namespace WebRecomp.Web.Data;
 public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) : DbContext(options)
 {
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+    public DbSet<LearningSeriesProgress> LearningSeriesProgress => Set<LearningSeriesProgress>();
+    public DbSet<LearningInteraction> LearningInteractions => Set<LearningInteraction>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ClientOccupationalActivity> ClientOccupationalActivities =>
         Set<ClientOccupationalActivity>();
@@ -56,6 +58,8 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         Map<UserAccount>(modelBuilder, "UserAccounts", "app", nameof(UserAccount.UserId));
+        Map<LearningSeriesProgress>(modelBuilder, "LearningSeriesProgress", "app", nameof(LearningSeriesProgress.LearningSeriesProgressId));
+        Map<LearningInteraction>(modelBuilder, "LearningInteractions", "app", nameof(LearningInteraction.LearningInteractionId));
         Map<Client>(modelBuilder, "Clients", "app", nameof(Client.ClientId));
         Map<ClientOccupationalActivity>(
             modelBuilder,
@@ -138,6 +142,64 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
             "ContactMessages",
             "app",
             nameof(ContactMessage.ContactMessageId));
+
+        modelBuilder.Entity<UserAccount>()
+            .Property(x => x.PreferredCoachCode)
+            .HasMaxLength(30)
+            .IsUnicode(false);
+
+        modelBuilder.Entity<LearningSeriesProgress>()
+            .Property(x => x.SeriesCode)
+            .HasMaxLength(60)
+            .IsUnicode(false);
+
+        modelBuilder.Entity<LearningSeriesProgress>()
+            .Property(x => x.StatusCode)
+            .HasMaxLength(20)
+            .IsUnicode(false);
+
+        modelBuilder.Entity<LearningSeriesProgress>()
+            .HasIndex(x => new { x.UserId, x.SeriesCode })
+            .IsUnique();
+
+        modelBuilder.Entity<LearningSeriesProgress>()
+            .HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<LearningInteraction>()
+            .Property(x => x.ContentCode)
+            .HasMaxLength(100)
+            .IsUnicode(false);
+
+        modelBuilder.Entity<LearningInteraction>()
+            .Property(x => x.SeriesCode)
+            .HasMaxLength(60)
+            .IsUnicode(false);
+
+        modelBuilder.Entity<LearningInteraction>()
+            .Property(x => x.SurfaceCode)
+            .HasMaxLength(30)
+            .IsUnicode(false);
+
+        modelBuilder.Entity<LearningInteraction>()
+            .Property(x => x.InteractionCode)
+            .HasMaxLength(30)
+            .IsUnicode(false);
+
+        modelBuilder.Entity<LearningInteraction>()
+            .Property(x => x.TargetUrl)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<LearningInteraction>()
+            .HasIndex(x => new { x.UserId, x.OccurredAtUtc });
+
+        modelBuilder.Entity<LearningInteraction>()
+            .HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Client>().Property(x => x.RowVersion).IsRowVersion();
 
