@@ -6,8 +6,7 @@ namespace WebRecomp.Web.Controllers;
 
 public sealed class LearningController(
     AppUserContextService userContext,
-    LearningOrchestratorService learning,
-    WebRecomp.Web.Data.RecompDbContext db) : Controller
+    LearningOrchestratorService learning) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Coaches(
@@ -19,8 +18,9 @@ public sealed class LearningController(
                 cancellationToken);
 
         ViewData["PreferredCoachCode"] =
-            CoachCatalog.Resolve(
-                context.User.PreferredCoachCode).Code;
+            await learning.GetPreferredCoachCodeAsync(
+                context.User.UserId,
+                cancellationToken);
 
         return View(
             CoachCatalog.All);
@@ -47,13 +47,9 @@ public sealed class LearningController(
                 nameof(Coaches));
         }
 
-        context.User.PreferredCoachCode =
-            CoachCatalog.Resolve(coachCode).Code;
-
-        context.User.UpdatedAtUtc =
-            DateTime.UtcNow;
-
-        await db.SaveChangesAsync(
+        await learning.SetPreferredCoachAsync(
+            context.User.UserId,
+            coachCode,
             cancellationToken);
 
         TempData["StatusMessage"] =
