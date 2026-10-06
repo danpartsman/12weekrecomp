@@ -127,6 +127,14 @@ public sealed class DailyEntryViewModel
 public sealed class DailyEntryWorkoutInput
 {
     public Guid? WorkoutSessionId { get; set; }
+
+    // Stable client/server idempotency key for a manual Daily Entry row.
+    // It is deliberately separate from WorkoutSessionId so repeated autosave
+    // requests cannot create duplicate completed sessions before the browser
+    // has received the database identity.
+    [StringLength(100)]
+    public string? SourceRecordId { get; set; }
+
     public Guid? WorkoutTemplateId { get; set; }
     public string? SystemWorkoutCode { get; set; }
     public string? WorkoutName { get; set; }
