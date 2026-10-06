@@ -440,6 +440,10 @@ public sealed class DashboardService(
             ClientName = client.ClientName,
             ProgramWeek = Math.Max(1, (actionDate.DayNumber - program.StartDate.DayNumber) / 7 + 1),
             PlanCode = actionPlanCode,
+            PreferredCoachCode =
+                string.IsNullOrWhiteSpace(context.User.PreferredCoachCode)
+                    ? "MARISOL"
+                    : context.User.PreferredCoachCode.Trim().ToUpperInvariant(),
             Engine30VersionCode = engine30Projection.Today.EngineVersionCode,
             Engine30ConfigVersionCode = engine30Projection.Today.ConfigVersionCode,
             Engine30WorkoutProfileVersionCode = engine30Projection.Today.WorkoutProfileVersionCode,
