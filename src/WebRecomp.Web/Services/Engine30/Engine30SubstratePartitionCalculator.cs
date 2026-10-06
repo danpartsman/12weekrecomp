@@ -395,7 +395,7 @@ public sealed class Engine30SubstratePartitionCalculator
              * intentionally remain broad because whole-session resistance
              * calorimetry under-resolves anaerobic energy.
              */
-            var phosphagen =
+            var resistancePhosphagen =
                 Clamp(
                     0.09m + (intensity - 0.60m) * 0.25m,
                     0.10m,
@@ -416,16 +416,16 @@ public sealed class Engine30SubstratePartitionCalculator
             var protein = 0.01m;
 
             return NormalizeShares(
-                phosphagen,
+                resistancePhosphagen,
                 muscleGlycogen,
                 bloodGlucose,
-                1m - phosphagen - muscleGlycogen - bloodGlucose - protein,
+                1m - resistancePhosphagen - muscleGlycogen - bloodGlucose - protein,
                 protein);
         }
 
         if (isInterval)
         {
-            var phosphagen =
+            var intervalPhosphagen =
                 Clamp(
                     0.05m + (intensity - 0.60m) * 0.22m,
                     0.05m,
@@ -449,7 +449,7 @@ public sealed class Engine30SubstratePartitionCalculator
 
             var fat =
                 1m
-                - phosphagen
+                - intervalPhosphagen
                 - muscleGlycogen
                 - bloodGlucose
                 - protein;
@@ -465,7 +465,7 @@ public sealed class Engine30SubstratePartitionCalculator
                         intensity >= 0.85m ? 0.15m : 0.25m);
 
             return NormalizeShares(
-                phosphagen,
+                intervalPhosphagen,
                 shifted.MuscleGlycogen,
                 shifted.BloodGlucose,
                 shifted.Fat,
