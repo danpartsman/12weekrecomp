@@ -159,6 +159,12 @@ public sealed class ProfileController(
             ModelState.AddModelError(nameof(model.ThemeCode), "Choose System, Light, or Dark.");
 
         model.PreferredCoachCode =
+            CoachCatalog.Resolve(model.PreferredCoachCode).Code;
+
+        if (!CoachCatalog.IsValid(model.PreferredCoachCode))
+            ModelState.AddModelError(nameof(model.PreferredCoachCode), "Choose an available coach.");
+
+        model.PreferredCoachCode =
             CoachCatalog.Resolve(
                 model.PreferredCoachCode).Code;
 
