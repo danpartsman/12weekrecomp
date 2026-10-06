@@ -212,7 +212,13 @@ public sealed class TestDiagnosticsController(
                 .Trim()
                 .ToLowerInvariant();
 
-        if (host is not ("test.12weekrecomp.com" or "recomp-test.azurewebsites.net"))
+        var isTestHost =
+            host == "test.12weekrecomp.com"
+            || host == "recomp-test.azurewebsites.net"
+            || (host.StartsWith("recomp-test-", StringComparison.Ordinal)
+                && host.EndsWith(".azurewebsites.net", StringComparison.Ordinal));
+
+        if (!isTestHost)
             return NotFound();
 
         var connection =
