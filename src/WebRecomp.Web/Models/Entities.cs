@@ -14,9 +14,40 @@ public sealed class UserAccount
     public string? ContactEmail { get; set; }
     public string ThemeCode { get; set; } = "SYSTEM";
 
+    // v1015c Learning: persistent account-level coach identity.
+    // The same coach follows the user across programs, devices and surfaces.
+    public string PreferredCoachCode { get; set; } = "MARISOL";
+
     public string AccountStatusCode { get; set; } = "ACTIVE";
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
+}
+
+public sealed class LearningSeriesProgress
+{
+    public Guid LearningSeriesProgressId { get; set; }
+    public Guid UserId { get; set; }
+    public required string SeriesCode { get; set; }
+    public int CurrentModuleNumber { get; set; } = 1;
+    public int HighestCompletedModuleNumber { get; set; }
+    public string StatusCode { get; set; } = "ACTIVE";
+    public DateTime? LastShownAtUtc { get; set; }
+    public DateTime? LastCompletedAtUtc { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime UpdatedAtUtc { get; set; }
+}
+
+public sealed class LearningInteraction
+{
+    public Guid LearningInteractionId { get; set; }
+    public Guid UserId { get; set; }
+    public required string ContentCode { get; set; }
+    public required string SeriesCode { get; set; }
+    public required string SurfaceCode { get; set; }
+    public required string InteractionCode { get; set; }
+    public int ModuleNumber { get; set; }
+    public string? TargetUrl { get; set; }
+    public DateTime OccurredAtUtc { get; set; }
 }
 
 public sealed class Client
