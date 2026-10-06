@@ -813,7 +813,7 @@ public sealed class Engine30DashboardProjectionService(
                 runtime.Workout.Energy.EngineNetWorkoutEnergyKcal;
 
             glycogenSessions.Add(
-                runtime.Glycogen);
+                runtime.Workout!.Glycogen);
 
             totalDuration +=
                 effectiveDurationMinutes;
@@ -1417,7 +1417,7 @@ public sealed class Engine30DashboardProjectionService(
                 runtime.Energy.NetWorkoutActivityEnergyKcal;
 
             actualGlycogenSessions.Add(
-                runtime.Glycogen);
+                runtime.Workout.Glycogen);
 
             actualCategories.Add(
                 definition.WorkoutCategoryCode);
@@ -1578,7 +1578,7 @@ public sealed class Engine30DashboardProjectionService(
                     cancellationToken);
 
             glycogenSessions.Add(
-                runtime.Glycogen);
+                runtime.Workout!.Glycogen);
 
             var rpe =
                 stored.SessionRpe.HasValue
