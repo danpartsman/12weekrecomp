@@ -327,7 +327,7 @@ public static class LearningContentCatalog
     [
         new("AE-01","AEROBIC_ENERGY","Aerobic Energy",1,8,LearningSurfaceCodes.Dashboard,
             "Your muscles need ATP","Why this matters",
-            "Every muscle contraction spends ATP. Your body only stores a tiny amount, so it has to rebuild ATP continuously while you move.",
+            "ATP (adenosine triphosphate) is the small energy-carrying molecule your cells use to do work. Your muscles break down ATP to power every contraction, from walking to lifting a weight. Because muscles store only a small amount, your body continually rebuilds it using phosphocreatine, carbohydrate, and fat, with oxygen supporting sustained energy production. Eating enough to fuel your planned activity, resting between hard efforts, and building aerobic fitness help keep that ATP supply flowing.",
             "ATP is the spendable energy; the fuel systems are how you keep making it."),
         new("AE-02","AEROBIC_ENERGY","Aerobic Energy",2,8,LearningSurfaceCodes.Dashboard,
             "Mitochondria are energy factories","The why",
