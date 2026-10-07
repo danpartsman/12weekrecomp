@@ -2,6 +2,12 @@ name: Build and deploy ASP.NET Core app to Azure Web App - recomp-test
 
 on:
   workflow_dispatch:
+    inputs:
+      apply_learning_schema:
+        description: 'Apply learning migration 043 using a SQL-authorized deployment identity'
+        type: boolean
+        required: false
+        default: false
   push:
     branches:
       - test
@@ -77,6 +83,7 @@ jobs:
 
 
       - name: Apply learning schema with TEST deployment identity
+        if: github.event_name == 'workflow_dispatch' && inputs.apply_learning_schema
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -129,32 +136,50 @@ jobs:
           slot-name: Production
           package: ./publish
 
-      - name: Verify v1015c learning schema
+      - name: Verify TEST health and native account pages
         shell: pwsh
         run: |
-          $uri = "https://test.12weekrecomp.com/TestDiagnostics/LearningSchemaState"
-          $deadline = (Get-Date).AddMinutes(3)
-          $state = $null
+          $ErrorActionPreference = "Stop"
+          $base = "https://test.12weekrecomp.com"
+          $healthy = $false
 
-          do {
+          for ($attempt = 1; $attempt -le 18; $attempt++) {
               try {
-                  $state = Invoke-RestMethod -Uri $uri -Method Get -TimeoutSec 20
+                  $health = Invoke-WebRequest -Uri "$base/health?v=${{ github.sha }}" -TimeoutSec 20
+                  $signIn = Invoke-WebRequest -Uri "$base/Account/SignIn?v=${{ github.sha }}" -TimeoutSec 20
+                  $create = Invoke-WebRequest -Uri "$base/Account/CreateAccount?v=${{ github.sha }}" -TimeoutSec 20
+
+                  if ($health.StatusCode -eq 200 -and
+                      $signIn.StatusCode -eq 200 -and
+                      $create.StatusCode -eq 200 -and
+                      $signIn.Content.Contains("Keep me signed in for 7 days") -and
+                      $create.Content -match 'Create account &amp; continue|Create account & continue') {
+                      $healthy = $true
+                      Write-Host "TEST health, native sign-in, and account creation pages passed."
+                      break
+                  }
               }
               catch {
-                  Start-Sleep -Seconds 6
-                  continue
+                  Write-Host "TEST is not ready yet ($attempt/18)."
               }
 
-              if ($state.ready -eq $true) {
-                  Write-Host "v1015c learning schema is ready."
-                  break
-              }
+              Start-Sleep -Seconds 5
+          }
 
-              Start-Sleep -Seconds 6
-          } while ((Get-Date) -lt $deadline)
+          if (-not $healthy) {
+              throw "TEST failed health or native account page verification after deployment."
+          }
 
-          if ($null -eq $state -or $state.ready -ne $true) {
-              throw "v1015c learning schema did not become ready after TEST deployment."
+      - name: Report optional learning schema readiness
+        shell: pwsh
+        run: |
+          $state = Invoke-RestMethod `
+              -Uri "https://test.12weekrecomp.com/TestDiagnostics/LearningSchemaState" `
+              -TimeoutSec 20
+          Write-Host ($state | ConvertTo-Json -Compress)
+
+          if ($state.ready -ne $true) {
+              Write-Output "::warning::TEST is healthy, but coach learning remains disabled until a database administrator applies migration 043. The deployment identity currently lacks SQL access."
           }
 
       - name: Verify TEST duplicate admin cleanup
