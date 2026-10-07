@@ -87,8 +87,22 @@ jobs:
           $connectionString = az webapp config connection-string list `
               --name recomp-test `
               --resource-group $env:RECOMP_TEST_RG `
-              --query "[?name=='RecompDatabase'].connectionString | [0]" `
+              --query "[?name=='RecompDatabase'].value | [0]" `
               --output tsv --only-show-errors
+
+          if ($LASTEXITCODE -ne 0) {
+              throw "Could not read recomp-test connection settings."
+          }
+
+          # Older TEST configuration stores the same .NET setting under
+          # App Settings rather than the App Service connection-string list.
+          if ([string]::IsNullOrWhiteSpace($connectionString)) {
+              $connectionString = az webapp config appsettings list `
+                  --name recomp-test `
+                  --resource-group $env:RECOMP_TEST_RG `
+                  --query "[?name=='ConnectionStrings__RecompDatabase'].value | [0]" `
+                  --output tsv --only-show-errors
+          }
 
           if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($connectionString)) {
               throw "Could not resolve the recomp-test database connection setting."
