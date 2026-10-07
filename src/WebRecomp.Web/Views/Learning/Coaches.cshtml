@@ -54,7 +54,7 @@
                 {
                     @foreach (var image in images)
                     {
-                        <figure><img src="@image" alt="@coach.Name coaching" /></figure>
+                        <figure><img src="@image" alt="@coach.Name coaching" loading="lazy" decoding="async" /></figure>
                     }
                 }
                 else
