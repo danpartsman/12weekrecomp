@@ -254,11 +254,11 @@ public static class CoachCatalog
                 "coach-cassie",
                 new string?[]
                 {
-                    "/images/coach/cassie-coach-avatar.webp",
-                    "/images/coach/cassie-zone2-cardio-guide.webp",
-                    "/images/coach/cassie-running-intervals-guide.webp",
-                    "/images/coach/cassie-true-hiit-guide.webp",
-                    "/images/coach/cassie-mixed-conditioning-guide.webp"
+                    "/images/coach/cassie-avatar-v1015c.png",
+                    "/images/coach/cassie-zone2-cardio-v1015c.png",
+                    "/images/coach/cassie-running-intervals-v1015c.png",
+                    "/images/coach/cassie-true-hiit-v1015c.png",
+                    "/images/coach/cassie-mixed-conditioning-v1015c.png"
                 }),
             new CoachProfile(
                 "MARCUS",
@@ -268,7 +268,11 @@ public static class CoachCatalog
                 "coach-marcus",
                 new string?[]
                 {
-                    null, null, null, null, null
+                    "/images/coach/marcus-avatar-v1015c.png",
+                    "/images/coach/marcus-technique-v1015c.png",
+                    "/images/coach/marcus-strength-v1015c.png",
+                    "/images/coach/marcus-progression-v1015c.png",
+                    "/images/coach/marcus-recovery-v1015c.png"
                 }),
             new CoachProfile(
                 "NINA",
@@ -278,7 +282,11 @@ public static class CoachCatalog
                 "coach-nina",
                 new string?[]
                 {
-                    null, null, null, null, null
+                    "/images/coach/nina-avatar-v1015c.png",
+                    "/images/coach/nina-technique-v1015c.png",
+                    "/images/coach/nina-strength-v1015c.png",
+                    "/images/coach/nina-discipline-v1015c.png",
+                    "/images/coach/nina-recovery-v1015c.png"
                 })
         }
         .ToDictionary(x => x.Code, StringComparer.OrdinalIgnoreCase);
