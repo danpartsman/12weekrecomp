@@ -110,7 +110,7 @@ jobs:
           $env:RECOMP_RUNTIME_CONNECTION_STRING = $connectionString
           try {
               dotnet run --project tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj `
-                  --configuration Release -- --learning-coach
+                  --configuration Release -- --learning-coach --configured-auth
               if ($LASTEXITCODE -ne 0) {
                   throw "LIVE learning schema migration failed. The running app has not been replaced."
               }

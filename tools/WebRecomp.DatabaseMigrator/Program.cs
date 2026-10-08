@@ -7,6 +7,14 @@ const string tokenVariable = "AZURE_SQL_ACCESS_TOKEN";
 
 var runtimeConnectionString = Environment.GetEnvironmentVariable(connectionStringVariable);
 var accessToken = Environment.GetEnvironmentVariable(tokenVariable);
+var configuredAuthentication = args.Contains("--configured-auth", StringComparer.Ordinal);
+var learningMigration = args.Contains("--learning-coach", StringComparer.Ordinal);
+if (args.Any(x => x is not ("--learning-coach" or "--configured-auth"))
+    || (configuredAuthentication && !learningMigration))
+{
+    Console.Error.WriteLine("Supported migration options: --learning-coach [--configured-auth].");
+    return 5;
+}
 
 if (string.IsNullOrWhiteSpace(runtimeConnectionString))
 {
@@ -14,7 +22,7 @@ if (string.IsNullOrWhiteSpace(runtimeConnectionString))
     return 2;
 }
 
-if (string.IsNullOrWhiteSpace(accessToken))
+if (!configuredAuthentication && string.IsNullOrWhiteSpace(accessToken))
 {
     try
     {
@@ -88,13 +96,6 @@ IF SCHEMA_ID(N'nutrition') IS NULL
 GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::nutrition TO web_recomp_app;
 """;
 
-var learningMigration = args.Length == 1 && args[0] == "--learning-coach";
-if (args.Length > 0 && !learningMigration)
-{
-    Console.Error.WriteLine("Supported migration option: --learning-coach.");
-    return 5;
-}
-
 // The learning migration is additive and idempotent. Run it with the
 // deployment identity, never by granting DDL to the runtime web identity.
 var migrationSql = learningMigration
@@ -103,10 +104,12 @@ var migrationSql = learningMigration
 
 try
 {
-    await using var connection = new SqlConnection(migrationBuilder.ConnectionString)
-    {
-        AccessToken = accessToken
-    };
+    // The optional path reuses the existing configured database identity. It
+    // does not create credentials or grant any new database permissions.
+    await using var connection = new SqlConnection(
+        configuredAuthentication ? runtimeConnectionString : migrationBuilder.ConnectionString);
+    if (!configuredAuthentication)
+        connection.AccessToken = accessToken;
 
     await connection.OpenAsync();
 
