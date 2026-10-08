@@ -214,7 +214,8 @@ public sealed record LearningLesson(
     string Title,
     string Why,
     string Body,
-    string? Takeaway = null);
+    string? Takeaway = null,
+    string? SourceUrl = null);
 
 public sealed record LearningPresentation(
     CoachProfile Coach,
@@ -223,8 +224,7 @@ public sealed record LearningPresentation(
     string DisplayMode);
 
 /// <summary>
-/// Curated coach identities. v1015c reserves five image roles per coach so
-/// asset creation can evolve independently from the learning mechanics.
+/// Curated coach identities with randomized galleries and varied photo poses.
 /// Missing slots gracefully fall back to the coach's first available image.
 /// </summary>
 public static class CoachCatalog
@@ -288,6 +288,15 @@ public static class CoachCatalog
                     "/images/coach/nina-discipline-v1015c.png",
                     "/images/coach/nina-recovery-v1015c.png"
                 })
+,
+            new CoachProfile("GRANT", "Grant", "Experienced, steady, and strong.", "Strength and longevity coach", "coach-grant",
+                Enumerable.Range(0, 6).Select(pose => (string?)$"/images/coach/grant-gallery-v1015d.webp#pose={pose}").ToArray()),
+            new CoachProfile("OWEN", "Owen", "Fresh energy and smart progression.", "Athletic strength coach", "coach-owen",
+                Enumerable.Range(0, 6).Select(pose => (string?)$"/images/coach/owen-gallery-v1015d.webp#pose={pose}").ToArray()),
+            new CoachProfile("AISHA", "Aisha", "Confident, encouraging, and powerful.", "Strength and movement coach", "coach-aisha",
+                Enumerable.Range(0, 6).Select(pose => (string?)$"/images/coach/aisha-gallery-v1015d.webp#pose={pose}").ToArray()),
+            new CoachProfile("LUCIA", "Lucía", "Playful energy with a little Puerto Rican spark.", "Fun, upbeat fitness coach", "coach-lucia",
+                Enumerable.Range(0, 6).Select(pose => (string?)$"/images/coach/lucia-gallery-v1015d.webp#pose={pose}").ToArray())
         }
         .ToDictionary(x => x.Code, StringComparer.OrdinalIgnoreCase);
 
@@ -304,6 +313,8 @@ public static class CoachCatalog
         => !string.IsNullOrWhiteSpace(code)
            && Coaches.ContainsKey(code.Trim());
 
+    private static readonly Dictionary<string, int> LastImages = new(StringComparer.OrdinalIgnoreCase);
+
     public static string ResolveImage(
         CoachProfile coach,
         int moduleNumber)
@@ -317,11 +328,14 @@ public static class CoachCatalog
         if (available.Length == 0)
             return "";
 
-        var index =
-            Math.Max(0, moduleNumber - 1)
-            % available.Length;
-
-        return available[index];
+        lock (LastImages)
+        {
+            var index = Random.Shared.Next(available.Length);
+            if (available.Length > 1 && LastImages.TryGetValue(coach.Code, out var last) && index == last)
+                index = (index + Random.Shared.Next(1, available.Length)) % available.Length;
+            LastImages[coach.Code] = index;
+            return available[index];
+        }
     }
 }
 
@@ -366,71 +380,120 @@ public static class LearningContentCatalog
             "A training plan combines different types of exercise because each develops a different part of your fitness. 12WR uses easy aerobic work, harder conditioning, and resistance training to address endurance, performance, and muscle strength while accounting for their different fuel demands. This matters because making every workout equally hard can spend recovery without providing the balanced practice your goals need. Follow the purpose of each planned session, fuel it appropriately, and use trends in performance and recovery to guide gradual adjustments.",
             "Give each session a clear job in the overall plan."),
 
-        new("NF-01","FOOD_AND_FUEL","Food & Fuel",1,8,LearningSurfaceCodes.Nutrition,
+        new("NF-01","FOOD_AND_FUEL","Food & Fuel",1,14,LearningSurfaceCodes.Nutrition,
             "Calories and nutrients are different questions","The why",
             "Calories measure the energy in food, while nutrients are the substances your body uses to function and maintain its tissues. Carbohydrate and fat provide much of your fuel, protein supplies building material, and vitamins, minerals, and fiber support other essential processes. This matters because two meals with similar calories can differ greatly in how well they support fullness, training, recovery, and health. Improve your meals by combining a protein source, varied vegetables or fruit, fiber-rich carbohydrate, and appropriate fats while keeping portions aligned with your plan.",
             "Plan for both energy needs and nutrient quality."),
-        new("NF-02","FOOD_AND_FUEL","Food & Fuel",2,8,LearningSurfaceCodes.Nutrition,
+        new("NF-02","FOOD_AND_FUEL","Food & Fuel",2,14,LearningSurfaceCodes.Nutrition,
             "Protein is raw material","The why",
             "Protein is a nutrient made from amino acids, the building blocks your body uses to make and maintain tissues. After resistance training, those amino acids help repair and remodel muscle as your body responds to the exercise stimulus. This matters because hard training needs adequate building material, and protein also helps preserve muscle when you are reducing body fat. Include protein-rich foods such as fish, eggs, dairy, beans, tofu, or lean meat across your regular meals and follow your plan's daily target.",
             "Pair a useful training stimulus with adequate daily protein."),
-        new("NF-03","FOOD_AND_FUEL","Food & Fuel",3,8,LearningSurfaceCodes.Nutrition,
+        new("NF-03","FOOD_AND_FUEL","Food & Fuel",3,14,LearningSurfaceCodes.Nutrition,
             "Carbohydrate is not just workout calories","The why",
             "Carbohydrate is a nutrient your body breaks down into sugars that can be used for energy or stored as glycogen in muscles and the liver. It helps support blood glucose and provides readily available fuel for demanding exercise, with glycogen rebuilt as you eat during recovery. This matters because a workout uses a mixture of fuels, so its total calorie burn is not the same as the amount of carbohydrate that needs replacing. Match carbohydrate intake to your planned activity and recovery needs using foods such as oats, rice, potatoes, beans, and fruit rather than automatically eating back every exercise calorie.",
             "Replace needed fuel rather than automatically eating back exercise calories."),
-        new("NF-04","FOOD_AND_FUEL","Food & Fuel",4,8,LearningSurfaceCodes.Nutrition,
+        new("NF-04","FOOD_AND_FUEL","Food & Fuel",4,14,LearningSurfaceCodes.Nutrition,
             "Fat has structural jobs","The why",
             "Dietary fat is an energy-rich nutrient that includes fatty acids your body needs for normal function. It provides fuel, contributes to cell membranes, and helps you absorb vitamins A, D, E, and K. This matters because removing too much fat can make a diet less nutritionally complete, while large portions can add substantial energy very quickly. Include reasonable portions of foods such as nuts, seeds, olive oil, avocado, and oily fish, and keep your overall intake aligned with your nutrition plan.",
             "Include appropriate fats and pay attention to portions."),
-        new("NF-05","FOOD_AND_FUEL","Food & Fuel",5,8,LearningSurfaceCodes.Nutrition,
+        new("NF-05","FOOD_AND_FUEL","Food & Fuel",5,14,LearningSurfaceCodes.Nutrition,
             "Fiber changes the meal","The why",
             "Fiber is the part of plant foods that your digestive system does not fully break down. Different types help stool move through the bowel, feed gut microbes, and can slow digestion or increase fullness. This matters because fiber supports digestive health and can make meals more satisfying while helping moderate the rise in blood glucose after some meals. Build intake gradually with vegetables, fruit, beans, and whole grains, and drink enough fluid as you increase it.",
             "Add fiber-rich foods gradually and support them with fluids."),
-        new("NF-06","FOOD_AND_FUEL","Food & Fuel",6,8,LearningSurfaceCodes.Nutrition,
+        new("NF-06","FOOD_AND_FUEL","Food & Fuel",6,14,LearningSurfaceCodes.Nutrition,
             "Recovery happens over time","The why",
             "Recovery nutrition is the ongoing process of replacing fuel and supplying the materials your body needs after exercise. Carbohydrate helps rebuild glycogen, protein supplies amino acids for tissue repair, and fluids help replace what you lose through sweat. This matters because recovery continues across meals, and timely refueling becomes more important when another demanding session is coming soon. Eat regular meals that meet your plan's fuel and protein needs, replace fluids, and give yourself adequate time between hard sessions.",
             "Support recovery across meals and between sessions."),
-        new("NF-07","FOOD_AND_FUEL","Food & Fuel",7,8,LearningSurfaceCodes.Nutrition,
+        new("NF-07","FOOD_AND_FUEL","Food & Fuel",7,14,LearningSurfaceCodes.Nutrition,
             "Logging is an estimate","The why",
             "Food logging is an estimate of what you eat based on portions, labels, recipes, and food databases. It helps you compare your usual intake with your nutrition targets and identify habits that may need adjusting. This matters because portions and database entries are imperfect, and even a precise-looking calorie total can differ from what you actually consumed. Improve accuracy by measuring commonly misjudged portions, using consistent entries, and checking longer-term trends in weight, waist, hunger, and performance before changing the plan.",
             "Use consistent logging and longer-term outcomes together."),
-        new("NF-08","FOOD_AND_FUEL","Food & Fuel",8,8,LearningSurfaceCodes.Nutrition,
+        new("NF-08","FOOD_AND_FUEL","Food & Fuel",8,14,LearningSurfaceCodes.Nutrition,
             "The goal is a repeatable diet","The why",
             "A repeatable diet is an eating pattern you can maintain through ordinary workdays, weekends, and changes in routine. It supplies enough protein and other nutrients, supports activity, and keeps overall energy intake aligned with your goals. This matters because results depend on what you can do consistently over time, and an overly restrictive plan can be difficult to sustain. Build a small set of meals you enjoy, plan convenient food options, and make manageable adjustments based on your progress instead of repeatedly starting over.",
             "Build an eating pattern you can repeat in real life."),
 
-        new("TR-01","TRAINING_ADAPTATION","Training Adaptation",1,8,LearningSurfaceCodes.Workout,
+        new("TR-01","TRAINING_ADAPTATION","Training Adaptation",1,14,LearningSurfaceCodes.Workout,
             "Exercise is a signal","The why",
             "A training stimulus is the physical challenge that tells your body it needs to become better prepared for similar work. Resistance exercise creates tension in muscle, while aerobic exercise challenges the systems that produce and deliver energy. This matters because lasting improvements develop as your body responds to repeated training and recovery, rather than from how exhausted one session makes you. Choose an appropriate challenge, repeat it consistently, and support the response with enough food, sleep, and recovery before adding more work.",
             "Repeat a useful challenge and give your body time to adapt."),
-        new("TR-02","TRAINING_ADAPTATION","Training Adaptation",2,8,LearningSurfaceCodes.Workout,
+        new("TR-02","TRAINING_ADAPTATION","Training Adaptation",2,14,LearningSurfaceCodes.Workout,
             "Hard enough is different from exhausted","The why",
             "Training effort describes how challenging a set is relative to your ability, while fatigue is the tiredness that accumulates as you work. A demanding set can stimulate muscle growth and strength even when you stop before you are unable to complete another good repetition. This matters because excessive fatigue can reduce technique and the quality of later sets without guaranteeing better results. Follow the prescribed effort, keep your repetitions controlled, and adjust the load when you cannot maintain the intended movement.",
             "Aim for productive effort with controlled technique."),
-        new("TR-03","TRAINING_ADAPTATION","Training Adaptation",3,8,LearningSurfaceCodes.Workout,
+        new("TR-03","TRAINING_ADAPTATION","Training Adaptation",3,14,LearningSurfaceCodes.Workout,
             "Progressive overload is evidence","The why",
             "Progressive overload means gradually increasing an appropriate training challenge as your body adapts. You can apply it by adding repetitions or weight, improving control, or performing a greater useful range of motion with sound technique. This matters because repeating a challenge that has become easy may provide less stimulus, but increasing too quickly can undermine movement quality and recovery. Record your sets and repetitions, progress in small steps when you meet the plan's goals, and compare performance under similar conditions.",
             "Progress gradually and compare like-for-like performance."),
-        new("TR-04","TRAINING_ADAPTATION","Training Adaptation",4,8,LearningSurfaceCodes.Workout,
+        new("TR-04","TRAINING_ADAPTATION","Training Adaptation",4,14,LearningSurfaceCodes.Workout,
             "Muscle glycogen is regional","The why",
             "Muscle glycogen is carbohydrate stored inside muscle fibers for use as a local fuel supply. The muscles recruited during exercise draw on their own stores, so a demanding leg session does not use every muscle's glycogen equally. This matters when planning another workout because the muscles that worked hardest may still need fuel replacement and recovery even if other muscles feel fresh. Support those stores with carbohydrate that fits your activity needs and allow appropriate recovery before repeating demanding work for the same muscles.",
             "Refuel and recover the muscles that did the work."),
-        new("TR-05","TRAINING_ADAPTATION","Training Adaptation",5,8,LearningSurfaceCodes.Workout,
+        new("TR-05","TRAINING_ADAPTATION","Training Adaptation",5,14,LearningSurfaceCodes.Workout,
             "Rest between sets has a job","The why",
             "A rest interval is the pause between sets that lets you prepare for the next effort. During that time, your muscles rebuild phosphocreatine, a reserve that helps rapidly recycle ATP, while breathing and other sources of fatigue also recover. This matters because starting the next set too soon can reduce the force, repetitions, or technique you can maintain. Use your plan's rest periods and take enough time to perform the next set well, especially during heavy or demanding exercises.",
             "Rest enough to preserve the quality of your next set."),
-        new("TR-06","TRAINING_ADAPTATION","Training Adaptation",6,8,LearningSurfaceCodes.Workout,
+        new("TR-06","TRAINING_ADAPTATION","Training Adaptation",6,14,LearningSurfaceCodes.Workout,
             "Creatine supports rapid ATP recycling","The why",
             "Creatine is a compound your body makes and also gets from foods such as meat and fish, with much of it stored in muscle. It helps form phosphocreatine, which rapidly transfers energy to rebuild ATP during brief, demanding efforts. This matters for repeated lifting sets and sprints because a larger phosphocreatine supply can help you maintain performance and support productive training. Improve that performance with consistent training and adequate rest, and consider creatine monohydrate as an optional supplement that can increase muscle stores if it fits your needs.",
             "Creatine can support repeated hard efforts; training and recovery remain essential."),
-        new("TR-07","TRAINING_ADAPTATION","Training Adaptation",7,8,LearningSurfaceCodes.Workout,
+        new("TR-07","TRAINING_ADAPTATION","Training Adaptation",7,14,LearningSurfaceCodes.Workout,
             "Mobility is usable range","The why",
             "Mobility is your ability to move a joint through a useful range with enough strength and control. You use it when squatting, reaching overhead, stepping, or performing other movements needed in training and daily life. This matters because having usable movement options helps you perform exercises with control and adapt them to your body. Practice comfortable ranges regularly, combine appropriate stretching with strength work, and gradually expand the movement without forcing painful positions.",
             "Build range, strength, and control together."),
-        new("TR-08","TRAINING_ADAPTATION","Training Adaptation",8,8,LearningSurfaceCodes.Workout,
+        new("TR-08","TRAINING_ADAPTATION","Training Adaptation",8,14,LearningSurfaceCodes.Workout,
             "Recovery is part of programming","The why",
             "Recovery is the process of restoring your ability to train while your body adapts to previous exercise. Sleep, food, fluids, and appropriately spaced sessions help restore fuel, repair tissues, and manage accumulated fatigue. This matters because fatigue that keeps building can reduce performance and make your next useful session harder to complete well. Keep a consistent sleep routine, meet your nutrition needs, and adjust training load or rest when several sessions show worsening performance or unusual fatigue.",
             "Use recovery to make the next productive session possible.")
+,
+        new("NF-09","FOOD_AND_FUEL","Food & Fuel",9,14,LearningSurfaceCodes.Nutrition,
+            "Pizza is not automatically off limits","The why",
+            "Pizza, donuts, and pie can fit a nutrition plan; a food name does not decide your results. Your body digests their carbohydrate as fuel, but these foods often also contain substantial fat and sometimes protein. Log the whole portion, fit it into your calorie and macro targets, and still meet protein, fiber, and micronutrient needs. A slice of pizza is not nutritionally identical to every other carbohydrate food.",
+            "Fit the portion, not a good-food or bad-food label."),
+        new("NF-10","FOOD_AND_FUEL","Food & Fuel",10,14,LearningSurfaceCodes.Nutrition,
+            "The post-workout window is not a free pass","The why",
+            "Carbohydrate after training helps replenish glycogen, and protein supports muscle repair. Faster refueling matters most when another demanding session follows soon. You do not need to save every treat for after a workout, and that timing does not cancel extra calories. Prioritize daily intake and regular protein-containing meals, then use timing to support recovery.",
+            "Recovery timing helps; total intake still counts.", "https://pubmed.ncbi.nlm.nih.gov/28919842/"),
+        new("NF-11","FOOD_AND_FUEL","Food & Fuel",11,14,LearningSurfaceCodes.Nutrition,
+            "Macros matter, and food quality still matters","The why",
+            "Calories and macros are useful targets for body composition and training. Matching those numbers does not make two diets equally nutritious or equally filling. Build most meals around protein, vegetables or fruit, fiber-rich carbohydrate, and suitable fats. Leave room for foods you enjoy without crowding out those basics.",
+            "Hit your targets while keeping the nutritional basics."),
+        new("NF-12","FOOD_AND_FUEL","Food & Fuel",12,14,LearningSurfaceCodes.Nutrition,
+            "Ultra-processed foods can make overeating easier","The why",
+            "In a controlled trial, people ate about 500 extra calories a day on the ultra-processed diet compared with the unprocessed diet. That is a result for an overall eating pattern, not proof that one packaged food ruins progress. Pay attention to foods you eat quickly or find difficult to portion, and use more satisfying meals as your foundation. Read labels and choose convenient foods that also help meet your protein and fiber needs.",
+            "Notice the pattern, portions, and fullness.", "https://pubmed.ncbi.nlm.nih.gov/31105044/"),
+        new("NF-13","FOOD_AND_FUEL","Food & Fuel",13,14,LearningSurfaceCodes.Nutrition,
+            "Restaurant calories can hide in the extras","The why",
+            "Restaurant meals can contain more energy than their appearance suggests. Cooking oil, butter, dressings, sauces, drinks, and generous portions all count toward intake. Ask how a dish is prepared, request sauces on the side, and use published nutrition information when available. Eating out can fit your plan; estimate the whole meal and watch your longer-term trend.",
+            "Log the extras as well as the main dish.", "https://pubmed.ncbi.nlm.nih.gov/26803805/"),
+        new("NF-14","FOOD_AND_FUEL","Food & Fuel",14,14,LearningSurfaceCodes.Nutrition,
+            "Plan the treat, then enjoy it","The why",
+            "A planned dessert is easier to account for than repeated unlogged bites. Choose a portion you actually enjoy and log its carbohydrate and fat as well as calories. Keep your normal protein and fiber-containing meals instead of skipping them to make room. You do not have to earn food with exercise or punish yourself with a workout afterward.",
+            "Enjoy your portion and return to your usual plan."),
+        new("TR-09","TRAINING_ADAPTATION","Training Adaptation",9,14,LearningSurfaceCodes.Workout,
+            "Leave a little in the tank","The why",
+            "A productive lifting set should challenge the muscles without requiring every set to end in failure. As a practical starting point, stop when you estimate one to three good repetitions remain, especially on demanding compound lifts. That is a coaching guide, not a universal scientifically perfect number. Keep technique steady and adjust effort to your exercise, experience, and recovery.",
+            "Hard reps, clean form, repeatable training.", "https://pubmed.ncbi.nlm.nih.gov/36334240/"),
+        new("TR-10","TRAINING_ADAPTATION","Training Adaptation",10,14,LearningSurfaceCodes.Workout,
+            "Rest to protect your next set","The why",
+            "Short rests can make a workout feel harder without making it more productive. Research suggests a small muscle-growth advantage to resting longer than 60 seconds, with uncertainty about a single ideal duration. Try roughly two minutes for challenging lifting sets and allow more when heavy work or breathing demands it. Follow the session plan and start again when you can preserve your repetitions and technique.",
+            "Let the next set be good, not just soon.", "https://pubmed.ncbi.nlm.nih.gov/39205815/"),
+        new("TR-11","TRAINING_ADAPTATION","Training Adaptation",11,14,LearningSurfaceCodes.Workout,
+            "Own the range before adding weight","The why",
+            "Range of motion describes how far you move through an exercise. Full-range training has produced greater strength and lower-body muscle growth than some partial-range approaches, although results depend on the exercise and muscle lengths used. Practice a comfortable, controlled range rather than shortening every rep to lift more. Adjust the movement to your body and do not force a painful position.",
+            "Control your useful range before increasing load.", "https://pubmed.ncbi.nlm.nih.gov/34170576/"),
+        new("TR-12","TRAINING_ADAPTATION","Training Adaptation",12,14,LearningSurfaceCodes.Workout,
+            "Beat your logbook by a small amount","The why",
+            "Progress does not require a personal record every workout. Track load, repetitions, and how many good reps you had left so comparisons mean something. When you reach the top of your planned rep range with steady technique, try the smallest sensible weight increase and rebuild your reps. A difficult day is information; look for improvement across weeks.",
+            "Earn small increases with repeatable technique."),
+        new("TR-13","TRAINING_ADAPTATION","Training Adaptation",13,14,LearningSurfaceCodes.Workout,
+            "Strength work can build mobility too","The why",
+            "Lifting through appropriate ranges can improve joint range of motion as well as strength. Reviews suggest resistance training can produce mobility gains comparable to stretching in the populations studied. Use controlled exercises, manageable loads, and ranges you can comfortably own. Add specific mobility practice when needed instead of assuming strength training always makes you stiff.",
+            "Train strength and usable movement together.", "https://pubmed.ncbi.nlm.nih.gov/33917036/"),
+        new("TR-14","TRAINING_ADAPTATION","Training Adaptation",14,14,LearningSurfaceCodes.Workout,
+            "Slower is not automatically better","The why",
+            "A controlled repetition helps you practice technique and keep tension where you intend it. Making every repetition extremely slow is not a guaranteed muscle-growth shortcut. Use a steady lowering phase and a purposeful lift without bouncing or losing control. Keep tempo consistent enough that your logbook reflects comparable repetitions.",
+            "Control the rep; do not chase a magic tempo.")
     ];
 
     public static IReadOnlyList<LearningLesson> All => Lessons;
@@ -563,6 +626,30 @@ public sealed class LearningOrchestratorService(
             displayMode);
     }
 
+    public async Task<LearningPresentation?> ReadAsync(
+        UserAccount user, string surfaceCode, string displayMode, string? contentCode,
+        CancellationToken cancellationToken = default)
+    {
+        if (!LearningSchemaReadiness.IsReady) return null;
+        return await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            await using var transaction = await db.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable, cancellationToken);
+            var current = await ResolveAsync(user, surfaceCode, displayMode, cancellationToken);
+            if (current is null) return null;
+            var full = displayMode.Equals("full", StringComparison.OrdinalIgnoreCase);
+            // A stale full card must not rewind another tab's persisted progress.
+            if (!full || current.Lesson.ContentCode.Equals(contentCode, StringComparison.OrdinalIgnoreCase))
+            {
+                await RecordInteractionAsync(user, current.Lesson.ContentCode, surfaceCode,
+                    LearningInteractionCodes.Complete, null, cancellationToken);
+                if (full) current = await ResolveAsync(user, surfaceCode, displayMode, cancellationToken);
+            }
+            await transaction.CommitAsync(cancellationToken);
+            return current;
+        });
+    }
+
     public async Task RecordInteractionAsync(
         UserAccount user,
         string contentCode,
@@ -645,3 +732,4 @@ public sealed class LearningOrchestratorService(
         await db.SaveChangesAsync(cancellationToken);
     }
 }
+

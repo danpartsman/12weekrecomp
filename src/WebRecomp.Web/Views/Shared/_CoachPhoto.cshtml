@@ -1,0 +1,15 @@
+@model (string Path, string Name)
+@{
+    var pieces = Model.Path.Split("#pose=");
+    var atlas = pieces.Length == 2 && int.TryParse(pieces[1], out var parsed) && parsed >= 0 && parsed < 6;
+    var pose = atlas ? int.Parse(pieces[1]) : 0;
+}
+@if (atlas)
+{
+    <span class="coach-photo coach-photo-atlas" role="img" aria-label="@Model.Name"
+          style="background-image:url('@pieces[0]');background-position:@((pose % 3) * 50)% @((pose / 3) * 100)%"></span>
+}
+else
+{
+    <img class="coach-photo" src="@Model.Path" alt="@Model.Name" loading="lazy" decoding="async" />
+}

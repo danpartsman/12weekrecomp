@@ -1,3 +1,4 @@
+@using WebRecomp.Web.Services.Learning
 @model OnboardingSetupViewModel
 @{
     ViewData["Title"] = "Quick Setup";
@@ -70,27 +71,15 @@
             <div class="ob-step-label">3 OF 4 · CHOOSE YOUR COACH</div>
             <h2>Who do you want teaching you?</h2>
             <p class="ob-sub">Your coach stays with you throughout 12WR — on the Dashboard, nutrition lessons, workout lessons and “The Why” learning series. You can change coaches later in Settings.</p>
-            <div class="coach-choice-grid">
-                <label class="coach-choice">
-                    <input asp-for="PreferredCoachCode" type="radio" value="MARISOL" required data-required-step />
-                    <img src="/images/coach/marisol-coach-avatar.webp" alt="Marisol" />
-                    <span class="coach-choice-copy"><strong>Marisol</strong><em>Strong + supportive</em><small>Warm, encouraging coaching with a strength-and-consistency focus.</small></span>
-                </label>
-                <label class="coach-choice">
-                    <input asp-for="PreferredCoachCode" type="radio" value="CASSIE" required data-required-step />
-                    <img src="/images/coach/cassie-avatar-v1015c.png" alt="Cassie" />
-                    <span class="coach-choice-copy"><strong>Cassie</strong><em>Energetic + athletic</em><small>Performance-minded coaching with an upbeat conditioning focus.</small></span>
-                </label>
-                <label class="coach-choice">
-                    <input asp-for="PreferredCoachCode" type="radio" value="MARCUS" required data-required-step />
-                    <img src="/images/coach/marcus-avatar-v1015c.png" alt="Marcus" />
-                    <span class="coach-choice-copy"><strong>Marcus</strong><em>Calm + technical</em><small>Methodical coaching focused on technique, progression and understanding.</small></span>
-                </label>
-                <label class="coach-choice">
-                    <input asp-for="PreferredCoachCode" type="radio" value="NINA" required data-required-step />
-                    <img src="/images/coach/nina-avatar-v1015c.png" alt="Nina" />
-                    <span class="coach-choice-copy"><strong>Nina</strong><em>Direct + focused</em><small>Clear, disciplined coaching centered on habits and consistent execution.</small></span>
-                </label>
+<div class="coach-choice-grid">
+                @foreach (var coach in CoachCatalog.All)
+                {
+                    <label class="coach-choice">
+                        <input asp-for="PreferredCoachCode" type="radio" value="@coach.Code" required data-required-step />
+                        @await Html.PartialAsync("_CoachPhoto", (coach.GalleryImages[0]!, coach.Name))
+                        <span class="coach-choice-copy"><strong>@coach.Name</strong><em>@coach.Style</em><small>@coach.Tagline</small></span>
+                    </label>
+                }
             </div>
             <span asp-validation-for="PreferredCoachCode"></span>
             <div class="ob-actions"><button class="ob-btn" type="button" data-back>← Back</button><button class="ob-btn primary" type="button" data-next>Next →</button></div>
@@ -172,3 +161,4 @@
     if (serverError) { const index = cards.indexOf(serverError.closest('.ob-card')); if (index >= 0) show(index); }
 })();
 </script>
+

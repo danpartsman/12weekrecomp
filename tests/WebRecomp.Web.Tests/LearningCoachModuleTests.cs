@@ -10,23 +10,39 @@ namespace WebRecomp.Web.Tests;
 public sealed class LearningCoachModuleTests
 {
     [Fact]
-    public void CoachCatalog_HasFourPersistentCoachChoices_WithFiveGallerySlotsEach()
+    public void CoachCatalog_HasEightPersistentCoachChoices_WithVariedGalleries()
     {
-        Assert.Equal(4, CoachCatalog.All.Count);
+        Assert.Equal(8, CoachCatalog.All.Count);
 
         Assert.Equal(
-            new[] { "MARISOL", "CASSIE", "MARCUS", "NINA" },
+            new[] { "MARISOL", "CASSIE", "MARCUS", "NINA", "GRANT", "OWEN", "AISHA", "LUCIA" },
             CoachCatalog.All.Select(x => x.Code).ToArray());
 
         Assert.All(
             CoachCatalog.All,
-            coach => Assert.Equal(5, coach.GalleryImages.Count));
+            coach => Assert.Equal(coach.Code is "GRANT" or "OWEN" or "AISHA" or "LUCIA" ? 6 : 5, coach.GalleryImages.Count));
+    }
+
+    [Fact]
+    public void CoachImages_RotateWithoutConsecutiveRepeats()
+    {
+        foreach (var coach in CoachCatalog.All)
+        {
+            var previous = CoachCatalog.ResolveImage(coach, 1);
+            for (var i = 0; i < 30; i++)
+            {
+                var current = CoachCatalog.ResolveImage(coach, 1);
+                Assert.Contains(current, coach.GalleryImages);
+                Assert.NotEqual(previous, current);
+                previous = current;
+            }
+        }
     }
 
     [Theory]
     [InlineData("DASHBOARD", "AEROBIC_ENERGY", 8)]
-    [InlineData("NUTRITION", "FOOD_AND_FUEL", 8)]
-    [InlineData("WORKOUT", "TRAINING_ADAPTATION", 8)]
+    [InlineData("NUTRITION", "FOOD_AND_FUEL", 14)]
+    [InlineData("WORKOUT", "TRAINING_ADAPTATION", 14)]
     public void LearningSeries_AreContiguousAndSurfaceSpecific(
         string surface,
         string series,
@@ -131,3 +147,4 @@ public sealed class LearningCoachModuleTests
         throw new DirectoryNotFoundException("Could not locate repository root.");
     }
 }
+
