@@ -13,7 +13,9 @@ public sealed record Engine30WorkoutRuntimeResult(
     Engine30WorkoutRuntimeProfileProvenance ProfileProvenance,
     Engine30ResolvedWorkoutSession ResolvedSession,
     Engine30WorkoutEnergyAdapterResult Energy,
-    Engine30WorkoutGlycogenAdapterResult Glycogen);
+    Engine30WorkoutGlycogenAdapterResult Glycogen,
+    Engine30SubstratePartitionResult? SubstratePartition = null,
+    string GlycogenReconciliationCode = "LEGACY");
 
 /// <summary>
 /// Engine 3.0 runtime workout orchestrator.
@@ -30,6 +32,7 @@ public sealed class Engine30WorkoutRuntimeService(
     private readonly Engine30WorkoutSessionResolver _resolver = new();
     private readonly Engine30WorkoutEnergyAdapter _energy = new();
     private readonly Engine30WorkoutGlycogenAdapter _glycogen = new();
+    private readonly Engine30SubstratePartitionCalculator _substrates = new();
 
     public async Task<Engine30WorkoutRuntimeResult> CalculateAsync(
         Engine30WorkoutRuntimeRequest request,
@@ -91,70 +94,166 @@ public sealed class Engine30WorkoutRuntimeService(
                     BaselineGlycogenGPerKgMuscle: request.BaselineGlycogenGPerKgMuscle,
                     ResistanceTrainingStatusCode: request.ResistanceTrainingStatusCode));
 
-        // Physiological consistency guardrail.
-        //
-        // Glycogen depletion is modeled independently from workout energy so
-        // calories never become a glycogen proxy.  The independent estimates
-        // must nevertheless obey conservation of energy: muscle glycogen
-        // energy cannot exceed the carbohydrate share of total exercise
-        // energy.  Ninety percent is deliberately a generous ceiling for
-        // very carbohydrate-dominant high-intensity work; it is a safety
-        // boundary, not an assertion that every workout is 90% carbohydrate.
-        var glycogen =
-            ApplyExerciseEnergyConsistencyGuardrail(
+        var substratePartition =
+            _substrates.Calculate(
+                resolved,
+                admin,
+                energy);
+
+        /*
+         * v1015A REDO:
+         *
+         * Total workout energy is first partitioned into muscle glycogen,
+         * circulating glucose, fat, phosphagen and protein. The local regional
+         * glycogen model may refine the estimate downward, but it may not claim
+         * more muscle-glycogen energy than the substrate model assigns.
+         *
+         * This deliberately removes the previous uncertainty multiplier that
+         * allowed normal high-output sessions to pass through essentially
+         * unchanged.
+         */
+        var reconciliation =
+            ReconcileGlycogenWithSubstratePartition(
                 modeledGlycogen,
+                substratePartition,
+                resolved.WorkoutFamilyCode,
                 energy.GrossWorkoutEnergyKcal);
 
         return new Engine30WorkoutRuntimeResult(
             ProfileProvenance: profileResolution.Provenance,
             ResolvedSession: resolved,
             Energy: energy,
-            Glycogen: glycogen);
+            Glycogen: reconciliation.Glycogen,
+            SubstratePartition: substratePartition,
+            GlycogenReconciliationCode: reconciliation.Code);
     }
 
-    private static Engine30WorkoutGlycogenAdapterResult ApplyExerciseEnergyConsistencyGuardrail(
-        Engine30WorkoutGlycogenAdapterResult modeled,
-        decimal grossWorkoutEnergyKcal)
+    private static (
+        Engine30WorkoutGlycogenAdapterResult Glycogen,
+        string Code)
+        ReconcileGlycogenWithSubstratePartition(
+            Engine30WorkoutGlycogenAdapterResult modeled,
+            Engine30SubstratePartitionResult substrate,
+            string workoutFamilyCode,
+            decimal grossWorkoutEnergyKcal)
     {
         if (grossWorkoutEnergyKcal <= 0m
             || modeled.EstimatedGlycogenDepletedG <= 0m)
         {
-            return modeled;
+            return (
+                modeled,
+                "NO_GLYCOGEN_RECONCILIATION_REQUIRED");
         }
 
         const decimal kcalPerGramCarbohydrate = 4m;
-        const decimal maximumCarbohydrateEnergyFraction = 0.90m;
 
-        var maximumPhysiologicallyPossibleGlycogenG =
+        /*
+         * Absolute physical ceiling only.
+         *
+         * Even if an upstream model becomes pathological, muscle glycogen
+         * cannot supply more energy than the entire workout. This is NOT a
+         * prescription target and is deliberately separate from substrate
+         * partitioning.
+         */
+        var absoluteEnergyCeilingG =
             grossWorkoutEnergyKcal
-            * maximumCarbohydrateEnergyFraction
             / kcalPerGramCarbohydrate;
 
+        var substrateCeilingG =
+            Math.Max(
+                0m,
+                substrate.EstimatedMuscleGlycogenG);
+
+        /*
+         * v1015A REDO:
+         * The substrate model already separates muscle glycogen from blood
+         * glucose, fat, phosphagen and protein. Do not inflate that estimate
+         * with an arbitrary 20-40% uncertainty multiplier.
+         *
+         * The local muscle model still matters: it can be LOWER than the
+         * whole-session substrate estimate because only recruited regions are
+         * exposed. The final value is therefore the lower of:
+         *   - local muscle / set / regional depletion model
+         *   - whole-session muscle-glycogen substrate estimate
+         *   - absolute total-energy conservation ceiling
+         */
+        var reconciledCeilingG =
+            Math.Min(
+                absoluteEnergyCeilingG,
+                substrateCeilingG > 0m
+                    ? substrateCeilingG
+                    : absoluteEnergyCeilingG);
+
         if (modeled.EstimatedGlycogenDepletedG
-            <= maximumPhysiologicallyPossibleGlycogenG)
+            <= reconciledCeilingG + 0.001m)
         {
-            return modeled;
+            return (
+                modeled,
+                "LOCAL_MODEL_BELOW_SUBSTRATE_ESTIMATE");
         }
 
         var scale =
-            maximumPhysiologicallyPossibleGlycogenG
+            reconciledCeilingG
             / modeled.EstimatedGlycogenDepletedG;
 
+        return (
+            ScaleGlycogenResult(
+                modeled,
+                scale),
+            "SUBSTRATE_PARTITION_BOUND_APPLIED");
+    }
+
+    private static Engine30WorkoutGlycogenAdapterResult ScaleGlycogenResult(
+        Engine30WorkoutGlycogenAdapterResult modeled,
+        decimal scale)
+    {
+        scale =
+            Math.Clamp(
+                scale,
+                0m,
+                1m);
+
         var depleted =
-            Round(maximumPhysiologicallyPossibleGlycogenG, 2);
+            Round(
+                modeled.EstimatedGlycogenDepletedG * scale,
+                2);
 
         var restoration =
-            Round(modeled.TargetGlycogenRestorationG * scale, 2);
+            Round(
+                modeled.TargetGlycogenRestorationG * scale,
+                2);
 
         var reload =
-            Round(modeled.CarbohydrateReloadRequirementG * scale, 2);
+            Round(
+                modeled.CarbohydrateReloadRequirementG * scale,
+                2);
+
+        var regions =
+            modeled.Regions?
+                .Select(region =>
+                    region with
+                    {
+                        EstimatedGlycogenDepletedG =
+                            Round(
+                                region.EstimatedGlycogenDepletedG * scale,
+                                2),
+                        EffectiveRegionalDepletionFraction =
+                            Round(
+                                region.EffectiveRegionalDepletionFraction * scale,
+                                4)
+                    })
+                .ToArray();
 
         return modeled with
         {
             EstimatedGlycogenDepletedG = depleted,
             TargetGlycogenRestorationG = restoration,
             CarbohydrateReloadRequirementG = reload,
-            CarbohydrateReloadEnergyKcal = Round(reload * kcalPerGramCarbohydrate, 2)
+            CarbohydrateReloadEnergyKcal =
+                Round(
+                    reload * 4m,
+                    2),
+            Regions = regions
         };
     }
 

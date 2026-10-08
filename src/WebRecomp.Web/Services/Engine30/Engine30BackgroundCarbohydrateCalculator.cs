@@ -3,7 +3,7 @@ namespace WebRecomp.Web.Services.Engine30;
 public static class Engine30BackgroundCarbohydrateModelCodes
 {
     public const string EvidenceCalibratedHabitualV1 =
-        "OBLIGATE_GLUCOSE_PLUS_HABITUAL_SUBSTRATE_V1";
+        "GLUCOSE_ANCHOR_WITH_HABITUAL_OXIDATION_DIAGNOSTIC_V2";
 
     public const string EstimatedNoIndirectCalorimetry =
         "ESTIMATED_NO_INDIRECT_CALORIMETRY";
@@ -20,20 +20,22 @@ public sealed record Engine30BackgroundCarbohydrateResult(
     string ConfidenceCode);
 
 /// <summary>
-/// Estimates the non-workout carbohydrate requirement that belongs underneath
-/// Engine 3.0's separate workout-glycogen reload calculation.
+/// Estimates the non-workout carbohydrate planning anchor used underneath
+/// Engine 3.0's separate workout-glycogen recovery calculation.
 ///
-/// The model intentionally separates two different physiological jobs:
+/// v1015A REDO separates USE from REQUIRED DIETARY REPLACEMENT:
 ///
-/// 1. A 100 g/day adult obligatory-glucose anchor. The National Academies
-///    adult carbohydrate EAR is based on average minimum brain glucose use.
-///    This is NOT called muscle-glycogen depletion.
+/// 1. The 100 g/day value is retained as the current configurable DRI-derived
+///    planning anchor. It is based on adult brain glucose utilization; it is
+///    not muscle-glycogen depletion and it is not evidence that every gram of
+///    glucose used by the body must arrive as dietary carbohydrate.
 ///
-/// 2. Additional carbohydrate oxidized by habitual movement above rest
-///    (occupation, home activity and lifestyle activity). Engine 3.0 already
-///    calculates the above-rest energy of those activities from the person's
-///    base-living energy, activity factor and hours. This calculator estimates
-///    what fraction of that incremental activity energy came from carbohydrate.
+/// 2. Habitual movement (occupation, home activity and lifestyle activity)
+///    does oxidize some carbohydrate. Those grams remain useful DIAGNOSTICS,
+///    but they are no longer automatically added to the carb prescription.
+///    The body can cover low-intensity activity from a changing mix of fat,
+///    circulating glucose, hepatic output and other substrates. "Carbohydrate
+///    oxidized" is not synonymous with "carbohydrate that must be eaten back".
 ///
 /// Gold-standard substrate oxidation requires VO2/VCO2 (indirect calorimetry),
 /// which 12WR does not currently receive. Therefore the habitual substrate
@@ -115,9 +117,10 @@ public sealed class Engine30BackgroundCarbohydrateCalculator
             + homeG
             + lifestyleG;
 
+        // Do NOT eat back estimated carbohydrate oxidation from ordinary
+        // daily activity. Preserve it as a diagnostic only.
         var total =
-            AdultObligatoryGlucoseAnchorG
-            + habitualG;
+            AdultObligatoryGlucoseAnchorG;
 
         return new Engine30BackgroundCarbohydrateResult(
             ObligatoryGlucoseRequirementG:

@@ -2,6 +2,12 @@ name: Build and deploy ASP.NET Core app to Azure Web App - recomp-test
 
 on:
   workflow_dispatch:
+    inputs:
+      apply_learning_schema:
+        description: 'Apply learning migration 043 using a SQL-authorized deployment identity'
+        type: boolean
+        required: false
+        default: false
   push:
     branches:
       - test
@@ -66,7 +72,7 @@ jobs:
           az webapp config appsettings set `
               --name recomp-test `
               --resource-group $resourceGroup `
-              --settings WebRecomp__EnableTestPersonas="false" | Out-Null
+              --settings WebRecomp__EnableTestPersonas="false" WebRecomp__BootstrapAdministratorEmailSha256="0618188557cf5bee9c97b08c64f7a748835803dbaf1aa2a5cf3a9f2dd1da60bb" | Out-Null
 
           az webapp log config `
               --name recomp-test `
@@ -75,12 +81,129 @@ jobs:
               --level information `
               --web-server-logging filesystem | Out-Null
 
+
+      - name: Apply learning schema with TEST deployment identity
+        if: github.event_name == 'workflow_dispatch' && inputs.apply_learning_schema
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ("${{ github.ref }}" -ne "refs/heads/test") {
+              throw "Learning schema migration is restricted to the TEST branch."
+          }
+
+          $connectionString = az webapp config connection-string list `
+              --name recomp-test `
+              --resource-group $env:RECOMP_TEST_RG `
+              --query "[?name=='RecompDatabase'].value | [0]" `
+              --output tsv --only-show-errors
+
+          if ($LASTEXITCODE -ne 0) {
+              throw "Could not read recomp-test connection settings."
+          }
+
+          # Older TEST configuration stores the same .NET setting under
+          # App Settings rather than the App Service connection-string list.
+          if ([string]::IsNullOrWhiteSpace($connectionString)) {
+              $connectionString = az webapp config appsettings list `
+                  --name recomp-test `
+                  --resource-group $env:RECOMP_TEST_RG `
+                  --query "[?name=='ConnectionStrings__RecompDatabase'].value | [0]" `
+                  --output tsv --only-show-errors
+          }
+
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($connectionString)) {
+              throw "Could not resolve the recomp-test database connection setting."
+          }
+
+          Write-Output "::add-mask::$connectionString"
+          $env:RECOMP_RUNTIME_CONNECTION_STRING = $connectionString
+
+          try {
+              dotnet run --project tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj `
+                  --configuration Release -- --learning-coach
+              if ($LASTEXITCODE -ne 0) {
+                  throw "TEST learning schema migration failed. The running application has not been replaced."
+              }
+          }
+          finally {
+              Remove-Item Env:RECOMP_RUNTIME_CONNECTION_STRING -ErrorAction SilentlyContinue
+          }
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: recomp-test
           slot-name: Production
           package: ./publish
+
+      - name: Verify TEST health and native account pages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $base = "https://test.12weekrecomp.com"
+          $healthy = $false
+
+          for ($attempt = 1; $attempt -le 18; $attempt++) {
+              try {
+                  $health = Invoke-WebRequest -Uri "$base/health?v=${{ github.sha }}" -TimeoutSec 20
+                  $signIn = Invoke-WebRequest -Uri "$base/Account/SignIn?v=${{ github.sha }}" -TimeoutSec 20
+                  $create = Invoke-WebRequest -Uri "$base/Account/CreateAccount?v=${{ github.sha }}" -TimeoutSec 20
+
+                  if ($health.StatusCode -eq 200 -and
+                      $signIn.StatusCode -eq 200 -and
+                      $create.StatusCode -eq 200 -and
+                      $signIn.Content.Contains("Keep me signed in for 7 days") -and
+                      $create.Content -match 'Create account &amp; continue|Create account & continue') {
+                      $healthy = $true
+                      Write-Host "TEST health, native sign-in, and account creation pages passed."
+                      break
+                  }
+              }
+              catch {
+                  Write-Host "TEST is not ready yet ($attempt/18)."
+              }
+
+              Start-Sleep -Seconds 5
+          }
+
+          if (-not $healthy) {
+              throw "TEST failed health or native account page verification after deployment."
+          }
+
+      - name: Report optional learning schema readiness
+        shell: pwsh
+        run: |
+          $state = Invoke-RestMethod `
+              -Uri "https://test.12weekrecomp.com/TestDiagnostics/LearningSchemaState" `
+              -TimeoutSec 20
+          Write-Host ($state | ConvertTo-Json -Compress)
+
+          if ($state.ready -ne $true) {
+              Write-Output "::warning::TEST is healthy, but coach learning remains disabled until a database administrator applies migration 043. The deployment identity currently lacks SQL access."
+          }
+
+      - name: Verify TEST duplicate admin cleanup
+        shell: pwsh
+        run: |
+          $uri = "https://test.12weekrecomp.com/TestDiagnostics/BootstrapAuthState"
+          $state = $null
+
+          for ($attempt = 1; $attempt -le 12; $attempt++) {
+              try {
+                  $state = Invoke-RestMethod -Uri $uri -TimeoutSec 20
+                  if ($null -ne $state) { break }
+              }
+              catch {
+                  Start-Sleep -Seconds 5
+              }
+          }
+
+          if ($null -eq $state) {
+              throw "Could not read TEST bootstrap auth state."
+          }
+
+          Write-Host "SANITIZED_TEST_AUTH_STATE"
+          Write-Host ($state | ConvertTo-Json -Compress -Depth 4)
 
       - name: Capture TEST startup diagnostics
         if: failure()

@@ -1,0 +1,39 @@
+name: TEST Auth Diagnostic
+
+on:
+  push:
+    branches:
+      - test
+    paths:
+      - '.github/workflows/test-auth-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: windows-latest
+    steps:
+      - name: Read sanitized bootstrap account state
+        shell: pwsh
+        run: |
+          $uri = "https://test.12weekrecomp.com/TestDiagnostics/BootstrapAuthState"
+          $state = $null
+
+          for ($attempt = 1; $attempt -le 12; $attempt++) {
+              try {
+                  $state = Invoke-RestMethod -Uri $uri -TimeoutSec 20
+                  if ($null -ne $state) { break }
+              }
+              catch {
+                  Start-Sleep -Seconds 5
+              }
+          }
+
+          if ($null -eq $state) {
+              throw "Could not read sanitized TEST auth state."
+          }
+
+          Write-Host "SANITIZED_TEST_AUTH_STATE"
+          Write-Host ($state | ConvertTo-Json -Compress -Depth 4)

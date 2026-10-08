@@ -49,6 +49,15 @@
         </form>
     </header>
 
+    <div class="learning-surface-label">YOUR COACH · TRAINING</div>
+    @await Component.InvokeAsync(
+        "CoachLearning",
+        new
+        {
+            surfaceCode = "WORKOUT",
+            displayMode = "thumbnail"
+        })
+
     @if (TempData["StatusMessage"] is string statusMessage)
     {
         <div class="app-message success">@statusMessage</div>

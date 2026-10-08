@@ -1,0 +1,117 @@
+@model WebRecomp.Web.Services.Learning.LearningPresentation?
+@using WebRecomp.Web.Services.Learning
+@{
+    var returnUrl = ViewData["ReturnUrl"] as string ?? "/";
+}
+@if (Model is not null)
+{
+    var coach = Model.Coach;
+    var lesson = Model.Lesson;
+    var image = Model.ImagePath;
+    var isFull = Model.DisplayMode.Equals("full", StringComparison.OrdinalIgnoreCase);
+    var dialogId = $"learning-dialog-{lesson.ContentCode.ToLowerInvariant()}";
+
+    <section class="learning-coach @(isFull ? "learning-coach--full" : "learning-coach--thumb") @coach.AccentClass"
+             data-learning-coach
+             data-content-code="@lesson.ContentCode"
+             data-series-code="@lesson.SeriesCode">
+        <form asp-controller="Learning"
+              asp-action="Interact"
+              method="post"
+              data-learning-log-form
+              hidden>
+            <input type="hidden" name="contentCode" value="@lesson.ContentCode" />
+            <input type="hidden" name="surfaceCode" value="@lesson.SurfaceCode" />
+            <input type="hidden" name="interactionCode" value="" data-learning-interaction-code />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+        </form>
+        @if (isFull)
+        {
+            <div class="learning-full-image">
+                @if (!string.IsNullOrWhiteSpace(image))
+                {
+                    <img src="@image" alt="@coach.Name" />
+                }
+                else
+                {
+                    <div class="learning-coach-fallback" aria-hidden="true">@coach.Name[0]</div>
+                }
+            </div>
+            <div class="learning-full-copy">
+                <div class="learning-kicker">THE WHY · @lesson.SeriesTitle.ToUpperInvariant() · @lesson.ModuleNumber OF @lesson.TotalModules</div>
+                <h2>@lesson.Title</h2>
+                <p class="learning-why">@lesson.Body</p>
+                @if (!string.IsNullOrWhiteSpace(lesson.Takeaway))
+                {
+                    <p class="learning-takeaway"><strong>Remember:</strong> @lesson.Takeaway</p>
+                }
+                <div class="learning-byline">@coach.Name · @coach.Style</div>
+                <div class="learning-actions">
+                    <form asp-controller="Learning" asp-action="Interact" method="post">
+                        <input type="hidden" name="contentCode" value="@lesson.ContentCode" />
+                        <input type="hidden" name="surfaceCode" value="@lesson.SurfaceCode" />
+                        <input type="hidden" name="interactionCode" value="@LearningInteractionCodes.Complete" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <button type="submit" class="button primary">Got it · next lesson →</button>
+                    </form>
+                    <button type="button" class="button learning-hide" data-learning-hide>Hide</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <button type="button"
+                    class="learning-thumb-button"
+                    data-learning-open="@dialogId"
+                    aria-haspopup="dialog">
+                @if (!string.IsNullOrWhiteSpace(image))
+                {
+                    <img src="@image" alt="" />
+                }
+                else
+                {
+                    <span class="learning-coach-fallback" aria-hidden="true">@coach.Name[0]</span>
+                }
+                <span>
+                    <small>THE WHY</small>
+                    <strong>Ask @coach.Name</strong>
+                    <em>@lesson.Title</em>
+                </span>
+            </button>
+
+            <div id="@dialogId" class="learning-dialog" role="dialog" aria-modal="true" aria-labelledby="@($"{dialogId}-title")" hidden>
+                <div class="learning-dialog-backdrop" data-learning-close></div>
+                <article class="learning-dialog-card">
+                    <button type="button" class="learning-dialog-close" data-learning-close aria-label="Close">×</button>
+                    <div class="learning-dialog-coach">
+                        @if (!string.IsNullOrWhiteSpace(image))
+                        {
+                            <img src="@image" alt="@coach.Name" />
+                        }
+                        else
+                        {
+                            <div class="learning-coach-fallback" aria-hidden="true">@coach.Name[0]</div>
+                        }
+                    </div>
+                    <div class="learning-dialog-copy">
+                        <div class="learning-kicker">@lesson.SeriesTitle.ToUpperInvariant() · @lesson.ModuleNumber OF @lesson.TotalModules</div>
+                        <h2 id="@($"{dialogId}-title")">@lesson.Title</h2>
+                        <p>@lesson.Body</p>
+                        @if (!string.IsNullOrWhiteSpace(lesson.Takeaway))
+                        {
+                            <p class="learning-takeaway"><strong>Remember:</strong> @lesson.Takeaway</p>
+                        }
+                        <div class="learning-byline">@coach.Name · @coach.Style</div>
+                        <form asp-controller="Learning" asp-action="Interact" method="post">
+                            <input type="hidden" name="contentCode" value="@lesson.ContentCode" />
+                            <input type="hidden" name="surfaceCode" value="@lesson.SurfaceCode" />
+                            <input type="hidden" name="interactionCode" value="@LearningInteractionCodes.Complete" />
+                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                            <button type="submit" class="primary">Got it · next lesson →</button>
+                        </form>
+                    </div>
+                </article>
+            </div>
+        }
+    </section>
+}

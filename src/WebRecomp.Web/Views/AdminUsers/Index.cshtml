@@ -67,26 +67,43 @@
                     <td>@(user.LastSignInAtUtc?.ToString("yyyy-MM-dd HH:mm 'UTC'") ?? "—")</td>
                     <td>@user.CreatedAtUtc.ToString("yyyy-MM-dd")</td>
                     <td>
-                        <div style="display:flex;gap:.45rem;flex-wrap:wrap;">
-                            <form asp-action="SetStatus" asp-route-userId="@user.UserId" method="post">
+                        <div style="display:grid;gap:.55rem;min-width:18rem;">
+                            <form asp-action="UpdateUser" asp-route-userId="@user.UserId" method="post" style="display:grid;gap:.4rem;">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="search" value="@Model.Search" />
-                                <input type="hidden" name="status" value="@(user.StatusCode.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase) ? "SUSPENDED" : "ACTIVE")" />
-                                <button type="submit" class="button" disabled="@(user.IsCurrentUser && user.StatusCode.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase))">
-                                    @(user.StatusCode.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase) ? "Suspend" : "Activate")
-                                </button>
+                                <input type="text" name="displayName" value="@user.DisplayName" aria-label="Display name" placeholder="Display name" />
+                                <input type="email" name="email" value="@user.Email" aria-label="Email" placeholder="Email" />
+                                <button type="submit" class="button">Save account</button>
                             </form>
-                            @if (user.IsLocalAccount)
-                            {
-                                <form asp-action="SetRole" asp-route-userId="@user.UserId" method="post">
+
+                            <div style="display:flex;gap:.45rem;flex-wrap:wrap;">
+                                <form asp-action="SetStatus" asp-route-userId="@user.UserId" method="post">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="search" value="@Model.Search" />
-                                    <input type="hidden" name="role" value="@(user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase) ? "CLIENT" : "ADMINISTRATOR")" />
-                                    <button type="submit" class="button" disabled="@(user.IsCurrentUser && user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase))">
-                                        @(user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase) ? "Make Client" : "Make Administrator")
+                                    <input type="hidden" name="status" value="@(user.StatusCode.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase) ? "SUSPENDED" : "ACTIVE")" />
+                                    <button type="submit" class="button" disabled="@(user.IsCurrentUser && user.StatusCode.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase))">
+                                        @(user.StatusCode.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase) ? "Suspend" : "Activate")
                                     </button>
                                 </form>
-                            }
+
+                                @if (user.IsLocalAccount)
+                                {
+                                    <form asp-action="SetRole" asp-route-userId="@user.UserId" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="search" value="@Model.Search" />
+                                        <input type="hidden" name="role" value="@(user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase) ? "CLIENT" : "ADMINISTRATOR")" />
+                                        <button type="submit" class="button" disabled="@(user.IsCurrentUser && user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase))">
+                                            @(user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase) ? "Make Client" : "Make Administrator")
+                                        </button>
+                                    </form>
+                                }
+
+                                <form asp-action="DeleteUser" asp-route-userId="@user.UserId" method="post" onsubmit="return confirm('Delete this account? Accounts with attached 12WR data will be protected and will not be deleted.');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="search" value="@Model.Search" />
+                                    <button type="submit" class="button" disabled="@user.IsCurrentUser">Delete</button>
+                                </form>
+                            </div>
                         </div>
                     </td>
                 </tr>

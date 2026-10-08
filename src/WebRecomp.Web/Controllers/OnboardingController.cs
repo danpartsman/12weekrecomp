@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
+using WebRecomp.Web.Services.Learning;
 using WebRecomp.Web.ViewModels;
 
 namespace WebRecomp.Web.Controllers;
@@ -12,7 +13,8 @@ public sealed class OnboardingController(
     AppUserContextService userContext,
     AccessEntitlementService entitlements,
     ConfigurationService configuration,
-    WeeklyPlanService weeklyPlans) : Controller
+    WeeklyPlanService weeklyPlans,
+    LearningOrchestratorService learning) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -57,6 +59,13 @@ public sealed class OnboardingController(
         }
 
         Normalize(model);
+
+        if (!CoachCatalog.IsValid(model.PreferredCoachCode))
+        {
+            ModelState.AddModelError(
+                nameof(model.PreferredCoachCode),
+                "Choose one of the available coaches.");
+        }
 
         if (!ModelState.IsValid)
         {
@@ -151,6 +160,11 @@ public sealed class OnboardingController(
             }
 
             await db.SaveChangesAsync(cancellationToken);
+
+            await learning.SetPreferredCoachAsync(
+                context.User.UserId,
+                model.PreferredCoachCode,
+                cancellationToken);
 
             var today = AppUserContextService.GetClientToday(client);
 
@@ -281,7 +295,11 @@ public sealed class OnboardingController(
             {
                 ClientName = fallbackName,
                 TrainingExperienceCode = "INTERMEDIATE",
-                AvailableTrainingDaysWeek = 4
+                AvailableTrainingDaysWeek = 4,
+                PreferredCoachCode =
+                    await learning.GetPreferredCoachCodeAsync(
+                        context.User.UserId,
+                        cancellationToken)
             };
         }
 
@@ -323,7 +341,11 @@ public sealed class OnboardingController(
             StartingVisceralFatRating = latestMeasurement?.VisceralFatRating,
             LifestyleActivityCode = client.LifestyleActivityCode,
             BaselineStepsDay = client.BaselineStepsDay,
-            BaselineSleepHours = client.BaselineSleepHours
+            BaselineSleepHours = client.BaselineSleepHours,
+            PreferredCoachCode =
+                await learning.GetPreferredCoachCodeAsync(
+                    context.User.UserId,
+                    cancellationToken)
         };
     }
 
@@ -367,6 +389,10 @@ public sealed class OnboardingController(
         model.TimeZone = string.IsNullOrWhiteSpace(model.TimeZone)
             ? "America/Los_Angeles"
             : model.TimeZone.Trim();
+        model.PreferredCoachCode =
+            CoachCatalog.Resolve(
+                model.PreferredCoachCode).Code;
+
         model.LifestyleActivityCode = string.IsNullOrWhiteSpace(model.LifestyleActivityCode)
             ? null
             : model.LifestyleActivityCode.Trim().ToUpperInvariant();

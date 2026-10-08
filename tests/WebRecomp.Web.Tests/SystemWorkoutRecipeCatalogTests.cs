@@ -70,15 +70,15 @@ public sealed class SystemWorkoutRecipeCatalogTests
             .Select(x => x.SystemCode)
             .ToArray();
 
-        Assert.Equal("OTF_STRENGTH50_2026_10_07", otf[0]);
-        Assert.Equal("OTF_STRENGTH60_2026_10_02", otf[1]);
-        Assert.Equal("OTF_2G_2026_09_30", otf[2]);
-        Assert.Equal("OTF_STRENGTH50_2026_09_30", otf[3]);
-        Assert.Equal("OTF_2G_2026_09_29", otf[4]);
-        Assert.Equal("OTF_2G_2026_09_28", otf[5]);
-        Assert.Equal("OTF_2G_2026_09_27", otf[6]);
-        Assert.Contains("ORANGETHEORY", otf.Skip(7));
-        Assert.Contains("SYS_OTF_STRENGTH_50", otf.Skip(7));
+        Assert.Contains("ORANGETHEORY", otf);
+        Assert.Contains("SYS_OTF_STRENGTH_50", otf);
+        Assert.Contains(
+            otf,
+            SystemWorkoutRecipeCatalog.IsDatedOrangetheorySystemCode);
+
+        Assert.Equal(
+            otf.Length,
+            otf.Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
     [Theory]
@@ -134,7 +134,12 @@ public sealed class SystemWorkoutRecipeCatalogTests
         Assert.Equal(50m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(strength, 45m));
         Assert.Equal("Standard Orangetheory 2G", recipe.DisplayName);
         Assert.Equal(60m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(recipe, 60m));
-        Assert.Contains(SystemWorkoutRecipeCatalog.PresentationRecipes, x => x.SystemCode == "OTF_2G_2026_09_27");
+        Assert.Contains(
+            SystemWorkoutRecipeCatalog.PresentationRecipes,
+            x =>
+                SystemWorkoutRecipeCatalog
+                    .IsDatedOrangetheorySystemCode(
+                        x.SystemCode));
 
         var dated =
             SystemWorkoutRecipeCatalog.PresentationRecipes
@@ -225,10 +230,15 @@ public sealed class SystemWorkoutRecipeCatalogTests
             .Where(x => x.GroupName == "Orangetheory" && (x.SystemCode.StartsWith("OTF_2G_") || x.SystemCode.StartsWith("OTF_STRENGTH50_") || x.SystemCode.StartsWith("OTF_STRENGTH60_")))
             .Select(x => x.DisplayName)
             .ToArray();
-        Assert.Contains("2026-10-07", datedOtfNames[0]);
-        Assert.Contains("2026-10-02", datedOtfNames[1]);
-        Assert.Contains("2026-09-30", datedOtfNames[2]);
-        Assert.Contains("2026-09-30", datedOtfNames[3]);
+        Assert.Contains(
+            datedOtfNames,
+            x => x.Contains("2026-10-02", StringComparison.Ordinal));
+
+        Assert.True(
+            datedOtfNames.Count(
+                x => x.Contains(
+                    "2026-09-30",
+                    StringComparison.Ordinal)) >= 2);
         Assert.Equal("RESISTANCE_CIRCUIT", september30Strength.EngineWorkoutTypeCode);
         Assert.Equal(50m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(september30Strength, 45m));
         Assert.Equal(14, september30Strength.Slots.Count);

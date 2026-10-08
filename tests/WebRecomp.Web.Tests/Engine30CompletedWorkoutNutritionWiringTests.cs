@@ -22,7 +22,9 @@ public sealed class Engine30CompletedWorkoutNutritionWiringTests
         Assert.Contains("BuildActualizedPrescriptionDayInputAsync", source, StringComparison.Ordinal);
         Assert.Contains("actualized ?? plannedInput", source, StringComparison.Ordinal);
         Assert.Contains("actualNetWorkoutEnergyKcal", source, StringComparison.Ordinal);
-        Assert.Contains("actualGlycogenReloadRequirementG", source, StringComparison.Ordinal);
+        Assert.Contains("actualGlycogenSessions", source, StringComparison.Ordinal);
+        Assert.Contains("Engine30SameDayGlycogenCalculator", source, StringComparison.Ordinal);
+        Assert.Contains("SequentialCarbohydrateReloadG", source, StringComparison.Ordinal);
         Assert.Contains("plannedRuntime.Energy.BaseLivingEnergyKcal", source, StringComparison.Ordinal);
         Assert.Contains("plannedRuntime.Energy.HabitualActivityEnergyKcal", source, StringComparison.Ordinal);
     }

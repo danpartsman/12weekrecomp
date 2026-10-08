@@ -74,7 +74,18 @@
                 setStatus("saved", payload?.message || "Saved automatically.");
 
                 if (typeof options.afterSave === "function") {
-                    options.afterSave(payload || {});
+                    try {
+                        options.afterSave(payload || {});
+                    }
+                    catch (callbackError) {
+                        // The server save already succeeded. A presentation
+                        // callback must never mark the saved form dirty or
+                        // cause an idempotency-sensitive record to be created
+                        // again on the next autosave.
+                        console.error(
+                            "Autosave afterSave callback failed.",
+                            callbackError);
+                    }
                 }
 
                 if (reloadAfterSaveMs > 0) {

@@ -50,7 +50,7 @@ var migrationBuilder = new SqlConnectionStringBuilder
     Pooling = false
 };
 
-const string migrationSql = """
+const string localAuthMigrationSql = """
 SET XACT_ABORT ON;
 
 IF SCHEMA_ID(N'app') IS NULL
@@ -88,6 +88,19 @@ IF SCHEMA_ID(N'nutrition') IS NULL
 GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::nutrition TO web_recomp_app;
 """;
 
+var learningMigration = args.Length == 1 && args[0] == "--learning-coach";
+if (args.Length > 0 && !learningMigration)
+{
+    Console.Error.WriteLine("Supported migration option: --learning-coach.");
+    return 5;
+}
+
+// The learning migration is additive and idempotent. Run it with the
+// deployment identity, never by granting DDL to the runtime web identity.
+var migrationSql = learningMigration
+    ? await File.ReadAllTextAsync(Path.Combine("database", "043_v1015c_learning_coach_foundation.sql"))
+    : localAuthMigrationSql;
+
 try
 {
     await using var connection = new SqlConnection(migrationBuilder.ConnectionString)
@@ -103,7 +116,7 @@ try
     await command.ExecuteNonQueryAsync();
 
     Console.WriteLine(
-        $"12WR database migration complete for {runtimeBuilder.InitialCatalog}; local auth schema and nutrition runtime grants are present.");
+        $"12WR database migration complete for {runtimeBuilder.InitialCatalog}; {(learningMigration ? "learning coach schema is present" : "local auth schema and nutrition runtime grants are present")}.");
     return 0;
 }
 catch (SqlException exception)

@@ -108,10 +108,10 @@ public static class CoachWorkoutGuideCatalog
             CoachDisplayName: "Cassie",
             WorkoutTypeCode: "ZONE2_CARDIO",
             Title: "Zone 2 Cardio - Build the Aerobic Base",
-            AssetPath: "~/images/coach/cassie-zone2-cardio-guide.webp",
-            AvatarPath: "~/images/coach/cassie-coach-avatar.webp",
+            AssetPath: "~/images/coach/cassie-zone2-cardio-v1015c.png",
+            AvatarPath: "~/images/coach/cassie-avatar-v1015c.png",
             AltText:
-                "Coach Cassie Zone 2 Cardio guide covering controlled aerobic work, perceived effort, glycogen use, and moderate nutrition needs.",
+                "Coach Cassie walking on a treadmill for Zone 2 cardio.",
             NutritionGuideCode: "LOW_MODERATE_CARB_CARDIO",
             NutritionSummary:
                 "Zone 2 generally needs less carbohydrate than hard intervals. Use a light carb snack only when useful and eat a normal protein-centered meal afterward.",
@@ -122,10 +122,10 @@ public static class CoachWorkoutGuideCatalog
             CoachDisplayName: "Cassie",
             WorkoutTypeCode: "GENERAL_CARDIO",
             Title: "General Cardio - Consistency and Capacity",
-            AssetPath: "~/images/coach/cassie-general-cardio-guide.webp",
-            AvatarPath: "~/images/coach/cassie-coach-avatar.webp",
+            AssetPath: "~/images/coach/cassie-general-cardio-v1015c.png",
+            AvatarPath: "~/images/coach/cassie-avatar-v1015c.png",
             AltText:
-                "Coach Cassie General Cardio guide covering steady movement, pacing, consistency, glycogen use, and nutrition.",
+                "Coach Cassie beside a stationary exercise bike.",
             NutritionGuideCode: "LOW_MODERATE_CARB_CARDIO",
             NutritionSummary:
                 "Keep fueling simple. A small carbohydrate snack is optional before training; normal protein and moderate carbohydrate afterward usually fit the day.",
@@ -136,10 +136,10 @@ public static class CoachWorkoutGuideCatalog
             CoachDisplayName: "Cassie",
             WorkoutTypeCode: "RUNNING_INTERVALS",
             Title: "Running Intervals - Work Hard, Recover on Purpose",
-            AssetPath: "~/images/coach/cassie-running-intervals-guide.webp",
-            AvatarPath: "~/images/coach/cassie-coach-avatar.webp",
+            AssetPath: "~/images/coach/cassie-running-intervals-v1015c.png",
+            AvatarPath: "~/images/coach/cassie-avatar-v1015c.png",
             AltText:
-                "Coach Cassie Running Intervals guide covering hard work bouts, purposeful recovery, perceived effort, glycogen demand, and refueling.",
+                "Coach Cassie coaching running intervals beside a treadmill.",
             NutritionGuideCode: "HIGH_CARB_INTERVALS",
             NutritionSummary:
                 "Intervals are carbohydrate-demanding. Use carbohydrates plus protein before when needed and restore glycogen with carbohydrate plus protein afterward.",
@@ -150,10 +150,10 @@ public static class CoachWorkoutGuideCatalog
             CoachDisplayName: "Cassie",
             WorkoutTypeCode: "TRUE_HIIT",
             Title: "True HIIT - Short, Intense, Controlled",
-            AssetPath: "~/images/coach/cassie-true-hiit-guide.webp",
-            AvatarPath: "~/images/coach/cassie-coach-avatar.webp",
+            AssetPath: "~/images/coach/cassie-true-hiit-v1015c.png",
+            AvatarPath: "~/images/coach/cassie-avatar-v1015c.png",
             AltText:
-                "Coach Cassie True HIIT guide covering short hard work bouts, real recovery intervals, very high perceived effort, glycogen demand, and refueling.",
+                "Coach Cassie beside an air bike between high-intensity efforts.",
             NutritionGuideCode: "HIGH_CARB_HIIT",
             NutritionSummary:
                 "True HIIT is short but glycolytic. Arrive fueled, hydrate, and use protein plus carbohydrate afterward to support recovery and glycogen restoration.",
@@ -164,10 +164,10 @@ public static class CoachWorkoutGuideCatalog
             CoachDisplayName: "Cassie",
             WorkoutTypeCode: "MIXED_CONDITIONING",
             Title: "Mixed Conditioning - Strong, Organized, Repeatable",
-            AssetPath: "~/images/coach/cassie-mixed-conditioning-guide.webp",
-            AvatarPath: "~/images/coach/cassie-coach-avatar.webp",
+            AssetPath: "~/images/coach/cassie-mixed-conditioning-v1015c.png",
+            AvatarPath: "~/images/coach/cassie-avatar-v1015c.png",
             AltText:
-                "Coach Cassie Mixed Conditioning guide covering circuits, transitions, sustainable hard work, glycogen demand, and workout nutrition.",
+                "Coach Cassie holding a kettlebell in a functional training area.",
             NutritionGuideCode: "MODERATE_HIGH_CARB_MIXED_CONDITIONING",
             NutritionSummary:
                 "Mixed conditioning combines strength and cardio demand. Use protein plus carbohydrate around meaningful sessions and replenish after training.",

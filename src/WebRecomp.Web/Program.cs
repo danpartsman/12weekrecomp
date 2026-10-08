@@ -19,6 +19,7 @@ using WebRecomp.CatalogSync;
 using WebRecomp.CatalogSync.Providers;
 using WebRecomp.Web.Services.CatalogSync;
 using WebRecomp.Web.Services.Nutrition;
+using WebRecomp.Web.Services.Learning;
 using WebRecomp.NutritionIntelligence.Contracts;
 using WebRecomp.NutritionIntelligence.Persistence;
 using WebRecomp.NutritionIntelligence.Providers.FatSecret;
@@ -137,6 +138,9 @@ builder.Services.AddDbContext<RecompDbContext>(options =>
 builder.Services.AddHostedService<LocalAuthSchemaHostedService>();
 builder.Services.AddScoped<IPasswordHasher<UserAccount>, PasswordHasher<UserAccount>>();
 builder.Services.AddScoped<LocalAuthService>();
+builder.Services.AddSingleton<LocalPasswordResetTokenService>();
+builder.Services.AddScoped<LocalPasswordResetService>();
+builder.Services.AddHostedService<TestDuplicateBootstrapAccountCleanupService>();
 
 // v1011 Nutrition Intelligence composition root.
 // Nutrition Intelligence remains independent; Web owns provider wiring.
@@ -203,6 +207,8 @@ builder.Services.AddScoped<WeeklyPlanningAssessmentService>();
 builder.Services.AddScoped<ProgramPlanService>();
 builder.Services.AddScoped<WeeklyPlanService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<LearningOrchestratorService>();
+builder.Services.AddHostedService<LearningSchemaHostedService>();
 builder.Services.AddHttpClient<IEmailService, MicrosoftGraphEmailService>();
 
 // v1006 demo infrastructure.

@@ -33,3 +33,162 @@ art area to a compact masthead so the useful dashboard content starts sooner.
         left:.8rem;
     }
 }
+
+
+/* v1015 dashboard coach responsive hotfix
+   - never allow the dynamic prescription headline to escape the neon panel
+   - preserve the approved wide visual on phones as a contained horizontal
+     swipe surface instead of crushing it into a narrow vertical composition
+*/
+body.test-live-preview.journey-dashboard .recomp-dashboard
+.journey-coach-p8__title {
+    max-width: 100% !important;
+    white-space: normal !important;
+    overflow-wrap: normal !important;
+    text-wrap: balance;
+    font-size: clamp(2.7rem, 3.75vw, 4.25rem) !important;
+    line-height: .88 !important;
+}
+
+@media (max-width: 940px) {
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-mission-coach {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-p8 {
+        width: 980px !important;
+        min-width: 980px !important;
+        max-width: none !important;
+        height: 620px !important;
+        min-height: 620px !important;
+        padding-top: 0 !important;
+        scroll-snap-align: start;
+        border-radius: 1.45rem !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-p8__panel {
+        position: absolute !important;
+        inset: 16px 16px 16px 30.5% !important;
+        margin: 0 !important;
+        min-height: 0 !important;
+        padding: 1.05rem 1.12rem .9rem !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-p8__title {
+        font-size: 3.15rem !important;
+        white-space: normal !important;
+        text-wrap: balance;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-p8__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-p8__footer {
+        align-items: center !important;
+        flex-direction: row !important;
+    }
+}
+
+@media (max-width: 520px) {
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-p8__title {
+        font-size: 2.95rem !important;
+    }
+}
+
+
+/* v1015 mobile coach portrait restore */
+@media (max-width: 940px) {
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > .journey-coach-p8__bg {
+        position: absolute !important;
+        inset: 0 !important;
+        z-index: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        display: block !important;
+        opacity: 1 !important;
+        object-fit: cover !important;
+        object-position: left center !important;
+        filter: none !important;
+        pointer-events: none !important;
+    }
+}
+
+
+/* v1015 mobile Marisol pane — independent of hidden/background artwork */
+body.test-live-preview.journey-dashboard .recomp-dashboard
+.journey-coach-mobile-marisol {
+    display: none;
+}
+
+@media (max-width: 940px) {
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > .journey-coach-p8__bg {
+        opacity: 0 !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > .journey-coach-mobile-marisol {
+        position: absolute !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        z-index: 3 !important;
+        display: block !important;
+        width: 34% !important;
+        min-width: 333px !important;
+        pointer-events: none !important;
+        background-image: var(--marisol-artwork) !important;
+        background-repeat: no-repeat !important;
+        background-position: left top !important;
+        background-size: 980px 620px !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > .journey-coach-p8__panel {
+        z-index: 4 !important;
+    }
+
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > .journey-coach-p10__left-tag {
+        z-index: 5 !important;
+    }
+}
+
+
+/* v1015 mobile Marisol known-good asset override */
+@media (max-width: 940px) {
+    body.test-live-preview.journey-dashboard .recomp-dashboard
+    .journey-coach-horizontal-swipe > img.journey-coach-mobile-marisol {
+        position: absolute !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        z-index: 3 !important;
+        display: block !important;
+        width: 340px !important;
+        height: 620px !important;
+        max-width: none !important;
+        opacity: 1 !important;
+        object-fit: cover !important;
+        object-position: 50% 50% !important;
+        filter: none !important;
+        pointer-events: none !important;
+    }
+}

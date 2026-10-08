@@ -728,8 +728,9 @@ public sealed class Engine30DashboardProjectionService(
         var net =
             0m;
 
-        var glycogen =
-            0m;
+        var glycogenSessions =
+            new List<Engine30WorkoutGlycogenAdapterResult>(
+                sessions.Count);
 
         var totalDuration =
             0m;
@@ -811,8 +812,8 @@ public sealed class Engine30DashboardProjectionService(
             net +=
                 runtime.Workout.Energy.EngineNetWorkoutEnergyKcal;
 
-            glycogen +=
-                runtime.Glycogen.EstimatedGlycogenDepletedG;
+            glycogenSessions.Add(
+                runtime.Workout!.Glycogen);
 
             totalDuration +=
                 effectiveDurationMinutes;
@@ -832,6 +833,11 @@ public sealed class Engine30DashboardProjectionService(
             labels.Add(
                 runtime.Workout.ProfileProvenance.WorkoutDisplayName);
         }
+
+        var sameDayGlycogen =
+            new Engine30SameDayGlycogenCalculator()
+                .Calculate(
+                    glycogenSessions);
 
         var distinctLabels =
             labels
@@ -882,7 +888,7 @@ public sealed class Engine30DashboardProjectionService(
                     MidpointRounding.AwayFromZero),
             GlycogenDemandG:
                 Math.Round(
-                    glycogen,
+                    sameDayGlycogen.SequentialDepletionG,
                     0,
                     MidpointRounding.AwayFromZero));
     }
@@ -1332,8 +1338,9 @@ public sealed class Engine30DashboardProjectionService(
         var actualNetWorkoutEnergyKcal =
             0m;
 
-        var actualGlycogenReloadRequirementG =
-            0m;
+        var actualGlycogenSessions =
+            new List<Engine30WorkoutGlycogenAdapterResult>(
+                sessions.Count);
 
         var actualCategories =
             new List<string>(sessions.Count);
@@ -1409,12 +1416,17 @@ public sealed class Engine30DashboardProjectionService(
             actualNetWorkoutEnergyKcal +=
                 runtime.Energy.NetWorkoutActivityEnergyKcal;
 
-            actualGlycogenReloadRequirementG +=
-                runtime.Glycogen.CarbohydrateReloadRequirementG;
+            actualGlycogenSessions.Add(
+                runtime.Workout.Glycogen);
 
             actualCategories.Add(
                 definition.WorkoutCategoryCode);
         }
+
+        var sameDayGlycogen =
+            new Engine30SameDayGlycogenCalculator()
+                .Calculate(
+                    actualGlycogenSessions);
 
         var actualCategory =
             SelectActualPrescriptionCategory(
@@ -1438,7 +1450,7 @@ public sealed class Engine30DashboardProjectionService(
                 actualCategory,
             GlycogenReloadRequirementG:
                 Math.Round(
-                    actualGlycogenReloadRequirementG,
+                    sameDayGlycogen.SequentialCarbohydrateReloadG,
                     2,
                     MidpointRounding.AwayFromZero),
     BackgroundCarbohydrateRequirementG:
@@ -1498,7 +1510,10 @@ public sealed class Engine30DashboardProjectionService(
                 date,
                 cancellationToken);
 
-        var demand = 0m;
+        var glycogenSessions =
+            new List<Engine30WorkoutGlycogenAdapterResult>(
+                sessions.Count);
+
         var summaries = new List<string>();
 
         foreach (var stored in sessions)
@@ -1562,8 +1577,8 @@ public sealed class Engine30DashboardProjectionService(
                             session),
                     cancellationToken);
 
-            demand +=
-                runtime.Glycogen.EstimatedGlycogenDepletedG;
+            glycogenSessions.Add(
+                runtime.Workout!.Glycogen);
 
             var rpe =
                 stored.SessionRpe.HasValue
@@ -1575,9 +1590,14 @@ public sealed class Engine30DashboardProjectionService(
                 $"{stored.DurationMin:0} min{rpe}");
         }
 
+        var sameDayGlycogen =
+            new Engine30SameDayGlycogenCalculator()
+                .Calculate(
+                    glycogenSessions);
+
         return (
             Math.Round(
-                demand,
+                sameDayGlycogen.SequentialDepletionG,
                 2,
                 MidpointRounding.AwayFromZero),
             string.Join(" + ", summaries));

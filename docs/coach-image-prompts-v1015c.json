@@ -1,0 +1,74 @@
+{
+  "tool": "Built-in image_gen",
+  "coaches": {
+    "cassie": "Blonde athletic conditioning coach",
+    "marcus": "Muscular male technique coach",
+    "nina": "Lean strong East Asian woman with martial-arts build and serious expression"
+  },
+  "assets": [
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/cassie-avatar-v1015c.png",
+      "prompt": "Use case: photorealistic-natural. Asset type: fitness app coach identity portrait. Create one realistic editorial photograph of Cassie, a fictional adult woman about 30, an attractive confident blonde athletic fitness coach with a strong toned physique, defined shoulders and legs, bright blonde hair in a high ponytail, lively confident expression. She wears a fitted teal athletic tank top and black training shorts with opaque coverage, gym shoes. Full body standing relaxed with hands on hips in an upscale dark gym, no other people. Professional fitness campaign, tasteful and confident, naturally textured skin, anatomically accurate, attractive face, no exaggerated proportions. Portrait 3:4 composition, subject centered with head, hands and feet fully visible, no text, no logos, no watermarks. This is a fictional coach, not a real person."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/marcus-avatar-v1015c.png",
+      "prompt": "Use case: photorealistic-natural. Asset type: fitness app coach identity portrait. Create one realistic editorial photograph of Marcus, a fictional adult handsome male fitness coach about 35, very muscular broad shoulders and arms with an athletic powerful build, short dark hair and neatly trimmed beard, calm confident focused expression. He wears a fitted charcoal sleeveless athletic shirt, navy training shorts and gym shoes. Full body standing relaxed with arms lightly folded in an upscale dark gym, no other people. Professional fitness campaign, natural skin and anatomically accurate muscular build, charismatic and approachable. Portrait 3:4 composition, centered with head, hands and feet fully visible, no text, logos or watermarks. This is a fictional coach, not a real person."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/nina-avatar-v1015c.png",
+      "prompt": "Edit this fictional adult East Asian female fitness coach portrait. Preserve her exact facial identity, black high ponytail, age, serious focused expression, burgundy athletic tank, black training shorts, black shoes, gym background and full-body composition. Change her physique to slender, lean and wiry with defined functional strength, like a skilled martial artist: narrower athletic shoulders, slimmer strong arms, slim waist and lean strong legs, rather than large bulky muscles. Healthy athletic proportions, upright disciplined posture. Realistic professional photography, no text, no logos."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/cassie-zone2-cardio-v1015c.png",
+      "prompt": "Create a new photorealistic coach photo using the provided identity reference. Preserve exactly the person's facial identity, hair, muscular athletic physique, outfit colors and adult age. Professional fitness editorial photography, realistic anatomy, no text, no logos, no watermark. Vertical 3:4 composition with the full body, hands and feet visible and room around the subject. Consistent modern gym lighting. Walking at a comfortable pace on a treadmill, upbeat relaxed expression, side three-quarter angle."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/cassie-general-cardio-v1015c.png",
+      "prompt": "Create a new photorealistic coach photo using the provided identity reference. Preserve exactly the person's facial identity, hair, muscular athletic physique, outfit colors and adult age. Professional fitness editorial photography, realistic anatomy, no text, no logos, no watermark. Vertical 3:4 composition with the full body, hands and feet visible and room around the subject. Consistent modern gym lighting. Standing beside a stationary exercise bike after an easy session, one hand lightly on its handlebar, friendly confident expression."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/cassie-running-intervals-v1015c.png",
+      "prompt": "Create a new photorealistic coach photo using the provided identity reference. Preserve exactly the person's facial identity, hair, muscular athletic physique, outfit colors and adult age. Professional fitness editorial photography, realistic anatomy, no text, no logos, no watermark. Vertical 3:4 composition with the full body, hands and feet visible and room around the subject. Consistent modern gym lighting. Standing beside a treadmill, ready to coach running intervals, one open hand gesturing toward the treadmill controls, energetic expression."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/cassie-true-hiit-v1015c.png",
+      "prompt": "Create a new photorealistic coach photo using the provided identity reference. Preserve exactly the person's facial identity, hair, muscular athletic physique, outfit colors and adult age. Professional fitness editorial photography, realistic anatomy, no text, no logos, no watermark. Vertical 3:4 composition with the full body, hands and feet visible and room around the subject. Consistent modern gym lighting. Standing beside an air bike between hard efforts, looking focused and breathing calmly, hands on hips."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/cassie-mixed-conditioning-v1015c.png",
+      "prompt": "Create a new photorealistic coach photo using the provided identity reference. Preserve exactly the person's facial identity, hair, muscular athletic physique, outfit colors and adult age. Professional fitness editorial photography, realistic anatomy, no text, no logos, no watermark. Vertical 3:4 composition with the full body, hands and feet visible and room around the subject. Consistent modern gym lighting. Standing in a functional training area holding one kettlebell safely down by her side, bright confident smile."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/marcus-technique-v1015c.png",
+      "prompt": "Create a new photorealistic coach photo using the provided identity reference. Preserve exactly the person's facial identity, hair, muscular athletic physique, outfit colors and adult age. Professional fitness editorial photography, realistic anatomy, no text, no logos, no watermark. Vertical 3:4 composition with the full body, hands and feet visible and room around the subject. Consistent modern gym lighting. Standing beside a weight bench, pointing calmly toward the bench with an open hand to explain a setup."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/marcus-strength-v1015c.png",
+      "prompt": "Create a new photorealistic coach photo using the provided identity reference. Preserve exactly the person's facial identity, hair, muscular athletic physique, outfit colors and adult age. Professional fitness editorial photography, realistic anatomy, no text, no logos, no watermark. Vertical 3:4 composition with the full body, hands and feet visible and room around the subject. Consistent modern gym lighting. Standing upright holding a moderate dumbbell in each hand at his sides with neutral wrists, confident relaxed expression."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/marcus-progression-v1015c.png",
+      "prompt": "Create a new photorealistic coach photo using the provided identity reference. Preserve exactly the person's facial identity, hair, muscular athletic physique, outfit colors and adult age. Professional fitness editorial photography, realistic anatomy, no text, no logos, no watermark. Vertical 3:4 composition with the full body, hands and feet visible and room around the subject. Consistent modern gym lighting. Standing near a cable machine holding a small plain clipboard and pen, thoughtfully reviewing a training plan."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/marcus-recovery-v1015c.png",
+      "prompt": "Create a new photorealistic coach photo using the provided identity reference. Preserve exactly the person's facial identity, hair, muscular athletic physique, outfit colors and adult age. Professional fitness editorial photography, realistic anatomy, no text, no logos, no watermark. Vertical 3:4 composition with the full body, hands and feet visible and room around the subject. Consistent modern gym lighting. Standing in the gym resting after training, holding a simple water bottle by his side, calm friendly expression."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/nina-technique-v1015c.png",
+      "prompt": "Create a photorealistic full-body vertical 3:4 fitness coach photo of this same fictional adult East Asian woman. Preserve her exact face, black ponytail, burgundy tank, black shorts and black trainers, and slender lean wiry martial-artist physique with defined functional strength. She has a firm disciplined serious expression. Realistic anatomy, consistent modern gym lighting, all hands and feet visible, no text or logos. Standing in a balanced martial-arts guard stance on gym mats, hands up with loose fists and feet in a natural staggered stance."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/nina-strength-v1015c.png",
+      "prompt": "Create a photorealistic full-body vertical 3:4 fitness coach photo of this same fictional adult East Asian woman. Preserve her exact face, black ponytail, burgundy tank, black shorts and black trainers, and slender lean wiry martial-artist physique with defined functional strength. She has a firm disciplined serious expression. Realistic anatomy, consistent modern gym lighting, all hands and feet visible, no text or logos. Standing tall beside a weight bench holding one moderate dumbbell down at her side, strong upright posture."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/nina-discipline-v1015c.png",
+      "prompt": "Create a photorealistic full-body vertical 3:4 fitness coach photo of this same fictional adult East Asian woman. Preserve her exact face, black ponytail, burgundy tank, black shorts and black trainers, and slender lean wiry martial-artist physique with defined functional strength. She has a firm disciplined serious expression. Realistic anatomy, consistent modern gym lighting, all hands and feet visible, no text or logos. Standing near a gym mat area holding a plain clipboard and pen, looking directly at the camera with a strict focused expression."
+    },
+    {
+      "path": "src/WebRecomp.Web/wwwroot/images/coach/nina-recovery-v1015c.png",
+      "prompt": "Create a photorealistic full-body vertical 3:4 fitness coach photo of this same fictional adult East Asian woman. Preserve her exact face, black ponytail, burgundy tank, black shorts and black trainers, and slender lean wiry martial-artist physique with defined functional strength. She has a firm disciplined serious expression. Realistic anatomy, consistent modern gym lighting, all hands and feet visible, no text or logos. Standing after training on gym mats, holding a simple water bottle by her side, composed determined expression."
+    }
+  ]
+}

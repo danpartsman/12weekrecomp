@@ -230,6 +230,15 @@
         </div>
     </header>
 
+    <div class="learning-surface-label">YOUR COACH · FOOD &amp; FUEL</div>
+    @await Component.InvokeAsync(
+        "CoachLearning",
+        new
+        {
+            surfaceCode = "NUTRITION",
+            displayMode = "thumbnail"
+        })
+
     @if (TempData["NutritionError"] is string nutritionError)
     {
         <div class="app-message error">@nutritionError</div>

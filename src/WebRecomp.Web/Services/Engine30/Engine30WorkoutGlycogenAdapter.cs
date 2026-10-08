@@ -8,12 +8,20 @@ public sealed record Engine30WorkoutGlycogenAdapterInput(
     decimal BaselineGlycogenGPerKgMuscle,
     string ResistanceTrainingStatusCode = Engine30ResistanceGlycogenTrainingStatusCodes.Trained);
 
+public sealed record Engine30WorkoutGlycogenRegionResult(
+    string MuscleGroupCode,
+    decimal WholeBodySkeletalMuscleFraction,
+    decimal RegionBaselineGlycogenG,
+    decimal EffectiveRegionalDepletionFraction,
+    decimal EstimatedGlycogenDepletedG);
+
 public sealed record Engine30WorkoutGlycogenAdapterResult(
     string ModelCode,
     decimal EstimatedGlycogenDepletedG,
     decimal TargetGlycogenRestorationG,
     decimal CarbohydrateReloadRequirementG,
-    decimal CarbohydrateReloadEnergyKcal);
+    decimal CarbohydrateReloadEnergyKcal,
+    IReadOnlyList<Engine30WorkoutGlycogenRegionResult>? Regions = null);
 
 /// <summary>
 /// Bridges the authoritative resolved workout session and the active
@@ -129,7 +137,9 @@ public sealed class Engine30WorkoutGlycogenAdapter
 
         return FromDemand(
             profile.GlycogenModelCode,
-            CalculateDemand(input, resolvedGroups));
+            CalculateDemand(input, resolvedGroups),
+            resolvedGroups,
+            input.BaselineGlycogenGPerKgMuscle);
     }
 
     private Engine30WorkoutGlycogenAdapterResult CalculateResistance(
@@ -211,7 +221,9 @@ public sealed class Engine30WorkoutGlycogenAdapter
 
         return FromDemand(
             profile.GlycogenModelCode,
-            CalculateDemand(input, workload.ResolvedMuscleGroups));
+            CalculateDemand(input, workload.ResolvedMuscleGroups),
+            workload.ResolvedMuscleGroups,
+            input.BaselineGlycogenGPerKgMuscle);
     }
 
     private Engine30WorkoutGlycogenAdapterResult CalculateIntervals(
@@ -291,7 +303,9 @@ public sealed class Engine30WorkoutGlycogenAdapter
 
         return FromDemand(
             profile.GlycogenModelCode,
-            CalculateDemand(input, groups));
+            CalculateDemand(input, groups),
+            groups,
+            input.BaselineGlycogenGPerKgMuscle);
     }
 
     private Engine30WorkoutGlycogenAdapterResult CalculateComposite(
@@ -357,7 +371,20 @@ public sealed class Engine30WorkoutGlycogenAdapter
             TargetGlycogenRestorationG: Round(
                 result.EstimatedGlycogenDepletedG * profile.TargetRestorationFraction),
             CarbohydrateReloadRequirementG: result.CarbohydrateReloadRequirementG,
-            CarbohydrateReloadEnergyKcal: result.CarbohydrateReloadEnergyKcal);
+            CarbohydrateReloadEnergyKcal: result.CarbohydrateReloadEnergyKcal,
+            Regions:
+                result.Regions
+                    .Select(region =>
+                        new Engine30WorkoutGlycogenRegionResult(
+                            MuscleGroupCode: region.MuscleGroupCode,
+                            WholeBodySkeletalMuscleFraction: region.WholeBodySkeletalMuscleFraction,
+                            RegionBaselineGlycogenG: region.BaselineGlycogenG,
+                            EffectiveRegionalDepletionFraction:
+                                region.BaselineGlycogenG > 0m
+                                    ? region.TotalDepletedG / region.BaselineGlycogenG
+                                    : 0m,
+                            EstimatedGlycogenDepletedG: region.TotalDepletedG))
+                    .ToArray());
     }
 
     private IReadOnlyCollection<Engine30MuscleGlycogenInput> ResolveCompositeSegment(
@@ -532,13 +559,54 @@ public sealed class Engine30WorkoutGlycogenAdapter
 
     private static Engine30WorkoutGlycogenAdapterResult FromDemand(
         string modelCode,
-        Engine30GlycogenDemandResult result)
-        => new(
+        Engine30GlycogenDemandResult result,
+        IReadOnlyCollection<Engine30MuscleGlycogenInput> inputs,
+        decimal baselineGlycogenGPerKgMuscle)
+    {
+        var inputByCode =
+            inputs.ToDictionary(
+                x => x.MuscleGroupCode.Trim().ToUpperInvariant(),
+                StringComparer.OrdinalIgnoreCase);
+
+        var regions =
+            result.MuscleGroups
+                .Select(muscle =>
+                {
+                    var input =
+                        inputByCode[muscle.MuscleGroupCode];
+
+                    var regionBaseline =
+                        muscle.EstimatedMuscleMassKg
+                        * baselineGlycogenGPerKgMuscle;
+
+                    return new Engine30WorkoutGlycogenRegionResult(
+                        MuscleGroupCode:
+                            muscle.MuscleGroupCode,
+                        WholeBodySkeletalMuscleFraction:
+                            input.WholeBodySkeletalMuscleFraction,
+                        RegionBaselineGlycogenG:
+                            Round(regionBaseline),
+                        EffectiveRegionalDepletionFraction:
+                            regionBaseline > 0m
+                                ? Math.Round(
+                                    muscle.EstimatedGlycogenDepletedG
+                                    / regionBaseline,
+                                    4,
+                                    MidpointRounding.AwayFromZero)
+                                : 0m,
+                        EstimatedGlycogenDepletedG:
+                            muscle.EstimatedGlycogenDepletedG);
+                })
+                .ToArray();
+
+        return new Engine30WorkoutGlycogenAdapterResult(
             ModelCode: modelCode,
             EstimatedGlycogenDepletedG: result.EstimatedGlycogenDepletedG,
             TargetGlycogenRestorationG: result.TargetGlycogenRestorationG,
             CarbohydrateReloadRequirementG: result.CarbohydrateReloadRequirementG,
-            CarbohydrateReloadEnergyKcal: result.CarbohydrateReloadEnergyKcal);
+            CarbohydrateReloadEnergyKcal: result.CarbohydrateReloadEnergyKcal,
+            Regions: regions);
+    }
 
     private static Engine30WorkoutGlycogenAdapterResult Zero(string modelCode)
         => new(

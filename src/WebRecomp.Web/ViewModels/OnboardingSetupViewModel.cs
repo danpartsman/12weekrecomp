@@ -46,6 +46,10 @@ public sealed class OnboardingSetupViewModel : IValidatableObject
     [Required]
     public string TimeZone { get; set; } = "America/Los_Angeles";
 
+    [Required]
+    [RegularExpression("^(MARISOL|CASSIE|MARCUS|NINA)$", ErrorMessage = "Choose a coach.")]
+    public string PreferredCoachCode { get; set; } = "MARISOL";
+
     [Range(typeof(bool), "true", "true", ErrorMessage = "Please acknowledge the medical guidance.")]
     public bool MedicalAcknowledged { get; set; }
 

@@ -652,7 +652,7 @@ body.wm-page .wm-nav nav a.active { color:var(--wm-cyan); }
 .wm-page .wm-diet-card::before {
     background-image:
         linear-gradient(180deg,rgba(4,11,17,.05),rgba(4,11,17,.32)),
-        url('/images/marketing-v12/coach-cassie-gym.png');
+        url('/images/coach/cassie-avatar-v1015c.png');
     background-position:center 28%;
 }
 .wm-page .wm-cardio::before {

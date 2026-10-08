@@ -383,6 +383,8 @@
 
                         <input asp-for="Workouts[i].WorkoutSessionId"
                                type="hidden" />
+                        <input asp-for="Workouts[i].SourceRecordId"
+                               type="hidden" />
                         <input asp-for="Workouts[i].WorkoutTypeCode"
                                type="hidden"
                                data-daily-engine-code />
@@ -670,6 +672,9 @@
                 <article class="daily-entry-workout-card" data-workout-row>
 
                     <input name="Workouts[__index__].WorkoutSessionId"
+                           type="hidden"
+                           value="" />
+                    <input name="Workouts[__index__].SourceRecordId"
                            type="hidden"
                            value="" />
                     <input name="Workouts[__index__].WorkoutTypeCode"
@@ -1055,6 +1060,14 @@
             return;
         }
 
+        const newSourceRecordId = () => {
+            if (window.crypto?.randomUUID) {
+                return `daily:${window.crypto.randomUUID().replaceAll("-", "")}`;
+            }
+
+            return `daily:${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+        };
+
         addButton.addEventListener('click', () => {
             const index =
                 list.querySelectorAll('[data-workout-row]').length;
@@ -1070,6 +1083,15 @@
                 list.querySelectorAll('[data-workout-row]');
 
             const newest = rows[rows.length - 1];
+
+            const sourceRecordId =
+                newest?.querySelector(
+                    'input[name$=".SourceRecordId"]');
+
+            if (sourceRecordId && !sourceRecordId.value) {
+                sourceRecordId.value =
+                    newSourceRecordId();
+            }
 
             newest
                 ?.querySelector('select, input')
@@ -1447,7 +1469,49 @@
         statusSelector: "#daily-entry-autosave-status",
         delay: 750,
         afterSave: payload => {
-            refreshDailyEntryCompletion();
+            /*
+             * Identity first.
+             *
+             * A confirmed server save may have created the canonical
+             * WorkoutSession. Persist its identity in the live form BEFORE
+             * any optional UI refresh can fail. This prevents the next
+             * autosave from inserting the same physical workout again.
+             */
+            const rows =
+                form.querySelectorAll(
+                    "[data-workout-row]");
+
+            if (Array.isArray(payload?.workoutSessionIds)) {
+                payload.workoutSessionIds.forEach((id, index) => {
+                    if (!id || !rows[index]) {
+                        return;
+                    }
+
+                    const idField =
+                        rows[index].querySelector(
+                            'input[name$=".WorkoutSessionId"]');
+
+                    if (idField) {
+                        idField.value = id;
+                    }
+                });
+            }
+
+            if (Array.isArray(payload?.workoutSourceRecordIds)) {
+                payload.workoutSourceRecordIds.forEach((id, index) => {
+                    if (!id || !rows[index]) {
+                        return;
+                    }
+
+                    const sourceField =
+                        rows[index].querySelector(
+                            'input[name$=".SourceRecordId"]');
+
+                    if (sourceField) {
+                        sourceField.value = id;
+                    }
+                });
+            }
 
             if (payload?.nutrition) {
                 const nutritionMap = {
@@ -1476,31 +1540,14 @@
                 }
             }
 
-            if (!Array.isArray(payload?.workoutSessionIds)) {
-                return;
+            if (typeof refreshDailyEntryCompletion === "function") {
+                void refreshDailyEntryCompletion();
             }
-
-            const rows = form.querySelectorAll("[data-workout-row]");
-
-            payload.workoutSessionIds.forEach((id, index) => {
-                if (!id || !rows[index]) {
-                    return;
-                }
-
-                const idField =
-                    rows[index].querySelector(
-                        'input[name$=".WorkoutSessionId"]');
-
-                if (idField) {
-                    idField.value = id;
-                }
-            });
         }
     });
 })();
 </script>
 
-<script>
 <script>
 /* B2.35.30_REV2_DAILY_ENTRY_SERVER_MODEL_HYDRATION */
 (() => {
@@ -1669,7 +1716,10 @@
                 post.submit();
             });
     });
-})();</script>
+})();
+</script>
+
+<script>
 /* v1006-daily-entry-ui - date submit handled natively by B2.35.30 REV2 */
 
 async function refreshDailyEntryCompletion() {

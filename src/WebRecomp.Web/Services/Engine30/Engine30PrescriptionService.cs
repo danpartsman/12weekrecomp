@@ -128,10 +128,11 @@ public sealed class Engine30PrescriptionService
         {
             PlanReason(normalizedPlan),
             "PHYSIOLOGY_FIRST_CARBOHYDRATE",
-            "BACKGROUND_CARB_EAR_100G",
-            "PERSONALIZED_BACKGROUND_CARB_FROM_HABITUAL_ACTIVITY",
+            "BACKGROUND_CARB_DRI_ANCHOR_100G",
+            "HABITUAL_ACTIVITY_CARB_OXIDATION_NOT_EATEN_BACK",
             "CALORIES_DERIVED_FROM_MACROS_NOT_CARB_BACKFILLED",
-            "GLYCOGEN_RECOVERY_HORIZON_24H"
+            "GLYCOGEN_RECOVERY_SPREAD_ACROSS_24H",
+            "RAPID_REFUEL_RESERVED_FOR_SHORT_RECOVERY_WINDOWS"
         };
 
         var weeklyMaintenance =
@@ -179,24 +180,30 @@ var standardCarbUpper =
         5m);
 
         /*
-         * Recovery-horizon model.
+         * v1015A REDO - 24-hour glycogen recovery schedule.
          *
-         * A workout's estimated glycogen depletion is not a requirement to
-         * replace 100% of that carbohydrate before midnight. With a normal
-         * recovery window, glycogen resynthesis continues across the
-         * following 24 hours and subsequent meals/background carbohydrate
-         * continue to supply substrate.
+         * Glycogen resynthesis is a PROCESS, not an instantaneous replacement
+         * event. Human studies show the highest synthesis rates during the
+         * early post-exercise hours, while complete restoration after a large
+         * depletion commonly requires roughly 24 h when carbohydrate and
+         * energy availability are adequate.
          *
-         * When tomorrow contains a major glycogen-demanding session we retain
-         * a higher same-day fraction (85%). Otherwise 70% is treated as the
-         * immediate recovery requirement. These are intentionally
-         * conservative operational weights, not claims of a universal human
-         * resynthesis percentage; future Engine 4 learning may personalize
-         * them. Rapid-turnaround competition/multiple-same-day training needs
-         * a separate explicit recovery mode rather than silently forcing
-         * every recomp user into rapid-refueling nutrition.
+         * The daily engine does not yet know exact workout end-times, so it
+         * must not pretend it can assign an exact hourly uptake curve.
+         * Instead we use a transparent date-bin approximation:
+         *
+         *   ordinary recovery: 50% of modeled replacement on workout date,
+         *                      50% carried to the next date;
+         *
+         *   hard session tomorrow: 60% on workout date,
+         *                          40% carried to the next date.
+         *
+         * This is intentionally different from the old 70-85% same-day rule.
+         * Rapid-refuel protocols such as ~1.0-1.2 g/kg/h are for athletes with
+         * genuinely short recovery windows; they are not the default recomp
+         * prescription.
          */
-        var immediateReloadRequirements =
+        var sameDayFractions =
             orderedDays
                 .Select((day, index) =>
                 {
@@ -205,13 +212,28 @@ var standardCarbUpper =
                             ? orderedDays[index + 1]
                             : null;
 
-                    var recoveryFraction =
-                        RequiresHighNextDayGlycogenReadiness(nextDay)
-                            ? 0.85m
-                            : 0.70m;
+                    return RequiresHighNextDayGlycogenReadiness(nextDay)
+                        ? 0.60m
+                        : 0.50m;
+                })
+                .ToArray();
 
-                    return day.GlycogenReloadRequirementG
-                           * recoveryFraction;
+        var scheduledReloadRequirements =
+            orderedDays
+                .Select((day, index) =>
+                {
+                    var sameDay =
+                        day.GlycogenReloadRequirementG
+                        * sameDayFractions[index];
+
+                    var carryIn =
+                        index == 0
+                            ? 0m
+                            : orderedDays[index - 1]
+                                  .GlycogenReloadRequirementG
+                              * (1m - sameDayFractions[index - 1]);
+
+                    return sameDay + carryIn;
                 })
                 .ToArray();
 
@@ -220,7 +242,7 @@ var standardCarbUpper =
                 .Select((day, index) =>
                     CeilingToIncrement(
                         day.BackgroundCarbohydrateRequirementG
-                        + immediateReloadRequirements[index],
+                        + scheduledReloadRequirements[index],
                         5m))
                 .ToArray();
 
@@ -290,7 +312,7 @@ var standardCarbUpper =
             var governing =
                 carbFloor > standardCarbUpper
                     ? "PHYSIOLOGICAL_FLOOR_EXCEEDS_STANDARD_MAX"
-                    : "BACKGROUND_PLUS_GLYCOGEN_RELOAD";
+                    : "BACKGROUND_PLUS_24H_GLYCOGEN_RECOVERY";
 
             results.Add(
                 new Engine30PrescriptionDayResult(

@@ -92,6 +92,33 @@ jobs:
 
           Write-Host "Required RecompDatabase connection-string setting is present."
 
+      - name: Apply LIVE learning coach schema before replacement
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $connectionString = az webapp config connection-string list `
+              --resource-group $env:AZURE_RESOURCE_GROUP `
+              --name $env:AZURE_WEBAPP_NAME `
+              --query "[?name=='RecompDatabase'].value | [0]" `
+              --output tsv --only-show-errors
+
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($connectionString)) {
+              throw "Could not resolve the LIVE database setting. The running app has not been replaced."
+          }
+
+          Write-Output "::add-mask::$connectionString"
+          $env:RECOMP_RUNTIME_CONNECTION_STRING = $connectionString
+          try {
+              dotnet run --project tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj `
+                  --configuration Release -- --learning-coach
+              if ($LASTEXITCODE -ne 0) {
+                  throw "LIVE learning schema migration failed. The running app has not been replaced."
+              }
+          }
+          finally {
+              Remove-Item Env:RECOMP_RUNTIME_CONNECTION_STRING -ErrorAction SilentlyContinue
+          }
+
       - name: Configure LIVE run-from-package deployment
         shell: pwsh
         run: |

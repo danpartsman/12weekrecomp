@@ -54,7 +54,7 @@
 
     if (!document.querySelector('script[data-12wr-journey="v1012"]')) {
         const journeyScript = document.createElement("script");
-        journeyScript.src = "/js/journey-v1012.js";
+        journeyScript.src = "/js/journey-v1012.js?v=1015marisolknown1";
         journeyScript.dataset["12wrJourney"] = "v1012";
         document.head.appendChild(journeyScript);
     }
@@ -337,6 +337,19 @@
 
             if (!coach || !(image instanceof HTMLImageElement)) {
                 return false;
+            }
+
+            /*
+             * Pass 10 owns the coach artwork once the horizontal-swipe layout
+             * is active. Do not paint the older responsive IMG over its pinned
+             * card background.
+             */
+            if (coach.classList.contains("journey-coach-horizontal-swipe")) {
+                /*
+                 * Pass 10 deliberately keeps the real artwork image visible
+                 * on phones so Marisol remains part of the swipe composition.
+                 */
+                return true;
             }
 
             if (!image.src.includes("/images/marketing-v12/coach-marisol-gym.png")) {
