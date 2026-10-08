@@ -97,7 +97,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           dotnet publish tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj `
-              --configuration Release --runtime win-x86 --self-contained true `
+              --configuration Release --runtime win-x86 --self-contained false `
               --output ./learning-migration
           if ($LASTEXITCODE -ne 0) { throw "Could not publish the learning migration tool." }
           New-Item -ItemType Directory -Path ./learning-migration/database -Force | Out-Null
@@ -117,12 +117,20 @@ jobs:
           Write-Output "::add-mask::$auth"
           $headers = @{ Authorization = "Basic $auth"; "If-Match" = "*" }
           $scm = "https://$($env:AZURE_WEBAPP_NAME).scm.azurewebsites.net"
+          $cleanupScript = '$ErrorActionPreference="Stop"; $ProgressPreference="SilentlyContinue"; $zip="D:\home\data\learning-migration-ac392809623488df9157bb0ef90d5c3b0304e250.zip"; $dir="D:\home\data\learning-migration-ac392809623488df9157bb0ef90d5c3b0304e250"; if(Test-Path $zip){Remove-Item $zip -Force}; if(Test-Path $dir){Remove-Item $dir -Recurse -Force}; Write-Output "Removed temporary migration files from the previous attempt."'
+          $cleanupEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cleanupScript))
+          $cleanupBody = @{ command = "powershell.exe -NoProfile -EncodedCommand $cleanupEncoded"; dir = "D:\home" } | ConvertTo-Json
+          $cleanupResult = Invoke-RestMethod -Uri "$scm/api/command" -Method Post `
+              -Headers @{ Authorization = "Basic $auth" } -ContentType "application/json" -Body $cleanupBody
+          if ($cleanupResult.ExitCode -ne 0) { throw "Could not clean temporary migration files." }
+          if ($cleanupResult.Output) { Write-Host $cleanupResult.Output }
           Invoke-WebRequest -Uri "$scm/api/vfs/data/learning-migration-${{ github.sha }}.zip" `
               -Method Put -Headers $headers -InFile ./learning-migration.zip `
               -ContentType "application/zip" -UseBasicParsing | Out-Null
 
           $migrationScript = @'
           $ErrorActionPreference = "Stop"
+          $ProgressPreference = "SilentlyContinue"
           $migrationDir = "D:\home\data\learning-migration-${{ github.sha }}"
           Expand-Archive -Path "D:\home\data\learning-migration-${{ github.sha }}.zip" -DestinationPath $migrationDir -Force
           $connection = $env:SQLAZURECONNSTR_RecompDatabase
