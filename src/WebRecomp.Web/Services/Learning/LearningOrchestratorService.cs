@@ -583,7 +583,8 @@ public sealed class LearningOrchestratorService(
         UserAccount user,
         string surfaceCode,
         string displayMode,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool randomizeImage = true)
     {
         if (!LearningSchemaReadiness.IsReady)
             return null;
@@ -622,7 +623,7 @@ public sealed class LearningOrchestratorService(
         return new LearningPresentation(
             coach,
             lesson,
-            CoachCatalog.ResolveImage(coach, lesson.ModuleNumber),
+            randomizeImage ? CoachCatalog.ResolveImage(coach, lesson.ModuleNumber) : "",
             displayMode);
     }
 
@@ -635,15 +636,19 @@ public sealed class LearningOrchestratorService(
         {
             await using var transaction = await db.Database.BeginTransactionAsync(
                 System.Data.IsolationLevel.Serializable, cancellationToken);
-            var current = await ResolveAsync(user, surfaceCode, displayMode, cancellationToken);
-            if (current is null) return null;
             var full = displayMode.Equals("full", StringComparison.OrdinalIgnoreCase);
+            var current = await ResolveAsync(user, surfaceCode, displayMode, cancellationToken, randomizeImage: !full);
+            if (current is null) return null;
             // A stale full card must not rewind another tab's persisted progress.
             if (!full || current.Lesson.ContentCode.Equals(contentCode, StringComparison.OrdinalIgnoreCase))
             {
                 await RecordInteractionAsync(user, current.Lesson.ContentCode, surfaceCode,
                     LearningInteractionCodes.Complete, null, cancellationToken);
                 if (full) current = await ResolveAsync(user, surfaceCode, displayMode, cancellationToken);
+            }
+            else
+            {
+                current = current with { ImagePath = CoachCatalog.ResolveImage(current.Coach, current.Lesson.ModuleNumber) };
             }
             await transaction.CommitAsync(cancellationToken);
             return current;
