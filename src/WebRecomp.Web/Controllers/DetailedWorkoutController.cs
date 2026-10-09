@@ -1700,6 +1700,43 @@ public sealed class DetailedWorkoutController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CorrectCompletedSummary(
+        Guid workoutSessionId,
+        decimal durationMin,
+        decimal? sessionRpe,
+        string? returnContext,
+        CancellationToken cancellationToken)
+    {
+        var context = await userContext.GetAsync(HttpContext, cancellationToken);
+        if (context.Client is null || context.Program is null)
+            return RedirectToAction("Index", "Intake");
+        if (!context.Program.DetailedWorkoutEntryEnabled) return StatusCode(403);
+        if (!ModelState.IsValid) return BadRequest("Check duration and RPE.");
+
+        var session = await workoutActuals.FindOwnedSessionAsync(
+            workoutSessionId, context.Client.ClientId, context.Program.ProgramId, cancellationToken);
+        if (session is null) return NotFound();
+        try
+        {
+            workoutActuals.CorrectCompletedSummary(session, durationMin, sessionRpe);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        TempData["StatusMessage"] = "Workout duration and RPE updated. Daily Entry and Dashboard use the corrected workout.";
+        if (string.Equals(returnContext, "daily", StringComparison.OrdinalIgnoreCase))
+            return RedirectToAction("Index", "DailyEntry", new { date = session.WorkoutDate.ToString("yyyy-MM-dd") });
+        return RedirectToAction(nameof(Index), new
+        {
+            mode = "live", workoutSessionId, date = session.WorkoutDate.ToString("yyyy-MM-dd"),
+            editCompleted = true, returnContext
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(
         DetailedWorkoutEditorViewModel model,
         bool saveTemplate,
@@ -2326,6 +2363,10 @@ public sealed class DetailedWorkoutController(
             saveTemplate
                 ? "Workout saved and added to Saved Workout."
                 : "Workout saved.";
+
+        if (session.CompletedFlag && model.EditCompleted
+            && string.Equals(model.ReturnContext, "daily", StringComparison.OrdinalIgnoreCase))
+            return RedirectToAction("Index", "DailyEntry", new { date = session.WorkoutDate.ToString("yyyy-MM-dd") });
 
         return RedirectToAction(
             nameof(Index),
