@@ -73,12 +73,19 @@ public sealed class AdminUsersController(RecompDbContext db) : Controller
                 Programs = programs, RecentSavedRecommendations = recommendations
             });
         }
-        return Json(new
+        var inspection = new
         {
             UserName = user.PreferredDisplayName ?? user.DisplayName,
             Note = "Read-only saved inputs. Non-workout maintenance excludes formal exercise. Recent saved recommendations are calorie targets, not maintenance, and may predate profile changes. No work rows alone cannot distinguish retired from skipped onboarding.",
             Profiles = profiles
-        });
+        };
+        var json = System.Text.Json.JsonSerializer.Serialize(inspection,
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        var encoded = System.Net.WebUtility.HtmlEncode(json);
+        return Content("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Calorie input inspection</title></head>"
+            + "<body><main><a href=\"/admin/users\">Back to User Management</a><h1>Calorie input inspection</h1>"
+            + "<pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\">" + encoded + "</pre></main></body></html>",
+            "text/html; charset=utf-8");
     }
 
     [HttpGet("")]
