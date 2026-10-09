@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.ViewModels;
+using WebRecomp.Web.Services;
+using WebRecomp.Web.Services.Engine30;
 
 namespace WebRecomp.Web.Controllers;
 
@@ -13,6 +15,72 @@ namespace WebRecomp.Web.Controllers;
 [Route("admin/users")]
 public sealed class AdminUsersController(RecompDbContext db) : Controller
 {
+    [HttpGet("{userId:guid}/calorie-inputs")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> CalorieInputs(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await db.UserAccounts.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+        if (user is null) return NotFound();
+
+        var clientIds = db.UserClientAccess.Where(x => x.UserId == userId && x.RevokedAtUtc == null)
+            .Select(x => x.ClientId);
+        var clients = await db.Clients.AsNoTracking().Where(x => clientIds.Contains(x.ClientId))
+            .ToListAsync(cancellationToken);
+        var profiles = new List<object>();
+        var activityProfiles = new Engine30ClientActivityProfileService(db);
+        foreach (var client in clients)
+        {
+            var today = AppUserContextService.GetClientToday(client);
+            var measurement = await db.Measurements.AsNoTracking()
+                .Where(x => x.ClientId == client.ClientId && !x.IsDeleted && x.WeightLb > 0m
+                    && x.LocalMeasurementDate <= today)
+                .OrderByDescending(x => x.LocalMeasurementDate).ThenByDescending(x => x.MeasurementAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+            var programs = await db.Programs.AsNoTracking()
+                .Where(x => x.ClientId == client.ClientId && x.ProgramStatusCode == "ACTIVE")
+                .Select(x => new { x.ProgramId, x.GoalCode, x.SelectedPlanCode, x.AvailableTrainingDaysWeek })
+                .ToListAsync(cancellationToken);
+            var roles = await activityProfiles.BuildRuntimeRolesAsync(client.ClientId, today, cancellationToken);
+            Engine30BaseLivingResult? resting = null;
+            Engine30HabitualActivityResult? habitual = null;
+            if (client.DateOfBirth is DateOnly birth && birth <= today.AddYears(-19)
+                && client.HeightIn > 0m && measurement?.WeightLb is decimal weight
+                && client.SexCode is "MALE" or "FEMALE")
+            {
+                resting = new Engine30BaseLivingCalculator().Calculate(
+                    new Engine30BaseLivingInput(today, birth, client.SexCode, client.HeightIn, weight));
+                habitual = new Engine30HabitualActivityCalculator().Calculate(
+                    resting.BaseLivingEnergyKcal, roles,
+                    Engine30ActivityProfileCatalog.ResolveLifestyle(client.LifestyleActivityCode).Code,
+                    habitualWindowHoursPerWeek: Engine30HabitualActivityWindowPolicy.Resolve(resting.AgeYears).HoursPerWeek);
+            }
+            var recommendations = await db.Recommendations.AsNoTracking()
+                .Where(x => x.ClientId == client.ClientId && x.ActionDate >= today.AddDays(-7) && x.ActionDate <= today)
+                .OrderByDescending(x => x.CreatedAtUtc).Take(14)
+                .Select(x => new { x.ProgramId, x.ActionDate, x.BaseCalories, x.RecommendedCalories,
+                    x.RecommendedWorkoutTypeCode, x.CreatedAtUtc }).ToListAsync(cancellationToken);
+            profiles.Add(new
+            {
+                client.ClientName, client.ClientId, ActionDate = today,
+                AgeYears = resting?.AgeYears, client.SexCode, client.HeightIn,
+                WeightLb = measurement?.WeightLb, MeasurementDate = measurement?.LocalMeasurementDate,
+                client.LifestyleActivityCode, LifestyleWasCollected = !string.IsNullOrWhiteSpace(client.LifestyleActivityCode),
+                OccupationalRoles = roles,
+                RestingEnergyKcal = resting?.BaseLivingEnergyKcal,
+                HabitualActivityKcalPerDay = habitual?.AverageDailyHabitualActivityEnergyKcal,
+                NonWorkoutMaintenanceKcalPerDay = habitual?.BasePlusHabitualEnergyKcal,
+                Programs = programs, RecentSavedRecommendations = recommendations
+            });
+        }
+        return Json(new
+        {
+            UserName = user.PreferredDisplayName ?? user.DisplayName,
+            Note = "Read-only saved inputs. Non-workout maintenance excludes formal exercise. Recent saved recommendations are calorie targets, not maintenance, and may predate profile changes. No work rows alone cannot distinguish retired from skipped onboarding.",
+            Profiles = profiles
+        });
+    }
+
     [HttpGet("")]
     public async Task<IActionResult> Index(string? search, CancellationToken cancellationToken)
     {
@@ -263,3 +331,4 @@ public sealed class AdminUsersController(RecompDbContext db) : Controller
 
     private sealed record CredentialInfo(string RoleCode, DateTime? LastSignInAtUtc);
 }
+

@@ -68,6 +68,7 @@
                     <td>@user.CreatedAtUtc.ToString("yyyy-MM-dd")</td>
                     <td>
                         <div style="display:grid;gap:.55rem;min-width:18rem;">
+                            <a asp-action="CalorieInputs" asp-route-userId="@user.UserId" class="button">Inspect calorie inputs</a>
                             <form asp-action="UpdateUser" asp-route-userId="@user.UserId" method="post" style="display:grid;gap:.4rem;">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="search" value="@Model.Search" />
@@ -117,3 +118,4 @@
         }
     </div>
 </section>
+
