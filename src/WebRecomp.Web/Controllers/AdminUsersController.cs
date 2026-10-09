@@ -13,7 +13,8 @@ namespace WebRecomp.Web.Controllers;
 
 [Authorize(Roles = "Administrator")]
 [Route("admin/users")]
-public sealed class AdminUsersController(RecompDbContext db) : Controller
+public sealed class AdminUsersController(
+    RecompDbContext db, Engine30DashboardProjectionService dashboardProjection) : Controller
 {
     [HttpGet("{userId:guid}/calorie-inputs")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
@@ -60,6 +61,23 @@ public sealed class AdminUsersController(RecompDbContext db) : Controller
                 .OrderByDescending(x => x.CreatedAtUtc).Take(14)
                 .Select(x => new { x.ProgramId, x.ActionDate, x.BaseCalories, x.RecommendedCalories,
                     x.RecommendedWorkoutTypeCode, x.CreatedAtUtc }).ToListAsync(cancellationToken);
+            Engine30DashboardTodayTomorrowProjection? currentPrescription = null;
+            string? prescriptionIssue = null;
+            if (resting is not null && programs.Count > 0)
+            {
+                var activeProgram = await db.Programs.AsNoTracking()
+                    .Where(x => x.ClientId == client.ClientId && x.ProgramStatusCode == "ACTIVE")
+                    .OrderByDescending(x => x.StartDate).FirstAsync(cancellationToken);
+                try
+                {
+                    currentPrescription = await dashboardProjection.BuildTodayTomorrowAsync(
+                        new AppClientContext(user, client, activeProgram), today, cancellationToken);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    prescriptionIssue = exception.Message;
+                }
+            }
             profiles.Add(new
             {
                 client.ClientName, client.ClientId, ActionDate = today,
@@ -70,7 +88,9 @@ public sealed class AdminUsersController(RecompDbContext db) : Controller
                 RestingEnergyKcal = resting?.BaseLivingEnergyKcal,
                 HabitualActivityKcalPerDay = habitual?.AverageDailyHabitualActivityEnergyKcal,
                 NonWorkoutMaintenanceKcalPerDay = habitual?.BasePlusHabitualEnergyKcal,
-                Programs = programs, RecentSavedRecommendations = recommendations
+                Programs = programs, RecentSavedRecommendations = recommendations,
+                CurrentDashboardPrescription = currentPrescription,
+                PrescriptionIssue = prescriptionIssue
             });
         }
         var inspection = new
