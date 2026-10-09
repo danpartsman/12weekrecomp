@@ -1,0 +1,100 @@
+@using WebRecomp.Web.Services.Dashboard2
+@using WebRecomp.Web.Services.Learning
+@using System.Text.Json
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard2";
+    var plan = (MacroDayPlan)ViewData["MacroDayPlan"]!;
+    var coach = CoachCatalog.Resolve(Model.PreferredCoachCode);
+    var coachImage = CoachCatalog.ResolveImage(coach, 1);
+    var analysis = Model.Engine30Analysis;
+    var tomorrowBands = MacroDayPlanner.Bands(Model.TomorrowProteinG ?? 0, Model.TomorrowCarbsG ?? 0, Model.TomorrowFatG ?? 0);
+}
+<link rel="stylesheet" href="~/css/dashboard2.css" asp-append-version="true" />
+<main class="d2" data-dashboard2>
+    <header class="d2-heading"><div><p class="d2-eyebrow">DASHBOARD2 · WEEK @Model.ProgramWeek</p><h1>Your recomp day</h1><p>@Model.ActionDate.ToString("dddd, MMMM d") · @Model.NutritionDayLabel</p></div><a class="button secondary" href="/Dashboard">Compare original dashboard</a></header>
+    @if (Model.NeedsCurrentWeight)
+    {
+        <section class="d2-panel"><h2>Enter your morning weight</h2><p>Your personal targets need a current weight before they can be calculated.</p><a class="button" href="/DailyEntry">Open Daily Entry</a></section>
+    }
+    else
+    {
+    <section class="d2-panel" aria-labelledby="d2-nutrients">
+        <div class="d2-section-head"><div><p class="d2-eyebrow">01 · DAILY NUTRIENTS</p><h2 id="d2-nutrients">Feed the plan</h2><p>What you have eaten, where you are heading, and what is useful next.</p></div><a class="button" asp-controller="Nutrition" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Log food</a></div>
+        <div class="d2-macros">
+        @foreach (var band in plan.Bands)
+        {
+            <article class="d2-macro" style="--macro:@band.Color">
+                <div class="d2-section-head"><h3>@band.Name</h3><span class="d2-state">@band.Status</span></div>
+                <div class="d2-big">@(band.Eaten?.ToString("0") ?? "—")<small> g eaten</small></div>
+                <p class="d2-range">Target band <strong>@band.Low.ToString("0")–@band.High.ToString("0") g</strong></p>
+                <svg class="d2-chart" data-macro="@band.Key" viewBox="0 0 440 145" role="img" aria-label="@band.Name progress toward the target band"><title>@band.Name progress toward the target band</title></svg>
+                <p>@(band.Eaten.HasValue ? band.Remaining > 0 ? $"{band.Remaining:0} g to enter your band" : band.Eaten > band.High ? $"{band.Eaten - band.High:0} g above the planned band" : "Target band reached; more is not automatically better." : "Log intake to see your progress.")</p>
+            </article>
+        }
+        </div>
+        <p class="d2-muted">Shading marks the target band; the line shows cumulative logged intake. Meal groups are shown in breakfast-to-snack order, not clock time.</p>
+        <p class="d2-muted">@plan.SourceNote @ViewData["MealLogNotice"]</p>
+        @if (plan.Meals.Count > 0)
+        {
+            <div class="d2-table-wrap"><table><caption>Meals already entered</caption><thead><tr><th>Meal</th><th>Protein</th><th>Carbs</th><th>Fat</th></tr></thead><tbody>
+                @foreach (var meal in plan.Meals) { <tr><th>@meal.Label</th><td>@meal.Protein.ToString("0") g</td><td>@meal.Carbs.ToString("0") g</td><td>@meal.Fat.ToString("0") g</td></tr> }
+            </tbody></table></div>
+        }
+        <div class="d2-next @(plan.OverEnergy || plan.MacroEnergyMismatch ? "d2-review" : "")"><p class="d2-eyebrow">YOUR NEXT FOOD DECISION</p><h3>@(plan.OverEnergy ? "Review the combined intake" : "Plan the rest of today")</h3><p>@plan.Advice</p>
+            <form method="get" action="/Dashboard2" class="d2-form"><label for="d2-occasions">Eating occasions still planned</label><input id="d2-occasions" name="occasions" type="number" min="1" max="4" value="@plan.Occasions" /><button type="submit" class="button secondary">Replan / refresh</button></form>
+            @if (plan.Suggestions.Count > 0)
+            {
+                <div class="d2-meal-plan">
+                @foreach (var suggestion in plan.Suggestions)
+                {
+                    <article><h4>@suggestion.Label</h4><p><strong>@suggestion.Protein.ToString("0") g protein</strong></p><p>@suggestion.Carbs.ToString("0") g carbs · @suggestion.Fat.ToString("0") g fat</p><small>Allocation, not food already eaten</small></article>
+                }
+                </div>
+                <p>Build meals to fit these allocations. For a shake, use the label's protein, carbs and fat—not the weight of the powder—and log the actual serving.</p>
+                <p class="d2-muted">Where convenient, space protein-containing eating occasions about 3 hours apart. This is a scheduling suggestion informed by a short whey-feeding experiment, not a required absorption interval or a proven optimum for your portions. Do not delay sleep to follow it. <a href="https://pubmed.ncbi.nlm.nih.gov/23459753/" target="_blank" rel="noopener">Timing experiment</a> · <a href="https://pubmed.ncbi.nlm.nih.gov/38118410/" target="_blank" rel="noopener">Larger-dose experiment</a></p>
+            }
+            @if (plan.CanPlan && plan.UnallocatedProtein + plan.UnallocatedCarbs + plan.UnallocatedFat > 0)
+            { <p class="d2-warning">Not covered within the remaining energy allocation: @plan.UnallocatedProtein.ToString("0") g protein · @plan.UnallocatedCarbs.ToString("0") g carbs · @plan.UnallocatedFat.ToString("0") g fat. Check portions and targets rather than forcing every meter to green.</p> }
+        </div>
+        <details class="d2-energy"><summary>Total energy: @(plan.EnergyEaten?.ToString("0") ?? "not logged") / @plan.EnergyTarget.ToString("0") kcal · @(plan.OverEnergy ? "above today's plan" : plan.HasLog ? "day in progress" : "awaiting intake")</summary><p>Estimated maintenance: @Model.Engine30MaintenanceKcal.ToString("0") kcal. Energy left in today's plan: @(plan.HasLog ? plan.EnergyRemaining.ToString("0") : "unknown") kcal. All three macros count toward the combined intake. Being within each band does not override this check.</p><p>A day's overage does not measure fat gained. Repeated excess can undermine fat loss; short-term scale changes also include water and glycogen.</p></details>
+        <details class="d2-method"><summary>How these planning bands work</summary><p>The engine's central targets remain @Model.ProteinG.ToString("0") g protein, @Model.CarbsG.ToString("0") g carbs and @Model.FatG.ToString("0") g fat. Dashboard2 uses a planning tolerance of target to +10% for protein and ±10% for carbs and fat. These are explicit interface choices for testing, not research-established biological limits or a new physiological prescription.</p><p>The meal allocator aims at the central targets, prioritizes protein, reserves the lower fat allocation, then allocates carbs and remaining fat. It never adds logged food and manual daily totals together. These suggestions do not save meals or change your plan.</p></details>
+    </section>
+
+    <section class="d2-panel" aria-labelledby="d2-training"><p class="d2-eyebrow">02 · DAILY TRAINING</p><h2 id="d2-training">@Model.PlannedWorkout</h2><div class="d2-two"><article><h3>Planned</h3><p>@Model.WorkoutFocus</p><p>@Model.WorkoutDescription</p><p><strong>@Model.WorkoutDurationMin.ToString("0") minutes</strong> · @Model.WorkoutEffort</p><a class="button" asp-controller="DetailedWorkout" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Open workout</a></article><article><h3>Recorded</h3>@if (Model.ActualWorkoutDurationMin.HasValue) { <p>@Model.WorkoutActual</p><p><strong>@Model.ActualWorkoutDurationMin.Value.ToString("0") minutes</strong> · RPE @(Model.ActualWorkoutRpe?.ToString("0.#") ?? "not entered")</p> } else { <p>No completed workout recorded today. Planned work is not counted as completed.</p> }<a asp-controller="DailyEntry" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Review daily training</a></article></div>
+        @if (Model.ScheduleChangeRecommended) { <div class="d2-next"><h3>Suggested adjustment: @Model.RecommendedWorkout</h3><p>@Model.WorkoutRecommendationRationale</p><a href="/Dashboard">Review and accept the workout change</a></div> }
+    </section>
+
+    <section class="d2-panel" aria-labelledby="d2-tomorrow"><p class="d2-eyebrow">03 · TOMORROW'S NUTRIENTS &amp; TRAINING</p><h2 id="d2-tomorrow">@Model.TomorrowDate.ToString("dddd, MMMM d")</h2><p class="d2-muted">Preliminary: updates as training, meals and recovery information change.</p>
+        @if (!Model.TomorrowPlanAvailable) { <p>Tomorrow is not planned yet.</p><a href="/Schedule">Plan tomorrow</a> }
+        else {
+            @if (Model.TomorrowProteinG.HasValue && Model.TomorrowCarbsG.HasValue && Model.TomorrowFatG.HasValue)
+            { <div class="d2-macros">@foreach (var band in tomorrowBands) { <article class="d2-macro d2-compact" style="--macro:@band.Color"><h3>@band.Name</h3><strong>@band.Low.ToString("0")–@band.High.ToString("0") g</strong><p>Central target @band.Target.ToString("0") g</p></article> }</div> }
+            else { <p>Tomorrow's nutrient targets are not available yet.</p> }
+            <h3>@Model.TomorrowWorkout</h3><p>@Model.TomorrowFocus · @Model.TomorrowDurationMin?.ToString("0") minutes · @Model.TomorrowEffort</p><p>@Model.TomorrowDescription</p><p>@Model.TomorrowTip</p><details><summary>Tomorrow's energy plan</summary><p>@Model.TomorrowCalories?.ToString("0") kcal; the macro bands share this allocation.</p></details>
+        }
+    </section>
+
+    <section class="d2-panel" aria-labelledby="d2-analysis"><p class="d2-eyebrow">04 · DETAILED DAILY &amp; FOUR-DAY ANALYSIS</p><h2 id="d2-analysis">Understand the pattern</h2>
+        <article class="d2-next"><h3>Today · in progress</h3><p>@plan.Advice</p><p>Training: @(Model.ActualWorkoutDurationMin.HasValue ? Model.WorkoutActual : "not yet recorded")</p><p>Estimated glycogen readiness: @Model.GlycogenReadiness. This is a model estimate, not a glycogen measurement.</p><p>@Model.EnergyCarryoverSummary</p></article>
+        @if (analysis is null) { <p>Detailed analysis is temporarily unavailable. Your recorded intake remains visible above.</p> }
+        else {
+        <div class="d2-two"><article><h3>@analysis.DayContextLabel · @Model.PreviousDate.ToString("MMM d")</h3>
+            @foreach (var signal in new[] { analysis.Workout, analysis.Glycogen, analysis.Carbohydrate, analysis.Protein, analysis.Fat, analysis.Calories, analysis.ScaleConsistency, analysis.TrackingConfidence })
+            { <div class="d2-signal"><span class="d2-dot @signal.CssClass"></span><div><strong>@signal.Label · @signal.Value</strong><p>@signal.Detail</p></div></div> }
+            <p>@analysis.YesterdayNarrative</p><details><summary>Scale and data quality</summary><p>@analysis.ScaleExplanation</p><p>@analysis.DataQualityNarrative</p></details>
+        </article><article><h3>Four-day pattern</h3>
+            @foreach (var signal in new[] { analysis.TrendTraining, analysis.TrendFueling, analysis.TrendProtein, analysis.TrendFat, analysis.TrendEnergy, analysis.TrendScale, analysis.TrendTracking })
+            { <div class="d2-signal"><span class="d2-dot @signal.CssClass"></span><div><strong>@signal.Label · @signal.Value</strong><p>@signal.Detail</p></div></div> }
+            <p>@analysis.TrendNarrative</p><p>@analysis.CoachingTake</p><details><summary>Limits of the estimate</summary><p>@analysis.TrackingCaveat</p><p>Four days give context, not proof of muscle gain or fat loss. Model signals and body-composition scale estimates have uncertainty.</p></details>
+        </article></div>
+        }
+    </section>
+
+    <section class="d2-panel" aria-labelledby="d2-coach"><p class="d2-eyebrow">05 · COACHES CORNER</p><div class="d2-coach"><div class="d2-portrait">@await Html.PartialAsync("_CoachPhoto", (coachImage, coach.Name))</div><div><h2 id="d2-coach">@coach.Name's corner</h2><h3>@Model.CoachTitle</h3><p>@Model.CoachRecommendation</p><p>@plan.Advice</p><details><summary>Why today's advice?</summary><p>@Model.CoachWhy</p><p>Energy @(Model.EnergyScore?.ToString() ?? "not entered") / 10 · Soreness @(Model.SorenessScore?.ToString() ?? "not entered") / 10 · Sleep @(Model.SleepHours?.ToString("0.#") ?? "not entered") hours</p></details></div></div>
+        <div class="d2-lesson" aria-live="polite"><p class="d2-eyebrow">RECOMP STRATEGY · <span id="d2-lesson-count">1 of 6</span></p><h3 id="d2-lesson-title">Protein protects the training investment</h3><p id="d2-lesson-body">Resistance training provides a reason to retain and build muscle; protein supplies material for that response. In Mettler's two-week restriction experiment, athletes eating 2.3 g/kg lost less lean mass than those eating 1.0 g/kg. That supports protecting protein while reducing food, but does not establish your exact optimum or mean unlimited protein is useful. Reach your personal target, then consider the other demands on today's food allocation.</p><p id="d2-lesson-limit" class="d2-muted">20 young trained athletes; short study; lean mass is not exclusively muscle.</p><a id="d2-lesson-source" href="https://pubmed.ncbi.nlm.nih.gov/19927027/" target="_blank" rel="noopener">Read the original experiment</a><button type="button" id="d2-next-lesson" class="button secondary">Next recomp strategy →</button></div>
+    </section>
+    }
+</main>
+<script type="application/json" id="d2-data">@Html.Raw(JsonSerializer.Serialize(new { plan.Bands, plan.Meals }))</script>
+<script src="~/js/dashboard2.js" asp-append-version="true" defer></script>

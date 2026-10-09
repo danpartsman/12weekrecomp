@@ -119,4 +119,41 @@ public sealed class DashboardController(
         var vm = await dashboard.BuildAsync(context, today, cancellationToken);
         return View(vm);
     }
+    [HttpGet("/Dashboard2")]
+    [HttpGet("/Dashboard/Dashboard2")]
+    public async Task<IActionResult> Dashboard2(
+        [FromServices] WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore foodLog,
+        [FromServices] ILogger<DashboardController> logger,
+        int? occasions,
+        CancellationToken cancellationToken)
+    {
+        var result = await Index(cancellationToken);
+        if (result is not ViewResult view || view.Model is not WebRecomp.Web.ViewModels.DashboardViewModel day)
+            return result;
+        var context = await userContext.GetAsync(HttpContext, cancellationToken);
+        WebRecomp.NutritionIntelligence.Persistence.NutritionDailyLogReadModel? log = null;
+        var row = await db.NutritionDays.AsNoTracking().SingleOrDefaultAsync(
+            x => x.ProgramId == context.Program!.ProgramId && x.NutritionDate == day.ActionDate,
+            cancellationToken);
+        var source = row?.EntrySourceCode;
+        var useFood = source is null || source == "FOOD_LOG" || source == "MANUAL";
+        if (context.Program!.NutritionFoodLogEnabled)
+        {
+            try { log = await foodLog.GetDailyLogAsync(context.Client!.ClientId, day.ActionDate, cancellationToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Dashboard2 meal log unavailable; using daily totals");
+                ViewData["MealLogNotice"] = "Meal details are temporarily unavailable. Daily totals are shown; meal timing has not been inferred.";
+            }
+        }
+        var hour = DateTime.UtcNow.Hour;
+        try { hour = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(context.Client!.TimeZone)).Hour; }
+        catch (TimeZoneNotFoundException) { }
+        catch (InvalidTimeZoneException) { }
+        ViewData["MacroDayPlan"] = WebRecomp.Web.Services.Dashboard2.MacroDayPlanner.Build(day, log, useFood, hour, occasions);
+        view.ViewName = "Dashboard2";
+        return view;
+    }
+
 }
+
