@@ -485,7 +485,7 @@ public sealed class SettingsViewModel
     public string ThemeCode { get; set; } = "SYSTEM";
 
     [Required]
-    [RegularExpression("^(MARISOL|CASSIE|MARCUS|NINA)$")]
+    [WebRecomp.Web.Services.Learning.CoachCode]
     public string PreferredCoachCode { get; set; } = "MARISOL";
 
     // v1010 optional detailed-input preferences for the active program.

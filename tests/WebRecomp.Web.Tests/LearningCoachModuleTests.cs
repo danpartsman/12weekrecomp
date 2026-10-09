@@ -1,3 +1,9 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using WebRecomp.Web.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using WebRecomp.Web.Data;
@@ -40,9 +46,9 @@ public sealed class LearningCoachModuleTests
     }
 
     [Theory]
-    [InlineData("DASHBOARD", "AEROBIC_ENERGY", 8)]
-    [InlineData("NUTRITION", "FOOD_AND_FUEL", 14)]
-    [InlineData("WORKOUT", "TRAINING_ADAPTATION", 14)]
+    [InlineData("DASHBOARD", "AEROBIC_ENERGY", 9)]
+    [InlineData("NUTRITION", "FOOD_AND_FUEL", 15)]
+    [InlineData("WORKOUT", "TRAINING_ADAPTATION", 15)]
     public void LearningSeries_AreContiguousAndSurfaceSpecific(
         string surface,
         string series,
@@ -63,6 +69,33 @@ public sealed class LearningCoachModuleTests
         Assert.All(
             lessons,
             lesson => Assert.Equal(expectedModules, lesson.TotalModules));
+    }
+
+    [Theory]
+    [InlineData(typeof(SettingsViewModel))]
+    [InlineData(typeof(OnboardingSetupViewModel))]
+    public void CoachForms_AcceptEveryCatalogChoice_AndRejectUnknownChoices(Type modelType)
+    {
+        var model = Activator.CreateInstance(modelType)!;
+        var context = new ValidationContext(model) { MemberName = "PreferredCoachCode" };
+        foreach (var coach in CoachCatalog.All)
+            Assert.True(Validator.TryValidateProperty(coach.Code, context, new List<ValidationResult>()));
+        Assert.False(Validator.TryValidateProperty("NOT_A_COACH", context, new List<ValidationResult>()));
+    }
+
+    [Theory]
+    [InlineData(typeof(SettingsViewModel))]
+    [InlineData(typeof(OnboardingSetupViewModel))]
+    public void CoachForms_ClientValidationMatchesOfferedChoices(Type modelType)
+    {
+        var provider = new EmptyModelMetadataProvider();
+        var metadata = provider.GetMetadataForProperty(modelType, "PreferredCoachCode");
+        var attributes = new Dictionary<string, string>();
+        new CoachCodeAttribute().AddValidation(new ClientModelValidationContext(
+            new ActionContext(), metadata, provider, attributes));
+        var pattern = attributes["data-val-regex-pattern"];
+        foreach (var coach in CoachCatalog.All) Assert.Matches(pattern, coach.Code);
+        Assert.DoesNotMatch(pattern, "NOT_A_COACH");
     }
 
     [Fact]
