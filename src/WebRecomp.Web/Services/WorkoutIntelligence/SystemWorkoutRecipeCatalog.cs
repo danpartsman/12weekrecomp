@@ -862,12 +862,12 @@ public static class SystemWorkoutRecipeCatalog
         SystemWorkoutRecipe recipe,
         decimal engineDefaultMinutes)
     {
-        if (engineDefaultMinutes <= 0m)
-            return 0m;
-
         var raw =
             recipe.PlannedMinutes
             ?? engineDefaultMinutes * recipe.DurationMultiplier;
+
+        if (raw <= 0m)
+            return 0m;
 
         return Math.Max(
             5m,
