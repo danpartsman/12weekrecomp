@@ -30,6 +30,7 @@ public sealed class RecompCockpit
     public int? TodayFlexibleItems { get; init; }
     public string? StorageNotice { get; set; }
     public string? DataNotice { get; init; }
+    public string? HistoryNotice { get; init; }
     public string NextAction { get; init; } = "";
 }
 
@@ -45,6 +46,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var client = context.Client!;
         var program = context.Program!;
         var today = day.ActionDate;
+        var historical = today < AppUserContextService.GetClientToday(client);
         var start = PlanningWeek.Start(today);
         var end = start.AddDays(6);
         var activeStart = program.StartDate > start ? program.StartDate : start;
@@ -157,6 +159,14 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 scheduled.PlannedRpe, sample?.SystemCode, tone, true));
         }
         var score = RecompAdherenceScorer.Score(today, days, training, glycogen);
+        var capture = historical ? snapshots.FirstOrDefault(x => x.Run.ActionDate == today).Snapshot : null;
+        if (capture is not null)
+        {
+            days = capture.Days.ToList();
+            training = capture.Training.ToList();
+            glycogen = capture.Glycogen;
+            score = RestoreCapturedScore(today, capture);
+        }
         var previous = snapshots.FirstOrDefault().Snapshot;
         var history = snapshots.GroupBy(x => x.Run.ActionDate).Select(x => x.First())
             .Select(x => new RecompScoreHistory(x.Run.ActionDate, x.Snapshot!.Score, x.Run.StartedAtUtc, x.Snapshot.Version)).OrderBy(x => x.Date).ToList();
@@ -166,6 +176,9 @@ public sealed class RecompCockpitService(RecompDbContext db,
             WeekStart = start, Score = score, Training = training, Glycogen = glycogen, Days = days, History = history, UpcomingWorkouts = upcoming,
             Change = previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
             TodayFlexibleItems = flex.GetValueOrDefault(today),
+            HistoryNotice = !historical ? null : capture is not null
+                ? $"Saved weekly projection · {today:MMM d} · {capture.Version}. Daily cards show the saved entries."
+                : "Reconstructed weekly projection from saved entries and the available plan. No score was captured on this day; browsing does not create history.",
             DataNotice = plans.Count == 0 ? "Save a weekly training plan before judging training adherence."
                 : training.Single(x => x.Key == "resistance").Target == 0
                 ? "This week has no resistance goal. Review the plan before using the score to evaluate a recomp strategy."
@@ -179,7 +192,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var snapshot = new RecompScoreSnapshot(RecompScoreResult.Version, start, score.Score,
             score.KnownNutritionDays, score.CompletedNutritionDays, days, training, score.Components, glycogen);
         var json = JsonSerializer.Serialize(snapshot);
-        if (snapshots.FirstOrDefault().Run?.DiagnosticJson != json)
+        if (!historical && snapshots.FirstOrDefault().Run?.DiagnosticJson != json)
         {
             try
             {
@@ -194,9 +207,24 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 result.StorageNotice = "Your current score is shown, but its history could not be saved. Please try again later.";
             }
         }
-        result.History.RemoveAll(x => x.Date == today);
-        result.History.Add(new(today, score.Score, DateTime.UtcNow, RecompScoreResult.Version));
+        if (!historical)
+        {
+            result.History.RemoveAll(x => x.Date == today);
+            result.History.Add(new(today, score.Score, DateTime.UtcNow, RecompScoreResult.Version));
+        }
         return result;
+    }
+
+    public static RecompScoreResult RestoreCapturedScore(DateOnly date, RecompScoreSnapshot capture)
+    {
+        var evidence = RecompAdherenceScorer.Score(date, capture.Days, capture.Training, capture.Glycogen);
+        return new RecompScoreResult
+        {
+            Score = capture.Score, Components = capture.Components.ToList(),
+            KnownNutritionDays = capture.EvidenceDays, CompletedNutritionDays = capture.CompletedDays,
+            FlexibleItems = evidence.FlexibleItems, FlexibleConfirmedDays = evidence.FlexibleConfirmedDays,
+            FlexibleDayOverMacros = evidence.FlexibleDayOverMacros
+        };
     }
 
     public async Task SaveFlexibleItemsAsync(AppClientContext context, DateOnly date, int count, CancellationToken ct)

@@ -111,4 +111,25 @@ public sealed class RecompAdherenceScorerTests
         Assert.Equal(1m, new RecompGlycogenWork(0, 0, 0).ProjectedFraction);
     }
 
+    [Theory]
+    [InlineData("RECOMP_SCORE_V1")]
+    [InlineData("RECOMP_SCORE_V2")]
+    public void HistoricalCaptureKeepsOriginalScoreComponentsAndCoverage(string version)
+    {
+        var days = Week();
+        days[0] = days[0] with { FlexibleItems = 3, Carbs = 500 };
+        var scored = RecompAdherenceScorer.Score(Monday, days, Training());
+        var parts = scored.Components.Select(x => x with { Earned = x.Weight / 2 }).ToList();
+        var saved = new RecompScoreSnapshot(version, Monday, 42, 2, 3, days, Training(), parts);
+        var restored = RecompCockpitService.RestoreCapturedScore(Monday, saved);
+        Assert.Equal(42, restored.Score);
+        Assert.Equal(parts, restored.Components);
+        Assert.Equal(50, restored.NutritionScore);
+        Assert.Equal(50, restored.WorkoutScore);
+        Assert.Equal(2, restored.KnownNutritionDays);
+        Assert.Equal(3, restored.CompletedNutritionDays);
+        Assert.Equal(3, restored.FlexibleItems);
+        Assert.Equal("red", restored.FlexibleBand);
+    }
+
 }

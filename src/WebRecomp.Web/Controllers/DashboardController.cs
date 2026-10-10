@@ -13,6 +13,9 @@ public sealed class DashboardController(
     [HttpGet]
     public async Task<IActionResult> Index(
         CancellationToken cancellationToken)
+        => await BuildDashboardAsync(null, cancellationToken);
+
+    private async Task<IActionResult> BuildDashboardAsync(DateOnly? selectedDate, CancellationToken cancellationToken)
     {
         var context = await userContext.GetAsync(HttpContext, cancellationToken);
 
@@ -25,6 +28,8 @@ public sealed class DashboardController(
         var client = context.Client;
         var program = context.Program;
         var today = AppUserContextService.GetClientToday(client);
+        if (selectedDate.HasValue && (!ModelState.IsValid || selectedDate > today || selectedDate < program.StartDate))
+            return BadRequest("Choose a date between your program start and today.");
 
         var profileReady =
             client.DateOfBirth.HasValue
@@ -56,7 +61,7 @@ public sealed class DashboardController(
 
         // A short orientation reminder for newly created accounts. Do not
         // substitute plan data for actual entries or prompt on rest days.
-        if (context.User.CreatedAtUtc > DateTime.UtcNow.AddDays(-8))
+        if ((!selectedDate.HasValue || selectedDate == today) && context.User.CreatedAtUtc > DateTime.UtcNow.AddDays(-8))
         {
             var createdUtc = DateTime.SpecifyKind(
                 context.User.CreatedAtUtc,
@@ -116,7 +121,9 @@ public sealed class DashboardController(
             }
         }
 
-        var vm = await dashboard.BuildAsync(context, today, cancellationToken);
+        ViewData["DashboardToday"] = today;
+        ViewData["DashboardStart"] = program.StartDate;
+        var vm = await dashboard.BuildAsync(context, selectedDate ?? today, cancellationToken);
         return View(vm);
     }
     [HttpGet("/Dashboard2")]
@@ -130,6 +137,15 @@ public sealed class DashboardController(
         var result = await Index(cancellationToken);
         if (result is not ViewResult view || view.Model is not WebRecomp.Web.ViewModels.DashboardViewModel day)
             return result;
+        await BuildMacroPlanAsync(day, foodLog, logger, occasions, cancellationToken);
+        view.ViewName = "Dashboard2";
+        return view;
+    }
+
+    private async Task BuildMacroPlanAsync(WebRecomp.Web.ViewModels.DashboardViewModel day,
+        WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore foodLog,
+        ILogger<DashboardController> logger, int? occasions, CancellationToken cancellationToken)
+    {
         var context = await userContext.GetAsync(HttpContext, cancellationToken);
         WebRecomp.NutritionIntelligence.Persistence.NutritionDailyLogReadModel? log = null;
         var row = await db.NutritionDays.AsNoTracking().SingleOrDefaultAsync(
@@ -150,9 +166,8 @@ public sealed class DashboardController(
         try { hour = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(context.Client!.TimeZone)).Hour; }
         catch (TimeZoneNotFoundException) { }
         catch (InvalidTimeZoneException) { }
+        if (day.ActionDate < AppUserContextService.GetClientToday(context.Client!)) hour = 23;
         ViewData["MacroDayPlan"] = WebRecomp.Web.Services.Dashboard2.MacroDayPlanner.Build(day, log, useFood, hour, occasions);
-        view.ViewName = "Dashboard2";
-        return view;
     }
 
     [HttpGet("/Dashboard3")]
@@ -161,11 +176,13 @@ public sealed class DashboardController(
         [FromServices] WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore foodLog,
         [FromServices] ILogger<DashboardController> logger,
         [FromServices] WebRecomp.Web.Services.Dashboard3.RecompCockpitService cockpit,
-        int? occasions, CancellationToken cancellationToken)
+        int? occasions, DateOnly? date, CancellationToken cancellationToken)
     {
-        var result = await Dashboard2(foodLog, logger, occasions, cancellationToken);
+        if (!ModelState.IsValid) return BadRequest("Choose a valid dashboard date.");
+        var result = await BuildDashboardAsync(date, cancellationToken);
         if (result is not ViewResult view || view.Model is not WebRecomp.Web.ViewModels.DashboardViewModel day)
             return result;
+        await BuildMacroPlanAsync(day, foodLog, logger, occasions, cancellationToken);
         if (!day.NeedsCurrentWeight)
         {
             var context = await userContext.GetAsync(HttpContext, cancellationToken);

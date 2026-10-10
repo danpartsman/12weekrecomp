@@ -95,3 +95,12 @@ The collage becomes two rows of four on phones; coach-specific details still ope
 the user's preferred trainer. Daily nutrition/workout records and captured versioned
 score snapshots remain saved. Historical Dashboard3 navigation is not implemented;
 unknown or unobserved earlier checks are never fabricated.
+
+
+## Day browser and operational dashboard styling
+
+Dashboard3 accepts `?date=yyyy-MM-dd`, restricted to the active program start through the client's local today. Invalid/future/out-of-program dates return 400. Original Dashboard and Dashboard2 remain current-day views. The shared macro-plan builder uses the selected day's food log and saved daily totals.
+
+Historical Dashboard3 views never append score snapshots or synthesize new history points. Where a same-day score capture exists, its original score, components, evidence, training and glycogen projection are restored, including V1 captures. Daily cards read saved entries; their prescription can be reconstructed by the available engine rather than an archived full dashboard. The header notice distinguishes saved weekly projections from reconstructed projections. Flexible-item editing and remaining-meal planning are available on today's view only.
+
+The header uses a single generated eight-trainer gym photograph based on the existing fictional coach portraits, with a bounded date picker alongside it. Existing dashboard navy surfaces, blue borders and bold type are reused. Duplicate individual macro cards are removed. The bottom shows the original daily and four-day analysis signal panels rather than hiding the analysis behind a collapsed section; historical daily shortfalls are no longer described as unfinished.
