@@ -4,12 +4,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace WebRecomp.Web.Services.Fitdays;
+namespace WebRecomp.ExternalConnections.Fitdays;
 
 // Protocol adapted from roquerodrigo/fitdays-api (MIT); see Documentation/FITDAYS_TEST.md.
-public sealed class FitdaysPreviewClient(HttpClient http)
+public sealed class FitdaysClient(HttpClient http)
 {
-    public static bool IsTestSite => string.Equals(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"), "recomp-test", StringComparison.OrdinalIgnoreCase);
     public static string RegionHost(string region) => region switch
     {
         "us" => "https://online-us.fitdays.cn",
@@ -25,10 +24,13 @@ public sealed class FitdaysPreviewClient(HttpClient http)
         return Md5(WebUtility.UrlEncode(raw)).ToLowerInvariant();
     }
 
-    public async Task<FitdaysSession> LoginAsync(string email, string password, string region, CancellationToken ct)
+    public Task<FitdaysSession> LoginAsync(string email, string password, string region, CancellationToken ct, string appVersion = "1.21.0")
+        => LoginHashedAsync(email, HashPassword(password), region, ct, appVersion);
+
+    public async Task<FitdaysSession> LoginHashedAsync(string email, string passwordHash, string region, CancellationToken ct, string appVersion = "1.21.0")
     {
-        var session = new FitdaysSession { Host = RegionHost(region), Region = region, ClientId = Md5(Guid.NewGuid().ToString()) };
-        using var response = await RequestAsync(session, "api/users/login", new { email, password = HashPassword(password) }, ct);
+        var session = new FitdaysSession { Host = RegionHost(region), Region = region, AppVersion = appVersion, ClientId = Md5(Guid.NewGuid().ToString()) };
+        using var response = await RequestAsync(session, "api/users/login", new { email, password = passwordHash }, ct);
         var data = response.RootElement.GetProperty("data");
         var account = data.TryGetProperty("account", out var a) ? a : data;
         session.Token = Text(data, "token") ?? Text(account, "token") ?? "";
@@ -37,12 +39,12 @@ public sealed class FitdaysPreviewClient(HttpClient http)
         return session;
     }
 
-    public async Task<FitdaysSnapshot> ReadAsync(FitdaysSession session, string timezone, CancellationToken ct)
+    public async Task<FitdaysSnapshot> ReadAsync(FitdaysSession session, string timezone, CancellationToken ct, int historyDays = 30)
     {
         var now = DateTimeOffset.UtcNow;
-        using var doc = await RequestAsync(session, "api/sync/syncFromServer", new { start_time = now.ToUnixTimeSeconds(), end_time = now.AddDays(-30).ToUnixTimeSeconds() }, ct);
+        using var doc = await RequestAsync(session, "api/sync/syncFromServer", new { start_time = now.ToUnixTimeSeconds(), end_time = now.AddDays(-Math.Clamp(historyDays, 1, 90)).ToUnixTimeSeconds() }, ct);
         var snapshot = Parse(doc.RootElement.GetProperty("data"), timezone);
-        snapshot.Readings.RemoveAll(r => r.MeasuredAt < now.AddDays(-30) || r.MeasuredAt > now.AddMinutes(5));
+        snapshot.Readings.RemoveAll(r => r.MeasuredAt < now.AddDays(-Math.Clamp(historyDays, 1, 90)) || r.MeasuredAt > now.AddMinutes(5));
         return snapshot;
     }
 
@@ -52,14 +54,14 @@ public sealed class FitdaysPreviewClient(HttpClient http)
         {
             var values = new Dictionary<string, string>
             {
-                ["app_ver"] = "1.21.0", ["client_id"] = session.ClientId,
+                ["app_ver"] = session.AppVersion, ["client_id"] = session.ClientId,
                 ["country"] = session.Region == "cn" ? "CN" : "US", ["language"] = session.Region == "cn" ? "zh" : "en",
                 ["device_model"] = "AndroidSDKbuiltforarm64-6.0", ["os_type"] = "0", ["source"] = "0",
                 ["request_id"] = Md5(Guid.NewGuid().ToString()).ToLowerInvariant(), ["timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture),
                 ["token"] = session.Token, ["uid"] = session.Uid.ToString(CultureInfo.InvariantCulture)
             };
             var query = string.Join("&", values.Select(x => $"{Uri.EscapeDataString(x.Key)}={Uri.EscapeDataString(x.Value)}"));
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{session.Host}/{path}?{query}&sign={Sign(values)}&capp_ver=1.21.0");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{session.Host}/{path}?{query}&sign={Sign(values)}&capp_ver={Uri.EscapeDataString(session.AppVersion)}");
             request.Headers.UserAgent.ParseAdd("okhttp/4.9.3");
             request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
@@ -88,7 +90,7 @@ public sealed class FitdaysPreviewClient(HttpClient http)
             if (code is not (0 or 200))
             {
                 doc.Dispose();
-                throw new FitdaysPreviewException("Fitdays rejected the connection or the session expired. Check your email, password, and region, then reconnect.");
+                throw new FitdaysPreviewException("Fitdays rejected the connection or the session expired. Check your email, password, and region, then reconnect.") { SessionRejected = true };
             }
             return doc;
         }
@@ -143,9 +145,10 @@ public sealed class FitdaysPreviewClient(HttpClient http)
     }
     private static long? Number(JsonElement e, string name) { var n = Decimal(e, name); return n.HasValue && n >= long.MinValue && n <= long.MaxValue && decimal.Truncate(n.Value) == n ? (long)n.Value : null; }
 }
-public sealed class FitdaysPreviewException(string message) : Exception(message);
+public sealed class FitdaysPreviewException(string message) : Exception(message) { public bool SessionRejected { get; init; } }
 public sealed class FitdaysSession
 {
+    public string AppVersion { get; set; } = "1.21.0";
     public string Host { get; set; } = "";
     public string Region { get; set; } = "us";
     public string ClientId { get; set; } = "";

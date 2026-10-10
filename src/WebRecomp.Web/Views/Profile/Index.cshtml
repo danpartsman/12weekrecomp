@@ -1,4 +1,4 @@
-﻿@model ProfileViewModel
+@model ProfileViewModel
 <!-- V1006_GUIDED_PROFILE_CLEAN -->
 @await Html.PartialAsync(
     "_GuidedDemoCalloutSections",
@@ -22,9 +22,9 @@
         <a class="button" asp-action="Edit">Edit profile</a>
         <a class="button" asp-controller="HabitualActivity" asp-action="Index">Work &amp; activity</a>
         <a class="button" asp-action="Settings">Settings</a>
-        @if (WebRecomp.Web.Services.Fitdays.FitdaysPreviewClient.IsTestSite)
+        @if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsTestSite)
         {
-            <a class="button" asp-controller="Fitdays" asp-action="Index">Connect Fitdays · TEST</a>
+            <a class="button" asp-controller="ExternalConnections" asp-action="Index">Device integrations</a>
         }
         <a class="button" asp-controller="Progress" asp-action="Index">View progress</a>
     </div>

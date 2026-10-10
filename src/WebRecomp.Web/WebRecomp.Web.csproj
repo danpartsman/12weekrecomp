@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\WebRecomp.ExternalConnections\WebRecomp.ExternalConnections.csproj" />
     <ProjectReference Include="..\WebRecomp.WorkoutIntelligence\WebRecomp.WorkoutIntelligence.csproj" />
     <ProjectReference Include="..\WebRecomp.CatalogSync\WebRecomp.CatalogSync.csproj" />
     <ProjectReference Include="..\WebRecomp.NutritionIntelligence\WebRecomp.NutritionIntelligence.csproj" />

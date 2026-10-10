@@ -1,0 +1,34 @@
+@model WebRecomp.Web.Controllers.ExternalConnectionsPage
+@{ ViewData["Title"]="External connections"; var c=Model.Connection; var connected=c?.ProtectedCredential!=null; }
+<link rel="stylesheet" href="~/css/fitdays-preview.css" asp-append-version="true" />
+<div class="fitdays-page">
+    <header class="page-head"><div><div class="eyebrow">YOUR PROFILE · DEVICE INTEGRATIONS · TEST</div><h1>External connections</h1><p class="lede">Connect your devices once. Keep your Recomp measurements up to date.</p></div><a class="button" asp-controller="Profile" asp-action="Index">Back to profile</a></header>
+    @if(TempData["DeviceMessage"] is string message){<div class="status-card" role="status">@message</div>}
+    <section class="card">
+        <div class="fitdays-connected"><div><div class="eyebrow">SMART SCALES</div><h2>Fitdays</h2></div><strong>@(connected?c!.StatusCode.Replace("_"," "):"Not connected")</strong></div>
+        <p>Sync weight and supported body composition from your existing Fitdays cloud account.</p>
+        @if(!Model.Provider.Enabled){<div class="status-card review">Fitdays connections are paused by the administrator.</div>}
+        @if(connected)
+        {
+            <p><strong>Scale profile:</strong> @c!.PersonName · <strong>Region:</strong> @c.Region.ToUpperInvariant()</p>
+            <p><strong>Last successful sync:</strong> @(c.LastSuccessAtUtc.HasValue ? c.LastSuccessAtUtc.Value.ToString("yyyy-MM-dd HH:mm")+" UTC" : "Not synced yet")</p>
+            <p role="status">@c.LastMessage</p>
+            <form asp-action="Settings" method="post" class="fitdays-connect">
+                <label class="fitdays-consent"><input type="checkbox" name="automaticSync" value="true" checked="@c.AutomaticSync" /><span>Automatically sync my scale readings</span></label>
+                <button type="submit">Save device preference</button>
+            </form>
+            <p class="small">@(Model.Provider.AutomaticSyncEnabled ? $"Automatic sync checks every {Model.Provider.SyncIntervalMinutes} minutes while TEST is running." : "Automatic sync is paused by the administrator. Sync now remains available.") Your encrypted sign-in persists across visits and deployments; expired sessions are renewed automatically when possible.</p>
+            <div class="fitdays-connected">
+                <form asp-action="Sync" method="post"><button class="primary" type="submit" disabled="@(!Model.Provider.Enabled)">Sync now</button></form>
+                <a class="button" asp-controller="Fitdays" asp-action="Index" asp-route-reconnect="true">Change scale account or profile</a>
+                <form asp-action="Disconnect" method="post"><button type="submit">Disconnect Fitdays</button></form>
+            </div>
+        }
+        else if(Model.Provider.Enabled)
+        {
+            <a class="button primary" asp-controller="Fitdays" asp-action="Index">Connect Fitdays scale</a>
+        }
+        <p class="small">Existing manually recorded days are preserved. Repeated syncing does not duplicate measurements. Disconnecting stops sync and removes the saved sign-in; previously imported measurements remain.</p>
+    </section>
+    <section class="card"><h2>Scale data in your plan</h2><p>Imported readings appear by their local measurement date in Daily Entry, Progress, and Command Center. Weight and body composition are kept separate from workout and food records.</p><a class="button" asp-controller="DailyEntry" asp-action="Index">Daily Entry</a> <a class="button" asp-controller="Progress" asp-action="Index">Progress</a></section>
+</div>

@@ -146,8 +146,25 @@ public sealed class DailyEntryController(
             .OrderByDescending(x => x.MeasurementAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (bodyDataEntered || measurement is not null)
+        var unchangedDeviceMeasurement = measurement?.MeasurementSourceCode == "FITDAYS"
+            && WebRecomp.Web.Services.ExternalConnections.FitdaysMeasurementMapper.MatchesEntry(measurement, model);
+        if (!unchangedDeviceMeasurement && (bodyDataEntered || measurement is not null))
         {
+            if (measurement?.MeasurementSourceCode == "FITDAYS")
+            {
+                // Preserve the original provider reading and its deduplication key.
+                // A separate manual record makes this day ineligible for future imports.
+                var original = measurement;
+                measurement = new Measurement
+                {
+                    MeasurementId = Guid.NewGuid(), ClientId = original.ClientId,
+                    ProgramId = original.ProgramId, LocalMeasurementDate = model.Date,
+                    MeasurementAtUtc = now, MeasurementSourceCode = "MANUAL",
+                    MuscleMassLb = original.MuscleMassLb, ScaleWhr = original.ScaleWhr,
+                    Notes = original.Notes, CreatedAtUtc = now
+                };
+                db.Measurements.Add(measurement);
+            }
             if (measurement is null)
             {
                 measurement = new Measurement

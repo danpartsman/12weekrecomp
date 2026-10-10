@@ -14,7 +14,12 @@
         <a class="button" asp-controller="Profile" asp-action="Index">Back to profile</a>
     </header>
     <div class="status-card review"><strong>Preview only.</strong> Readings shown here do not change Daily Entry, Progress, or your plan.</div>
-    @if (Model.Snapshot is null)
+    @if (TempData["DeviceMessage"] is string message) { <div class="status-card" role="status">@message</div> }
+    @if (!Model.ProviderEnabled)
+    { <section class="card"><h2>Fitdays is paused</h2><p>The administrator has disabled this connection.</p><a class="button" asp-controller="ExternalConnections" asp-action="Index">Device integrations</a></section> }
+    else if (Model.Connection?.ProtectedCredential is not null && Model.Snapshot is null)
+    { <section class="card"><h2>Fitdays is connected</h2><p>Your saved sign-in is ready for automatic syncing.</p><a class="button primary" asp-controller="ExternalConnections" asp-action="Index">Manage device integration</a></section> }
+    else if (Model.Snapshot is null)
     {
         <section class="card">
             <h2>Connect your scale account</h2>
@@ -26,7 +31,7 @@
                 <label asp-for="Region">Account region<select asp-for="Region"><option value="us">United States / international</option><option value="eu">Europe</option><option value="cn">China</option></select><small>Choose where your Fitdays account is stored.</small></label>
                 <label class="fitdays-consent"><input asp-for="Consent" type="checkbox" /><span>Allow Recomp TEST to sign in to Fitdays and read my profiles and the last 30 days of weigh-ins for this preview.</span></label>
                 <button class="primary" type="submit">Connect &amp; preview readings</button>
-                <p class="small">Your password is not saved. The temporary server session expires after 20 minutes or a server restart. This experimental connection uses an unofficial Fitdays interface.</p>
+                <p class="small">Your password is not saved. The preview expires after 20 minutes. After previewing, you can save an encrypted sign-in for persistent automatic syncing. This experimental connection uses an unofficial Fitdays interface.</p>
             </form>
         </section>
     }
@@ -58,6 +63,17 @@
         </section>
         @if (Model.PersonId.HasValue)
         {
+            <section class="card">
+                <h2>Keep this scale connected</h2>
+                <form asp-action="Save" method="post" class="fitdays-connect">
+                    <input type="hidden" name="personId" value="@Model.PersonId" />
+                    <p>Selected profile: <strong>@Model.Snapshot.People.Single(p => p.Id == Model.PersonId).Name</strong></p>
+                    <label class="fitdays-consent"><input type="checkbox" name="persistConsent" value="true" required /><span>Save my encrypted Fitdays sign-in and import this profile's scale readings into my Recomp account.</span></label>
+                    <label class="fitdays-consent"><input type="checkbox" name="automaticSync" value="true" checked /><span>Automatically sync new weigh-ins</span></label>
+                    <button class="primary" type="submit">Save connection &amp; sync readings</button>
+                    <p class="small">You will not need to sign in every day. Existing manually recorded days are preserved; duplicate readings are skipped.</p>
+                </form>
+            </section>
             var readings = Model.Snapshot.Readings.Where(r => r.PersonId == Model.PersonId).Take(100).ToList();
             <section class="card">
                 <h2>Recent weigh-ins <span class="small">@readings.Count readings · last 30 days</span></h2>
