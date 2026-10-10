@@ -175,14 +175,24 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $base = "https://test.12weekrecomp.com"
-          $css = Invoke-WebRequest -Uri "$base/css/dashboard2.css?v=${{ github.sha }}" -TimeoutSec 30
-          $js = Invoke-WebRequest -Uri "$base/js/dashboard2.js?v=${{ github.sha }}" -TimeoutSec 30
+          function Get-ReadyTestPage([string]$uri) {
+              for ($attempt = 1; $attempt -le 6; $attempt++) {
+                  try { return Invoke-WebRequest -Uri $uri -TimeoutSec 30 }
+                  catch {
+                      if ($attempt -eq 6) { throw }
+                      Write-Host "TEST endpoint is warming up ($attempt/6); retrying."
+                      Start-Sleep -Seconds 5
+                  }
+              }
+          }
+          $css = Get-ReadyTestPage "$base/css/dashboard2.css?v=${{ github.sha }}"
+          $js = Get-ReadyTestPage "$base/js/dashboard2.js?v=${{ github.sha }}"
           if ($css.StatusCode -ne 200 -or -not $css.Content.Contains(".d2-macros") -or
               $js.StatusCode -ne 200 -or -not $js.Content.Contains("12wr-dashboard2-strategy")) {
               throw "Dashboard2 deployed asset verification failed."
           }
           # No credentials or auth bypass: verify the protected route reaches sign-in.
-          $page = Invoke-WebRequest -Uri "$base/Dashboard2" -TimeoutSec 30
+          $page = Get-ReadyTestPage "$base/Dashboard2"
           if ($page.StatusCode -ne 200 -or
               ($page.Content -notmatch 'Keep me signed in for 7 days|Your recomp day')) {
               throw "Dashboard2 did not render or reach the normal sign-in page."
@@ -194,13 +204,23 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $base = "https://test.12weekrecomp.com"
-          $css = Invoke-WebRequest -Uri "$base/css/dashboard3.css?v=${{ github.sha }}" -TimeoutSec 30
-          $js = Invoke-WebRequest -Uri "$base/js/dashboard3.js?v=${{ github.sha }}" -TimeoutSec 30
+          function Get-ReadyTestPage([string]$uri) {
+              for ($attempt = 1; $attempt -le 6; $attempt++) {
+                  try { return Invoke-WebRequest -Uri $uri -TimeoutSec 30 }
+                  catch {
+                      if ($attempt -eq 6) { throw }
+                      Write-Host "TEST endpoint is warming up ($attempt/6); retrying."
+                      Start-Sleep -Seconds 5
+                  }
+              }
+          }
+          $css = Get-ReadyTestPage "$base/css/dashboard3.css?v=${{ github.sha }}"
+          $js = Get-ReadyTestPage "$base/js/dashboard3.js?v=${{ github.sha }}"
           if ($css.StatusCode -ne 200 -or -not $css.Content.Contains(".d3-hero") -or
               $js.StatusCode -ne 200 -or -not $js.Content.Contains("data-coach-dialog")) {
               throw "Dashboard3 deployed cockpit asset verification failed."
           }
-          $page = Invoke-WebRequest -Uri "$base/Dashboard3" -TimeoutSec 30
+          $page = Get-ReadyTestPage "$base/Dashboard3"
           if ($page.StatusCode -ne 200 -or
               ($page.Content -notmatch 'Keep me signed in for 7 days|RECOMP COMMAND CENTER')) {
               throw "Dashboard3 did not render or reach the normal sign-in page."
