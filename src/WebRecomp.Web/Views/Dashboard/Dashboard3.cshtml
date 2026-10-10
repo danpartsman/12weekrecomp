@@ -10,7 +10,6 @@
     var coach = CoachCatalog.Resolve(Model.PreferredCoachCode);
     var coachImage = coach.Code == "MARISOL" ? "/images/coach/marisol-coach-avatar.webp" : CoachCatalog.ResolveImage(coach, 1);
     var analysis = Model.Engine30Analysis;
-    var tomorrowBands = MacroDayPlanner.Bands(Model.TomorrowProteinG ?? 0, Model.TomorrowCarbsG ?? 0, Model.TomorrowFatG ?? 0);
 }
 <link rel="stylesheet" href="~/css/dashboard2.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/dashboard3.css" asp-append-version="true" />
@@ -37,21 +36,37 @@
     </section>
     <div class="d3-quick-actions"><span><b>Today:</b> @Model.PlannedWorkout</span><a class="button secondary" asp-controller="DetailedWorkout" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Open workout</a><a class="button" asp-controller="Nutrition" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Log food</a></div>
     @if (cockpit.StorageNotice is not null) { <p class="d3-notice" role="alert">@cockpit.StorageNotice</p> }
-    <section class="d2-panel" aria-labelledby="d2-training"><p class="d2-eyebrow">02 · DAILY TRAINING</p><h2 id="d2-training">@Model.PlannedWorkout</h2><div class="d2-two"><article><h3>Planned</h3><p>@Model.WorkoutFocus</p><p>@Model.WorkoutDescription</p><p><strong>@Model.WorkoutDurationMin.ToString("0") minutes</strong> · @Model.WorkoutEffort</p><a class="button" asp-controller="DetailedWorkout" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Open workout</a></article><article><h3>Recorded</h3>@if (Model.ActualWorkoutDurationMin.HasValue) { <p>@Model.WorkoutActual</p><p><strong>@Model.ActualWorkoutDurationMin.Value.ToString("0") minutes</strong> · RPE @(Model.ActualWorkoutRpe?.ToString("0.#") ?? "not entered")</p> } else { <p>No completed workout recorded today. Planned work is not counted as completed.</p> }<a asp-controller="DailyEntry" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Review daily training</a></article></div>
+    <section class="d2-panel d3-training-section" aria-labelledby="d3-training-title"><p class="d3-eyebrow">TODAY · @Model.ActionDate.ToString("dddd, MMM d")</p><h2 id="d3-training-title">Make today count.</h2>
+        <div class="d3-training-grid">
+            <article class="d3-workout-card d3-planned-card"><div class="d3-card-label"><h3>Planned</h3><span class="d3-chip">Your mission</span></div><h4>@Model.PlannedWorkout</h4><p>@Model.WorkoutFocus</p><div class="d3-workout-metrics"><strong>@Model.WorkoutDurationMin.ToString("0") <small>min</small></strong><span>@Model.WorkoutEffort</span></div><details><summary>Session details</summary><p>@Model.WorkoutDescription</p></details><a class="button" asp-controller="DetailedWorkout" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Open planned workout ↗</a></article>
+            <article class="d3-workout-card d3-actual-card"><div class="d3-card-label"><h3>Actual</h3><span class="d3-chip">@(Model.ActualWorkoutDurationMin.HasValue ? "Completed" : "Not recorded yet")</span></div>
+                @if (Model.ActualWorkoutDurationMin.HasValue) { <h4>@Model.WorkoutActual</h4><div class="d3-workout-metrics"><strong>@Model.ActualWorkoutDurationMin.Value.ToString("0") <small>min</small></strong><span>RPE @(Model.ActualWorkoutRpe?.ToString("0.#") ?? "not entered")</span></div> }
+                else { <h4>Your next win starts here.</h4><p>Complete and record today's session to see your actual training.</p> }
+                <a class="button secondary" asp-controller="DailyEntry" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Review actual training ↗</a>
+            </article>
+        </div>
         @if (Model.ScheduleChangeRecommended) { <div class="d2-next"><h3>Suggested adjustment: @Model.RecommendedWorkout</h3><p>@Model.WorkoutRecommendationRationale</p><a href="/Dashboard">Review and accept the workout change</a></div> }
     </section>
-
-    <section class="d2-panel" aria-labelledby="d2-tomorrow"><p class="d2-eyebrow">03 · TOMORROW'S NUTRIENTS &amp; TRAINING</p><h2 id="d2-tomorrow">@Model.TomorrowDate.ToString("dddd, MMMM d")</h2><p class="d2-muted">Preliminary: updates as training, meals and recovery information change.</p>
-        @if (!Model.TomorrowPlanAvailable) { <p>Tomorrow is not planned yet.</p><a href="/Schedule">Plan tomorrow</a> }
-        else {
-            @if (Model.TomorrowProteinG.HasValue && Model.TomorrowCarbsG.HasValue && Model.TomorrowFatG.HasValue)
-            { <div class="d2-macros">@foreach (var band in tomorrowBands) { <article class="d2-macro d2-compact" style="--macro:@band.Color"><h3>@band.Name</h3><strong>@band.Low.ToString("0")–@band.High.ToString("0") g</strong><p>Central target @band.Target.ToString("0") g</p></article> }</div> }
-            else { <p>Tomorrow's nutrient targets are not available yet.</p> }
-            <h3>@Model.TomorrowWorkout</h3><p>@Model.TomorrowFocus · @Model.TomorrowDurationMin?.ToString("0") minutes · @Model.TomorrowEffort</p><p>@Model.TomorrowDescription</p><p>@Model.TomorrowTip</p><details><summary>Tomorrow's energy plan</summary><p>@Model.TomorrowCalories?.ToString("0") kcal; the macro bands share this allocation.</p></details>
+    <section class="d2-panel d3-next-section" aria-labelledby="d3-next-title"><p class="d3-eyebrow">LOOK AHEAD · NEXT TWO DAYS</p><h2 id="d3-next-title">Your next moves.</h2><div class="d3-training-grid">
+        @foreach (var upcoming in cockpit.UpcomingWorkouts) {
+            <article class="d3-workout-card d3-upcoming-card d3-load-@upcoming.Tone"><p class="d3-eyebrow">@(upcoming.Date == Model.ActionDate.AddDays(1) ? "Tomorrow" : "Coming next")</p><h3>@upcoming.Date.ToString("dddd, MMM d")</h3><h4>@upcoming.Name</h4>
+                @if (upcoming.Planned) {
+                    <div class="d3-workout-metrics">@if (upcoming.Minutes.HasValue && upcoming.Minutes > 0) { <strong>@upcoming.Minutes.Value.ToString("0") <small>min</small></strong> } @if (upcoming.Rpe.HasValue) { <span>RPE @upcoming.Rpe.Value.ToString("0.#")</span> }</div>
+                    <details><summary>Workout focus</summary><p>@upcoming.Description</p></details>
+                    @if (upcoming.SampleCode is not null) { <a class="button secondary" asp-controller="DetailedWorkout" asp-action="Index" asp-route-mode="system" asp-route-systemCode="@upcoming.SampleCode" asp-route-date="@upcoming.Date.ToString("yyyy-MM-dd")" asp-route-returnContext="schedule">@(upcoming.Tone == "recovery" && upcoming.SampleCode == "REST" ? "View recovery guide ↗" : "View sample workout ↗")</a> }
+                    else { <a class="button secondary" asp-controller="DetailedWorkout" asp-action="Index" asp-route-date="@upcoming.Date.ToString("yyyy-MM-dd")">Explore workout type ↗</a> }
+                } else { <p>@upcoming.Description</p><a class="button secondary" asp-controller="Schedule" asp-action="Index" asp-route-weekStart="@WebRecomp.Web.Services.PlanningWeek.Start(upcoming.Date).ToString("yyyy-MM-dd")">Plan this day ↗</a> }
+            </article>
         }
-    </section>
+    </div></section>
 
-    <section class="d2-panel" aria-labelledby="d2-analysis"><p class="d2-eyebrow">04 · DETAILED DAILY &amp; FOUR-DAY ANALYSIS</p><h2 id="d2-analysis">Understand the pattern</h2>
+    <section class="d2-panel d3-coaches-section" aria-labelledby="d2-coach"><p class="d3-eyebrow">COACHES CORNER · KEEP BUILDING</p><div class="d2-coach"><div class="d2-portrait">@await Html.PartialAsync("_CoachPhoto", (coachImage, coach.Name))</div><div><h2 id="d2-coach">@coach.Name's corner</h2><h3>@Model.CoachTitle</h3><p>@Model.CoachRecommendation</p><p>@plan.Advice</p><details><summary>Why today's advice?</summary><p>@Model.CoachWhy</p><p>Energy @(Model.EnergyScore?.ToString() ?? "not entered") / 10 · Soreness @(Model.SorenessScore?.ToString() ?? "not entered") / 10 · Sleep @(Model.SleepHours?.ToString("0.#") ?? "not entered") hours</p></details></div></div>
+        <div class="d2-lesson" aria-live="polite"><p class="d2-eyebrow">RECOMP STRATEGY · <span id="d2-lesson-count">1 of 6</span></p><h3 id="d2-lesson-title">Protein protects the training investment</h3><p id="d2-lesson-body">Resistance training provides a reason to retain and build muscle; protein supplies material for that response. In Mettler's two-week restriction experiment, athletes eating 2.3 g/kg lost less lean mass than those eating 1.0 g/kg. That supports protecting protein while reducing food, but does not establish your exact optimum or mean unlimited protein is useful. Reach your personal target, then consider the other demands on today's food allocation.</p><p id="d2-lesson-limit" class="d2-muted">20 young trained athletes; short study; lean mass is not exclusively muscle.</p><a id="d2-lesson-source" href="https://pubmed.ncbi.nlm.nih.gov/19927027/" target="_blank" rel="noopener">Read the original experiment</a><button type="button" id="d2-next-lesson" class="button secondary">Next recomp strategy →</button></div>
+    </section>
+    <section class="d2-panel d3-macro-details" aria-labelledby="d3-macro-details-title"><p class="d3-eyebrow">TODAY'S INDIVIDUAL MACROS</p><h2 id="d3-macro-details-title">Fuel your next win.</h2><div class="d3-macro-detail-grid">
+        @foreach (var band in plan.Bands) { <article class="d3-macro-detail-card" style="--macro:@band.Color"><h3>@band.Name</h3><p class="d3-macro-readout">@(band.Eaten?.ToString("0") ?? "—")<small> g eaten</small></p><p class="d3-macro-target">@band.Low.ToString("0")–@band.High.ToString("0") g <span>target range</span></p><p>@(band.Eaten.HasValue ? band.Eaten > band.High ? "Over today's range" : band.Remaining > 0 ? $"{band.Remaining:0} g to reach the range" : "Target range reached" : "Waiting for your intake")</p><button type="button" class="button secondary" data-open-coach="@band.Key" aria-haspopup="dialog">@band.Name details ↗</button></article> }
+    </div></section>
+    <details class="d2-panel d3-analysis"><summary><span class="d3-eyebrow">DAILY &amp; FOUR-DAY ANALYSIS</span><span class="d3-analysis-title">Understand the pattern ↗</span></summary>
         <article class="d2-next"><h3>Today · in progress</h3><p>@plan.Advice</p><p>Training: @(Model.ActualWorkoutDurationMin.HasValue ? Model.WorkoutActual : "not yet recorded")</p><p>Estimated glycogen readiness: @Model.GlycogenReadiness. This is a model estimate, not a glycogen measurement.</p><p>@Model.EnergyCarryoverSummary</p></article>
         @if (analysis is null) { <p>Detailed analysis is temporarily unavailable. Your recorded intake remains visible above.</p> }
         else {
@@ -65,11 +80,8 @@
             <p>@analysis.TrendNarrative</p><p>@analysis.CoachingTake</p><details><summary>Limits of the estimate</summary><p>@analysis.TrackingCaveat</p><p>Four days give context, not proof of muscle gain or fat loss. Model signals and body-composition scale estimates have uncertainty.</p></details>
         </article></div>
         }
-    </section>
+    </details>
 
-    <section class="d2-panel" aria-labelledby="d2-coach"><p class="d2-eyebrow">05 · COACHES CORNER</p><div class="d2-coach"><div class="d2-portrait">@await Html.PartialAsync("_CoachPhoto", (coachImage, coach.Name))</div><div><h2 id="d2-coach">@coach.Name's corner</h2><h3>@Model.CoachTitle</h3><p>@Model.CoachRecommendation</p><p>@plan.Advice</p><details><summary>Why today's advice?</summary><p>@Model.CoachWhy</p><p>Energy @(Model.EnergyScore?.ToString() ?? "not entered") / 10 · Soreness @(Model.SorenessScore?.ToString() ?? "not entered") / 10 · Sleep @(Model.SleepHours?.ToString("0.#") ?? "not entered") hours</p></details></div></div>
-        <div class="d2-lesson" aria-live="polite"><p class="d2-eyebrow">RECOMP STRATEGY · <span id="d2-lesson-count">1 of 6</span></p><h3 id="d2-lesson-title">Protein protects the training investment</h3><p id="d2-lesson-body">Resistance training provides a reason to retain and build muscle; protein supplies material for that response. In Mettler's two-week restriction experiment, athletes eating 2.3 g/kg lost less lean mass than those eating 1.0 g/kg. That supports protecting protein while reducing food, but does not establish your exact optimum or mean unlimited protein is useful. Reach your personal target, then consider the other demands on today's food allocation.</p><p id="d2-lesson-limit" class="d2-muted">20 young trained athletes; short study; lean mass is not exclusively muscle.</p><a id="d2-lesson-source" href="https://pubmed.ncbi.nlm.nih.gov/19927027/" target="_blank" rel="noopener">Read the original experiment</a><button type="button" id="d2-next-lesson" class="button secondary">Next recomp strategy →</button></div>
-    </section>
     <dialog class="d3-coach-dialog" data-coach-dialog data-coach-name="@coach.Name" aria-labelledby="d3-coach-title"><div class="d3-dialog-heading"><h2 id="d3-coach-title">@coach.Name explains your Recomp score</h2><button type="button" class="button secondary" data-close-coach aria-label="Close coach briefing">Close</button></div>
         <div class="d3-dialog-coach"><div class="d3-dialog-photo">@await Html.PartialAsync("_CoachPhoto", (coachImage, coach.Name))</div><div><p class="d3-eyebrow">YOUR TRAINER · @coach.Name</p><strong data-coach-summary-output></strong><p data-coach-intro-output></p><p class="d3-encourage">One useful next step builds momentum.</p></div></div>
         <section data-coach-panel="score" data-coach-title="Recomp score" data-coach-summary="@cockpit.Score.Score / 100 · @cockpit.Score.Status" data-coach-intro="@cockpit.NextAction" hidden>

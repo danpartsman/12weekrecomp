@@ -74,3 +74,14 @@ resistance. Modeled burn is an estimate rather than a physiological measurement.
 or zero burn goals are neutral and plan limitations are explained in the trainer briefing.
 V2 snapshots include modeled actual, target and remaining burn; earlier V1 history remains
 versioned rather than being rewritten to the new rubric.
+
+## Workout emphasis and two-day preview
+
+The compact cockpit is followed by prominent Planned and Actual daily training cards,
+next-day and following-day workout previews, Coaches Corner, individual daily macro
+cards, and collapsed detailed daily/four-day analysis. Previews read the two explicit
+future dates from the active client's saved program, including across Sunday/Monday.
+Client-owned template names are preserved; sample links use the corresponding System
+Workout recipe and date. Viewing a sample does not accept or alter the saved plan.
+Unscheduled days link to that day's planning week instead of inventing a workout.
+Training, recovery and macro sections use brighter accents with reduced-motion support.

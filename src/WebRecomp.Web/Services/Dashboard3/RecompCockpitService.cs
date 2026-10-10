@@ -5,10 +5,13 @@ using WebRecomp.Web.Models;
 using WebRecomp.Web.Services.Dashboard2;
 using WebRecomp.Web.Services.Engine30;
 using WebRecomp.Web.ViewModels;
+using WebRecomp.Web.Services.WorkoutIntelligence;
 
 namespace WebRecomp.Web.Services.Dashboard3;
 
 public sealed record RecompScoreHistory(DateOnly Date, int Score, DateTime RecordedAtUtc, string Version = "RECOMP_SCORE_V1");
+public sealed record RecompUpcomingWorkout(DateOnly Date, string Name, string Description,
+    decimal? Minutes, decimal? Rpe, string? SampleCode, string Tone, bool Planned);
 public sealed record FlexibleItemEntry(int Count);
 public sealed record RecompScoreSnapshot(string Version, DateOnly WeekStart, int Score,
     int EvidenceDays, int CompletedDays, IReadOnlyList<RecompDayEvidence> Days,
@@ -19,6 +22,7 @@ public sealed class RecompCockpit
     public DateOnly WeekStart { get; init; }
     public RecompScoreResult Score { get; init; } = new();
     public RecompGlycogenWork? Glycogen { get; init; }
+    public List<RecompUpcomingWorkout> UpcomingWorkouts { get; init; } = [];
     public List<RecompTrainingGauge> Training { get; init; } = [];
     public List<RecompDayEvidence> Days { get; init; } = [];
     public List<RecompScoreHistory> History { get; init; } = [];
@@ -123,6 +127,35 @@ public sealed class RecompCockpitService(RecompDbContext db,
             || (x.Date == today && !sessions.Any(s => s.WorkoutDate == today))))
             .Sum(x => Math.Max(0m, x.GlycogenDemandG));
         var glycogen = new RecompGlycogenWork(completedBurn, Math.Max(plannedBurn, capturedBurn), remainingBurn);
+        var upcomingPlans = await db.PlannedWorkouts.AsNoTracking().Where(x => x.ClientId == client.ClientId
+            && x.ProgramId == program.ProgramId && x.PlannedDate > today && x.PlannedDate <= today.AddDays(2)).ToListAsync(ct);
+        var templateIds = upcomingPlans.Where(x => x.WorkoutTemplateId.HasValue).Select(x => x.WorkoutTemplateId!.Value).ToArray();
+        var templates = await db.WorkoutTemplates.AsNoTracking().Where(x => x.ClientId == client.ClientId
+            && templateIds.Contains(x.WorkoutTemplateId)).ToDictionaryAsync(x => x.WorkoutTemplateId, ct);
+        var upcoming = new List<RecompUpcomingWorkout>();
+        for (var offset = 1; offset <= 2; offset++)
+        {
+            var date = today.AddDays(offset);
+            var scheduled = upcomingPlans.SingleOrDefault(x => x.PlannedDate == date);
+            if (scheduled is null)
+            {
+                upcoming.Add(new(date, "Choose your next session", "No workout is saved for this day yet.",
+                    null, null, null, "unplanned", false));
+                continue;
+            }
+            var code = Engine30WorkoutUiCatalogService.NormalizeCode(scheduled.WorkoutTypeCode);
+            types.TryGetValue(code, out var type);
+            SystemWorkoutRecipeCatalog.TryGet(scheduled.SystemWorkoutCode, out var selected);
+            var sample = selected ?? SystemWorkoutRecipeCatalog.GetDefaultPresentationForEngine(code);
+            var name = scheduled.WorkoutTemplateId.HasValue && templates.TryGetValue(scheduled.WorkoutTemplateId.Value, out var template)
+                ? template.TemplateName : selected?.DisplayName ?? type?.DisplayName ?? code.Replace('_', ' ');
+            var tone = code == "REST" || code == "ZONE2_CARDIO" ? "recovery"
+                : Group(code, types) == "resistance" ? type?.CountsDedicatedHeavy == true ? "hard" : "moderate" : "cardio";
+            upcoming.Add(new(date, name, selected?.Description ?? type?.Description ?? "Follow your saved training plan.",
+                scheduled.PlannedDurationMin ?? (selected is not null && type is not null
+                    ? SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(selected, type.DefaultMinutes) : type?.DefaultMinutes),
+                scheduled.PlannedRpe, sample?.SystemCode, tone, true));
+        }
         var score = RecompAdherenceScorer.Score(today, days, training, glycogen);
         var previous = snapshots.FirstOrDefault().Snapshot;
         var history = snapshots.GroupBy(x => x.Run.ActionDate).Select(x => x.First())
@@ -130,7 +163,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var behind = training.FirstOrDefault(x => x.ProjectedFraction < 1);
         var result = new RecompCockpit
         {
-            WeekStart = start, Score = score, Training = training, Glycogen = glycogen, Days = days, History = history,
+            WeekStart = start, Score = score, Training = training, Glycogen = glycogen, Days = days, History = history, UpcomingWorkouts = upcoming,
             Change = previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
             TodayFlexibleItems = flex.GetValueOrDefault(today),
             DataNotice = plans.Count == 0 ? "Save a weekly training plan before judging training adherence."
