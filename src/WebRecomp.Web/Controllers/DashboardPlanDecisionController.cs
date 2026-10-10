@@ -79,7 +79,7 @@ public sealed class DashboardPlanDecisionController(
             + "Workout and plan nutrition remain unchanged.";
 
         return RedirectToAction(
-            "Index",
+            "CommandCentral",
             "Dashboard",
             new
             {
@@ -127,7 +127,7 @@ public sealed class DashboardPlanDecisionController(
                 + "The Weekly Plan was not changed.";
 
             return RedirectToAction(
-                "Index",
+                "CommandCentral",
                 "Dashboard",
                 new
                 {
@@ -319,7 +319,7 @@ public sealed class DashboardPlanDecisionController(
             + "the plan nutrition targets.";
 
         return RedirectToAction(
-            "Index",
+            "CommandCentral",
             "Dashboard",
             new
             {

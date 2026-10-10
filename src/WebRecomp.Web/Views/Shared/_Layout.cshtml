@@ -151,8 +151,8 @@
         else
         {
             <a asp-controller="Dashboard"
-               asp-action="Index"
-               aria-label="12 Week Recomp Dashboard">
+               asp-action="CommandCentral"
+               aria-label="12 Week Recomp Command Central">
 
                 <img class="brand-logo brand-logo-light"
                      src="~/images/recomp/recomp-logo-light.png"
@@ -252,13 +252,12 @@
         <nav class="app-quick-nav"
              aria-label="Quick application navigation">
 
+            <a href="/CommandCentral">Command Central</a>
             <a class="quick-nav-dashboard"
                asp-controller="Dashboard"
                asp-action="Index">
                 Dashboard
             </a>
-            <a href="/Dashboard2">Dashboard2</a>
-            <a href="/Dashboard3">Dashboard3</a>
 
             <a asp-controller="Schedule"
                asp-action="Index">
@@ -314,12 +313,11 @@
              class="app-nav app-menu"
              aria-label="All application pages">
 
+            <a href="/CommandCentral">Command Central</a>
             <a asp-controller="Dashboard"
                asp-action="Index">
                 Dashboard
             </a>
-            <a href="/Dashboard2">Dashboard2</a>
-            <a href="/Dashboard3">Dashboard3</a>
 
             <a asp-controller="Schedule"
                asp-action="Index">

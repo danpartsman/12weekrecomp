@@ -84,7 +84,7 @@ public sealed class DemoController(
             result.SessionExpiresAtUtc.Value);
 
         return RedirectToAction(
-            "Index",
+            "CommandCentral",
             "Dashboard",
             new
             {
@@ -104,7 +104,7 @@ public sealed class DemoController(
         // Kept as a compatibility route for the first v1006 validation build.
         // A seeded Guided Demo now lands on Dashboard.
         return RedirectToAction(
-            "Index",
+            "CommandCentral",
             "Dashboard");
     }
 

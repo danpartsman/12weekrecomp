@@ -25,7 +25,7 @@ public sealed class GuidedDemoController(
                 "GUIDED",
                 StringComparison.OrdinalIgnoreCase))
         {
-            return RedirectToAction("Index", "Dashboard");
+            return RedirectToAction("CommandCentral", "Dashboard");
         }
 
         var code =

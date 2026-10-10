@@ -126,20 +126,15 @@ public sealed class DashboardController(
         var vm = await dashboard.BuildAsync(context, selectedDate ?? today, cancellationToken);
         return View(vm);
     }
+    // Keep bookmarked test URLs usable after retiring the old pages.
     [HttpGet("/Dashboard2")]
     [HttpGet("/Dashboard/Dashboard2")]
-    public async Task<IActionResult> Dashboard2(
-        [FromServices] WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore foodLog,
-        [FromServices] ILogger<DashboardController> logger,
-        int? occasions,
-        CancellationToken cancellationToken)
+    [HttpGet("/Dashboard3")]
+    [HttpGet("/Dashboard/Dashboard3")]
+    public IActionResult LegacyDashboard(DateOnly? date, int? occasions)
     {
-        var result = await Index(cancellationToken);
-        if (result is not ViewResult view || view.Model is not WebRecomp.Web.ViewModels.DashboardViewModel day)
-            return result;
-        await BuildMacroPlanAsync(day, foodLog, logger, occasions, cancellationToken);
-        view.ViewName = "Dashboard2";
-        return view;
+        if (!ModelState.IsValid) return BadRequest("Choose a valid date and meal count.");
+        return RedirectToAction(nameof(CommandCentral), new { date = date?.ToString("yyyy-MM-dd"), occasions });
     }
 
     private async Task BuildMacroPlanAsync(WebRecomp.Web.ViewModels.DashboardViewModel day,
@@ -158,7 +153,7 @@ public sealed class DashboardController(
             try { log = await foodLog.GetDailyLogAsync(context.Client!.ClientId, day.ActionDate, cancellationToken); }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogWarning(ex, "Dashboard2 meal log unavailable; using daily totals");
+                logger.LogWarning(ex, "Command Central meal log unavailable; using daily totals");
                 ViewData["MealLogNotice"] = "Meal details are temporarily unavailable. Daily totals are shown; meal timing has not been inferred.";
             }
         }
@@ -170,9 +165,8 @@ public sealed class DashboardController(
         ViewData["MacroDayPlan"] = WebRecomp.Web.Services.Dashboard2.MacroDayPlanner.Build(day, log, useFood, hour, occasions);
     }
 
-    [HttpGet("/Dashboard3")]
-    [HttpGet("/Dashboard/Dashboard3")]
-    public async Task<IActionResult> Dashboard3(
+    [HttpGet("/CommandCentral")]
+    public async Task<IActionResult> CommandCentral(
         [FromServices] WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore foodLog,
         [FromServices] ILogger<DashboardController> logger,
         [FromServices] WebRecomp.Web.Services.Dashboard3.RecompCockpitService cockpit,
@@ -189,10 +183,11 @@ public sealed class DashboardController(
             ViewData["RecompCockpit"] = await cockpit.BuildAsync(context, day,
                 (WebRecomp.Web.Services.Dashboard2.MacroDayPlan)ViewData["MacroDayPlan"]!, cancellationToken);
         }
-        view.ViewName = "Dashboard3";
+        view.ViewName = "CommandCentral";
         return view;
     }
 
+    [HttpPost("/CommandCentral/FlexibleItems")]
     [HttpPost("/Dashboard3/FlexibleItems")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> FlexibleItems(
@@ -205,7 +200,7 @@ public sealed class DashboardController(
         try { await cockpit.SaveFlexibleItemsAsync(context, date, count.Value, cancellationToken); }
         catch (ArgumentException ex) { return BadRequest(ex.Message); }
         TempData["StatusMessage"] = "Flexible item count saved. Your Recomp Score has been refreshed.";
-        return Redirect("/Dashboard3");
+        return Redirect("/CommandCentral");
     }
 
 }

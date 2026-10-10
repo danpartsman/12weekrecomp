@@ -34,7 +34,7 @@ public sealed class HomeController(
             if (context.Client is null || context.Program is null)
                 return RedirectToAction("Index", "Onboarding");
 
-            return RedirectToAction("Index", "Dashboard");
+            return RedirectToAction("CommandCentral", "Dashboard");
         }
 
         ViewData["PublicPage"] = true;
@@ -194,7 +194,7 @@ public sealed class HomeController(
         if (context.Client is null || context.Program is null)
             return RedirectToAction("Index", "Onboarding");
 
-        return RedirectToAction("Index", "Dashboard");
+        return RedirectToAction("CommandCentral", "Dashboard");
     }
 
     [AllowAnonymous]

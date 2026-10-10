@@ -35,7 +35,7 @@ public sealed class OnboardingController(
         var model = await BuildModelAsync(context, cancellationToken);
 
         if (await IsReadyAsync(context, cancellationToken))
-            return RedirectToAction("Index", "Dashboard");
+            return RedirectToAction("CommandCentral", "Dashboard");
 
         ViewData["OnboardingPage"] = true;
         return View("Setup", model);
