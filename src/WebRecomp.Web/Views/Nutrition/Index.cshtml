@@ -268,12 +268,20 @@
                     </p>
                 </div>
 
-                <a asp-controller="DailyEntry"
-                   asp-action="Index"
-                   asp-route-date="@manual.Date.ToString("yyyy-MM-dd")"
-                   class="button secondary app-daily-entry-button">
-                    Daily Entry
-                </a>
+                <div class="nutrition-daily-actions">
+                    @if (ViewData["NutritionToday"] is DateOnly today && manual.Date == today)
+                    {
+                        <form asp-action="CopyYesterdayToToday" method="post" onsubmit="this.querySelector('button').disabled = true">
+                            <button type="submit" class="button" title="Keeps yesterday's portions and meal slots. Skips matching entries already in today's log.">Copy yesterday's meals to today</button>
+                        </form>
+                    }
+                    <a asp-controller="DailyEntry"
+                       asp-action="Index"
+                       asp-route-date="@manual.Date.ToString("yyyy-MM-dd")"
+                       class="button secondary app-daily-entry-button">
+                        Daily Entry
+                    </a>
+                </div>
             </div>
 
             @if (Model.NutritionManualOverride)

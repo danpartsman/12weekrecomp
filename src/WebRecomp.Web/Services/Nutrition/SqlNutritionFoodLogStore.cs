@@ -996,97 +996,8 @@ public sealed class SqlNutritionFoodLogStore(
                     timeZone,
                     cancellationToken);
 
-            var itemOrder =
-                await GetNextItemOrderAsync(
-                    connection,
-                    transaction,
-                    dailyLogId,
-                    item.MealSlotCode,
-                    cancellationToken);
-
-            var dailyLogItemId = Guid.NewGuid();
-
-            await using (var command = connection.CreateCommand())
-            {
-                command.Transaction = transaction;
-                command.CommandText = """
-                    INSERT nutrition.DailyLogItems
-                    (
-                        daily_log_item_id,
-                        daily_log_id,
-                        meal_slot_code,
-                        item_order,
-                        external_food_id,
-                        custom_food_id,
-                        recipe_id,
-                        source_saved_meal_id,
-                        source_serving_id,
-                        description_snapshot,
-                        quantity,
-                        quantity_unit_code,
-                        gram_weight,
-                        nutrient_snapshot_policy_code,
-                        energy_kcal,
-                        protein_g,
-                        carbohydrate_g,
-                        fat_g,
-                        fiber_g,
-                        sugar_g,
-                        sodium_mg,
-                        saturated_fat_g
-                    )
-                    VALUES
-                    (
-                        @id,
-                        @daily_log_id,
-                        @meal_slot_code,
-                        @item_order,
-                        @external_food_id,
-                        @custom_food_id,
-                        @recipe_id,
-                        @source_saved_meal_id,
-                        @source_serving_id,
-                        @description_snapshot,
-                        @quantity,
-                        @quantity_unit_code,
-                        @gram_weight,
-                        @snapshot_policy,
-                        @energy_kcal,
-                        @protein_g,
-                        @carbohydrate_g,
-                        @fat_g,
-                        @fiber_g,
-                        @sugar_g,
-                        @sodium_mg,
-                        @saturated_fat_g
-                    );
-                    """;
-
-                Add(command, "@id", SqlDbType.UniqueIdentifier, dailyLogItemId);
-                Add(command, "@daily_log_id", SqlDbType.UniqueIdentifier, dailyLogId);
-                Add(command, "@meal_slot_code", SqlDbType.VarChar, item.MealSlotCode, 30);
-                Add(command, "@item_order", SqlDbType.SmallInt, checked((short)itemOrder));
-                Add(command, "@external_food_id", SqlDbType.UniqueIdentifier, item.Food.ExternalFoodId);
-                Add(command, "@custom_food_id", SqlDbType.UniqueIdentifier, item.Food.CustomFoodId);
-                Add(command, "@recipe_id", SqlDbType.UniqueIdentifier, item.Food.RecipeId);
-                Add(command, "@source_saved_meal_id", SqlDbType.UniqueIdentifier, item.SourceSavedMealId);
-                Add(command, "@source_serving_id", SqlDbType.NVarChar, item.SourceServingId, 120);
-                Add(command, "@description_snapshot", SqlDbType.NVarChar, item.DescriptionSnapshot, 300);
-                AddDecimal(command, "@quantity", item.Quantity, 12, 4);
-                Add(command, "@quantity_unit_code", SqlDbType.VarChar, item.QuantityUnitCode, 30);
-                AddDecimal(command, "@gram_weight", item.GramWeight, 12, 4);
-                Add(command, "@snapshot_policy", SqlDbType.VarChar, item.NutrientSnapshotPolicyCode, 30);
-                AddDecimal(command, "@energy_kcal", item.EnergyKcal, 12, 4);
-                AddDecimal(command, "@protein_g", item.ProteinG, 12, 4);
-                AddDecimal(command, "@carbohydrate_g", item.CarbohydrateG, 12, 4);
-                AddDecimal(command, "@fat_g", item.FatG, 12, 4);
-                AddDecimal(command, "@fiber_g", item.FiberG, 12, 4);
-                AddDecimal(command, "@sugar_g", item.SugarG, 12, 4);
-                AddDecimal(command, "@sodium_mg", item.SodiumMg, 12, 4);
-                AddDecimal(command, "@saturated_fat_g", item.SaturatedFatG, 12, 4);
-
-                await command.ExecuteNonQueryAsync(cancellationToken);
-            }
+            var dailyLogItemId = await InsertDailyLogItemAsync(
+                connection, transaction, dailyLogId, item, cancellationToken);
 
             await RecalculateDailyTotalsAsync(
                 connection,
@@ -1102,6 +1013,183 @@ public sealed class SqlNutritionFoodLogStore(
             await transaction.RollbackAsync(cancellationToken);
             throw;
         }
+    }
+
+    public async Task<NutritionDayCopyResult> CopyYesterdayToTodayAsync(
+        Guid clientId, DateOnly today, string? timeZone,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenAsync(cancellationToken);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+            IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var source = await ReadCopyItemsAsync(connection, transaction, clientId, today.AddDays(-1), cancellationToken);
+            if (source.Count == 0)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return new(0, 0);
+            }
+            // Lock today's log before checking matches; repeated/concurrent copies serialize.
+            var dailyLogId = await GetOrCreateDailyLogIdAsync(connection, transaction, clientId, today, timeZone, cancellationToken);
+            var existing = await ReadCopyItemsAsync(connection, transaction, clientId, today, cancellationToken);
+            var missing = NutritionDayCopyPlanner.MissingItems(source, existing);
+            foreach (var item in missing)
+            {
+                item.Food.Validate();
+                await ValidateOwnedReferenceAsync(connection, transaction, clientId, item.Food, cancellationToken);
+                await InsertDailyLogItemAsync(connection, transaction, dailyLogId, item, cancellationToken);
+            }
+            if (missing.Count > 0)
+                await RecalculateDailyTotalsAsync(connection, transaction, dailyLogId, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new(source.Count, missing.Count);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    private static async Task<List<DailyLogItemWriteModel>> ReadCopyItemsAsync(
+        SqlConnection connection, SqlTransaction transaction, Guid clientId,
+        DateOnly date, CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT li.meal_slot_code, li.item_order,
+                li.external_food_id, li.custom_food_id, li.recipe_id,
+                li.description_snapshot, li.quantity, li.quantity_unit_code,
+                li.gram_weight, li.nutrient_snapshot_policy_code,
+                li.energy_kcal, li.protein_g, li.carbohydrate_g, li.fat_g,
+                li.fiber_g, li.sugar_g, li.sodium_mg, li.saturated_fat_g,
+                li.source_saved_meal_id, li.source_serving_id
+            FROM nutrition.DailyLogItems li
+            INNER JOIN nutrition.DailyLogs dl ON dl.daily_log_id = li.daily_log_id
+            WHERE dl.client_id = @client_id AND dl.log_date = @log_date
+            ORDER BY li.meal_slot_code, li.item_order, li.daily_log_item_id;
+            """;
+        Add(command, "@client_id", SqlDbType.UniqueIdentifier, clientId);
+        Add(command, "@log_date", SqlDbType.Date, date.ToDateTime(TimeOnly.MinValue));
+        var items = new List<DailyLogItemWriteModel>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new(reader.GetString(0), reader.GetInt16(1),
+                new(reader.IsDBNull(2) ? null : reader.GetGuid(2),
+                    reader.IsDBNull(3) ? null : reader.GetGuid(3),
+                    reader.IsDBNull(4) ? null : reader.GetGuid(4)),
+                reader.GetString(5), reader.GetDecimal(6), reader.GetString(7),
+                GetNullableDecimal(reader, 8), reader.GetString(9),
+                GetNullableDecimal(reader, 10), GetNullableDecimal(reader, 11),
+                GetNullableDecimal(reader, 12), GetNullableDecimal(reader, 13),
+                GetNullableDecimal(reader, 14), GetNullableDecimal(reader, 15),
+                GetNullableDecimal(reader, 16), GetNullableDecimal(reader, 17),
+                reader.IsDBNull(18) ? null : reader.GetGuid(18),
+                reader.IsDBNull(19) ? null : reader.GetString(19)));
+        }
+        return items;
+    }
+
+    private static async Task<Guid> InsertDailyLogItemAsync(
+        SqlConnection connection, SqlTransaction transaction, Guid dailyLogId,
+        DailyLogItemWriteModel item, CancellationToken cancellationToken)
+    {
+        var itemOrder =
+            await GetNextItemOrderAsync(
+                connection,
+                transaction,
+                dailyLogId,
+                item.MealSlotCode,
+                cancellationToken);
+
+        var dailyLogItemId = Guid.NewGuid();
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT nutrition.DailyLogItems
+                (
+                    daily_log_item_id,
+                    daily_log_id,
+                    meal_slot_code,
+                    item_order,
+                    external_food_id,
+                    custom_food_id,
+                    recipe_id,
+                    source_saved_meal_id,
+                    source_serving_id,
+                    description_snapshot,
+                    quantity,
+                    quantity_unit_code,
+                    gram_weight,
+                    nutrient_snapshot_policy_code,
+                    energy_kcal,
+                    protein_g,
+                    carbohydrate_g,
+                    fat_g,
+                    fiber_g,
+                    sugar_g,
+                    sodium_mg,
+                    saturated_fat_g
+                )
+                VALUES
+                (
+                    @id,
+                    @daily_log_id,
+                    @meal_slot_code,
+                    @item_order,
+                    @external_food_id,
+                    @custom_food_id,
+                    @recipe_id,
+                    @source_saved_meal_id,
+                    @source_serving_id,
+                    @description_snapshot,
+                    @quantity,
+                    @quantity_unit_code,
+                    @gram_weight,
+                    @snapshot_policy,
+                    @energy_kcal,
+                    @protein_g,
+                    @carbohydrate_g,
+                    @fat_g,
+                    @fiber_g,
+                    @sugar_g,
+                    @sodium_mg,
+                    @saturated_fat_g
+                );
+                """;
+
+            Add(command, "@id", SqlDbType.UniqueIdentifier, dailyLogItemId);
+            Add(command, "@daily_log_id", SqlDbType.UniqueIdentifier, dailyLogId);
+            Add(command, "@meal_slot_code", SqlDbType.VarChar, item.MealSlotCode, 30);
+            Add(command, "@item_order", SqlDbType.SmallInt, checked((short)itemOrder));
+            Add(command, "@external_food_id", SqlDbType.UniqueIdentifier, item.Food.ExternalFoodId);
+            Add(command, "@custom_food_id", SqlDbType.UniqueIdentifier, item.Food.CustomFoodId);
+            Add(command, "@recipe_id", SqlDbType.UniqueIdentifier, item.Food.RecipeId);
+            Add(command, "@source_saved_meal_id", SqlDbType.UniqueIdentifier, item.SourceSavedMealId);
+            Add(command, "@source_serving_id", SqlDbType.NVarChar, item.SourceServingId, 120);
+            Add(command, "@description_snapshot", SqlDbType.NVarChar, item.DescriptionSnapshot, 300);
+            AddDecimal(command, "@quantity", item.Quantity, 12, 4);
+            Add(command, "@quantity_unit_code", SqlDbType.VarChar, item.QuantityUnitCode, 30);
+            AddDecimal(command, "@gram_weight", item.GramWeight, 12, 4);
+            Add(command, "@snapshot_policy", SqlDbType.VarChar, item.NutrientSnapshotPolicyCode, 30);
+            AddDecimal(command, "@energy_kcal", item.EnergyKcal, 12, 4);
+            AddDecimal(command, "@protein_g", item.ProteinG, 12, 4);
+            AddDecimal(command, "@carbohydrate_g", item.CarbohydrateG, 12, 4);
+            AddDecimal(command, "@fat_g", item.FatG, 12, 4);
+            AddDecimal(command, "@fiber_g", item.FiberG, 12, 4);
+            AddDecimal(command, "@sugar_g", item.SugarG, 12, 4);
+            AddDecimal(command, "@sodium_mg", item.SodiumMg, 12, 4);
+            AddDecimal(command, "@saturated_fat_g", item.SaturatedFatG, 12, 4);
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        return dailyLogItemId;
     }
 
     public async Task UpdateDailyLogItemAsync(
@@ -1537,7 +1625,7 @@ public sealed class SqlNutritionFoodLogStore(
             lookup.Transaction = transaction;
             lookup.CommandText = """
                 SELECT daily_log_id
-                FROM nutrition.DailyLogs
+                FROM nutrition.DailyLogs WITH (UPDLOCK, HOLDLOCK)
                 WHERE client_id = @client_id
                   AND log_date = @log_date;
                 """;

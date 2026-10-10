@@ -1056,3 +1056,5 @@
         max-width: none;
     }
 }
+
+.nutrition-dashboard-head{flex-wrap:wrap}.nutrition-daily-actions{max-width:100%;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.nutrition-daily-actions form{margin:0}.nutrition-daily-actions button:disabled{opacity:.65;cursor:wait}@media(max-width:620px){.nutrition-daily-actions{width:100%}.nutrition-daily-actions form,.nutrition-daily-actions .button{width:100%}.nutrition-daily-actions .button{text-align:center;white-space:normal}}

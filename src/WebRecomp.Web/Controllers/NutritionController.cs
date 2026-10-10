@@ -799,6 +799,34 @@ public sealed class NutritionController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CopyYesterdayToToday(CancellationToken cancellationToken)
+    {
+        var context = await userContext.GetAsync(HttpContext, cancellationToken);
+        if (context.Client is null || context.Program is null)
+            return RedirectToAction("Index", "Intake");
+        if (!context.Program.NutritionFoodLogEnabled) return Forbid();
+        var today = AppUserContextService.GetClientToday(context.Client);
+        try
+        {
+            var result = await nutritionStore.CopyYesterdayToTodayAsync(
+                context.Client.ClientId, today, context.Client.TimeZone, cancellationToken);
+            if (result.SourceItems > 0)
+                await SyncFoodLogToDailyEntryAsync(context, today, cancellationToken);
+            TempData["StatusMessage"] = result.SourceItems == 0
+                ? "No meals were logged yesterday. Add today's foods normally."
+                : result.CopiedItems == 0
+                ? "Yesterday's meals are already in today's log. No duplicate entries were added."
+                : $"Copied {result.CopiedItems} food {(result.CopiedItems == 1 ? "entry" : "entries")} from yesterday to today. Meal slots and portions were kept; matching entries were skipped.";
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            TempData["NutritionError"] = SafeUiError(ex, "Unable to copy yesterday's meals. Please try again.");
+        }
+        return RedirectToNutrition(today);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> CopyPastMeal(
         DateOnly date,
         Guid sourceDailyLogId,
@@ -1630,6 +1658,8 @@ public sealed class NutritionController(
         string? selectedFoodId,
         CancellationToken cancellationToken)
     {
+        if (context.Client is not null)
+            ViewData["NutritionToday"] = AppUserContextService.GetClientToday(context.Client);
         var normalizedSort =
             NutritionFoodSortCodes.Normalize(foodSort);
 

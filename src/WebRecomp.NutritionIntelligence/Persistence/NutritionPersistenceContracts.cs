@@ -245,6 +245,10 @@ public interface INutritionFoodLogStore
         DailyLogItemWriteModel item,
         CancellationToken cancellationToken = default);
 
+    Task<NutritionDayCopyResult> CopyYesterdayToTodayAsync(
+        Guid clientId, DateOnly today, string? timeZone,
+        CancellationToken cancellationToken = default);
+
     Task UpdateDailyLogItemAsync(
         Guid clientId,
         Guid dailyLogItemId,
@@ -307,3 +311,5 @@ public sealed record NutritionDailyLogReadModel(
     DateOnly LogDate,
     IReadOnlyList<NutritionDailyLogItemReadModel> Items,
     NutritionDailyTotalsReadModel? Totals);
+
+public sealed record NutritionDayCopyResult(int SourceItems, int CopiedItems);
