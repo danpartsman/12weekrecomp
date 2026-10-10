@@ -5,7 +5,7 @@ public sealed class DeviceProviderSetting
     public string ProviderCode { get; set; } = "FITDAYS";
     public bool Enabled { get; set; } = true;
     public bool AutomaticSyncEnabled { get; set; } = true;
-    public int SyncIntervalMinutes { get; set; } = 60;
+    public int SyncIntervalMinutes { get; set; } = 15;
     public int HistoryDays { get; set; } = 30;
     public string AppVersion { get; set; } = "1.21.0";
     public bool BodyCompositionEnabled { get; set; } = true;

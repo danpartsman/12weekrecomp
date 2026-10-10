@@ -8,6 +8,29 @@ using WebRecomp.Web.ViewModels;
 namespace WebRecomp.Web.Tests;
 public sealed class ExternalConnectionTests
 {
+    [Fact]
+    public void PageOpenPollingWaitsForTheConfiguredInterval()
+    {
+        var now=DateTime.UtcNow;
+        var setting=new DeviceProviderSetting {SyncIntervalMinutes=15};
+        var connection=new DeviceConnection {ProtectedCredential="encrypted",LastAttemptAtUtc=now.AddMinutes(-14)};
+        Assert.False(DeviceSyncPolicy.ShouldCheckOnOpen(setting,connection,now));
+        connection.LastAttemptAtUtc=now.AddMinutes(-15);
+        Assert.True(DeviceSyncPolicy.ShouldCheckOnOpen(setting,connection,now));
+        connection.SyncLeaseUntilUtc=now.AddMinutes(1);
+        Assert.False(DeviceSyncPolicy.ShouldCheckOnOpen(setting,connection,now));
+    }
+    [Fact]
+    public void PageOpenPollingRespectsOptOutAndReconnectStatus()
+    {
+        var now=DateTime.UtcNow;var setting=new DeviceProviderSetting();
+        var c=new DeviceConnection {ProtectedCredential="encrypted"};
+        Assert.True(DeviceSyncPolicy.ShouldCheckOnOpen(setting,c,now));
+        c.AutomaticSync=false;Assert.False(DeviceSyncPolicy.ShouldCheckOnOpen(setting,c,now));
+        c.AutomaticSync=true;c.StatusCode="RECONNECT";Assert.False(DeviceSyncPolicy.ShouldCheckOnOpen(setting,c,now));
+        c.StatusCode="CONNECTED";setting.AutomaticSyncEnabled=false;Assert.False(DeviceSyncPolicy.ShouldCheckOnOpen(setting,c,now));
+        Assert.False(DeviceSyncPolicy.ShouldCheckOnOpen(setting,null,now));
+    }
     private static FitdaysReading Reading() => new(12,new DateTimeOffset(2026,10,10,23,30,0,TimeSpan.FromHours(-7)),212.7m,"record-a",26.2m,68.8m,42.4m,54.1m,18.7m,10m);
     [Fact]
     public void MapsVerifiedPercentFieldsAndLocalDateWithoutGenericMuscle()

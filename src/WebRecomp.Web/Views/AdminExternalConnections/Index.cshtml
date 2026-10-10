@@ -2,14 +2,14 @@
 @{ViewData["Title"]="External connections administration";}
 <link rel="stylesheet" href="~/css/fitdays-preview.css" asp-append-version="true" />
 <div class="fitdays-page">
-<header class="page-head"><div><div class="eyebrow">ADMINISTRATION · EXTERNAL CONNECTIONS · TEST</div><h1>External connections</h1><p class="lede">Manage supported providers, sync schedules, and account connection status.</p></div><a class="button" asp-controller="Admin" asp-action="Index">Administration</a></header>
+<header class="page-head"><div><div class="eyebrow">ADMINISTRATION · EXTERNAL CONNECTIONS · TEST</div><h1>External connections</h1><p class="lede">Manage supported providers, page-open checks, and account connection status.</p></div><a class="button" asp-controller="Admin" asp-action="Index">Administration</a></header>
 @if(TempData["DeviceMessage"] is string message){<div class="status-card" role="status">@message</div>}
 <section class="card"><h2>Fitdays · Smart scales</h2><p>Server connection to the existing Fitdays cloud. No developer API key or additional phone app is needed. Users connect their own accounts in Profile → Device integrations.</p>
 <form method="post" class="fitdays-connect">
 <div asp-validation-summary="All" role="alert"></div>
 <label class="fitdays-consent"><input asp-for="Enabled"/><span>Enable Fitdays connections and manual sync</span></label>
-<label class="fitdays-consent"><input asp-for="AutomaticSyncEnabled"/><span>Enable scheduled sync for users who opt in</span></label>
-<label>Sync interval (minutes)<input asp-for="SyncIntervalMinutes" type="number" min="15" max="1440"/></label>
+<label class="fitdays-consent"><input asp-for="AutomaticSyncEnabled"/><span>Enable page-open sync for users who opt in</span></label>
+<label>Minimum time between page-open checks (minutes)<input asp-for="SyncIntervalMinutes" type="number" min="15" max="1440"/></label>
 <label>History to check (days)<input asp-for="HistoryDays" type="number" min="1" max="90"/></label>
 <label>Fitdays API app version<input asp-for="AppVersion"/><small>Current protocol version: 1.21.0. Change only when required by Fitdays.</small></label>
 <label class="fitdays-consent"><input asp-for="BodyCompositionEnabled"/><span>Import supported body composition alongside weight</span></label>
@@ -24,5 +24,5 @@ else {<div class="fitdays-table" tabindex="0" role="region" aria-label="User dev
 @foreach(var row in Model.Connections){<tr><td>@row.UserName</td><td>@row.PersonName</td><td>@row.Status</td><td>@(row.Automatic?"On":"Off")</td><td>@(row.LastSuccess?.ToString("yyyy-MM-dd HH:mm")??"—")</td><td><form asp-action="Pause" method="post"><input type="hidden" name="connectionId" value="@row.Id"/><button type="submit" disabled="@(!row.Automatic)">Pause auto sync</button></form></td></tr><tr><td colspan="6" class="small">@row.Message</td></tr>}
 </tbody></table></div>}
 <p class="small">Saved passwords and tokens are never displayed here. Pausing a connection preserves its saved sign-in and imported measurements.</p></section>
-<section class="card"><h2>Provider modules</h2><p>Fitdays is the first supported adapter. This module is separate from the fitness engine. Additional providers can share these management screens, account connections, and sync scheduling once their adapter is added.</p></section>
+<section class="card"><h2>Provider modules</h2><p>Fitdays is the first supported adapter. This module is separate from the fitness engine. Additional providers can share these management screens, account connections, and page-open syncing once their adapter is added.</p></section>
 </div>

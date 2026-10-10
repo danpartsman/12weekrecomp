@@ -13,7 +13,7 @@ BEGIN
  updated_at_utc datetime2 NOT NULL);
 END;
 IF NOT EXISTS (SELECT 1 FROM app.DeviceProviderSettings WHERE provider_code=N'FITDAYS')
- INSERT INTO app.DeviceProviderSettings VALUES(N'FITDAYS',1,1,60,30,N'1.21.0',1,N'PERCENT',N'PERCENT',SYSUTCDATETIME());
+ INSERT INTO app.DeviceProviderSettings VALUES(N'FITDAYS',1,1,15,30,N'1.21.0',1,N'PERCENT',N'PERCENT',SYSUTCDATETIME());
 IF OBJECT_ID(N'app.DeviceConnections', N'U') IS NULL
 BEGIN
  CREATE TABLE app.DeviceConnections (

@@ -175,7 +175,6 @@ builder.Services.AddMemoryCache();
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton<WebRecomp.Web.Services.ExternalConnections.DeviceCredentialProtector>();
 builder.Services.AddScoped<WebRecomp.Web.Services.ExternalConnections.DeviceIntegrationService>();
-builder.Services.AddHostedService<WebRecomp.Web.Services.ExternalConnections.DeviceSyncWorker>();
 builder.Services.AddHttpClient<WebRecomp.ExternalConnections.Fitdays.FitdaysClient>(client => client.Timeout = TimeSpan.FromSeconds(25))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate })
     .RemoveAllLoggers(); // Fitdays places session tokens in its request query string.

@@ -20,6 +20,20 @@ public sealed class ExternalConnectionsController(AppUserContextService users,Re
     }
     [HttpPost,ValidateAntiForgeryToken]
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("fitdays-preview")]
+    public async Task<IActionResult> SyncOnOpen(CancellationToken ct)
+    {
+        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        var setting=await service.ProviderAsync(ct);
+        if(!setting.Enabled||!setting.AutomaticSyncEnabled)return Json(new {updated=false});
+        var context=await users.GetAsync(HttpContext,ct);
+        if(context.Client==null||context.Program==null||!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Json(new {updated=false});
+        var c=await service.ConnectionAsync(context.User.UserId,context.Client.ClientId,ct);
+        if(!DeviceSyncPolicy.ShouldCheckOnOpen(setting,c,DateTime.UtcNow))return Json(new {updated=false});
+        await service.SyncAsync(c!.DeviceConnectionId,ct);
+        return Json(new {updated=service.LastImportedCount>0});
+    }
+    [HttpPost,ValidateAntiForgeryToken]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("fitdays-preview")]
     public async Task<IActionResult> Sync(CancellationToken ct)
     {
         if(!ExternalConnectionFeatures.IsTestSite)return NotFound();

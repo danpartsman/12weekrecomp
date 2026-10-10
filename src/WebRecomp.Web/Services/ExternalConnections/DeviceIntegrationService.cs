@@ -8,6 +8,7 @@ namespace WebRecomp.Web.Services.ExternalConnections;
 
 public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient client, DeviceCredentialProtector protector)
 {
+    public int LastImportedCount { get; private set; }
     public Task<DeviceProviderSetting> ProviderAsync(CancellationToken ct) => db.DeviceProviderSettings.SingleAsync(p=>p.ProviderCode=="FITDAYS",ct);
     public Task<DeviceConnection?> ConnectionAsync(Guid user, Guid owner, CancellationToken ct) => db.DeviceConnections.SingleOrDefaultAsync(c=>c.UserId==user && c.ClientId==owner && c.ProviderCode=="FITDAYS",ct);
     public async Task<DeviceConnection> SaveAsync(AppClientContext context, SavedFitdaysLogin login, FitdaysPerson person, bool automatic, CancellationToken ct)
@@ -65,6 +66,7 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
             await db.SaveChangesAsync(ct);await transaction.CommitAsync(ct);
             return (inserted, skipped);
             });
+            LastImportedCount=result.inserted;
             updatedSecret=protector.Protect(connection,login);succeeded=true;message=$"Synced {result.inserted} new readings. {result.skipped} existing readings or manually recorded days kept unchanged.";
         }
         catch(FitdaysPreviewException ex) {message=ex.Message;status="ATTENTION";}
@@ -75,26 +77,5 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
         await db.DeviceConnections.Where(c=>c.DeviceConnectionId==id&&c.SyncLeaseId==lease)
             .ExecuteUpdateAsync(s=>s.SetProperty(c=>c.StatusCode,status).SetProperty(c=>c.LastMessage,message).SetProperty(c=>c.LastSuccessAtUtc,succeeded?finished:connection.LastSuccessAtUtc).SetProperty(c=>c.ProtectedCredential,updatedSecret??connection.ProtectedCredential).SetProperty(c=>c.SyncLeaseUntilUtc,(DateTime?)null).SetProperty(c=>c.SyncLeaseId,(Guid?)null).SetProperty(c=>c.UpdatedAtUtc,finished),CancellationToken.None);
         return message;
-    }
-}
-public sealed class DeviceSyncWorker(IServiceScopeFactory scopes,ILogger<DeviceSyncWorker> logger) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        if(!ExternalConnectionFeatures.IsTestSite)return;
-        using var timer=new PeriodicTimer(TimeSpan.FromMinutes(1));
-        while(await timer.WaitForNextTickAsync(stoppingToken))
-        {
-            try
-            {
-                using var scope=scopes.CreateScope();var db=scope.ServiceProvider.GetRequiredService<RecompDbContext>();var service=scope.ServiceProvider.GetRequiredService<DeviceIntegrationService>();
-                var provider=await service.ProviderAsync(stoppingToken);if(!provider.Enabled||!provider.AutomaticSyncEnabled)continue;
-                var due=DateTime.UtcNow.AddMinutes(-provider.SyncIntervalMinutes);
-                var ids=await db.DeviceConnections.AsNoTracking().Where(c=>c.ProviderCode=="FITDAYS"&&c.AutomaticSync&&c.ProtectedCredential!=null&&c.StatusCode!="DISCONNECTED"&&c.StatusCode!="RECONNECT"&&(c.LastAttemptAtUtc==null||c.LastAttemptAtUtc<due)).Select(c=>c.DeviceConnectionId).Take(50).ToListAsync(stoppingToken);
-                foreach(var id in ids) { using var syncScope=scopes.CreateScope(); await syncScope.ServiceProvider.GetRequiredService<DeviceIntegrationService>().SyncAsync(id,stoppingToken); }
-            }
-            catch(OperationCanceledException) when(stoppingToken.IsCancellationRequested) {break;}
-            catch(Exception) {logger.LogWarning("External device sync could not complete this cycle. See the device connection status page.");}
-        }
     }
 }

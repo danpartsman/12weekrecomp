@@ -74,17 +74,6 @@ jobs:
               --resource-group $resourceGroup `
               --settings WebRecomp__EnableTestPersonas="false" WebRecomp__BootstrapAdministratorEmailSha256="0618188557cf5bee9c97b08c64f7a748835803dbaf1aa2a5cf3a9f2dd1da60bb" | Out-Null
 
-          az webapp config set `
-              --name recomp-test `
-              --resource-group $resourceGroup `
-              --always-on true --only-show-errors | Out-Null
-          if ($LASTEXITCODE -ne 0) {
-              $plan = az webapp show --name recomp-test --resource-group $resourceGroup --query serverFarmId --output tsv
-              az appservice plan show --ids $plan --query "{tier:sku.tier,size:sku.name}" --output json
-              Write-Output "::warning::Always On is unavailable on the current TEST host. Saved device sign-in persists; automatic sync runs while the app is awake. No hosting plan or pricing has been changed."
-              $global:LASTEXITCODE = 0
-          }
-
           az webapp log config `
               --name recomp-test `
               --resource-group $resourceGroup `
@@ -164,7 +153,10 @@ jobs:
               "$($pub.publishingUserName):$($pub.publishingPassword)"))
           Write-Output "::add-mask::$auth"
           $headers = @{ Authorization = "Basic $auth"; "If-Match" = "*" }
-          $scm = "https://recomp-test.scm.azurewebsites.net"
+          $scmHost = az webapp show --name recomp-test --resource-group $env:RECOMP_TEST_RG `
+              --query "enabledHostNames[?contains(@, '.scm.')]|[0]" --output tsv
+          if ([string]::IsNullOrWhiteSpace($scmHost)) { throw "TEST deployment host could not be resolved." }
+          $scm = "https://$scmHost"
           Invoke-WebRequest -Uri "$scm/api/vfs/data/device-migration-${{ github.sha }}.zip" `
               -Method Put -Headers $headers -InFile ./device-migration.zip `
               -ContentType "application/zip" -UseBasicParsing | Out-Null

@@ -42,7 +42,7 @@ public sealed class ProviderSettingsModel
 {
     public bool Enabled {get;set;}
     public bool AutomaticSyncEnabled {get;set;}
-    [Range(15,1440)]public int SyncIntervalMinutes {get;set;}=60;
+    [Range(15,1440)]public int SyncIntervalMinutes {get;set;}=15;
     [Range(1,90)]public int HistoryDays {get;set;}=30;
     [Required,StringLength(32),RegularExpression(@"^\d+(\.\d+){1,3}$")]public string AppVersion {get;set;}="1.21.0";
     public bool BodyCompositionEnabled {get;set;}=true;
