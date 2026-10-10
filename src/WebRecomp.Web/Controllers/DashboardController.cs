@@ -155,5 +155,41 @@ public sealed class DashboardController(
         return view;
     }
 
+    [HttpGet("/Dashboard3")]
+    [HttpGet("/Dashboard/Dashboard3")]
+    public async Task<IActionResult> Dashboard3(
+        [FromServices] WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore foodLog,
+        [FromServices] ILogger<DashboardController> logger,
+        [FromServices] WebRecomp.Web.Services.Dashboard3.RecompCockpitService cockpit,
+        int? occasions, CancellationToken cancellationToken)
+    {
+        var result = await Dashboard2(foodLog, logger, occasions, cancellationToken);
+        if (result is not ViewResult view || view.Model is not WebRecomp.Web.ViewModels.DashboardViewModel day)
+            return result;
+        if (!day.NeedsCurrentWeight)
+        {
+            var context = await userContext.GetAsync(HttpContext, cancellationToken);
+            ViewData["RecompCockpit"] = await cockpit.BuildAsync(context, day,
+                (WebRecomp.Web.Services.Dashboard2.MacroDayPlan)ViewData["MacroDayPlan"]!, cancellationToken);
+        }
+        view.ViewName = "Dashboard3";
+        return view;
+    }
+
+    [HttpPost("/Dashboard3/FlexibleItems")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> FlexibleItems(
+        [FromServices] WebRecomp.Web.Services.Dashboard3.RecompCockpitService cockpit,
+        DateOnly date, int? count, CancellationToken cancellationToken)
+    {
+        var context = await userContext.GetAsync(HttpContext, cancellationToken);
+        if (context.Client is null || context.Program is null) return RedirectToAction("Index", "Onboarding");
+        if (!ModelState.IsValid || !count.HasValue) return BadRequest("Enter the number of flexible items for the selected day.");
+        try { await cockpit.SaveFlexibleItemsAsync(context, date, count.Value, cancellationToken); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
+        TempData["StatusMessage"] = "Flexible item count saved. Your Recomp Score has been refreshed.";
+        return Redirect("/Dashboard3");
+    }
+
 }
 

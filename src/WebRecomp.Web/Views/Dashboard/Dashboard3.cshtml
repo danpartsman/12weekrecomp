@@ -1,0 +1,103 @@
+@using WebRecomp.Web.Services.Dashboard2
+@using WebRecomp.Web.Services.Dashboard3
+@using WebRecomp.Web.Services.Learning
+@using System.Text.Json
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard3 · Recomp Command Center";
+    var plan = (MacroDayPlan)ViewData["MacroDayPlan"]!;
+    var cockpit = ViewData["RecompCockpit"] as RecompCockpit;
+    var coach = CoachCatalog.Resolve(Model.PreferredCoachCode);
+    var coachImage = coach.Code == "MARISOL" ? "/images/coach/marisol-coach-avatar.webp" : CoachCatalog.ResolveImage(coach, 1);
+    var analysis = Model.Engine30Analysis;
+    var tomorrowBands = MacroDayPlanner.Bands(Model.TomorrowProteinG ?? 0, Model.TomorrowCarbsG ?? 0, Model.TomorrowFatG ?? 0);
+}
+<link rel="stylesheet" href="~/css/dashboard2.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/dashboard3.css" asp-append-version="true" />
+<main class="d3 d2" data-dashboard3>
+    <header class="d3-heading"><div><p class="d3-eyebrow">DASHBOARD3 · RECOMP COMMAND CENTER</p><h1>Fuel. Train. Recover. Repeat.</h1><p>@Model.ActionDate.ToString("dddd, MMMM d") · Week @Model.ProgramWeek</p></div><nav aria-label="Compare dashboards"><a class="button secondary" href="/Dashboard">Original</a><a class="button secondary" href="/Dashboard2">Dashboard2</a></nav></header>
+    @if (cockpit is null || Model.NeedsCurrentWeight)
+    {
+        <section class="d2-panel"><h2>Your personal plan needs a current weight</h2><a class="button" href="/DailyEntry">Open Daily Entry</a></section>
+    }
+    else
+    {
+    <section class="d3-hero" aria-label="Weekly Recomp Score and coaching">
+        <article class="d3-instrument d3-score-panel"><p class="d3-eyebrow">WEEKLY RECOMP SCORE</p><div class="d3-dial" data-dial="score"></div><p class="d3-status d3-@cockpit.Score.Band">@cockpit.Score.Status</p><p class="d3-sub">Projected adherence to your strategy</p>
+            <p class="d3-delta">@(cockpit.Change.HasValue ? cockpit.Change == 0 ? "Steady since your last check" : $"{cockpit.Change:+0;-0} points since your last check" : "Your first score check this week")</p>
+            <p class="d3-sub">@cockpit.Score.KnownNutritionDays / @cockpit.Score.CompletedNutritionDays completed days have known macros · Remaining days retain potential</p>
+            <div class="d3-history" aria-label="Recorded score history">@foreach (var point in cockpit.History) { <span><small>@point.Date.ToString("ddd")</small><b>@point.Score</b></span> }</div>
+        </article>
+        <article class="d3-mission"><p class="d3-eyebrow">TODAY'S MISSION · @Model.NutritionDayLabel</p><h2>@Model.PlannedWorkout</h2><p>@cockpit.NextAction</p><div class="d3-actions"><a class="button" asp-controller="DetailedWorkout" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Open today's workout</a><a class="button secondary" href="/Schedule">Review weekly plan</a></div>
+            <button type="button" class="d3-coach-trigger" data-open-coach aria-haspopup="dialog"><span class="d3-coach-photo">@await Html.PartialAsync("_CoachPhoto", (coachImage, coach.Name))</span><span><strong>@coach.Name's score briefing</strong><small>Why your score changed · Your next steps</small></span><span aria-hidden="true">↗</span></button>
+            @if (cockpit.Score.Score >= 80) { <p class="d3-encourage">Keep the momentum. Consistency is your next win.</p> }
+            else { <p class="d3-encourage">You can build this back. Focus on the next planned day.</p> }
+        </article>
+    </section>
+    @if (cockpit.DataNotice is not null) { <p class="d3-notice">@cockpit.DataNotice</p> }
+    @if (cockpit.StorageNotice is not null) { <p class="d3-notice" role="alert">@cockpit.StorageNotice</p> }
+    <section class="d3-fuel" aria-labelledby="d3-fuel-title"><div class="d3-section-head"><div><p class="d3-eyebrow">TODAY'S FUEL</p><h2 id="d3-fuel-title">Feed your training. Follow your ranges.</h2></div><a class="button" asp-controller="Nutrition" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Log food</a></div>
+        <div class="d3-macro-grid">@foreach (var band in plan.Bands) {
+            <article class="d3-instrument d3-macro" style="--macro:@band.Color"><h3><span class="d3-macro-dot" aria-hidden="true"></span>@band.Name</h3><div class="d3-dial" data-dial="@band.Key"></div><p class="d3-status">@band.Status</p><p class="d3-sub">Target @band.Low.ToString("0")–@band.High.ToString("0") g</p><p class="d3-sub">@(band.Eaten.HasValue ? band.Remaining > 0 ? $"{band.Remaining:0} g to enter the range" : "Range reached; more is not automatically better." : "Awaiting intake · not assumed zero")</p></article>
+        }</div>
+        <div class="d3-energy"><div class="d3-energy-label"><span>Combined energy · Supporting the macro plan</span><span>@(plan.EnergyEaten?.ToString("0") ?? "—") / @plan.EnergyTarget.ToString("0") kcal</span></div><div class="d3-energy-track" role="img" aria-label="Combined calories compared with the daily plan"><span class="d3-energy-low"></span><span class="d3-energy-good"></span><span class="d3-energy-high"></span><span class="d3-energy-needle" data-energy-needle hidden></span></div><div class="d3-energy-legend"><span>Building</span><span>Plan range</span><span>Over plan</span></div><details><summary>Energy details</summary><p>Maintenance estimate @Model.Engine30MaintenanceKcal.ToString("0") kcal. Central plan @plan.EnergyTarget.ToString("0") kcal. The bar uses a ±5% display tolerance; this is a product display range, not a biological threshold. All macro intake contributes to this combined total.</p></details></div>
+        <p class="d3-sub">Yellow during the day means building toward your plan. Low intake only affects adherence after the day ends; known overages are visible immediately.</p>
+        <details class="d3-food-next" open><summary>Plan the rest of today</summary><p>@plan.Advice</p><form method="get" action="/Dashboard3" class="d2-form"><label for="d3-occasions">Eating occasions remaining</label><input id="d3-occasions" name="occasions" type="number" min="1" max="4" value="@plan.Occasions" /><button type="submit" class="button secondary">Refresh meal plan</button></form>
+            @if (plan.Suggestions.Count > 0) { <div class="d2-meal-plan">@foreach (var meal in plan.Suggestions) { <article><h4>@meal.Label</h4><strong>@meal.Protein.ToString("0") g protein</strong><p>@meal.Carbs.ToString("0") g carbs · @meal.Fat.ToString("0") g fat</p></article> }</div> }
+            <p class="d3-sub">@plan.SourceNote @ViewData["MealLogNotice"]</p>
+        </details>
+    </section>
+    <section class="d3-week" aria-labelledby="d3-week-title"><div class="d3-section-head"><div><p class="d3-eyebrow">THIS WEEK · @cockpit.WeekStart.ToString("MMM d")–@cockpit.WeekStart.AddDays(6).ToString("MMM d")</p><h2 id="d3-week-title">Build the week. Protect the recovery.</h2></div></div>
+        <div class="d3-week-grid">@foreach (var gauge in cockpit.Training) {
+            <article class="d3-instrument"><h3>@gauge.Label</h3><div class="d3-dial" data-dial="@gauge.Key"></div><p class="d3-status">@gauge.Status</p><p class="d3-sub">@gauge.Completed / @gauge.Target planned · @gauge.RemainingPlanned scheduled opportunities left</p></article>
+        }
+        <article class="d3-instrument"><h3>Cheat / flexible items</h3><div class="d3-dial" data-dial="flex"></div><p class="d3-status d3-@cockpit.Score.FlexibleBand">@(cockpit.Score.FlexibleItems.HasValue ? cockpit.Score.FlexibleDayOverMacros ? "Flexible-item day over macros" : cockpit.Score.FlexibleItems >= 5 ? "Over item limit" : cockpit.Score.FlexibleItems >= 3 ? "Keep it planned" : "Within your flexibility allowance" : "Not confirmed yet")</p><p class="d3-sub">@cockpit.Score.FlexibleConfirmedDays days confirmed · Weekly allowance</p></article></div>
+        <details class="d3-flex-entry"><summary>Record or correct daily cheat / flexible items</summary><p>Count a deliberate treat or off-plan item as one eating item/portion. Count each item once; splitting it into food-log ingredients does not create extra items. Enter 0 to confirm none. This tracks your chosen flexibility rule, not a scientific food-quality score.</p><form action="/Dashboard3/FlexibleItems" method="post" class="d3-flex-form">@Html.AntiForgeryToken()<label for="d3-flex-date">Day</label><select id="d3-flex-date" name="date">@foreach (var entry in cockpit.Days.Where(x => x.Date <= Model.ActionDate)) { <option value="@entry.Date.ToString("yyyy-MM-dd")" selected="@(entry.Date == Model.ActionDate)">@entry.Date.ToString("ddd, MMM d") · @(entry.FlexibleItems?.ToString() ?? "unconfirmed")</option> }</select><label for="d3-flex-count">Items that day</label><input id="d3-flex-count" name="count" type="number" min="0" max="50" required value="@cockpit.TodayFlexibleItems" /><button type="submit" class="button">Save daily count</button></form><p class="d3-sub">0–2 green if macros remain in range; 3–4 yellow; 5+ red, or red when a reported flexible-item day is over a macro range. Calories alone do not change this item gauge.</p></details>
+        <p class="d3-sub">Each completed session counts in one category. Mobility is cardio/mobility; Zone 2 is recovery/Zone 2. Planned rest counts after a recorded rest completion or a check-in on a finished rest day without a hard session. Extra workouts earn no bonus points.</p>
+    </section>
+    <section class="d2-panel" aria-labelledby="d2-training"><p class="d2-eyebrow">02 · DAILY TRAINING</p><h2 id="d2-training">@Model.PlannedWorkout</h2><div class="d2-two"><article><h3>Planned</h3><p>@Model.WorkoutFocus</p><p>@Model.WorkoutDescription</p><p><strong>@Model.WorkoutDurationMin.ToString("0") minutes</strong> · @Model.WorkoutEffort</p><a class="button" asp-controller="DetailedWorkout" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Open workout</a></article><article><h3>Recorded</h3>@if (Model.ActualWorkoutDurationMin.HasValue) { <p>@Model.WorkoutActual</p><p><strong>@Model.ActualWorkoutDurationMin.Value.ToString("0") minutes</strong> · RPE @(Model.ActualWorkoutRpe?.ToString("0.#") ?? "not entered")</p> } else { <p>No completed workout recorded today. Planned work is not counted as completed.</p> }<a asp-controller="DailyEntry" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Review daily training</a></article></div>
+        @if (Model.ScheduleChangeRecommended) { <div class="d2-next"><h3>Suggested adjustment: @Model.RecommendedWorkout</h3><p>@Model.WorkoutRecommendationRationale</p><a href="/Dashboard">Review and accept the workout change</a></div> }
+    </section>
+
+    <section class="d2-panel" aria-labelledby="d2-tomorrow"><p class="d2-eyebrow">03 · TOMORROW'S NUTRIENTS &amp; TRAINING</p><h2 id="d2-tomorrow">@Model.TomorrowDate.ToString("dddd, MMMM d")</h2><p class="d2-muted">Preliminary: updates as training, meals and recovery information change.</p>
+        @if (!Model.TomorrowPlanAvailable) { <p>Tomorrow is not planned yet.</p><a href="/Schedule">Plan tomorrow</a> }
+        else {
+            @if (Model.TomorrowProteinG.HasValue && Model.TomorrowCarbsG.HasValue && Model.TomorrowFatG.HasValue)
+            { <div class="d2-macros">@foreach (var band in tomorrowBands) { <article class="d2-macro d2-compact" style="--macro:@band.Color"><h3>@band.Name</h3><strong>@band.Low.ToString("0")–@band.High.ToString("0") g</strong><p>Central target @band.Target.ToString("0") g</p></article> }</div> }
+            else { <p>Tomorrow's nutrient targets are not available yet.</p> }
+            <h3>@Model.TomorrowWorkout</h3><p>@Model.TomorrowFocus · @Model.TomorrowDurationMin?.ToString("0") minutes · @Model.TomorrowEffort</p><p>@Model.TomorrowDescription</p><p>@Model.TomorrowTip</p><details><summary>Tomorrow's energy plan</summary><p>@Model.TomorrowCalories?.ToString("0") kcal; the macro bands share this allocation.</p></details>
+        }
+    </section>
+
+    <section class="d2-panel" aria-labelledby="d2-analysis"><p class="d2-eyebrow">04 · DETAILED DAILY &amp; FOUR-DAY ANALYSIS</p><h2 id="d2-analysis">Understand the pattern</h2>
+        <article class="d2-next"><h3>Today · in progress</h3><p>@plan.Advice</p><p>Training: @(Model.ActualWorkoutDurationMin.HasValue ? Model.WorkoutActual : "not yet recorded")</p><p>Estimated glycogen readiness: @Model.GlycogenReadiness. This is a model estimate, not a glycogen measurement.</p><p>@Model.EnergyCarryoverSummary</p></article>
+        @if (analysis is null) { <p>Detailed analysis is temporarily unavailable. Your recorded intake remains visible above.</p> }
+        else {
+        <div class="d2-two"><article><h3>@analysis.DayContextLabel · @Model.PreviousDate.ToString("MMM d")</h3>
+            @foreach (var signal in new[] { analysis.Workout, analysis.Glycogen, analysis.Carbohydrate, analysis.Protein, analysis.Fat, analysis.Calories, analysis.ScaleConsistency, analysis.TrackingConfidence })
+            { <div class="d2-signal"><span class="d2-dot @signal.CssClass"></span><div><strong>@signal.Label · @signal.Value</strong><p>@signal.Detail</p></div></div> }
+            <p>@analysis.YesterdayNarrative</p><details><summary>Scale and data quality</summary><p>@analysis.ScaleExplanation</p><p>@analysis.DataQualityNarrative</p></details>
+        </article><article><h3>Four-day pattern</h3>
+            @foreach (var signal in new[] { analysis.TrendTraining, analysis.TrendFueling, analysis.TrendProtein, analysis.TrendFat, analysis.TrendEnergy, analysis.TrendScale, analysis.TrendTracking })
+            { <div class="d2-signal"><span class="d2-dot @signal.CssClass"></span><div><strong>@signal.Label · @signal.Value</strong><p>@signal.Detail</p></div></div> }
+            <p>@analysis.TrendNarrative</p><p>@analysis.CoachingTake</p><details><summary>Limits of the estimate</summary><p>@analysis.TrackingCaveat</p><p>Four days give context, not proof of muscle gain or fat loss. Model signals and body-composition scale estimates have uncertainty.</p></details>
+        </article></div>
+        }
+    </section>
+
+    <section class="d2-panel" aria-labelledby="d2-coach"><p class="d2-eyebrow">05 · COACHES CORNER</p><div class="d2-coach"><div class="d2-portrait">@await Html.PartialAsync("_CoachPhoto", (coachImage, coach.Name))</div><div><h2 id="d2-coach">@coach.Name's corner</h2><h3>@Model.CoachTitle</h3><p>@Model.CoachRecommendation</p><p>@plan.Advice</p><details><summary>Why today's advice?</summary><p>@Model.CoachWhy</p><p>Energy @(Model.EnergyScore?.ToString() ?? "not entered") / 10 · Soreness @(Model.SorenessScore?.ToString() ?? "not entered") / 10 · Sleep @(Model.SleepHours?.ToString("0.#") ?? "not entered") hours</p></details></div></div>
+        <div class="d2-lesson" aria-live="polite"><p class="d2-eyebrow">RECOMP STRATEGY · <span id="d2-lesson-count">1 of 6</span></p><h3 id="d2-lesson-title">Protein protects the training investment</h3><p id="d2-lesson-body">Resistance training provides a reason to retain and build muscle; protein supplies material for that response. In Mettler's two-week restriction experiment, athletes eating 2.3 g/kg lost less lean mass than those eating 1.0 g/kg. That supports protecting protein while reducing food, but does not establish your exact optimum or mean unlimited protein is useful. Reach your personal target, then consider the other demands on today's food allocation.</p><p id="d2-lesson-limit" class="d2-muted">20 young trained athletes; short study; lean mass is not exclusively muscle.</p><a id="d2-lesson-source" href="https://pubmed.ncbi.nlm.nih.gov/19927027/" target="_blank" rel="noopener">Read the original experiment</a><button type="button" id="d2-next-lesson" class="button secondary">Next recomp strategy →</button></div>
+    </section>
+    <section class="d3-feedback"><div><p class="d3-eyebrow">CLOSE THE LOOP</p><h2>Follow the strategy. Then review the response.</h2><p>Score history is saved separately from body measurements. A consistently high, well-supported score with disappointing results is a reason to review inputs and the prescription.</p></div><a class="button secondary" href="/Progress">Review your results</a></section>
+    <details class="d3-method"><summary>How your Recomp Score works</summary><p>The projected week starts with 100% potential. Protein is worth 25 points, training-day carbohydrate 20, fat balance 10, resistance 25, cardio/mobility 8, recovery/Zone 2 7, and planned flexibility 5. These are versioned product weights to evaluate against results, not validated biological weights.</p><p>Known nutrition misses lower points in proportion to the gap. Completed sessions plus remaining scheduled opportunities determine training potential. Catching up restores training points; earlier nutrition misses still count. Below 60 is red; 60–79 is yellow; 80+ is green.</p><p>Unknown nutrition does not lower the score; evidence coverage remains separate. A new Monday's 100 is a projection, not completed achievement. Same-day targets are retained in score history; earlier days without captures are marked reconstructed. Changing the plan or editing entries can change a projection. Results, weight changes and logging volume are never score components.</p></details>
+    <dialog class="d3-coach-dialog" data-coach-dialog aria-labelledby="d3-coach-title"><div class="d3-dialog-heading"><h2 id="d3-coach-title">@coach.Name explains your score</h2><button type="button" class="button secondary" data-close-coach aria-label="Close coach briefing">Close</button></div><div class="d3-dialog-coach"><div class="d3-dialog-photo">@await Html.PartialAsync("_CoachPhoto", (coachImage, coach.Name))</div><div><strong>@cockpit.Score.Score / 100 · @cockpit.Score.Status</strong><p>@cockpit.NextAction</p><p>@(cockpit.Score.Score >= 80 ? "Keep protecting the habits that brought you here." : "One useful next step can rebuild your momentum. You do not need a perfect week to continue.")</p></div></div><div class="d3-components">@foreach (var part in cockpit.Score.Components) { <article><div><h3>@part.Label</h3><strong>@part.Earned.ToString("0.#") / @part.Weight.ToString("0") points</strong></div><p>@part.Explanation</p></article> }</div><details><summary>Daily evidence behind your score</summary><div class="d2-table-wrap"><table><thead><tr><th>Day</th><th>Protein</th><th>Carbs</th><th>Fat</th><th>Flexible items</th><th>Target source</th></tr></thead><tbody>@foreach (var entry in cockpit.Days.Where(x => x.Date <= Model.ActionDate)) { <tr><th>@entry.Date.ToString("ddd")</th><td>@(entry.Protein?.ToString("0") ?? "?") / @entry.ProteinTarget.ToString("0") g</td><td>@(entry.Carbs?.ToString("0") ?? "?") / @entry.CarbsTarget.ToString("0") g</td><td>@(entry.Fat?.ToString("0") ?? "?") / @entry.FatTarget.ToString("0") g</td><td>@(entry.FlexibleItems?.ToString() ?? "?")</td><td>@entry.TargetSource</td></tr> }</tbody></table></div></details><p class="d3-sub">Your score describes adherence to the plan. It does not establish muscle gain, fat loss or physical readiness.</p></dialog>
+    }
+</main>
+@if (cockpit is not null)
+{
+<script type="application/json" id="d3-data">@Html.Raw(JsonSerializer.Serialize(new { cockpit.Score, cockpit.Training, plan.Bands, plan.EnergyEaten, plan.EnergyTarget }))</script>
+<script src="~/js/dashboard3.js" asp-append-version="true" defer></script>
+}
+
+<script type="application/json" id="d2-data">@Html.Raw(JsonSerializer.Serialize(new { plan.Bands, plan.Meals }))</script>
+<script src="~/js/dashboard2.js" asp-append-version="true" defer></script>
