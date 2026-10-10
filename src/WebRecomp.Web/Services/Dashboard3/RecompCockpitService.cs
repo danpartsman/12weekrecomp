@@ -8,15 +8,17 @@ using WebRecomp.Web.ViewModels;
 
 namespace WebRecomp.Web.Services.Dashboard3;
 
-public sealed record RecompScoreHistory(DateOnly Date, int Score, DateTime RecordedAtUtc);
+public sealed record RecompScoreHistory(DateOnly Date, int Score, DateTime RecordedAtUtc, string Version = "RECOMP_SCORE_V1");
 public sealed record FlexibleItemEntry(int Count);
 public sealed record RecompScoreSnapshot(string Version, DateOnly WeekStart, int Score,
     int EvidenceDays, int CompletedDays, IReadOnlyList<RecompDayEvidence> Days,
-    IReadOnlyList<RecompTrainingGauge> Training, IReadOnlyList<RecompScoreComponent> Components);
+    IReadOnlyList<RecompTrainingGauge> Training, IReadOnlyList<RecompScoreComponent> Components,
+    RecompGlycogenWork? Glycogen = null);
 public sealed class RecompCockpit
 {
     public DateOnly WeekStart { get; init; }
     public RecompScoreResult Score { get; init; } = new();
+    public RecompGlycogenWork? Glycogen { get; init; }
     public List<RecompTrainingGauge> Training { get; init; } = [];
     public List<RecompDayEvidence> Days { get; init; } = [];
     public List<RecompScoreHistory> History { get; init; } = [];
@@ -50,17 +52,19 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var sessions = await db.WorkoutSessions.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.WorkoutDate >= activeStart && x.WorkoutDate <= today
             && x.CompletedFlag).ToListAsync(ct);
+        sessions = (await WebRecomp.Web.Services.WorkoutIntelligence.DetailedWorkoutEngine30Adapter
+            .CanonicalCompletedSessionsAsync(db, sessions, ct)).ToList();
         var plans = await db.PlannedWorkouts.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.PlannedDate >= activeStart && x.PlannedDate <= end).ToListAsync(ct);
         var checkins = await db.DailyCheckins.AsNoTracking().Where(x => x.ProgramId == program.ProgramId
             && x.CheckinDate >= activeStart && x.CheckinDate <= today).ToListAsync(ct);
         var records = await db.AnalysisRuns.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.ActionDate >= activeStart && x.ActionDate <= today
-            && (x.EngineVersion == RecompScoreResult.Version || x.EngineVersion == FlexVersion))
+            && (x.EngineVersion == RecompScoreResult.Version || x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == FlexVersion))
             .OrderByDescending(x => x.StartedAtUtc).ThenByDescending(x => x.AnalysisRunId).ToListAsync(ct);
         var flex = records.Where(x => x.EngineVersion == FlexVersion).GroupBy(x => x.ActionDate)
             .ToDictionary(x => x.Key, x => Read<FlexibleItemEntry>(x.First().DiagnosticJson)?.Count);
-        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version)
+        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || x.EngineVersion == "RECOMP_SCORE_V1")
             .Select(x => (Run: x, Snapshot: Read<RecompScoreSnapshot>(x.DiagnosticJson)))
             .Where(x => x.Snapshot is not null).ToArray();
         var days = new List<RecompDayEvidence>();
@@ -105,15 +109,29 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 .Where(x => x.Key == key).Select(x => x.Target).DefaultIfEmpty(0).Max();
             training.Add(new(key, label, completed, Math.Max(matching.Length, capturedTarget), remaining, weight));
         }
-        var score = RecompAdherenceScorer.Score(today, days, training);
+        decimal completedBurn = 0m;
+        foreach (var date in sessions.Select(x => x.WorkoutDate).Distinct())
+        {
+            var actual = date == today && day.ActualWorkoutGlycogenG.HasValue
+                ? day.ActualWorkoutGlycogenG.Value
+                : (await projection.BuildActualWorkoutAsync(context, date, ct)).GlycogenDemandG;
+            completedBurn += Math.Max(0m, actual);
+        }
+        var plannedBurn = targets.Values.Where(x => x.Date >= activeStart).Sum(x => Math.Max(0m, x.GlycogenDemandG));
+        var capturedBurn = snapshots.Select(x => x.Snapshot!.Glycogen?.TargetG ?? 0m).DefaultIfEmpty().Max();
+        var remainingBurn = targets.Values.Where(x => x.Date >= activeStart && (x.Date > today
+            || (x.Date == today && !sessions.Any(s => s.WorkoutDate == today))))
+            .Sum(x => Math.Max(0m, x.GlycogenDemandG));
+        var glycogen = new RecompGlycogenWork(completedBurn, Math.Max(plannedBurn, capturedBurn), remainingBurn);
+        var score = RecompAdherenceScorer.Score(today, days, training, glycogen);
         var previous = snapshots.FirstOrDefault().Snapshot;
         var history = snapshots.GroupBy(x => x.Run.ActionDate).Select(x => x.First())
-            .Select(x => new RecompScoreHistory(x.Run.ActionDate, x.Snapshot!.Score, x.Run.StartedAtUtc)).OrderBy(x => x.Date).ToList();
+            .Select(x => new RecompScoreHistory(x.Run.ActionDate, x.Snapshot!.Score, x.Run.StartedAtUtc, x.Snapshot.Version)).OrderBy(x => x.Date).ToList();
         var behind = training.FirstOrDefault(x => x.ProjectedFraction < 1);
         var result = new RecompCockpit
         {
-            WeekStart = start, Score = score, Training = training, Days = days, History = history,
-            Change = previous is null ? null : score.Score - previous.Score,
+            WeekStart = start, Score = score, Training = training, Glycogen = glycogen, Days = days, History = history,
+            Change = previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
             TodayFlexibleItems = flex.GetValueOrDefault(today),
             DataNotice = plans.Count == 0 ? "Save a weekly training plan before judging training adherence."
                 : training.Single(x => x.Key == "resistance").Target == 0
@@ -126,7 +144,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 : "Keep following your planned training, fueling and recovery. Extra sessions do not add score points."
         };
         var snapshot = new RecompScoreSnapshot(RecompScoreResult.Version, start, score.Score,
-            score.KnownNutritionDays, score.CompletedNutritionDays, days, training, score.Components);
+            score.KnownNutritionDays, score.CompletedNutritionDays, days, training, score.Components, glycogen);
         var json = JsonSerializer.Serialize(snapshot);
         if (snapshots.FirstOrDefault().Run?.DiagnosticJson != json)
         {
@@ -144,7 +162,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
             }
         }
         result.History.RemoveAll(x => x.Date == today);
-        result.History.Add(new(today, score.Score, DateTime.UtcNow));
+        result.History.Add(new(today, score.Score, DateTime.UtcNow, RecompScoreResult.Version));
         return result;
     }
 

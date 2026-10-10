@@ -7,7 +7,7 @@ muscle gain, or logging frequency. Monday begins with full *potential*. Known pa
 macro misses and today's known overages reduce that potential. Unknown intake is not zero.
 The completed-day evidence denominator is always displayed separately.
 
-Version `RECOMP_SCORE_V1`: protein 25, carbs 20, fat 10, resistance 25, cardio/mobility 8,
+Version `RECOMP_SCORE_V2` (prior V1 snapshots retained): protein 25, carbs 20, fat 10, glycogen work plus resistance 25, cardio/mobility 8,
 recovery/Zone 2 7, flexibility 5. The weights and food-count thresholds are product policy,
 not scientifically validated coefficients. The existing Dashboard2 target bands are reused.
 Daily macro quality is 1 within range; below range is actual/lower bound; above range is
@@ -34,7 +34,7 @@ central energy target rather than suggesting food up to the display ceiling.
 
 ## Persistence and future circular analysis
 
-Uses existing `app.AnalysisRuns` storage: `RECOMP_SCORE_V1` for versioned score snapshots,
+Uses existing `app.AnalysisRuns` storage: `RECOMP_SCORE_V2` for new versioned score snapshots,
 `RECOMP_FLEX_V1` for reported daily counts. No schema migration or runtime DDL. All reads
 and writes are scoped to the active client's program, not arbitrary posted client IDs.
 Snapshots contain rubric version, week, inputs, component points, evidence coverage and
@@ -53,3 +53,24 @@ The clickable preferred coach explains component points, daily evidence and usef
 actions. Tomorrow, canonical daily training, analysis and advancing learning remain below
 the cockpit. Build/test precede Azure TEST deployment; deployment checks verify static
 assets and the protected route without introducing an authentication bypass.
+
+## Compact gauge grid, V2
+
+Top row: Recomp, Nutrition, Workout. Second row: Protein, Carbs, Fat. Combined energy
+is a compact clickable bar beneath. Bright red #ff2438, yellow #ffe600, green #39ff14.
+Every gauge is a keyboard-accessible button opening a shared preferred-trainer dialog.
+Only the relevant panel is visible, with score history, flexible-item entry, meal planning,
+weekly training counts and daily evidence available inside the appropriate popup.
+
+Nutrition normalizes the three macro components (55 points) to 100. Workout normalizes
+work/resistance, mobility and recovery (40 points) to 100. Recomp retains flexibility's
+5 points and combines all components. V2's 25-point work/resistance fraction is the lower
+of resistance session potential and modeled weekly glycogen-work potential. Glycogen
+potential = min(1, (completed modeled demand + remaining scheduled demand)/weekly target).
+Engine 3.0's canonical actual-workout projection supplies completed demand; its weekly
+planning projection supplies planned demand. Captured weekly burn commitments cannot be
+reduced by deleting plans. No bonus for extra burn, and extra cardio cannot replace missed
+resistance. Modeled burn is an estimate rather than a physiological measurement. Missing
+or zero burn goals are neutral and plan limitations are explained in the trainer briefing.
+V2 snapshots include modeled actual, target and remaining burn; earlier V1 history remains
+versioned rather than being rewritten to the new rubric.

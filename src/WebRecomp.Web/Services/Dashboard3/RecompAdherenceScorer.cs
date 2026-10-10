@@ -15,14 +15,29 @@ public sealed record RecompTrainingGauge(
         : ProjectedFraction < 1m ? "Behind plan · recoverable" : "Still on schedule";
 }
 
+public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, decimal RemainingPlannedG)
+{
+    public decimal ProjectedFraction => TargetG <= 0 ? 1m
+        : Math.Clamp((CompletedG + RemainingPlannedG) / TargetG, 0m, 1m);
+}
+
 public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation);
 public sealed class RecompScoreResult
 {
-    public const string Version = "RECOMP_SCORE_V1";
+    public const string Version = "RECOMP_SCORE_V2";
     public int Score { get; init; }
     public string Band => Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
     public string Status => Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";
     public List<RecompScoreComponent> Components { get; init; } = [];
+    public int NutritionScore => ComponentScore(Components.Take(3));
+    public int WorkoutScore => ComponentScore(Components.Skip(3).SkipLast(1));
+    private static int ComponentScore(IEnumerable<RecompScoreComponent> components)
+    {
+        var parts = components.ToArray();
+        var total = parts.Sum(x => x.Weight);
+        return total <= 0 ? 100 : (int)Math.Round(parts.Sum(x => x.Earned) / total * 100m,
+            MidpointRounding.AwayFromZero);
+    }
     public int CompletedNutritionDays { get; init; }
     public int KnownNutritionDays { get; init; }
     public int? FlexibleItems { get; init; }
@@ -40,7 +55,7 @@ public sealed class RecompScoreResult
 public static class RecompAdherenceScorer
 {
     public static RecompScoreResult Score(DateOnly today, IReadOnlyList<RecompDayEvidence> days,
-        IReadOnlyList<RecompTrainingGauge> training)
+        IReadOnlyList<RecompTrainingGauge> training, RecompGlycogenWork? glycogen = null)
     {
         var components = new List<RecompScoreComponent>();
         foreach (var (key, label, weight) in new[] { ("protein", "Protein consistency", 25m),
@@ -58,8 +73,18 @@ public static class RecompAdherenceScorer
                     : "Completed-day shortfalls and known overages lower this part; future days can still be followed."));
         }
         foreach (var gauge in training)
-            components.Add(new(gauge.Label, gauge.Weight, gauge.Weight * gauge.ProjectedFraction,
-                $"{gauge.Completed}/{gauge.Target} completed; {gauge.RemainingPlanned} scheduled opportunities remain. {gauge.Status}."));
+        {
+            var fraction = gauge.ProjectedFraction;
+            var label = gauge.Label;
+            var explanation = $"{gauge.Completed}/{gauge.Target} completed; {gauge.RemainingPlanned} scheduled opportunities remain. {gauge.Status}.";
+            if (gauge.Key == "resistance" && glycogen is not null)
+            {
+                fraction = Math.Min(fraction, glycogen.ProjectedFraction);
+                label = "Glycogen work + resistance";
+                explanation += $" Modeled glycogen work: {glycogen.CompletedG:0} g completed against {glycogen.TargetG:0} g planned; {glycogen.RemainingPlannedG:0} g remains scheduled. Both planned resistance sessions and modeled work must stay on course. Extra burn cannot replace missed resistance.";
+            }
+            components.Add(new(label, gauge.Weight, gauge.Weight * fraction, explanation));
+        }
 
         var knownFlex = days.Where(x => x.Date <= today && x.FlexibleItems.HasValue).ToArray();
         int? flex = knownFlex.Length == 0 ? null : knownFlex.Sum(x => x.FlexibleItems!.Value);

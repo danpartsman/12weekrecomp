@@ -78,4 +78,37 @@ public sealed class RecompAdherenceScorerTests
         Assert.Equal("resistance", RecompCockpitService.Group("MIXED_GYM_SESSION", types));
         Assert.Equal("unclassified", RecompCockpitService.Group("UNKNOWN", types));
     }
+    [Fact] public void WorkoutGaugeIncludesModeledWorkAndCanRecoverWithRemainingPlan()
+    {
+        var training = Training(3, 0);
+        var low = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), training,
+            new RecompGlycogenWork(100, 400, 0));
+        var recovered = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), training,
+            new RecompGlycogenWork(100, 400, 300));
+        Assert.True(low.WorkoutScore < recovered.WorkoutScore);
+        Assert.Equal(100, recovered.WorkoutScore);
+        Assert.Equal(100, low.NutritionScore);
+    }
+    [Fact] public void ExtraGlycogenBurnCannotReplaceMissedResistanceOrEarnBonus()
+    {
+        var result = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), Training(0, 0),
+            new RecompGlycogenWork(1000, 400, 0));
+        Assert.Equal(0m, result.Components.Single(x => x.Label == "Glycogen work + resistance").Earned);
+        Assert.True(result.WorkoutScore < 100);
+        Assert.Equal(1m, new RecompGlycogenWork(1000, 400, 0).ProjectedFraction);
+    }
+    [Fact] public void NutritionAndWorkoutSummariesExcludeFlexibilityPenalty()
+    {
+        var days = Week(); days[0] = days[0] with { FlexibleItems = 5 };
+        var result = RecompAdherenceScorer.Score(Monday, days, Training(),
+            new RecompGlycogenWork(0, 400, 400));
+        Assert.Equal(100, result.NutritionScore);
+        Assert.Equal(100, result.WorkoutScore);
+        Assert.Equal(95, result.Score);
+    }
+    [Fact] public void NoModeledBurnGoalIsNeutralInsteadOfDividingByZero()
+    {
+        Assert.Equal(1m, new RecompGlycogenWork(0, 0, 0).ProjectedFraction);
+    }
+
 }
