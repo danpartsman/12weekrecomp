@@ -330,6 +330,53 @@ internal static class OrangetheoryDailyRecipeRegistration
             GroupName: "Orangetheory",
             PlannedMinutes: 50m);
 
+    // Source: https://burnboard.app/otf-intel.html — S50, October 7, 2026.
+    // Original daily thread: https://www.reddit.com/r/orangetheory/comments/1wzbv1b/
+    internal static SystemWorkoutRecipe Create20261007Strength50Recipe()
+        => new SystemWorkoutRecipe(
+            "OTF_STRENGTH50_2026_10_07",
+            "OTF Strength 50 Total - 2026-10-07",
+            "RESISTANCE_CIRCUIT",
+            "October 7 Strength 50 Total Body: three 12-minute blocks targeting the same primary muscle group back-to-back, a 30-second knee-tuck buy-out after Block 2, and a 3-minute core finisher. Published reps and timed work are preserved; three rounds per superset movement are editable estimates, not prescribed sets. Source: Burn Board S50 community intel for 2026-10-07.",
+            [
+                Slot("OTF_S50_1007_HIGH_ROW", "High Row", 3, 10,
+                    "12-minute block; back-to-back with TRX Bridge Row, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 1", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_TRX_BRIDGE_ROW", "TRX Bridge Row", 3, 10,
+                    "Back-to-back with High Row, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 1", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_GOBLET_SQUAT", "Goblet Squats", 3, 10,
+                    "Back-to-back with TRX Reverse Lunges, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 1", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_TRX_REVERSE_LUNGE", "TRX Reverse Lunges", 3, 10,
+                    "Back-to-back with Goblet Squats, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 1", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_CHEST_FLY", "Chest Fly", 3, 10,
+                    "12-minute block; back-to-back with Side to Side Push-Ups, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 2", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_SIDE_PUSHUP", "Side to Side Push-Ups", 3, 10,
+                    "Back-to-back with Chest Fly, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 2", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_SPLIT_SQUAT_HINGE", "Split Squat w/Hinge", 3, 10,
+                    "10 each side; back-to-back with Alternating Single-Leg Airplane, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 2", "Superset", 720, null, null, 3, true, "10 each x ~3 rounds"),
+                Slot("OTF_S50_1007_AIRPLANE", "Alternating Single-Leg Airplane", 3, 10,
+                    "Back-to-back with Split Squat w/Hinge, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 2", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_KNEE_TUCK", "Knee Tucks", 1, 1,
+                    "Published timed buy-out: 30 seconds; reps are not specified.", false, "Block 2 Buy-Out", "Finisher", 30, null, null, null, false, "30 sec"),
+                Slot("OTF_S50_1007_LATERAL_RAISE", "Lateral Raise", 3, 10,
+                    "12-minute block; back-to-back with TRX Y-Raise, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 3", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_TRX_Y", "TRX Y-Raise", 3, 10,
+                    "Back-to-back with Lateral Raise, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 3", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_CROSS_LUNGE", "Alt Cross Back Lunge", 3, 10,
+                    "Back-to-back with Alt Step Out Squat Body Weight, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 3", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_STEP_SQUAT", "Alt Step Out Squat Body Weight", 3, 10,
+                    "Back-to-back with Alt Cross Back Lunge, then rest. Three rounds are an editable estimate for phone-free logging; the source does not prescribe a fixed set count.", false, "Block 3", "Superset", 720, null, null, 3, true, "10 total x ~3 rounds"),
+                Slot("OTF_S50_1007_SITUP_1", "Sit-Up to Knee Tuck", 1, 1,
+                    "First 30 seconds of the published 3-minute finisher; reps are not specified.", false, "Finisher", "Finisher", 30, null, null, null, false, "30 sec"),
+                Slot("OTF_S50_1007_PLANK_L", "High Side Plank with Kickstand - Left", 1, 1,
+                    "Left side; reps are not specified.", false, "Finisher", "Finisher", 60, null, null, null, false, "1 min left"),
+                Slot("OTF_S50_1007_PLANK_R", "High Side Plank with Kickstand - Right", 1, 1,
+                    "Right side; reps are not specified.", false, "Finisher", "Finisher", 60, null, null, null, false, "1 min right"),
+                Slot("OTF_S50_1007_SITUP_2", "Sit-Up to Knee Tuck", 1, 1,
+                    "Last 30 seconds of the published 3-minute finisher; reps are not specified.", false, "Finisher", "Finisher", 30, null, null, null, false, "30 sec")
+            ],
+            GroupName: "Orangetheory",
+            PlannedMinutes: 50m);
+
     private static SystemWorkoutExerciseSlot Slot(
         string slotCode,
         string exerciseName,

@@ -127,7 +127,7 @@ public sealed class LearningController(
         }
 
         return RedirectToAction(
-            "CommandCentral",
+            "CommandCenter",
             "Dashboard");
     }
 }

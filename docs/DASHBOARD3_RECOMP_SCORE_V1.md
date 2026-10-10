@@ -105,6 +105,6 @@ Historical Dashboard3 views never append score snapshots or synthesize new histo
 
 The header uses a single generated eight-trainer gym photograph based on the existing fictional coach portraits, with a bounded date picker alongside it. Existing dashboard navy surfaces, blue borders and bold type are reused. Duplicate individual macro cards are removed. The bottom shows the original daily and four-day analysis signal panels rather than hiding the analysis behind a collapsed section; historical daily shortfalls are no longer described as unfinished.
 
-## Command Central rollout
+## Command Center rollout
 
-The cockpit is now titled Command Central at `/CommandCentral`. It is the first navigation item and the default landing/return destination for ready users; the original `/Dashboard` remains available immediately after it. Dashboard2 is retired. Old Dashboard2 and Dashboard3 URLs redirect to Command Central, preserving selected dates and meal-planning parameters. Date browsing, meal planning, flexible-item saving and workout recommendations use the canonical route. TEST deployment checks cover Command Central before promotion to LIVE.
+The cockpit is now titled Command Center at `/CommandCenter`. It is the first navigation item and the default landing/return destination for ready users; the original `/Dashboard` remains available immediately after it. Dashboard2 is retired. Old Dashboard2 and Dashboard3 URLs redirect to Command Center, preserving selected dates and meal-planning parameters. Date browsing, meal planning, flexible-item saving and workout recommendations use the canonical route. TEST deployment checks cover Command Center before promotion to LIVE.

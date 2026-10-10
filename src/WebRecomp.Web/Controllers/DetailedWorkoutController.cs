@@ -3358,7 +3358,7 @@ public sealed class DetailedWorkoutController(
                 "Index",
                 "DailyEntry",
                 new { date = date.ToString("yyyy-MM-dd") })
-            : RedirectToAction("CommandCentral", "Dashboard");
+            : RedirectToAction("CommandCenter", "Dashboard");
     }
 
     [HttpPost]
@@ -3480,7 +3480,7 @@ public sealed class DetailedWorkoutController(
                 "Index",
                 "DailyEntry",
                 new { date = date.ToString("yyyy-MM-dd") })
-            : RedirectToAction("CommandCentral", "Dashboard");
+            : RedirectToAction("CommandCenter", "Dashboard");
     }
 
     [HttpPost]

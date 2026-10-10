@@ -517,6 +517,61 @@ public static class SystemWorkoutRecipeCatalog
         Variant("SYS_HARD_WALKING", "Hard Walking", "WALKING", "Hard", 1.33m, 2m)
     ];
 
+    // Short upper-body sessions share the calibrated resistance engine profile.
+    // Exercise rows and actual duration/RPE remain authoritative at completion.
+    private static readonly IReadOnlyList<SystemWorkoutRecipe> QuickUpperBody =
+    [
+        new(
+            "SYS_UPPER_EXPRESS_A",
+            "Upper Body Express A - Dumbbells (25 min)",
+            "FULL_BODY_STRENGTH",
+            "A quick dumbbell-and-bench session for chest, upper back/lats, front/side/rear shoulders, biceps, and triceps. Allow 3 minutes to warm up, then complete 2 rounds of each paired block before moving on. Take 15-30 seconds to change exercises and 60-75 seconds after each pair; finish with 2 lateral-raise sets. Aim for RPE 7, leaving about 2-3 good reps in reserve. Use controlled, pain-free motion and add rest when needed; 25 minutes is a planning target, so log your actual duration.",
+            [
+                Slot("A_CHEST", ["Dumbbell Bench Press"], ["chest"], 2, 10, compound: true, requireNameMatch: true,
+                    notes: "Pair 1A: flat bench press. Alternate with the supported row for 2 rounds; rest 60-75 seconds after the pair."),
+                Slot("A_ROW", ["One-Arm Dumbbell Row"], ["back", "lat"], 2, 10, compound: true, requireNameMatch: true,
+                    notes: "Pair 1B: brace one hand on the bench. Do 10 reps per side; both sides together count as one set."),
+                Slot("A_SHOULDERS", ["Seated Dumbbell Press"], ["shoulder"], 2, 10, compound: true, requireNameMatch: true,
+                    notes: "Pair 2A: seated shoulder press. Use a comfortable grip and range; alternate with hammer curls for 2 rounds."),
+                Slot("A_BICEPS", ["Hammer Curls"], ["bicep", "forearm"], 2, 10, isolation: true, requireNameMatch: true,
+                    notes: "Pair 2B: neutral-grip dumbbell curls, 10 reps per arm. Rest 60-75 seconds after the pair."),
+                Slot("A_REAR_DELTS", ["Dumbbell Reverse Fly"], ["shoulder", "back"], 2, 12, isolation: true, requireNameMatch: true,
+                    notes: "Pair 3A: use light dumbbells; support your chest on an incline bench when possible. Alternate with lying triceps extensions."),
+                Slot("A_TRICEPS", ["Lying Dumbbell Tricep Extension"], ["tricep"], 2, 10, isolation: true, requireNameMatch: true,
+                    notes: "Pair 3B: lying dumbbell triceps extensions, elbows steady. Rest 60-75 seconds after the pair; complete 2 rounds."),
+                Slot("A_SIDE_DELTS", ["Dumbbell Lateral Raise"], ["shoulder"], 2, 12, isolation: true, requireNameMatch: true,
+                    notes: "Finish: 2 sets of lateral raises with 45-60 seconds rest. Lift under control without shrugging.")
+            ],
+            GroupName: "Standard",
+            RpeOffset: -1m,
+            PlannedMinutes: 25m),
+
+        new(
+            "SYS_UPPER_EXPRESS_B",
+            "Upper Body Express B - Cables & Machines (25 min)",
+            "FULL_BODY_STRENGTH",
+            "A different quick session using cables and machines for chest, lats, upper back, side/rear shoulders, biceps, and triceps; pressing also trains the front shoulders. Allow 3 minutes to warm up, then complete 2 rounds of each paired block before moving on. Take 15-30 seconds to change exercises and 60-75 seconds after each pair; finish with 2 face-pull sets. Aim for RPE 7, leaving about 2-3 good reps in reserve. If equipment is occupied, perform straight sets with 60 seconds rest. Use controlled, pain-free motion and log your actual duration.",
+            [
+                Slot("B_CHEST", ["Machine Bench Press"], ["chest"], 2, 10, compound: true, requireNameMatch: true,
+                    notes: "Pair 1A: machine chest press. Alternate with front lat pulldowns for 2 rounds; rest 60-75 seconds after the pair."),
+                Slot("B_LATS", ["Wide-Grip Lat Pulldown"], ["lat", "back"], 2, 10, compound: true, requireNameMatch: true,
+                    notes: "Pair 1B: pull in front of the body toward the upper chest, never behind the neck. Use a comfortable grip width."),
+                Slot("B_ROW", ["Seated Cable Rows"], ["back", "lat"], 2, 10, compound: true, requireNameMatch: true,
+                    notes: "Pair 2A: seated cable row. Keep the torso steady; alternate with cable lateral raises for 2 rounds."),
+                Slot("B_SIDE_DELTS", ["Cable Lateral Raise"], ["shoulder"], 2, 12, isolation: true, requireNameMatch: true,
+                    notes: "Pair 2B: cable lateral raise, 12 reps per side; both sides count as one set. Rest 60-75 seconds after the pair."),
+                Slot("B_BICEPS", ["Standing Biceps Cable Curl"], ["bicep"], 2, 10, isolation: true, requireNameMatch: true,
+                    notes: "Pair 3A: cable curls, elbows steady. Alternate with rope overhead triceps extensions for 2 rounds."),
+                Slot("B_TRICEPS", ["Cable Rope Overhead Triceps Extension"], ["tricep"], 2, 10, isolation: true, requireNameMatch: true,
+                    notes: "Pair 3B: overhead rope triceps extension through a comfortable range. Rest 60-75 seconds after the pair."),
+                Slot("B_REAR_DELTS", ["Face Pull"], ["shoulder", "back"], 2, 12, isolation: true, requireNameMatch: true,
+                    notes: "Finish: 2 light face-pull sets with 45-60 seconds rest. Pull toward eye level and keep the ribs stacked.")
+            ],
+            GroupName: "Standard",
+            RpeOffset: -1m,
+            PlannedMinutes: 25m)
+    ];
+
     private static readonly SystemWorkoutRecipe CardioPresentationRecipe =
         new(
             CardioActivityCatalog.PresentationSystemCode,
@@ -561,6 +616,7 @@ public static class SystemWorkoutRecipeCatalog
         OrangetheoryDailyRecipeRegistration.Create20260930Recipe(),
         OrangetheoryDailyRecipeRegistration.Create20260930Strength50Recipe(),
         OrangetheoryDailyRecipeRegistration.Create20261002HellWeekStrengthRecipe(),
+        OrangetheoryDailyRecipeRegistration.Create20261007Strength50Recipe(),
         OrangetheoryDailyRecipeRegistration.Create20261006Recipe(),
         OrangetheoryDailyRecipeRegistration.Create20261006Strength50Recipe(),
         CoreRecipe("MIXED_GYM_SESSION") with { GroupName = "Standard", DisplayName = "Standard Mixed Gym Session" },
@@ -571,6 +627,7 @@ public static class SystemWorkoutRecipeCatalog
         Signature
             .Concat(SetB)
             .Concat(Tiered)
+            .Concat(QuickUpperBody)
             .Concat(ClassifiedCore)
             // v1012 presents one Cardio workout. The activity picker resolves
             // the user's actual modality/intensity pattern to the existing
@@ -620,6 +677,7 @@ public static class SystemWorkoutRecipeCatalog
             .Concat(Signature)
             .Concat(SetB)
             .Concat(Tiered)
+            .Concat(QuickUpperBody)
             .Concat(ClassifiedCore)
             .GroupBy(
                 x => x.SystemCode,
@@ -804,12 +862,12 @@ public static class SystemWorkoutRecipeCatalog
         SystemWorkoutRecipe recipe,
         decimal engineDefaultMinutes)
     {
-        if (engineDefaultMinutes <= 0m)
-            return 0m;
-
         var raw =
             recipe.PlannedMinutes
             ?? engineDefaultMinutes * recipe.DurationMultiplier;
+
+        if (raw <= 0m)
+            return 0m;
 
         return Math.Max(
             5m,

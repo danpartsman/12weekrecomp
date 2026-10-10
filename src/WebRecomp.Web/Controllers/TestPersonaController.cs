@@ -56,7 +56,7 @@ public sealed class TestPersonaController(
             return View("Index", model);
         }
 
-        return RedirectToAction("CommandCentral", "Dashboard");
+        return RedirectToAction("CommandCenter", "Dashboard");
     }
 
     [HttpGet("logout")]
