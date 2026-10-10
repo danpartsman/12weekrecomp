@@ -126,7 +126,7 @@
             ? "test-live-preview"
             : "";
 }
-<body class="@shellClass @appThemeClass">
+<body class="@shellClass @appThemeClass @(ViewData["BodyClass"] as string)">
 
 <header class="topbar">
 
