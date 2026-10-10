@@ -1397,3 +1397,96 @@ body.test-live-preview.app-shell .daily-entry-v2-actions {
         grid-template-columns:1fr;
     }
 }
+
+/* Keep the daily form compact and inside its container at every viewport. */
+body.test-live-preview.app-shell .daily-entry-page {
+    width:100% !important;
+    max-width:1040px !important;
+    min-width:0;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-hero {
+    grid-template-columns:minmax(0,.9fr) minmax(0,1.2fr) minmax(0,.9fr) !important;
+    gap:1rem !important;
+    padding:1rem !important;
+    height:auto !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-copy h1 {
+    font-size:clamp(2.4rem,4vw,3.2rem) !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-photo {
+    height:260px !important;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-actions .app-adjacent-days {
+    flex-wrap:wrap;
+}
+
+body.test-live-preview.app-shell .daily-entry-v2-actions .app-day-nav-button {
+    white-space:normal !important;
+}
+
+.daily-entry-form,
+.daily-entry-form > *,
+.daily-entry-grid > label,
+.daily-entry-notes,
+.daily-entry-workouts,
+.daily-entry-workout-card {
+    min-width:0;
+    max-width:100%;
+}
+
+.daily-entry-grid input,
+.daily-entry-grid select,
+.daily-entry-activity-grid input,
+.daily-entry-activity-grid select,
+.daily-entry-notes textarea {
+    min-width:0;
+    max-width:100%;
+    box-sizing:border-box;
+}
+
+body.test-live-preview.app-shell .daily-entry-grid input:not([type="hidden"]):not([type="checkbox"]),
+body.test-live-preview.app-shell .daily-entry-activity-grid input[type="number"] {
+    width:100% !important;
+    max-width:180px !important;
+}
+
+.daily-entry-grid small,
+.daily-entry-info,
+.daily-entry-completed-stats > div {
+    min-width:0;
+    overflow-wrap:anywhere;
+}
+
+@media (max-width:1100px) {
+    body.daily-entry-view .app-quick-nav { display:none; }
+}
+
+@media (max-width:900px) {
+    body.test-live-preview.app-shell .daily-entry-v2-hero {
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    }
+
+    body.test-live-preview.app-shell .daily-entry-v2-actions {
+        grid-column:1 / -1;
+    }
+
+    body.test-live-preview.app-shell .daily-entry-v2-photo {
+        height:220px !important;
+    }
+}
+
+@media (max-width:600px) {
+    body.test-live-preview.app-shell .daily-entry-v2-hero {
+        grid-template-columns:minmax(0,1fr) !important;
+    }
+
+    body.test-live-preview.app-shell .daily-entry-v2-photo {
+        height:180px !important;
+    }
+
+    .daily-entry-grid > label { padding-inline:.4rem; }
+}
