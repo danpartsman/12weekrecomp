@@ -92,6 +92,10 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+    options.AddPolicy("fitdays-preview", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
+
     options.AddPolicy("access-code", httpContext =>
     {
         var subject =
@@ -167,6 +171,10 @@ builder.Services.AddHostedService<NutritionProviderCacheMaintenanceService>();
 
 builder.Services.AddScoped<FirstSignInWelcomeEmailService>();
 builder.Services.AddScoped<AppUserContextService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<WebRecomp.Web.Services.Fitdays.FitdaysPreviewClient>(client => client.Timeout = TimeSpan.FromSeconds(25))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate })
+    .RemoveAllLoggers(); // Fitdays places session tokens in its request query string.
 builder.Services.AddScoped<AccessEntitlementService>();
 builder.Services.AddScoped<PendingAccessCodeService>();
 builder.Services.AddScoped<ConfigurationService>();

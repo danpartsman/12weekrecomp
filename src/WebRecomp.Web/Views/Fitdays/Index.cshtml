@@ -1,0 +1,84 @@
+@model WebRecomp.Web.Controllers.FitdaysPageModel
+@{
+    ViewData["Title"] = "Connect Fitdays · TEST";
+    string Value(decimal? value) => value?.ToString("0.##") ?? "—";
+}
+<link rel="stylesheet" href="~/css/fitdays-preview.css" asp-append-version="true" />
+<div class="fitdays-page">
+    <header class="page-head">
+        <div>
+            <div class="eyebrow">CONNECTED WEIGH-INS · TEST PREVIEW</div>
+            <h1>Connect Fitdays</h1>
+            <p class="lede">Your scale readings, brought into view. No new phone app needed.</p>
+        </div>
+        <a class="button" asp-controller="Profile" asp-action="Index">Back to profile</a>
+    </header>
+    <div class="status-card review"><strong>Preview only.</strong> Readings shown here do not change Daily Entry, Progress, or your plan.</div>
+    @if (Model.Snapshot is null)
+    {
+        <section class="card">
+            <h2>Connect your scale account</h2>
+            <p>Keep using Fitdays to upload your scale readings. Recomp TEST will read the profiles and measurements saved in your Fitdays cloud account.</p>
+            <form asp-action="Connect" method="post" class="fitdays-connect" autocomplete="off">
+                <div asp-validation-summary="All" role="alert"></div>
+                <label asp-for="Email">Fitdays email<input asp-for="Email" type="email" autocomplete="username" required /></label>
+                <label asp-for="Password">Fitdays password<input asp-for="Password" type="password" autocomplete="off" value="" required /></label>
+                <label asp-for="Region">Account region<select asp-for="Region"><option value="us">United States / international</option><option value="eu">Europe</option><option value="cn">China</option></select><small>Choose where your Fitdays account is stored.</small></label>
+                <label class="fitdays-consent"><input asp-for="Consent" type="checkbox" /><span>Allow Recomp TEST to sign in to Fitdays and read my profiles and the last 30 days of weigh-ins for this preview.</span></label>
+                <button class="primary" type="submit">Connect &amp; preview readings</button>
+                <p class="small">Your password is not saved. The temporary server session expires after 20 minutes or a server restart. This experimental connection uses an unofficial Fitdays interface.</p>
+            </form>
+        </section>
+    }
+    else
+    {
+        <section class="card">
+            <div class="fitdays-connected"><div><div class="eyebrow">CONNECTED FOR THIS PREVIEW</div><h2>Choose your Fitdays profile</h2></div>
+                <form asp-action="Disconnect" method="post"><button type="submit">Disconnect</button></form>
+            </div>
+            <p>Select the person whose readings you want to check. Measurements from other profiles stay separate.</p>
+            @if (Model.Snapshot.People.Count == 0)
+            {
+                <p role="status">Fitdays returned no selectable profiles. Confirm that your account has a saved profile, then disconnect and try again.</p>
+            }
+            else
+            {
+                <form asp-action="Index" method="get" class="fitdays-profile">
+                    <label for="fitdays-person">Person<select id="fitdays-person" name="personId" required>
+                        <option value="">Choose a profile</option>
+                        @foreach (var person in Model.Snapshot.People)
+                        {
+                            <option value="@person.Id" selected="@(Model.PersonId == person.Id)">@person.Name · @person.Id</option>
+                        }
+                    </select></label>
+                    <button class="primary" type="submit">Show readings</button>
+                </form>
+            }
+            <p class="small">Last fetched: @Model.Snapshot.FetchedAt.ToString("yyyy-MM-dd HH:mm") UTC · Measurement times use @Model.Snapshot.Timezone. Disconnect and reconnect to fetch fresh readings.</p>
+        </section>
+        @if (Model.PersonId.HasValue)
+        {
+            var readings = Model.Snapshot.Readings.Where(r => r.PersonId == Model.PersonId).Take(100).ToList();
+            <section class="card">
+                <h2>Recent weigh-ins <span class="small">@readings.Count readings · last 30 days</span></h2>
+                @if (readings.Count == 0)
+                {
+                    <p role="status">No recent weigh-ins were returned for this profile. Open Fitdays and confirm your scale readings have synced to your account.</p>
+                }
+                else
+                {
+                    <div class="fitdays-table" tabindex="0" role="region" aria-label="Recent Fitdays weigh-ins">
+                        <table>
+                            <thead><tr><th>Measured</th><th>Weight (lb)</th><th>Body fat (bfr)</th><th>rom</th><th>rosm</th><th>vwc</th><th>sfr</th><th>uvi</th></tr></thead>
+                            <tbody>@foreach (var reading in readings)
+                            {
+                                <tr><td>@reading.MeasuredAt.ToString("MMM d, yyyy HH:mm zzz")</td><td><strong>@reading.WeightLb.ToString("0.0")</strong></td><td>@Value(reading.Bfr)</td><td>@Value(reading.Rom)</td><td>@Value(reading.Rosm)</td><td>@Value(reading.Vwc)</td><td>@Value(reading.Sfr)</td><td>@Value(reading.Uvi)</td></tr>
+                            }</tbody>
+                        </table>
+                    </div>
+                    <p class="small">Weight is converted from the provider's grams or kilograms. Other columns show unchanged provider values for comparison with Fitdays; their units and meaning must be confirmed before importing. “—” means unavailable. Deleted provider records are excluded.</p>
+                }
+            </section>
+        }
+    }
+</div>
