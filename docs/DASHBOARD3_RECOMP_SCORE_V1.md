@@ -85,3 +85,13 @@ Client-owned template names are preserved; sample links use the corresponding Sy
 Workout recipe and date. Viewing a sample does not accept or alter the saved plan.
 Unscheduled days link to that day's planning week instead of inventing a workout.
 Training, recovery and macro sections use brighter accents with reduced-motion support.
+
+## Weekly/daily labels and trainer team
+
+The header collage uses the eight existing coach identities and avatar assets. Weekly
+labels group Recomp Plan Score (Overall execution), Nutrition (Weekly projection) and
+Workout (Weekly projection). Daily Nutrition groups the individual intake gauges.
+The collage becomes two rows of four on phones; coach-specific details still open with
+the user's preferred trainer. Daily nutrition/workout records and captured versioned
+score snapshots remain saved. Historical Dashboard3 navigation is not implemented;
+unknown or unobserved earlier checks are never fabricated.

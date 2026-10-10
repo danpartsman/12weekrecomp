@@ -14,7 +14,14 @@
 <link rel="stylesheet" href="~/css/dashboard2.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/dashboard3.css" asp-append-version="true" />
 <main class="d3 d2" data-dashboard3>
-    <header class="d3-heading"><div><p class="d3-eyebrow">DASHBOARD3 · RECOMP COMMAND CENTER</p><h1>Fuel. Train. Recover. Repeat.</h1><p>@Model.ActionDate.ToString("dddd, MMMM d") · Week @Model.ProgramWeek</p></div><nav aria-label="Compare dashboards"><a class="button secondary" href="/Dashboard">Original</a><a class="button secondary" href="/Dashboard2">Dashboard2</a></nav></header>
+    <header class="d3-heading d3-team-header">
+        <div class="d3-trainer-collage" aria-label="Your eight Recomp trainers">
+            @foreach (var trainer in CoachCatalog.All) {
+                <figure class="d3-trainer-tile"><div class="d3-trainer-photo">@await Html.PartialAsync("_CoachPhoto", (trainer.GalleryImages.First(x => !string.IsNullOrWhiteSpace(x))!, trainer.Name))</div><figcaption>@trainer.Name</figcaption></figure>
+            }
+        </div>
+        <div class="d3-header-copy"><div><p class="d3-eyebrow">DASHBOARD3 · YOUR RECOMP TEAM</p><h1>Fuel. Train. Recover. Repeat.</h1><p>@Model.ActionDate.ToString("dddd, MMMM d") · Week @Model.ProgramWeek</p></div><nav aria-label="Compare dashboards"><a class="button secondary" href="/Dashboard">Original</a><a class="button secondary" href="/Dashboard2">Dashboard2</a></nav></div>
+    </header>
     @if (cockpit is null || Model.NeedsCurrentWeight)
     {
         <section class="d2-panel"><h2>Your personal plan needs a current weight</h2><a class="button" href="/DailyEntry">Open Daily Entry</a></section>
@@ -22,13 +29,15 @@
     else
     {
     <section class="d3-hero d3-cockpit" aria-label="Recomp gauge grid">
+        <div class="d3-row-heading"><h2>Weekly</h2><span>@cockpit.WeekStart.ToString("MMM d")–@cockpit.WeekStart.AddDays(6).ToString("MMM d")</span></div>
         <div class="d3-overview-grid">
-        @foreach (var instrument in new[] { (Key: "score", Label: "Recomp", Value: cockpit.Score.Score), (Key: "nutrition", Label: "Nutrition", Value: cockpit.Score.NutritionScore), (Key: "workout", Label: "Workout", Value: cockpit.Score.WorkoutScore) })
+        @foreach (var instrument in new[] { (Key: "score", Label: "Recomp Plan Score", Description: "Overall execution", Value: cockpit.Score.Score), (Key: "nutrition", Label: "Nutrition", Description: "Weekly projection", Value: cockpit.Score.NutritionScore), (Key: "workout", Label: "Workout", Description: "Weekly projection", Value: cockpit.Score.WorkoutScore) })
         {
             var band = instrument.Value >= 80 ? "green" : instrument.Value >= 60 ? "yellow" : "red";
-            <button type="button" class="d3-instrument d3-gauge-button" data-open-coach="@instrument.Key" aria-haspopup="dialog" aria-label="@instrument.Label gauge: @instrument.Value out of 100. Open trainer explanation"><h2>@instrument.Label</h2><div class="d3-dial" data-dial="@instrument.Key"></div><span class="d3-status d3-@band">@(instrument.Value >= 80 ? "On track" : instrument.Value >= 60 ? "Build momentum" : "Reset your course")</span><span class="d3-gauge-caption">Weekly projection ↗</span></button>
+            <button type="button" class="d3-instrument d3-gauge-button" data-open-coach="@instrument.Key" aria-haspopup="dialog" aria-label="@instrument.Label gauge: @instrument.Value out of 100. Open trainer explanation"><div class="d3-gauge-heading"><h3>@instrument.Label</h3><p class="d3-measure-description">@instrument.Description</p></div><div class="d3-dial" data-dial="@instrument.Key"></div><span class="d3-status d3-@band">@(instrument.Value >= 80 ? "On track" : instrument.Value >= 60 ? "Build momentum" : "Reset your course")</span><span class="d3-gauge-caption">Trainer details ↗</span></button>
         }
         </div>
+        <div class="d3-row-heading d3-daily-heading"><h2>Daily Nutrition</h2><span>@Model.ActionDate.ToString("ddd, MMM d")</span></div>
         <div class="d3-macro-grid">@foreach (var band in plan.Bands) {
             <button type="button" class="d3-instrument d3-macro d3-gauge-button" style="--macro:@band.Color" data-open-coach="@band.Key" aria-haspopup="dialog" aria-label="@band.Name gauge. Open trainer explanation"><h3><span class="d3-macro-dot" aria-hidden="true"></span>@band.Name</h3><div class="d3-dial" data-dial="@band.Key"></div><span class="d3-gauge-caption">@band.Low.ToString("0")–@band.High.ToString("0") g target ↗</span></button>
         }</div>
