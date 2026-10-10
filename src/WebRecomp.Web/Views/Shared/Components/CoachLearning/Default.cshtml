@@ -14,7 +14,12 @@
     <section class="learning-coach @(isFull ? "learning-coach--full" : "learning-coach--thumb") @coach.AccentClass"
              data-learning-coach
              data-content-code="@lesson.ContentCode"
-             data-series-code="@lesson.SeriesCode">
+             data-series-code="@lesson.SeriesCode"
+             data-display-mode="@Model.DisplayMode"
+             data-read-url="@Url.Action("Read", "Learning")"
+             tabindex="@(isFull ? "0" : null)"
+             role="@(isFull ? "button" : null)"
+             aria-label="@(isFull ? "Read another coaching tip" : null)">
         <form asp-controller="Learning"
               asp-action="Interact"
               method="post"
@@ -30,7 +35,7 @@
             <div class="learning-full-image">
                 @if (!string.IsNullOrWhiteSpace(image))
                 {
-                    <img src="@image" alt="@coach.Name" />
+                    @await Html.PartialAsync("_CoachPhoto", (image, coach.Name))
                 }
                 else
                 {
@@ -45,15 +50,13 @@
                 {
                     <p class="learning-takeaway"><strong>Remember:</strong> @lesson.Takeaway</p>
                 }
+                @if (!string.IsNullOrWhiteSpace(lesson.SourceUrl))
+                {
+                    <a class="learning-source" href="@lesson.SourceUrl" target="_blank" rel="noopener noreferrer">Research behind this tip ↗</a>
+                }
                 <div class="learning-byline">@coach.Name · @coach.Style</div>
                 <div class="learning-actions">
-                    <form asp-controller="Learning" asp-action="Interact" method="post">
-                        <input type="hidden" name="contentCode" value="@lesson.ContentCode" />
-                        <input type="hidden" name="surfaceCode" value="@lesson.SurfaceCode" />
-                        <input type="hidden" name="interactionCode" value="@LearningInteractionCodes.Complete" />
-                        <input type="hidden" name="returnUrl" value="@returnUrl" />
-                        <button type="submit" class="button primary">Got it · next lesson →</button>
-                    </form>
+                    <small class="learning-click-hint">Tap the coach again for another tip.</small>
                     <button type="button" class="button learning-hide" data-learning-hide>Hide</button>
                 </div>
             </div>
@@ -66,7 +69,7 @@
                     aria-haspopup="dialog">
                 @if (!string.IsNullOrWhiteSpace(image))
                 {
-                    <img src="@image" alt="" />
+                    @await Html.PartialAsync("_CoachPhoto", (image, coach.Name))
                 }
                 else
                 {
@@ -86,7 +89,7 @@
                     <div class="learning-dialog-coach">
                         @if (!string.IsNullOrWhiteSpace(image))
                         {
-                            <img src="@image" alt="@coach.Name" />
+                            @await Html.PartialAsync("_CoachPhoto", (image, coach.Name))
                         }
                         else
                         {
@@ -101,17 +104,17 @@
                         {
                             <p class="learning-takeaway"><strong>Remember:</strong> @lesson.Takeaway</p>
                         }
-                        <div class="learning-byline">@coach.Name · @coach.Style</div>
-                        <form asp-controller="Learning" asp-action="Interact" method="post">
-                            <input type="hidden" name="contentCode" value="@lesson.ContentCode" />
-                            <input type="hidden" name="surfaceCode" value="@lesson.SurfaceCode" />
-                            <input type="hidden" name="interactionCode" value="@LearningInteractionCodes.Complete" />
-                            <input type="hidden" name="returnUrl" value="@returnUrl" />
-                            <button type="submit" class="primary">Got it · next lesson →</button>
-                        </form>
+                        @if (!string.IsNullOrWhiteSpace(lesson.SourceUrl))
+                {
+                    <a class="learning-source" href="@lesson.SourceUrl" target="_blank" rel="noopener noreferrer">Research behind this tip ↗</a>
+                }
+                <div class="learning-byline">@coach.Name · @coach.Style</div>
+                        <small class="learning-click-hint">Tap the coach again for another tip.</small>
                     </div>
                 </article>
             </div>
         }
+        <p class="learning-request-status" role="status" hidden></p>
     </section>
 }
+

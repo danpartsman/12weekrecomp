@@ -1,4 +1,4 @@
-﻿@using System.Globalization
+@using System.Globalization
 @model DailyViewModel
 <!-- V1006_GUIDED_WEIGHIN_CLEAN -->
 @await Html.PartialAsync(
@@ -62,7 +62,7 @@
             <div class="grid-3">
                 <label>Sleep hours<input asp-for="SleepHours" type="number" step="0.1" /></label>
                 <label>Resting HR<input asp-for="RestingHr" type="number" /></label>
-                <label>Steps<input asp-for="Steps" type="number" /></label>
+                <label>Steps (optional)<input asp-for="Steps" type="number" /></label>
                 <label>Energy 1–10<input asp-for="EnergyScore" type="number" min="1" max="10" /></label>
                 <label>Soreness 1–10<input asp-for="SorenessScore" type="number" min="1" max="10" /></label>
             </div>
@@ -99,6 +99,7 @@
     });
 })();
 </script>
+
 
 
 

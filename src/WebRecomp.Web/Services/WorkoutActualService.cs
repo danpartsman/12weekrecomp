@@ -46,6 +46,26 @@ public sealed class WorkoutActualService(
                     && x.ProgramId == programId,
                 cancellationToken);
 
+    public void CorrectCompletedSummary(WorkoutSession session, decimal durationMin, decimal? sessionRpe)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        if (!session.CompletedFlag)
+            throw new ArgumentException("Only completed workouts can be corrected here.");
+
+        var isRest = Engine30WorkoutUiCatalogService.NormalizeCode(session.WorkoutTypeCode) == "REST";
+        if (isRest)
+        {
+            if (durationMin != 0m || sessionRpe.HasValue)
+                throw new ArgumentException("Rest days have zero workout minutes and no RPE.");
+        }
+        else if (durationMin is < 1m or > 360m || sessionRpe is < 1m or > 10m)
+            throw new ArgumentException("Enter duration between 1 and 360 minutes and RPE between 1 and 10, or leave RPE blank.");
+
+        session.DurationMin = durationMin;
+        session.SessionRpe = sessionRpe;
+        ApplyCurrentEngineState(session, completed: true);
+    }
+
     public void ApplyCurrentEngineState(
         WorkoutSession session,
         bool completed)
@@ -73,3 +93,4 @@ public sealed class WorkoutActualService(
         session.UpdatedAtUtc = DateTime.UtcNow;
     }
 }
+

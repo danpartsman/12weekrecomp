@@ -55,7 +55,7 @@ public sealed class DetailedWorkoutReviewHotfixController(
         if (session.CompletedFlag)
         {
             return RedirectToAction(
-                "Index",
+                "CommandCenter",
                 "Dashboard");
         }
 
@@ -252,7 +252,7 @@ public sealed class DetailedWorkoutReviewHotfixController(
         }
 
         return RedirectToAction(
-            "Index",
+            "CommandCenter",
             "Dashboard");
     }
 

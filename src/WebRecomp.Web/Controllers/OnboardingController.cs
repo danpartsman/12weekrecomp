@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
+using WebRecomp.Web.Services.Engine30;
 using WebRecomp.Web.Services.Learning;
 using WebRecomp.Web.ViewModels;
 
@@ -34,7 +35,7 @@ public sealed class OnboardingController(
         var model = await BuildModelAsync(context, cancellationToken);
 
         if (await IsReadyAsync(context, cancellationToken))
-            return RedirectToAction("Index", "Dashboard");
+            return RedirectToAction("CommandCenter", "Dashboard");
 
         ViewData["OnboardingPage"] = true;
         return View("Setup", model);
@@ -167,6 +168,46 @@ public sealed class OnboardingController(
                 cancellationToken);
 
             var today = AppUserContextService.GetClientToday(client);
+
+            // Persist the same effective-dated occupation inputs consumed by
+            // Engine 3.0. Never replace historical activity records.
+            var currentRoles = await db.ClientOccupationalActivities
+                .Where(x => x.ClientId == client.ClientId && x.EffectiveFrom <= today
+                    && (x.EffectiveTo == null || x.EffectiveTo >= today))
+                .ToListAsync(cancellationToken);
+            var proposedRoles = model.WorkStatusCode == "WORKING"
+                ? model.OccupationalRoles.Where(x => !string.IsNullOrWhiteSpace(x.OccupationName)).ToList()
+                : new List<HabitualOccupationRoleEditViewModel>();
+            if (proposedRoles.Count > 0 && proposedRoles.All(x => !x.IsPrimary))
+                proposedRoles[0].IsPrimary = true;
+
+            foreach (var role in currentRoles)
+            {
+                if (role.EffectiveFrom == today)
+                    db.ClientOccupationalActivities.Remove(role);
+                else
+                {
+                    role.EffectiveTo = today.AddDays(-1);
+                    role.UpdatedAtUtc = now;
+                }
+            }
+            // Release the current-primary unique index before inserting.
+            await db.SaveChangesAsync(cancellationToken);
+            foreach (var role in proposedRoles)
+            {
+                db.ClientOccupationalActivities.Add(new ClientOccupationalActivity
+                {
+                    ClientOccupationalActivityId = Guid.NewGuid(),
+                    ClientId = client.ClientId,
+                    OccupationName = role.OccupationName!.Trim(),
+                    OccupationActivityCode = role.OccupationActivityCode!,
+                    TypicalHoursPerWeek = Math.Round(role.TypicalHoursPerWeek!.Value, 1, MidpointRounding.AwayFromZero),
+                    IsPrimary = role.IsPrimary,
+                    EffectiveFrom = today,
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                });
+            }
 
             if (program is null)
             {
@@ -306,6 +347,20 @@ public sealed class OnboardingController(
         var client = context.Client;
         var today = AppUserContextService.GetClientToday(client);
 
+        var roles = await db.ClientOccupationalActivities.AsNoTracking()
+            .Where(x => x.ClientId == client.ClientId && x.EffectiveFrom <= today
+                && (x.EffectiveTo == null || x.EffectiveTo >= today))
+            .OrderByDescending(x => x.IsPrimary).ThenBy(x => x.OccupationName)
+            .Select(x => new HabitualOccupationRoleEditViewModel
+            {
+                OccupationName = x.OccupationName,
+                OccupationActivityCode = x.OccupationActivityCode,
+                TypicalHoursPerWeek = x.TypicalHoursPerWeek,
+                IsPrimary = x.IsPrimary
+            }).ToListAsync(cancellationToken);
+        var hasWork = roles.Count > 0;
+        while (roles.Count < 3) roles.Add(new());
+
         var latestMeasurement = await db.Measurements
             .AsNoTracking()
             .Where(x =>
@@ -340,6 +395,8 @@ public sealed class OnboardingController(
             StartingHipsIn = latestMeasurement?.HipsIn,
             StartingVisceralFatRating = latestMeasurement?.VisceralFatRating,
             LifestyleActivityCode = client.LifestyleActivityCode,
+            WorkStatusCode = hasWork ? "WORKING" : "",
+            OccupationalRoles = roles,
             BaselineStepsDay = client.BaselineStepsDay,
             BaselineSleepHours = client.BaselineSleepHours,
             PreferredCoachCode =
@@ -396,6 +453,13 @@ public sealed class OnboardingController(
         model.LifestyleActivityCode = string.IsNullOrWhiteSpace(model.LifestyleActivityCode)
             ? null
             : model.LifestyleActivityCode.Trim().ToUpperInvariant();
+        model.WorkStatusCode = model.WorkStatusCode?.Trim().ToUpperInvariant() ?? "";
+        model.OccupationalRoles ??= [];
+        foreach (var role in model.OccupationalRoles)
+        {
+            role.OccupationName = role.OccupationName?.Trim();
+            role.OccupationActivityCode = role.OccupationActivityCode?.Trim().ToUpperInvariant();
+        }
     }
 
     private static DateOnly GetEntryDate(DateTime utcNow, string zoneId)
@@ -426,3 +490,4 @@ public sealed class OnboardingController(
             _ => "PLAN_4"
         };
 }
+

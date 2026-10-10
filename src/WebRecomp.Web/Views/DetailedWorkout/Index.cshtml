@@ -229,6 +229,11 @@
 
         @if (Model.FeatureEnabled)
         {
+            @if (string.Equals(Model.ReturnContext, "daily", StringComparison.OrdinalIgnoreCase))
+            {
+                <a class="button" asp-controller="DailyEntry" asp-action="Index"
+                   asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">← Back to Daily Entry</a>
+            }
             <form asp-action="Index"
                   method="get"
                   class="app-date-picker wi-head-date">
@@ -901,6 +906,35 @@
                         You are editing a completed workout.
                         Saving changes updates that historical workout only.
                     </div>
+                    var completedSession = Model.Sessions.Single(x => x.WorkoutSessionId == Model.WorkoutSessionId);
+                    var isRestCorrection = WebRecomp.Web.Services.Engine30.Engine30WorkoutUiCatalogService.NormalizeCode(completedSession.WorkoutTypeCode) == "REST";
+                    <form asp-action="CorrectCompletedSummary" method="post" class="card stack" aria-label="Correct completed workout duration and RPE">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="workoutSessionId" value="@completedSession.WorkoutSessionId" />
+                        <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                        <h2>Workout duration &amp; effort</h2>
+                        @if (isRestCorrection)
+                        {
+                            <input type="hidden" name="durationMin" value="0" />
+                            <p>Rest days have no workout duration or RPE.</p>
+                        }
+                        else
+                        {
+                            <div class="grid-2">
+                                <label>Duration (minutes)<input name="durationMin" type="number" min="1" max="360" step="0.1" required
+                                    value="@completedSession.DurationMin.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)" /></label>
+                                <label>RPE (1–10)<input name="sessionRpe" type="number" min="1" max="10" step="0.1"
+                                    value="@(completedSession.SessionRpe?.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) ?? "")" /></label>
+                            </div>
+                            <p class="small">Correct the overall workout effort here. Your recorded exercises and sets are preserved.</p>
+                            <button class="primary" type="submit">Save duration &amp; RPE</button>
+                        }
+                        @if (string.Equals(Model.ReturnContext, "daily", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <a class="button" asp-controller="DailyEntry" asp-action="Index"
+                               asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Cancel &amp; return to Daily Entry</a>
+                        }
+                    </form>
                 }
 
                                 @if (isNew && !isLive)
@@ -1189,6 +1223,11 @@
                                     value="false">
                                 Save Corrections
                             </button>
+                            @if (string.Equals(Model.ReturnContext, "daily", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <a class="button" asp-controller="DailyEntry" asp-action="Index"
+                                   asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Cancel &amp; return to Daily Entry</a>
+                            }
                         }
                         else if (isLive)
                         {
@@ -2293,3 +2332,4 @@
 <script src="~/js/live-workout-v1012.js" asp-append-version="true"></script>
 <script src="~/js/set-timer-v1012.js" asp-append-version="true"></script>
 <script src="~/js/draggable-panels-v1012.js" asp-append-version="true"></script>
+

@@ -151,8 +151,8 @@
         else
         {
             <a asp-controller="Dashboard"
-               asp-action="Index"
-               aria-label="12 Week Recomp Dashboard">
+               asp-action="CommandCenter"
+               aria-label="12 Week Recomp Command Center">
 
                 <img class="brand-logo brand-logo-light"
                      src="~/images/recomp/recomp-logo-light.png"
@@ -252,6 +252,7 @@
         <nav class="app-quick-nav"
              aria-label="Quick application navigation">
 
+            <a href="/CommandCenter">Command Center</a>
             <a class="quick-nav-dashboard"
                asp-controller="Dashboard"
                asp-action="Index">
@@ -312,6 +313,7 @@
              class="app-nav app-menu"
              aria-label="All application pages">
 
+            <a href="/CommandCenter">Command Center</a>
             <a asp-controller="Dashboard"
                asp-action="Index">
                 Dashboard
@@ -480,7 +482,7 @@
     <div>
         <strong>Built on evidence. Simple enough for real life.</strong>
         <span>
-            Web Recomp @appVersion TEST &bull; Engine @engineVersion &bull; Plan &bull; Train &bull; Recover &bull; Adapt
+            Web Recomp @appVersion &bull; Engine @engineVersion &bull; Plan &bull; Train &bull; Recover &bull; Adapt
             &bull;
             <a asp-controller="Contact"
                asp-action="Index">

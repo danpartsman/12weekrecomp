@@ -268,12 +268,20 @@
                     </p>
                 </div>
 
-                <a asp-controller="DailyEntry"
-                   asp-action="Index"
-                   asp-route-date="@manual.Date.ToString("yyyy-MM-dd")"
-                   class="button secondary app-daily-entry-button">
-                    Daily Entry
-                </a>
+                <div class="nutrition-daily-actions">
+                    @if (ViewData["NutritionToday"] is DateOnly today && manual.Date == today)
+                    {
+                        <form asp-action="CopyYesterdayToToday" method="post" onsubmit="this.querySelector('button').disabled = true">
+                            <button type="submit" class="button" title="Keeps yesterday's portions and meal slots. Skips matching entries already in today's log.">Copy yesterday's meals to today</button>
+                        </form>
+                    }
+                    <a asp-controller="DailyEntry"
+                       asp-action="Index"
+                       asp-route-date="@manual.Date.ToString("yyyy-MM-dd")"
+                       class="button secondary app-daily-entry-button">
+                        Daily Entry
+                    </a>
+                </div>
             </div>
 
             @if (Model.NutritionManualOverride)
@@ -2217,7 +2225,7 @@
         }
     };
 
-    const openPicker = opener => {
+    const openPicker = (opener, query = "") => {
         const slot =
             opener.dataset.mealSlot
             || "BREAKFAST";
@@ -2230,7 +2238,7 @@
             opener);
 
         mealSelect.value = slot;
-        searchInput.value = "";
+        searchInput.value = query;
 
         clearSelection();
         syncPickerMode();
@@ -2249,6 +2257,29 @@
             },
             50);
     };
+
+    const resumeKey = "12wr-food-picker-resume";
+    const rememberMeal = () => {
+        try {
+            sessionStorage.setItem(resumeKey, JSON.stringify({
+                date: dialog.dataset.pickerDate,
+                meal: mealSelect.value,
+                query: searchInput.value
+            }));
+        } catch (_) {}
+    };
+    for (const form of [pastMealForm, pastFoodForm, customFoodForm, providerForm,
+        customDialog?.querySelector("form")]) {
+        form?.addEventListener("submit", rememberMeal);
+    }
+    try {
+        const saved = JSON.parse(sessionStorage.getItem(resumeKey) || "null");
+        sessionStorage.removeItem(resumeKey);
+        if (saved?.date === dialog.dataset.pickerDate) {
+            const opener = openers.find(x => x.dataset.mealSlot === saved.meal && (x.dataset.pickerMode || "food") === "food");
+            if (opener) openPicker(opener, typeof saved.query === "string" ? saved.query : "");
+        }
+    } catch (_) {}
 
     for (const opener of openers) {
         opener.addEventListener(
@@ -2506,3 +2537,4 @@
         });
 })();
 </script>
+

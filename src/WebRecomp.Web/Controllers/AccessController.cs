@@ -133,7 +133,7 @@ SetPageShell();
         if (context.Client is null || context.Program is null)
             return RedirectToAction("Index", "Onboarding");
 
-        return RedirectToAction("Index", "Dashboard");
+        return RedirectToAction("CommandCenter", "Dashboard");
     }
 
     private void SetPageShell()

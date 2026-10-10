@@ -170,6 +170,63 @@ jobs:
               throw "TEST failed health or native account page verification after deployment."
           }
 
+      - name: Verify Command Center shared assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $base = "https://test.12weekrecomp.com"
+          function Get-ReadyTestPage([string]$uri) {
+              for ($attempt = 1; $attempt -le 6; $attempt++) {
+                  try { return Invoke-WebRequest -Uri $uri -TimeoutSec 30 }
+                  catch {
+                      if ($attempt -eq 6) { throw }
+                      Write-Host "TEST endpoint is warming up ($attempt/6); retrying."
+                      Start-Sleep -Seconds 5
+                  }
+              }
+          }
+          $css = Get-ReadyTestPage "$base/css/dashboard2.css?v=${{ github.sha }}"
+          $js = Get-ReadyTestPage "$base/js/dashboard2.js?v=${{ github.sha }}"
+          if ($css.StatusCode -ne 200 -or -not $css.Content.Contains(".d2-macros") -or
+              $js.StatusCode -ne 200 -or -not $js.Content.Contains("12wr-dashboard2-strategy")) {
+              throw "Dashboard2 deployed asset verification failed."
+          }
+          # No credentials or auth bypass: verify the protected route reaches sign-in.
+          $page = Get-ReadyTestPage "$base/CommandCenter"
+          if ($page.StatusCode -ne 200 -or
+              ($page.Content -notmatch 'Keep me signed in for 7 days|Command Center')) {
+              throw "Command Center did not render or reach the normal sign-in page."
+          }
+          Write-Host "Command Center shared assets and protected route passed. Signed-in visual review remains a separate check."
+
+      - name: Verify Command Center cockpit route and deployed assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $base = "https://test.12weekrecomp.com"
+          function Get-ReadyTestPage([string]$uri) {
+              for ($attempt = 1; $attempt -le 6; $attempt++) {
+                  try { return Invoke-WebRequest -Uri $uri -TimeoutSec 30 }
+                  catch {
+                      if ($attempt -eq 6) { throw }
+                      Write-Host "TEST endpoint is warming up ($attempt/6); retrying."
+                      Start-Sleep -Seconds 5
+                  }
+              }
+          }
+          $css = Get-ReadyTestPage "$base/css/dashboard3.css?v=${{ github.sha }}"
+          $js = Get-ReadyTestPage "$base/js/dashboard3.js?v=${{ github.sha }}"
+          if ($css.StatusCode -ne 200 -or -not $css.Content.Contains(".d3-hero") -or
+              $js.StatusCode -ne 200 -or -not $js.Content.Contains("data-coach-dialog")) {
+              throw "Command Center deployed cockpit asset verification failed."
+          }
+          $page = Get-ReadyTestPage "$base/CommandCenter"
+          if ($page.StatusCode -ne 200 -or
+              ($page.Content -notmatch 'Keep me signed in for 7 days|Command Center')) {
+              throw "Command Center did not render or reach the normal sign-in page."
+          }
+          Write-Host "Command Center cockpit assets and protected route passed."
+
       - name: Report optional learning schema readiness
         shell: pwsh
         run: |
@@ -257,3 +314,4 @@ jobs:
           catch {
               Write-Host "Azure startup diagnostic capture failed: $($_.Exception.Message)"
           }
+

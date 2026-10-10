@@ -67,6 +67,21 @@ public sealed class LearningController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Read(string surfaceCode, string displayMode,
+        string? contentCode, string? returnUrl, CancellationToken cancellationToken)
+    {
+        if (LearningContentCatalog.ForSurface(surfaceCode ?? "").Count == 0
+            || (displayMode != "full" && displayMode != "thumbnail")) return BadRequest();
+        var context = await userContext.GetAsync(HttpContext, cancellationToken);
+        var presentation = await learning.ReadAsync(context.User, surfaceCode, displayMode,
+            contentCode, cancellationToken);
+        if (presentation is null) return StatusCode(503);
+        ViewData["ReturnUrl"] = Url.IsLocalUrl(returnUrl) ? returnUrl : "/";
+        return PartialView("~/Views/Shared/Components/CoachLearning/Default.cshtml", presentation);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Interact(
         string contentCode,
         string surfaceCode,
@@ -112,7 +127,8 @@ public sealed class LearningController(
         }
 
         return RedirectToAction(
-            "Index",
+            "CommandCenter",
             "Dashboard");
     }
 }
+

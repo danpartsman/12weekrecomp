@@ -1,3 +1,4 @@
+@using WebRecomp.Web.Services.Learning
 @model SettingsViewModel
 @{
     ViewData["Title"] = "Settings";
@@ -53,28 +54,16 @@
             <p class="small">Your selected coach appears throughout Dashboard learning, nutrition topics, workout topics and “The Why” series.</p>
         </div>
         <div class="coach-choice-grid">
-            <label class="coach-choice">
-                <input asp-for="PreferredCoachCode" type="radio" value="MARISOL" />
-                <img src="/images/coach/marisol-coach-avatar.webp" alt="Marisol" />
-                <span class="coach-choice-copy"><strong>Marisol</strong><em>Strong + supportive</em><small>Warm, encouraging, consistency-focused.</small></span>
-            </label>
-            <label class="coach-choice">
-                <input asp-for="PreferredCoachCode" type="radio" value="CASSIE" />
-                <img src="/images/coach/cassie-avatar-v1015c.png" alt="Cassie" />
-                <span class="coach-choice-copy"><strong>Cassie</strong><em>Energetic + athletic</em><small>Upbeat, performance-minded coaching.</small></span>
-            </label>
-            <label class="coach-choice">
-                <input asp-for="PreferredCoachCode" type="radio" value="MARCUS" />
-                <img src="/images/coach/marcus-avatar-v1015c.png" alt="Marcus" />
-                <span class="coach-choice-copy"><strong>Marcus</strong><em>Calm + technical</em><small>Methodical, technique-and-progression focused.</small></span>
-            </label>
-            <label class="coach-choice">
-                <input asp-for="PreferredCoachCode" type="radio" value="NINA" />
-                <img src="/images/coach/nina-avatar-v1015c.png" alt="Nina" />
-                <span class="coach-choice-copy"><strong>Nina</strong><em>Direct + focused</em><small>Clear, disciplined, habit-centered coaching.</small></span>
-            </label>
-        </div>
-        <a class="button"
+                @foreach (var coach in CoachCatalog.All)
+                {
+                    <label class="coach-choice">
+                        <input asp-for="PreferredCoachCode" type="radio" value="@coach.Code" />
+                        @await Html.PartialAsync("_CoachPhoto", (coach.GalleryImages[0]!, coach.Name))
+                        <span class="coach-choice-copy"><strong>@coach.Name</strong><em>@coach.Style</em><small>@coach.Tagline</small></span>
+                    </label>
+                }
+            </div>
+            <a class="button"
            asp-controller="Learning"
            asp-action="Coaches">
             Preview all coach galleries
@@ -153,3 +142,4 @@
         });
     })();
 </script>
+

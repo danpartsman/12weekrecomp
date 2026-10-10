@@ -207,6 +207,7 @@ builder.Services.AddScoped<WeeklyPlanningAssessmentService>();
 builder.Services.AddScoped<ProgramPlanService>();
 builder.Services.AddScoped<WeeklyPlanService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Dashboard3.RecompCockpitService>();
 builder.Services.AddScoped<LearningOrchestratorService>();
 builder.Services.AddHostedService<LearningSchemaHostedService>();
 builder.Services.AddHttpClient<IEmailService, MicrosoftGraphEmailService>();

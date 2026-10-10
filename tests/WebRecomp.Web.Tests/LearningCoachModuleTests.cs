@@ -1,3 +1,9 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using WebRecomp.Web.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using WebRecomp.Web.Data;
@@ -10,23 +16,39 @@ namespace WebRecomp.Web.Tests;
 public sealed class LearningCoachModuleTests
 {
     [Fact]
-    public void CoachCatalog_HasFourPersistentCoachChoices_WithFiveGallerySlotsEach()
+    public void CoachCatalog_HasEightPersistentCoachChoices_WithVariedGalleries()
     {
-        Assert.Equal(4, CoachCatalog.All.Count);
+        Assert.Equal(8, CoachCatalog.All.Count);
 
         Assert.Equal(
-            new[] { "MARISOL", "CASSIE", "MARCUS", "NINA" },
+            new[] { "MARISOL", "CASSIE", "MARCUS", "NINA", "GRANT", "OWEN", "AISHA", "LUCIA" },
             CoachCatalog.All.Select(x => x.Code).ToArray());
 
         Assert.All(
             CoachCatalog.All,
-            coach => Assert.Equal(5, coach.GalleryImages.Count));
+            coach => Assert.Equal(coach.Code is "GRANT" or "OWEN" or "AISHA" or "LUCIA" ? 6 : 5, coach.GalleryImages.Count));
+    }
+
+    [Fact]
+    public void CoachImages_RotateWithoutConsecutiveRepeats()
+    {
+        foreach (var coach in CoachCatalog.All)
+        {
+            var previous = CoachCatalog.ResolveImage(coach, 1);
+            for (var i = 0; i < 30; i++)
+            {
+                var current = CoachCatalog.ResolveImage(coach, 1);
+                Assert.Contains(current, coach.GalleryImages);
+                Assert.NotEqual(previous, current);
+                previous = current;
+            }
+        }
     }
 
     [Theory]
-    [InlineData("DASHBOARD", "AEROBIC_ENERGY", 8)]
-    [InlineData("NUTRITION", "FOOD_AND_FUEL", 8)]
-    [InlineData("WORKOUT", "TRAINING_ADAPTATION", 8)]
+    [InlineData("DASHBOARD", "AEROBIC_ENERGY", 9)]
+    [InlineData("NUTRITION", "FOOD_AND_FUEL", 15)]
+    [InlineData("WORKOUT", "TRAINING_ADAPTATION", 15)]
     public void LearningSeries_AreContiguousAndSurfaceSpecific(
         string surface,
         string series,
@@ -47,6 +69,33 @@ public sealed class LearningCoachModuleTests
         Assert.All(
             lessons,
             lesson => Assert.Equal(expectedModules, lesson.TotalModules));
+    }
+
+    [Theory]
+    [InlineData(typeof(SettingsViewModel))]
+    [InlineData(typeof(OnboardingSetupViewModel))]
+    public void CoachForms_AcceptEveryCatalogChoice_AndRejectUnknownChoices(Type modelType)
+    {
+        var model = Activator.CreateInstance(modelType)!;
+        var context = new ValidationContext(model) { MemberName = "PreferredCoachCode" };
+        foreach (var coach in CoachCatalog.All)
+            Assert.True(Validator.TryValidateProperty(coach.Code, context, new List<ValidationResult>()));
+        Assert.False(Validator.TryValidateProperty("NOT_A_COACH", context, new List<ValidationResult>()));
+    }
+
+    [Theory]
+    [InlineData(typeof(SettingsViewModel))]
+    [InlineData(typeof(OnboardingSetupViewModel))]
+    public void CoachForms_ClientValidationMatchesOfferedChoices(Type modelType)
+    {
+        var provider = new EmptyModelMetadataProvider();
+        var metadata = provider.GetMetadataForProperty(modelType, "PreferredCoachCode");
+        var attributes = new Dictionary<string, string>();
+        new CoachCodeAttribute().AddValidation(new ClientModelValidationContext(
+            new ActionContext(), metadata, provider, attributes));
+        var pattern = attributes["data-val-regex-pattern"];
+        foreach (var coach in CoachCatalog.All) Assert.Matches(pattern, coach.Code);
+        Assert.DoesNotMatch(pattern, "NOT_A_COACH");
     }
 
     [Fact]
@@ -131,3 +180,4 @@ public sealed class LearningCoachModuleTests
         throw new DirectoryNotFoundException("Could not locate repository root.");
     }
 }
+
