@@ -599,4 +599,28 @@ public sealed class SystemWorkoutRecipeCatalogTests
                     "OTF_STRENGTH50_2026_09_30"));
     }
 
+
+    [Theory]
+    [InlineData("SYS_UPPER_EXPRESS_A")]
+    [InlineData("SYS_UPPER_EXPRESS_B")]
+    public void UpperBodyExpressIsSelectableAndKeepsItsDurationWithoutAnEngineDefault(
+        string systemCode)
+    {
+        Assert.True(SystemWorkoutRecipeCatalog.TryGet(systemCode, out var recipe));
+        Assert.NotNull(recipe);
+        Assert.Contains(SystemWorkoutRecipeCatalog.PresentationRecipes, x => x.SystemCode == systemCode);
+        Assert.Contains(SystemWorkoutRecipeCatalog.PlanningRecipes, x => x.SystemCode == systemCode);
+        Assert.Equal(25m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(recipe!, 0m));
+        Assert.Equal(25m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(recipe!, 60m));
+        Assert.Equal(7m, SystemWorkoutRecipeCatalog.ResolveDefaultRpe(recipe!, 8m));
+        Assert.Equal(7, recipe!.Slots.Count);
+        Assert.Equal(14, recipe.Slots.Sum(x => x.Sets));
+    }
+
+    [Fact]
+    public void RecipeWithoutExplicitDurationStillKeepsAnUnsetEngineDefault()
+    {
+        Assert.True(SystemWorkoutRecipeCatalog.TryGet("REST", out var recipe));
+        Assert.Equal(0m, SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(recipe!, 0m));
+    }
 }
