@@ -24,6 +24,8 @@ public static class FitdaysMeasurementMapper
         }
         return m;
     }
+    public static bool BodyValuesUnchanged(Measurement current, Measurement? rendered, WebRecomp.Web.ViewModels.DailyEntryViewModel entry) =>
+        MatchesEntry(current,entry) || (rendered?.MeasurementSourceCode == "FITDAYS" && MatchesEntry(rendered,entry));
     public static bool MatchesEntry(Measurement m, WebRecomp.Web.ViewModels.DailyEntryViewModel entry) =>
         m.WeightLb == entry.WeightLb && m.BodyFatPct == entry.BodyFatPercent / 100m
         && m.SkeletalMuscleMassLb == entry.SkeletalMuscleMassLb

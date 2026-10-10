@@ -70,6 +70,15 @@ public sealed class ExternalConnectionTests
         }
         finally {if(Directory.Exists(path))Directory.Delete(path,true);}
     }
+    [Fact]
+    public void StaleDailyFormDoesNotOverwriteAReadingThatArrivedDuringNutritionEdits()
+    {
+        var rendered=new Measurement {MeasurementSourceCode="FITDAYS",WeightLb=200};
+        var latest=new Measurement {MeasurementSourceCode="FITDAYS",WeightLb=199};
+        var entry=new DailyEntryViewModel {WeightLb=200,ProteinG=150};
+        Assert.True(FitdaysMeasurementMapper.BodyValuesUnchanged(latest,rendered,entry));
+        entry.WeightLb=198;Assert.False(FitdaysMeasurementMapper.BodyValuesUnchanged(latest,rendered,entry));
+    }
     private static FitdaysReading Reading() => new(12,new DateTimeOffset(2026,10,10,23,30,0,TimeSpan.FromHours(-7)),212.7m,"record-a",26.2m,68.8m,42.4m,54.1m,18.7m,10m);
     [Fact]
     public void MapsVerifiedPercentFieldsAndLocalDateWithoutGenericMuscle()

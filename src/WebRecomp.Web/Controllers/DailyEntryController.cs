@@ -146,9 +146,19 @@ public sealed class DailyEntryController(
             .OrderByDescending(x => x.MeasurementAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
+        Measurement? renderedMeasurement = null;
+        if (measurement?.MeasurementSourceCode == "FITDAYS"
+            && model.RenderedMeasurementId.HasValue
+            && model.RenderedMeasurementId != measurement.MeasurementId)
+        {
+            renderedMeasurement = await db.Measurements.AsNoTracking().SingleOrDefaultAsync(x =>
+                x.MeasurementId == model.RenderedMeasurementId
+                && x.ProgramId == program.ProgramId && x.LocalMeasurementDate == model.Date
+                && !x.IsDeleted, cancellationToken);
+        }
         var unchangedDeviceMeasurement = measurement?.MeasurementSourceCode == "FITDAYS"
             && ((!bodyDataEntered && model.RenderedMeasurementId != measurement.MeasurementId)
-                || WebRecomp.Web.Services.ExternalConnections.FitdaysMeasurementMapper.MatchesEntry(measurement, model));
+                || WebRecomp.Web.Services.ExternalConnections.FitdaysMeasurementMapper.BodyValuesUnchanged(measurement, renderedMeasurement, model));
         if (!unchangedDeviceMeasurement && (bodyDataEntered || measurement is not null))
         {
             if (measurement?.MeasurementSourceCode == "FITDAYS")
