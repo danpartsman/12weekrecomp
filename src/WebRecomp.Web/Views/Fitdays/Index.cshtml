@@ -29,7 +29,7 @@
                 <label asp-for="Email">Fitdays email<input asp-for="Email" type="email" autocomplete="username" required /></label>
                 <label asp-for="Password">Fitdays password<input asp-for="Password" type="password" autocomplete="off" value="" required /></label>
                 <label asp-for="Region">Account region<select asp-for="Region"><option value="us">United States / international</option><option value="eu">Europe</option><option value="cn">China</option></select><small>Choose where your Fitdays account is stored.</small></label>
-                <label class="fitdays-consent"><input asp-for="Consent" type="checkbox" /><span>Allow Recomp TEST to sign in to Fitdays and read my profiles and the last 30 days of weigh-ins for this preview.</span></label>
+                <label class="fitdays-consent"><input asp-for="Consent" type="checkbox" /><span>Allow Recomp TEST to sign in to Fitdays and read my profiles and recent weigh-ins for this preview.</span></label>
                 <button class="primary" type="submit">Connect &amp; preview readings</button>
                 <p class="small">Your password is not saved. The preview expires after 20 minutes. After previewing, you can save an encrypted sign-in for persistent automatic syncing. This experimental connection uses an unofficial Fitdays interface.</p>
             </form>
@@ -76,7 +76,7 @@
             </section>
             var readings = Model.Snapshot.Readings.Where(r => r.PersonId == Model.PersonId).Take(100).ToList();
             <section class="card">
-                <h2>Recent weigh-ins <span class="small">@readings.Count readings · last 30 days</span></h2>
+                <h2>Recent weigh-ins <span class="small">@readings.Count recent readings</span></h2>
                 @if (readings.Count == 0)
                 {
                     <p role="status">No recent weigh-ins were returned for this profile. Open Fitdays and confirm your scale readings have synced to your account.</p>
@@ -92,7 +92,7 @@
                             }</tbody>
                         </table>
                     </div>
-                    <p class="small">Weight is converted from the provider's grams or kilograms. Other columns show unchanged provider values for comparison with Fitdays; their units and meaning must be confirmed before importing. “—” means unavailable. Deleted provider records are excluded.</p>
+                    <p class="small">Weight is converted from the provider's grams or kilograms. Other columns show raw Fitdays values. Import settings default skeletal muscle (rosm) and body water (vwc) to percentages converted into pounds. Administration can adjust the units or disable body composition. “—” means unavailable. Deleted provider records are excluded.</p>
                 }
             </section>
         }
