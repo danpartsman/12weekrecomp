@@ -8,13 +8,13 @@ using WebRecomp.Web.Services.ExternalConnections;
 namespace WebRecomp.Web.Controllers;
 [Authorize(Roles="Administrator")]
 [ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
-public sealed class AdminExternalConnectionsController(RecompDbContext db) : Controller
+public sealed class AdminExternalConnectionsController(RecompDbContext db,DeviceConnectionStore connections) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
-        var p=await db.DeviceProviderSettings.AsNoTracking().SingleAsync(p=>p.ProviderCode=="FITDAYS",ct);
+        var p=await connections.ProviderAsync(ct);
         var model=new ProviderSettingsModel {Enabled=p.Enabled,AutomaticSyncEnabled=p.AutomaticSyncEnabled,SyncIntervalMinutes=p.SyncIntervalMinutes,HistoryDays=p.HistoryDays,AppVersion=p.AppVersion,BodyCompositionEnabled=p.BodyCompositionEnabled,SkeletalMuscleUnit=p.SkeletalMuscleUnit,BodyWaterUnit=p.BodyWaterUnit};
         await Populate(model,ct);return View(model);
     }
@@ -23,19 +23,22 @@ public sealed class AdminExternalConnectionsController(RecompDbContext db) : Con
     {
         if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
         if(!ModelState.IsValid){await Populate(model,ct);return View(model);}
-        await db.DeviceProviderSettings.Where(p=>p.ProviderCode=="FITDAYS").ExecuteUpdateAsync(s=>s.SetProperty(p=>p.Enabled,model.Enabled).SetProperty(p=>p.AutomaticSyncEnabled,model.AutomaticSyncEnabled).SetProperty(p=>p.SyncIntervalMinutes,model.SyncIntervalMinutes).SetProperty(p=>p.HistoryDays,model.HistoryDays).SetProperty(p=>p.AppVersion,model.AppVersion).SetProperty(p=>p.BodyCompositionEnabled,model.BodyCompositionEnabled).SetProperty(p=>p.SkeletalMuscleUnit,model.SkeletalMuscleUnit).SetProperty(p=>p.BodyWaterUnit,model.BodyWaterUnit).SetProperty(p=>p.UpdatedAtUtc,DateTime.UtcNow),ct);
+        await connections.UpdateProviderAsync(new DeviceProviderSetting {Enabled=model.Enabled,AutomaticSyncEnabled=model.AutomaticSyncEnabled,SyncIntervalMinutes=model.SyncIntervalMinutes,HistoryDays=model.HistoryDays,AppVersion=model.AppVersion,BodyCompositionEnabled=model.BodyCompositionEnabled,SkeletalMuscleUnit=model.SkeletalMuscleUnit,BodyWaterUnit=model.BodyWaterUnit,UpdatedAtUtc=DateTime.UtcNow},ct);
         TempData["DeviceMessage"]="External connection settings saved.";return RedirectToAction(nameof(Index));
     }
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Pause(Guid connectionId,CancellationToken ct)
     {
         if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
-        await db.DeviceConnections.Where(c=>c.DeviceConnectionId==connectionId).ExecuteUpdateAsync(s=>s.SetProperty(c=>c.AutomaticSync,false).SetProperty(c=>c.UpdatedAtUtc,DateTime.UtcNow),ct);
+        await connections.PauseAsync(connectionId,ct);
         TempData["DeviceMessage"]="Automatic sync paused for this connection.";return RedirectToAction(nameof(Index));
     }
     private async Task Populate(ProviderSettingsModel model,CancellationToken ct)
     {
-        model.Connections=await (from c in db.DeviceConnections.AsNoTracking() join u in db.UserAccounts.AsNoTracking() on c.UserId equals u.UserId select new DeviceAdminRow(c.DeviceConnectionId,u.PreferredDisplayName??u.DisplayName??"Recomp user",c.PersonName,c.StatusCode,c.AutomaticSync,c.LastSuccessAtUtc,c.LastMessage)).Take(200).ToListAsync(ct);
+        var rows=(await connections.ListAsync(ct)).Take(200).ToList();
+        var ids=rows.Select(c=>c.UserId).Distinct().ToList();
+        var users=await db.UserAccounts.AsNoTracking().Where(u=>ids.Contains(u.UserId)).ToDictionaryAsync(u=>u.UserId,ct);
+        model.Connections=rows.Select(c=>new DeviceAdminRow(c.DeviceConnectionId,users.TryGetValue(c.UserId,out var u)?u.PreferredDisplayName??u.DisplayName??"Recomp user":"Recomp user",c.PersonName,c.StatusCode,c.AutomaticSync,c.LastSuccessAtUtc,c.LastMessage)).ToList();
     }
 }
 public sealed class ProviderSettingsModel

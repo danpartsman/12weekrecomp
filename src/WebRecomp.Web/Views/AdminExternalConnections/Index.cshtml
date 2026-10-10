@@ -8,7 +8,7 @@
 <form method="post" class="fitdays-connect">
 <div asp-validation-summary="All" role="alert"></div>
 <label class="fitdays-consent"><input asp-for="Enabled"/><span>Enable Fitdays connections and manual sync</span></label>
-<label class="fitdays-consent"><input asp-for="AutomaticSyncEnabled"/><span>Enable page-open sync for users who opt in</span></label>
+<label class="fitdays-consent"><input asp-for="AutomaticSyncEnabled"/><span>Enable Daily Entry page-open sync for users who opt in</span></label>
 <label>Minimum time between page-open checks (minutes)<input asp-for="SyncIntervalMinutes" type="number" min="15" max="1440"/></label>
 <label>History to check (days)<input asp-for="HistoryDays" type="number" min="1" max="90"/></label>
 <label>Fitdays API app version<input asp-for="AppVersion"/><small>Current protocol version: 1.21.0. Change only when required by Fitdays.</small></label>

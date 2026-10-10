@@ -8,13 +8,11 @@ const string tokenVariable = "AZURE_SQL_ACCESS_TOKEN";
 var runtimeConnectionString = Environment.GetEnvironmentVariable(connectionStringVariable);
 var accessToken = Environment.GetEnvironmentVariable(tokenVariable);
 var configuredAuthentication = args.Contains("--configured-auth", StringComparer.Ordinal);
-var deviceMigration = args.Contains("--device-integrations", StringComparer.Ordinal);
 var learningMigration = args.Contains("--learning-coach", StringComparer.Ordinal);
-if (args.Any(x => x is not ("--learning-coach" or "--configured-auth" or "--device-integrations"))
-    || (configuredAuthentication && !learningMigration && !deviceMigration)
-    || (learningMigration && deviceMigration))
+if (args.Any(x => x is not ("--learning-coach" or "--configured-auth"))
+    || (configuredAuthentication && !learningMigration))
 {
-    Console.Error.WriteLine("Supported migration options: --learning-coach or --device-integrations [--configured-auth].");
+    Console.Error.WriteLine("Supported migration options: --learning-coach [--configured-auth].");
     return 5;
 }
 
@@ -100,9 +98,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::nutrition TO web_recomp_app;
 
 // The learning migration is additive and idempotent. Run it with the
 // deployment identity, never by granting DDL to the runtime web identity.
-var migrationSql = deviceMigration
-    ? await File.ReadAllTextAsync(Path.Combine("database", "045_external_device_connections.sql"))
-    : learningMigration
+var migrationSql = learningMigration
     ? await File.ReadAllTextAsync(Path.Combine("database", "043_v1015c_learning_coach_foundation.sql"))
     : localAuthMigrationSql;
 
@@ -123,7 +119,7 @@ try
     await command.ExecuteNonQueryAsync();
 
     Console.WriteLine(
-        $"12WR database migration complete for {runtimeBuilder.InitialCatalog}; {(deviceMigration ? "device integration schema is present" : learningMigration ? "learning coach schema is present" : "local auth schema and nutrition runtime grants are present")}.");
+        $"12WR database migration complete for {runtimeBuilder.InitialCatalog}; {(learningMigration ? "learning coach schema is present" : "local auth schema and nutrition runtime grants are present")}.");
     return 0;
 }
 catch (SqlException exception)

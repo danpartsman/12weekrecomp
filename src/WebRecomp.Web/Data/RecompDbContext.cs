@@ -5,8 +5,6 @@ namespace WebRecomp.Web.Data;
 
 public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) : DbContext(options)
 {
-    public DbSet<DeviceProviderSetting> DeviceProviderSettings => Set<DeviceProviderSetting>();
-    public DbSet<DeviceConnection> DeviceConnections => Set<DeviceConnection>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
     public DbSet<LearningCoachPreference> LearningCoachPreferences => Set<LearningCoachPreference>();
     public DbSet<LearningSeriesProgress> LearningSeriesProgress => Set<LearningSeriesProgress>();
@@ -60,18 +58,7 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        Map<DeviceProviderSetting>(modelBuilder, "DeviceProviderSettings", "app", nameof(DeviceProviderSetting.ProviderCode));
-        Map<DeviceConnection>(modelBuilder, "DeviceConnections", "app", nameof(DeviceConnection.DeviceConnectionId));
-        modelBuilder.Entity<DeviceProviderSetting>().Property(x => x.ProviderCode).HasMaxLength(40);
-        modelBuilder.Entity<DeviceProviderSetting>().Property(x => x.AppVersion).HasMaxLength(32);
-        modelBuilder.Entity<DeviceProviderSetting>().Property(x => x.SkeletalMuscleUnit).HasMaxLength(16);
-        modelBuilder.Entity<DeviceProviderSetting>().Property(x => x.BodyWaterUnit).HasMaxLength(16);
-        modelBuilder.Entity<DeviceConnection>().Property(x => x.ProviderCode).HasMaxLength(40);
-        modelBuilder.Entity<DeviceConnection>().Property(x => x.Region).HasMaxLength(8);
-        modelBuilder.Entity<DeviceConnection>().Property(x => x.PersonName).HasMaxLength(200);
-        modelBuilder.Entity<DeviceConnection>().Property(x => x.StatusCode).HasMaxLength(24);
-        modelBuilder.Entity<DeviceConnection>().Property(x => x.LastMessage).HasMaxLength(600);
-        modelBuilder.Entity<DeviceConnection>().HasIndex(x => new { x.UserId, x.ClientId, x.ProviderCode }).IsUnique();
+
         Map<UserAccount>(modelBuilder, "UserAccounts", "app", nameof(UserAccount.UserId));
         Map<LearningCoachPreference>(modelBuilder, "LearningCoachPreferences", "app", nameof(LearningCoachPreference.UserId));
         Map<LearningSeriesProgress>(

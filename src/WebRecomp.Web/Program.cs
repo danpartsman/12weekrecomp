@@ -174,6 +174,8 @@ builder.Services.AddScoped<AppUserContextService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton<WebRecomp.Web.Services.ExternalConnections.DeviceCredentialProtector>();
+builder.Services.AddSingleton(new WebRecomp.Web.Services.ExternalConnections.DeviceConnectionStore(
+    Path.Combine(Environment.GetEnvironmentVariable("HOME") ?? builder.Environment.ContentRootPath, "data", "external-connections")));
 builder.Services.AddScoped<WebRecomp.Web.Services.ExternalConnections.DeviceIntegrationService>();
 builder.Services.AddHttpClient<WebRecomp.ExternalConnections.Fitdays.FitdaysClient>(client => client.Timeout = TimeSpan.FromSeconds(25))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate })

@@ -1490,3 +1490,6 @@ body.test-live-preview.app-shell .daily-entry-activity-grid input[type="number"]
 
     .daily-entry-grid > label { padding-inline:.4rem; }
 }
+
+.daily-scale-actions { display:flex; gap:.7rem; flex-wrap:wrap; align-items:center; margin-bottom:.8rem; }
+.daily-scale-actions p { flex-basis:100%; margin:0; }

@@ -147,7 +147,8 @@ public sealed class DailyEntryController(
             .FirstOrDefaultAsync(cancellationToken);
 
         var unchangedDeviceMeasurement = measurement?.MeasurementSourceCode == "FITDAYS"
-            && WebRecomp.Web.Services.ExternalConnections.FitdaysMeasurementMapper.MatchesEntry(measurement, model);
+            && ((!bodyDataEntered && model.RenderedMeasurementId != measurement.MeasurementId)
+                || WebRecomp.Web.Services.ExternalConnections.FitdaysMeasurementMapper.MatchesEntry(measurement, model));
         if (!unchangedDeviceMeasurement && (bodyDataEntered || measurement is not null))
         {
             if (measurement?.MeasurementSourceCode == "FITDAYS")
@@ -766,6 +767,7 @@ public sealed class DailyEntryController(
         var model = new DailyEntryViewModel
         {
             Date = date,
+            RenderedMeasurementId = measurement?.MeasurementId,
             DetailedWorkoutEntryEnabled =
                 program.DetailedWorkoutEntryEnabled,
             NutritionFoodLogEnabled =

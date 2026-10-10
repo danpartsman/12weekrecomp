@@ -133,12 +133,21 @@
 
         @Html.AntiForgeryToken()
         <input asp-for="Date" type="hidden" />
+        <input asp-for="RenderedMeasurementId" type="hidden" />
 
         <div asp-validation-summary="ModelOnly"
              class="validation"></div>
 
         <section class="daily-entry-section" id="body-recovery">
 
+            @if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsTestSite)
+            {
+                <div class="daily-scale-actions">
+                    <button type="button" id="pull-scale-readings" data-url="@Url.Action("PullReadings", "ExternalConnections")">Pull scale readings</button>
+                    <a asp-controller="ExternalConnections" asp-action="Index">Manage scale connection</a>
+                    <p id="scale-pull-status" class="small" role="status" aria-live="polite"></p>
+                </div>
+            }
             <div class="daily-entry-section-heading">
                 <div class="daily-entry-section-number">1</div>
                 <div>

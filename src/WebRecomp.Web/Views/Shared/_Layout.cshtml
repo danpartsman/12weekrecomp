@@ -570,7 +570,7 @@
     <script src="~/js/learning-v1015c.js" asp-append-version="true"></script>
     <script src="~/js/recent-workout-picker.js" asp-append-version="true"></script>
     <script src="~/js/live-workout-notes.js" asp-append-version="true"></script>
-@if (User.Identity?.IsAuthenticated == true && WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsTestSite && !isPublicPage && !isOnboardingPage)
+@if (User.Identity?.IsAuthenticated == true && WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsTestSite && !isPublicPage && !isOnboardingPage && string.Equals(Context.Request.RouteValues["controller"]?.ToString(), "DailyEntry", StringComparison.OrdinalIgnoreCase))
 {
     var deviceToken = DeviceAntiforgery.GetAndStoreTokens(Context);
     <div id="device-sync-on-open" hidden data-url="@Url.Action("SyncOnOpen", "ExternalConnections")" data-field="@deviceToken.FormFieldName" data-token="@deviceToken.RequestToken"></div>

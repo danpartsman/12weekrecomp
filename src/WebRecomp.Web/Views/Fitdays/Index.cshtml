@@ -69,7 +69,7 @@
                     <input type="hidden" name="personId" value="@Model.PersonId" />
                     <p>Selected profile: <strong>@Model.Snapshot.People.Single(p => p.Id == Model.PersonId).Name</strong></p>
                     <label class="fitdays-consent"><input type="checkbox" name="persistConsent" value="true" required /><span>Save my encrypted Fitdays sign-in and import this profile's scale readings into my Recomp account.</span></label>
-                    <label class="fitdays-consent"><input type="checkbox" name="automaticSync" value="true" checked /><span>Check for new weigh-ins when I open Recomp</span></label>
+                    <label class="fitdays-consent"><input type="checkbox" name="automaticSync" value="true" checked /><span>Check for new weigh-ins when I open Daily Entry</span></label>
                     <button class="primary" type="submit">Save connection &amp; sync readings</button>
                     <p class="small">You will not need to sign in every day. Existing manually recorded days are preserved; duplicate readings are skipped.</p>
                 </form>

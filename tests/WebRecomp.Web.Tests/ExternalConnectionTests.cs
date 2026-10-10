@@ -31,6 +31,45 @@ public sealed class ExternalConnectionTests
         c.StatusCode="CONNECTED";setting.AutomaticSyncEnabled=false;Assert.False(DeviceSyncPolicy.ShouldCheckOnOpen(setting,c,now));
         Assert.False(DeviceSyncPolicy.ShouldCheckOnOpen(setting,null,now));
     }
+    [Fact]
+    public async Task DurableConnectionStoreSurvivesRecreationAndDisconnectRetainsMetadata()
+    {
+        var path=Path.Combine(Path.GetTempPath(),"recomp-connections-"+Guid.NewGuid());
+        try
+        {
+            var store=new DeviceConnectionStore(path);
+            var c=new DeviceConnection {DeviceConnectionId=Guid.NewGuid(),UserId=Guid.NewGuid(),ClientId=Guid.NewGuid(),ProtectedCredential="encrypted-ciphertext",PersonId=12};
+            await store.SaveAsync(c,default);
+            var reopened=new DeviceConnectionStore(path);
+            Assert.Equal("encrypted-ciphertext",(await reopened.ConnectionAsync(c.UserId,c.ClientId,default))!.ProtectedCredential);
+            Assert.Null(await reopened.ConnectionAsync(Guid.NewGuid(),c.ClientId,default));
+            await reopened.UpdateProviderAsync(new() {SyncIntervalMinutes=20},default);
+            Assert.Equal(20,(await store.ProviderAsync(default)).SyncIntervalMinutes);
+            Assert.True(await reopened.DisconnectAsync(c.UserId,c.ClientId,default));
+            var disconnected=await store.ConnectionAsync(c.UserId,c.ClientId,default);
+            Assert.Null(disconnected!.ProtectedCredential);Assert.Equal(12,disconnected.PersonId);Assert.False(disconnected.AutomaticSync);
+        }
+        finally {if(Directory.Exists(path))Directory.Delete(path,true);}
+    }
+    [Fact]
+    public async Task DurableStoreAllowsOnlyOneConcurrentSyncLease()
+    {
+        var path=Path.Combine(Path.GetTempPath(),"recomp-leases-"+Guid.NewGuid());
+        try
+        {
+            var first=new DeviceConnectionStore(path);var second=new DeviceConnectionStore(path);
+            var c=new DeviceConnection {DeviceConnectionId=Guid.NewGuid(),UserId=Guid.NewGuid(),ClientId=Guid.NewGuid(),ProtectedCredential="ciphertext"};
+            await first.SaveAsync(c,default);
+            var lease=Guid.NewGuid();var now=DateTime.UtcNow;
+            var results=await Task.WhenAll(first.ClaimAsync(c.DeviceConnectionId,lease,now,default),second.ClaimAsync(c.DeviceConnectionId,Guid.NewGuid(),now,default));
+            Assert.Single(results.Where(x=>x!=null));
+            var winner=results.Single(x=>x!=null)!;
+            Assert.False(await first.FinishAsync(c.DeviceConnectionId,Guid.NewGuid(),"CONNECTED","",null,true,default));
+            Assert.True(await second.FinishAsync(c.DeviceConnectionId,winner.SyncLeaseId!.Value,"CONNECTED","Synced",null,true,default));
+            Assert.NotNull(await first.ClaimAsync(c.DeviceConnectionId,Guid.NewGuid(),DateTime.UtcNow,default));
+        }
+        finally {if(Directory.Exists(path))Directory.Delete(path,true);}
+    }
     private static FitdaysReading Reading() => new(12,new DateTimeOffset(2026,10,10,23,30,0,TimeSpan.FromHours(-7)),212.7m,"record-a",26.2m,68.8m,42.4m,54.1m,18.7m,10m);
     [Fact]
     public void MapsVerifiedPercentFieldsAndLocalDateWithoutGenericMuscle()

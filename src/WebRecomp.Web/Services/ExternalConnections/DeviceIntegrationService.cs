@@ -6,11 +6,11 @@ using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 namespace WebRecomp.Web.Services.ExternalConnections;
 
-public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient client, DeviceCredentialProtector protector)
+public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient client, DeviceCredentialProtector protector, DeviceConnectionStore connections)
 {
     public int LastImportedCount { get; private set; }
-    public Task<DeviceProviderSetting> ProviderAsync(CancellationToken ct) => db.DeviceProviderSettings.SingleAsync(p=>p.ProviderCode=="FITDAYS",ct);
-    public Task<DeviceConnection?> ConnectionAsync(Guid user, Guid owner, CancellationToken ct) => db.DeviceConnections.SingleOrDefaultAsync(c=>c.UserId==user && c.ClientId==owner && c.ProviderCode=="FITDAYS",ct);
+    public Task<DeviceProviderSetting> ProviderAsync(CancellationToken ct) => connections.ProviderAsync(ct);
+    public Task<DeviceConnection?> ConnectionAsync(Guid user, Guid owner, CancellationToken ct) => connections.ConnectionAsync(user,owner,ct);
     public async Task<DeviceConnection> SaveAsync(AppClientContext context, SavedFitdaysLogin login, FitdaysPerson person, bool automatic, CancellationToken ct)
     {
         var setting=await ProviderAsync(ct);
@@ -18,11 +18,11 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
         if (!await OwnsAsync(context.User.UserId,context.Client!.ClientId,ct)) throw new FitdaysPreviewException("Only the profile owner can connect a scale.");
         var c=await ConnectionAsync(context.User.UserId,context.Client.ClientId,ct);
         if (c?.SyncLeaseUntilUtc > DateTime.UtcNow) throw new FitdaysPreviewException("A sync is in progress. Please wait before changing the connection.");
-        if(c==null) {c=new DeviceConnection {DeviceConnectionId=Guid.NewGuid(),UserId=context.User.UserId,ClientId=context.Client.ClientId,CreatedAtUtc=DateTime.UtcNow};db.DeviceConnections.Add(c);}
+        if(c==null) {c=new DeviceConnection {DeviceConnectionId=Guid.NewGuid(),UserId=context.User.UserId,ClientId=context.Client.ClientId,CreatedAtUtc=DateTime.UtcNow};}
         c.Region=login.Session.Region; c.PersonId=person.Id; c.PersonName=person.Name.Length>200?person.Name[..200]:person.Name;
         c.AutomaticSync=automatic;c.StatusCode="CONNECTED";c.LastAttemptAtUtc=null;c.LastSuccessAtUtc=null;c.LastMessage="Connected. Ready to sync.";c.UpdatedAtUtc=DateTime.UtcNow;
         c.ProtectedCredential=protector.Protect(c,login);
-        await db.SaveChangesAsync(ct); return c;
+        return await connections.SaveAsync(c,ct);
     }
     public Task<bool> OwnsAsync(Guid user,Guid owner,CancellationToken ct) => db.UserClientAccess.AnyAsync(a=>a.UserId==user&&a.ClientId==owner&&a.AccessRoleCode=="OWNER"&&a.RevokedAtUtc==null,ct);
 
@@ -31,10 +31,8 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
         if(!ExternalConnectionFeatures.IsTestSite)return "Device syncing is unavailable in this environment.";
         var setting=await ProviderAsync(ct);if(!setting.Enabled)return "Fitdays is disabled by the administrator.";
         var now=DateTime.UtcNow;var lease=Guid.NewGuid();
-        var claimed=await db.DeviceConnections.Where(c=>c.DeviceConnectionId==id&&c.ProtectedCredential!=null&&c.StatusCode!="DISCONNECTED"&&(c.SyncLeaseUntilUtc==null||c.SyncLeaseUntilUtc<now))
-            .ExecuteUpdateAsync(s=>s.SetProperty(c=>c.SyncLeaseUntilUtc,now.AddMinutes(2)).SetProperty(c=>c.SyncLeaseId,lease).SetProperty(c=>c.LastAttemptAtUtc,now),ct);
-        if(claimed==0)return "A sync is already running or the connection is disconnected.";
-        var connection=await db.DeviceConnections.AsNoTracking().SingleAsync(c=>c.DeviceConnectionId==id,ct);
+        var connection=await connections.ClaimAsync(id,lease,now,ct);
+        if(connection==null)return "A sync is already running or the connection is disconnected.";
         string message;string status="CONNECTED";string? updatedSecret=null;bool succeeded=false;
         try
         {
@@ -73,9 +71,7 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
         catch(CryptographicException) {message="Saved sign-in could not be opened. Reconnect Fitdays once to restore automatic sync.";status="RECONNECT";}
         catch(Exception ex) when(ex is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException or InvalidOperationException or DbUpdateException or System.Data.Common.DbException or KeyNotFoundException)
         {message="Sync could not finish. Your existing measurements were preserved. Try Sync now or reconnect if the issue continues.";status="ATTENTION";}
-        var finished=DateTime.UtcNow;
-        await db.DeviceConnections.Where(c=>c.DeviceConnectionId==id&&c.SyncLeaseId==lease)
-            .ExecuteUpdateAsync(s=>s.SetProperty(c=>c.StatusCode,status).SetProperty(c=>c.LastMessage,message).SetProperty(c=>c.LastSuccessAtUtc,succeeded?finished:connection.LastSuccessAtUtc).SetProperty(c=>c.ProtectedCredential,updatedSecret??connection.ProtectedCredential).SetProperty(c=>c.SyncLeaseUntilUtc,(DateTime?)null).SetProperty(c=>c.SyncLeaseId,(Guid?)null).SetProperty(c=>c.UpdatedAtUtc,finished),CancellationToken.None);
+        await connections.FinishAsync(id,lease,status,message,updatedSecret,succeeded,CancellationToken.None);
         return message;
     }
 }

@@ -8,7 +8,7 @@ using WebRecomp.Web.Services.ExternalConnections;
 namespace WebRecomp.Web.Controllers;
 [Authorize]
 [ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
-public sealed class ExternalConnectionsController(AppUserContextService users,RecompDbContext db,DeviceIntegrationService service) : Controller
+public sealed class ExternalConnectionsController(AppUserContextService users,DeviceConnectionStore connections,DeviceIntegrationService service) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -44,13 +44,24 @@ public sealed class ExternalConnectionsController(AppUserContextService users,Re
         return RedirectToAction(nameof(Index));
     }
     [HttpPost,ValidateAntiForgeryToken]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("fitdays-preview")]
+    public async Task<IActionResult> PullReadings(CancellationToken ct)
+    {
+        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        var context=await users.GetAsync(HttpContext,ct);
+        if(context.Client==null||!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Forbid();
+        var c=await service.ConnectionAsync(context.User.UserId,context.Client.ClientId,ct);
+        if(c?.ProtectedCredential==null)return Json(new {updated=false,message="Connect your Fitdays scale once in Profile → Device integrations, then save your selected profile."});
+        var message=await service.SyncAsync(c.DeviceConnectionId,ct);
+        return Json(new {updated=service.LastImportedCount>0,message});
+    }
+    [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Settings(bool automaticSync,CancellationToken ct)
     {
         if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
         var context=await users.GetAsync(HttpContext,ct);if(context.Client==null)return RedirectToAction("Index","Intake");
         if(!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Forbid();
-        await db.DeviceConnections.Where(c=>c.UserId==context.User.UserId&&c.ClientId==context.Client.ClientId&&c.ProviderCode=="FITDAYS")
-            .ExecuteUpdateAsync(s=>s.SetProperty(c=>c.AutomaticSync,automaticSync).SetProperty(c=>c.UpdatedAtUtc,DateTime.UtcNow),ct);
+        await connections.PreferenceAsync(context.User.UserId,context.Client.ClientId,automaticSync,ct);
         TempData["DeviceMessage"]="Device integration preference saved.";return RedirectToAction(nameof(Index));
     }
     [HttpPost,ValidateAntiForgeryToken]
@@ -59,9 +70,8 @@ public sealed class ExternalConnectionsController(AppUserContextService users,Re
         if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
         var context=await users.GetAsync(HttpContext,ct);if(context.Client==null)return RedirectToAction("Index","Intake");
         if(!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Forbid();
-        var changed=await db.DeviceConnections.Where(c=>c.UserId==context.User.UserId&&c.ClientId==context.Client.ClientId&&c.ProviderCode=="FITDAYS"&&(c.SyncLeaseUntilUtc==null||c.SyncLeaseUntilUtc<DateTime.UtcNow))
-            .ExecuteUpdateAsync(s=>s.SetProperty(c=>c.ProtectedCredential,(string?)null).SetProperty(c=>c.AutomaticSync,false).SetProperty(c=>c.StatusCode,"DISCONNECTED").SetProperty(c=>c.UpdatedAtUtc,DateTime.UtcNow).SetProperty(c=>c.LastMessage,"Disconnected. Imported measurements retained."),ct);
-        TempData["DeviceMessage"]=changed>0?"Fitdays disconnected. Your imported measurements were retained.":"A sync is in progress. Wait a moment before disconnecting.";
+        var changed=await connections.DisconnectAsync(context.User.UserId,context.Client.ClientId,ct);
+        TempData["DeviceMessage"]=changed?"Fitdays disconnected. Your imported measurements were retained.":"A sync is in progress. Wait a moment before disconnecting.";
         return RedirectToAction(nameof(Index));
     }
 }

@@ -14,10 +14,10 @@
             <p><strong>Last successful sync:</strong> @(c.LastSuccessAtUtc.HasValue ? c.LastSuccessAtUtc.Value.ToString("yyyy-MM-dd HH:mm")+" UTC" : "Not synced yet")</p>
             <p role="status">@c.LastMessage</p>
             <form asp-action="Settings" method="post" class="fitdays-connect">
-                <label class="fitdays-consent"><input type="checkbox" name="automaticSync" value="true" checked="@c.AutomaticSync" /><span>Check my scale when I open Recomp</span></label>
+                <label class="fitdays-consent"><input type="checkbox" name="automaticSync" value="true" checked="@c.AutomaticSync" /><span>Check my scale when I open Daily Entry</span></label>
                 <button type="submit">Save device preference</button>
             </form>
-            <p class="small">@(Model.Provider.AutomaticSyncEnabled ? $"Opening a Recomp page checks your scale when at least {Model.Provider.SyncIntervalMinutes} minutes have passed since the previous attempt." : "Automatic sync is paused by the administrator. Sync now remains available.") Your encrypted sign-in persists across visits and deployments; expired sessions are renewed automatically when possible.</p>
+            <p class="small">@(Model.Provider.AutomaticSyncEnabled ? $"Opening Daily Entry checks your scale when at least {Model.Provider.SyncIntervalMinutes} minutes have passed since the previous attempt." : "Automatic sync is paused by the administrator. Sync now remains available.") Your encrypted sign-in persists across visits and deployments; expired sessions are renewed automatically when possible.</p>
             <div class="fitdays-connected">
                 <form asp-action="Sync" method="post"><button class="primary" type="submit" disabled="@(!Model.Provider.Enabled)">Sync now</button></form>
                 <a class="button" asp-controller="Fitdays" asp-action="Index" asp-route-reconnect="true">Change scale account or profile</a>
