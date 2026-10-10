@@ -78,7 +78,12 @@ jobs:
               --name recomp-test `
               --resource-group $resourceGroup `
               --always-on true --only-show-errors | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw "Could not enable Always On for scheduled device sync." }
+          if ($LASTEXITCODE -ne 0) {
+              $plan = az webapp show --name recomp-test --resource-group $resourceGroup --query serverFarmId --output tsv
+              az appservice plan show --ids $plan --query "{tier:sku.tier,size:sku.name}" --output json
+              Write-Output "::warning::Always On is unavailable on the current TEST host. Saved device sign-in persists; automatic sync runs while the app is awake. No hosting plan or pricing has been changed."
+              $global:LASTEXITCODE = 0
+          }
 
           az webapp log config `
               --name recomp-test `
