@@ -551,7 +551,121 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
 
         modelBuilder.Entity<DemoSession>().Property(x => x.IpAddress).HasMaxLength(64);
         modelBuilder.Entity<DemoSession>().Property(x => x.DeviceTypeCode).HasMaxLength(16);
-        modelBuilder.Entity<DemoSession>().Property(x => x.OperatingSystem).HasMaxLeng…1003 tokens truncated…tity<UserEntitlement>()
+        modelBuilder.Entity<DemoSession>().Property(x => x.OperatingSystem).HasMaxLength(64);
+        modelBuilder.Entity<DemoSession>().Property(x => x.BrowserName).HasMaxLength(64);
+        modelBuilder.Entity<DemoSession>().Property(x => x.UserAgent).HasMaxLength(1000);
+        modelBuilder.Entity<DemoSession>().Property(x => x.LastPagePath).HasMaxLength(500);
+
+        modelBuilder.Entity<Recommendation>()
+            .HasOne<AnalysisRun>()
+            .WithMany()
+            .HasForeignKey(x => x.AnalysisRunId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<WeeklyStrategySnapshot>()
+            .HasOne<AnalysisRun>()
+            .WithMany()
+            .HasForeignKey(x => x.AnalysisRunId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<RecommendationAlert>()
+            .HasOne<Recommendation>()
+            .WithMany()
+            .HasForeignKey(x => x.RecommendationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DemoWorkspace>()
+            .HasOne<DemoInvite>()
+            .WithMany()
+            .HasForeignKey(x => x.DemoInviteId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<DemoWorkspace>()
+            .HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<DemoWorkspace>()
+            .HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.ConvertedToUserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<DemoInvite>()
+            .HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.CreatedByUserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<DemoSession>()
+            .HasOne<DemoWorkspace>()
+            .WithMany()
+            .HasForeignKey(x => x.DemoWorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<GiveawayCodeBatch>()
+            .Property(x => x.BatchName)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<GiveawayCodeBatch>()
+            .Property(x => x.Notes)
+            .HasMaxLength(1000);
+
+        modelBuilder.Entity<GiveawayCode>()
+            .Property(x => x.Code)
+            .HasMaxLength(64);
+
+        modelBuilder.Entity<GiveawayCode>()
+            .Property(x => x.StatusCode)
+            .HasMaxLength(16);
+
+        modelBuilder.Entity<UserEntitlement>()
+            .Property(x => x.EntitlementTypeCode)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<UserEntitlement>()
+            .Property(x => x.SourceTypeCode)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<GiveawayCodeBatch>()
+            .HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.CreatedByUserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<GiveawayCode>()
+            .HasOne<GiveawayCodeBatch>()
+            .WithMany()
+            .HasForeignKey(x => x.GiveawayCodeBatchId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<GiveawayCode>()
+            .HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.RedeemedByUserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<GiveawayCode>()
+            .HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.RevokedByUserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<UserEntitlement>()
+            .HasOne<UserAccount>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<GiveawayCode>()
+            .HasIndex(x => x.Code)
+            .IsUnique();
+
+        modelBuilder.Entity<GiveawayCode>()
+            .HasIndex(x => new { x.StatusCode, x.RedeemByUtc });
+
+        modelBuilder.Entity<UserEntitlement>()
             .HasIndex(x => new
             {
                 x.UserId,
