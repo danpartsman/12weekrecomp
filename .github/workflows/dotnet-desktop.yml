@@ -74,6 +74,12 @@ jobs:
               --resource-group $resourceGroup `
               --settings WebRecomp__EnableTestPersonas="false" WebRecomp__BootstrapAdministratorEmailSha256="0618188557cf5bee9c97b08c64f7a748835803dbaf1aa2a5cf3a9f2dd1da60bb" | Out-Null
 
+          az webapp config set `
+              --name recomp-test `
+              --resource-group $resourceGroup `
+              --always-on true --only-show-errors | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Could not enable Always On for scheduled device sync." }
+
           az webapp log config `
               --name recomp-test `
               --resource-group $resourceGroup `

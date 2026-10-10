@@ -65,7 +65,7 @@ public sealed class FitdaysClient(HttpClient http)
             request.Headers.UserAgent.ParseAdd("okhttp/4.9.3");
             request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-            if (!response.IsSuccessStatusCode) throw new FitdaysPreviewException("Fitdays is unavailable or rejected the request. Check your account details and try again later.");
+            if (!response.IsSuccessStatusCode) throw new FitdaysPreviewException("Fitdays is unavailable or rejected the request. Check your account details and try again later.") { SessionRejected = response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden };
             await using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var buffer = new MemoryStream();
             var chunk = new byte[8192];
