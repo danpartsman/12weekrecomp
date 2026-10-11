@@ -1,39 +1,57 @@
 @using System.Globalization
 @using WebRecomp.Web.Services.Dashboard3
 @model RecompBodyCompositionComparison
-<section class="d3-composition" aria-labelledby="d3-composition-title">
-    <div class="d3-row-heading"><h2 id="d3-composition-title">7-Day Body Composition Change</h2><span>Based on scale estimates</span></div>
+@{
+    var quietWidth = (Model.Position(.2m) - 50m) * 2m;
+    var sideWidth = ((100m - quietWidth) / 2m).ToString("0.###", CultureInfo.InvariantCulture);
+}
+<section class="d3-composition" aria-label="7-day body composition change" style="--d3-composition-side:@sideWidth;--d3-composition-quiet:@(quietWidth.ToString("0.###", CultureInfo.InvariantCulture))">
     @foreach (var metric in new[] { Model.Fat, Model.Muscle })
     {
         <div class="d3-composition-row d3-composition-@metric.Band" data-composition="@metric.Key">
-            <div class="d3-composition-label"><h3>@metric.Label</h3><strong>@(metric.DisplayChangeLb?.ToString("+0.0;-0.0;0.0") ?? "—")@(metric.DisplayChangeLb.HasValue ? " lb" : "") · @metric.Status</strong></div>
+            <div class="d3-composition-label">
+                <h3>@(metric.Key == "muscle" ? "Muscle mass" : metric.Label)</h3>
+                @if (metric.DisplayChangeLb is decimal result)
+                {
+                    <strong>@result.ToString("+0.0;-0.0;0.0") lb · @metric.Status</strong>
+                }
+                else
+                {
+                    <span class="d3-composition-missing" role="status" title="@metric.MissingNotice">@(metric.Latest.Count == 0 && metric.Previous.Count == 0 ? "No readings in either period" : metric.Latest.Count == 0 ? "No latest readings" : "No earlier readings")</span>
+                }
+            </div>
             @if (metric.DisplayChangeLb is decimal change)
             {
                 var position = Model.Position(change);
-                var left = Math.Min(50m, position).ToString("0.###", CultureInfo.InvariantCulture);
-                var width = Math.Abs(position - 50m).ToString("0.###", CultureInfo.InvariantCulture);
-                <div class="d3-composition-track" role="img" aria-label="@metric.Label: @change.ToString("+0.0;-0.0;0.0") pounds, @metric.Status. Left is loss; right is gain.">
-                    <span class="d3-composition-zero" aria-hidden="true"></span>
-                    <span class="d3-composition-line" style="left:@(left)%;width:@(width)%" aria-hidden="true"></span>
-                    <span class="d3-composition-dot" style="left:@(position.ToString("0.###", CultureInfo.InvariantCulture))%" aria-hidden="true"></span>
+                <div class="d3-energy-track d3-composition-track" role="img" aria-label="@metric.Label: @change.ToString("+0.0;-0.0;0.0") pounds, @metric.Status. Left is loss; right is gain.">
+                    <span class="d3-composition-loss" aria-hidden="true"></span>
+                    <span class="d3-composition-quiet" aria-hidden="true"></span>
+                    <span class="d3-composition-gain" aria-hidden="true"></span>
+                    <span class="d3-energy-needle" style="left:@(position.ToString("0.###", CultureInfo.InvariantCulture))%" aria-hidden="true"></span>
                 </div>
             }
             else
             {
-                <div class="d3-composition-missing" role="status">@metric.MissingNotice</div>
+                <div class="d3-energy-track d3-composition-track d3-composition-unavailable" aria-hidden="true"><span></span></div>
             }
-            <div class="d3-composition-coverage"><span>Latest: @metric.Latest.Count / 3 readings</span><span>Earlier: @metric.Previous.Count / 3 readings</span></div>
         </div>
     }
-    <div class="d3-composition-axis" aria-hidden="true"><span>← Loss · −@Model.ScaleLb.ToString("0.#") lb</span><span>0 change</span><span>+@Model.ScaleLb.ToString("0.#") lb · Gain →</span></div>
     <details class="d3-composition-details"><summary>Dates, averages and calculation</summary>
         <p>Latest three-day average minus the three-day average ending seven days earlier. One or two available readings are enough; missing values are excluded, never treated as zero.</p>
+        <p>Both lines use the same scale: −@Model.ScaleLb.ToString("0.#") lb on the left, zero in the center, and +@Model.ScaleLb.ToString("0.#") lb on the right. The marker shows the change; left is loss and right is gain.</p>
         <div class="d2-table-wrap"><table><thead><tr><th>Measure</th><th>Latest period</th><th>Earlier period</th></tr></thead><tbody>
         @foreach (var metric in new[] { Model.Fat, Model.Muscle })
         {
             <tr><th>@metric.Label</th><td>@metric.Latest.Start.ToString("MMM d, yyyy")–@metric.Latest.End.ToString("MMM d, yyyy")<br />@(metric.Latest.AverageLb?.ToString("0.0") ?? "No readings")@(metric.Latest.AverageLb.HasValue ? " lb average" : "") · @metric.Latest.Count readings</td><td>@metric.Previous.Start.ToString("MMM d, yyyy")–@metric.Previous.End.ToString("MMM d, yyyy")<br />@(metric.Previous.AverageLb?.ToString("0.0") ?? "No readings")@(metric.Previous.AverageLb.HasValue ? " lb average" : "") · @metric.Previous.Count readings</td></tr>
         }
         </tbody></table></div>
+        @foreach (var metric in new[] { Model.Fat, Model.Muscle })
+        {
+            @if (metric.MissingNotice is not null)
+            {
+                <p>@metric.MissingNotice</p>
+            }
+        }
         <p>Body fat is weight × body-fat fraction for each reading, then averaged. Muscle uses the same muscle measurement type in both periods; skeletal and generic muscle estimates are never mixed. Each day uses its latest saved reading.</p>
         <p>Green: fat loss or muscle gain. Red: fat gain or muscle loss. Yellow: displayed change within ±0.2 lb, our display tolerance. Scale estimates can shift with hydration; this result stays separate from your execution score.</p>
         <a href="/Progress">Review longer-term progress →</a>
