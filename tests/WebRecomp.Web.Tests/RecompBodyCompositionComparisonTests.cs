@@ -161,10 +161,10 @@ public sealed class RecompBodyCompositionComparisonTests
             [Reading(-7), Reading(0, 196, muscle: 81)]);
         Assert.Equal(-1m, result.SevenDay.Fat.ChangeLb);
         Assert.Equal(1m, result.SevenDay.Muscle.ChangeLb);
-        Assert.Null(result.ThirtyDay.Fat.ChangeLb);
-        Assert.Null(result.ThirtyDay.Muscle.ChangeLb);
-        Assert.Contains("earlier three-day period", result.ThirtyDay.Fat.MissingNotice);
-        Assert.Equal(1, result.ThirtyDay.Fat.Latest.Count);
+        Assert.Null(result.LongTerm.Fat.ChangeLb);
+        Assert.Null(result.LongTerm.Muscle.ChangeLb);
+        Assert.Contains("earlier three-day period", result.LongTerm.Fat.MissingNotice);
+        Assert.Equal(1, result.LongTerm.Fat.Latest.Count);
     }
 
     [Fact]
@@ -173,11 +173,37 @@ public sealed class RecompBodyCompositionComparisonTests
         var result = RecompBodyCompositionTrends.Build(Today,
             [Reading(-30, 220, muscle: 78), Reading(-7, 204, muscle: 80), Reading(0, 200, muscle: 81)]);
         Assert.Equal(-1m, result.SevenDay.Fat.ChangeLb);
-        Assert.Equal(-5m, result.ThirtyDay.Fat.ChangeLb);
+        Assert.Equal(-5m, result.LongTerm.Fat.ChangeLb);
         Assert.Equal(1m, result.SevenDay.Muscle.ChangeLb);
-        Assert.Equal(3m, result.ThirtyDay.Muscle.ChangeLb);
+        Assert.Equal(3m, result.LongTerm.Muscle.ChangeLb);
         Assert.Equal(5m, result.SevenDay.ScaleLb);
-        Assert.Equal(result.SevenDay.ScaleLb, result.ThirtyDay.ScaleLb);
-        Assert.Equal(result.SevenDay.Position(1m), result.ThirtyDay.Position(1m));
+        Assert.Equal(result.SevenDay.ScaleLb, result.LongTerm.ScaleLb);
+        Assert.Equal(result.SevenDay.Position(1m), result.LongTerm.Position(1m));
+    }
+
+    [Theory]
+    [InlineData(30)] [InlineData(60)] [InlineData(90)] [InlineData(180)]
+    public void SelectedLongTermPeriodUsesItsExactBaselineAndKeepsSevenDays(int days)
+    {
+        var result = RecompBodyCompositionTrends.Build(Today,
+            [Reading(-days-2, 220, muscle: 78), Reading(-days, 212, muscle: 80),
+                Reading(-days+1, 400), Reading(-7, 204, muscle: 80), Reading(0, 200, muscle: 81)], days);
+        Assert.Equal(7, result.SevenDay.ComparisonDays);
+        Assert.Equal(days, result.LongTerm.ComparisonDays);
+        Assert.Equal(Today.AddDays(-days-2), result.LongTerm.Fat.Previous.Start);
+        Assert.Equal(Today.AddDays(-days), result.LongTerm.Fat.Previous.End);
+        Assert.Equal(2, result.LongTerm.Fat.Previous.Count);
+        Assert.Equal(1, result.LongTerm.Fat.Latest.Count);
+        Assert.Equal(-4m, result.LongTerm.Fat.ChangeLb);
+        Assert.Equal(2m, result.LongTerm.Muscle.ChangeLb);
+        Assert.Equal(-1m, result.SevenDay.Fat.ChangeLb);
+        Assert.Equal(result.SevenDay.ScaleLb, result.LongTerm.ScaleLb);
+    }
+
+    [Theory]
+    [InlineData(null)] [InlineData(0)] [InlineData(-180)] [InlineData(7)] [InlineData(31)] [InlineData(int.MaxValue)]
+    public void UnsupportedPeriodsUseThirtyDayDefault(int? days)
+    {
+        Assert.Equal(30, RecompBodyCompositionTrends.NormalizeComparisonDays(days));
     }
 }

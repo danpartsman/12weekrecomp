@@ -68,15 +68,18 @@ public sealed record RecompBodyCompositionComparison(RecompCompositionChange Fat
 }
 
 public sealed record RecompBodyCompositionTrends(RecompBodyCompositionComparison SevenDay,
-    RecompBodyCompositionComparison ThirtyDay)
+    RecompBodyCompositionComparison LongTerm)
 {
-    public static RecompBodyCompositionTrends Build(DateOnly date, IEnumerable<Measurement> readings)
+    public static int NormalizeComparisonDays(int? days) => days is 60 or 90 or 180 ? days.Value : 30;
+
+    public static RecompBodyCompositionTrends Build(DateOnly date, IEnumerable<Measurement> readings,
+        int comparisonDays = 30)
     {
         var rows = readings.ToArray();
         var sevenDay = RecompBodyCompositionComparison.Build(date, rows);
-        var thirtyDay = RecompBodyCompositionComparison.Build(date, rows, 30);
+        var longTerm = RecompBodyCompositionComparison.Build(date, rows, NormalizeComparisonDays(comparisonDays));
         // Equal changes must have equal lengths when comparing the two horizons.
-        var scale = Math.Max(sevenDay.ScaleLb, thirtyDay.ScaleLb);
-        return new(sevenDay with { MinimumScaleLb = scale }, thirtyDay with { MinimumScaleLb = scale });
+        var scale = Math.Max(sevenDay.ScaleLb, longTerm.ScaleLb);
+        return new(sevenDay with { MinimumScaleLb = scale }, longTerm with { MinimumScaleLb = scale });
     }
 }

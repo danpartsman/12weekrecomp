@@ -6,7 +6,28 @@
     {
         <div class="d3-composition-row d3-composition-@metric.Band" data-composition="@metric.Key">
             <div class="d3-composition-label">
-                <h3>@Model.ComparisonDays day @(metric.Key == "muscle" ? "MUSCLE MASS" : "BODY FAT") change</h3>
+                @if (metric.Key == "fat" && Model.ComparisonDays != 7)
+                {
+                    <form action="/CommandCenter" method="get" class="d3-composition-name">
+                        <input type="hidden" name="date" value="@metric.Latest.End.ToString("yyyy-MM-dd")" />
+                        @if (Context.Request.Query.TryGetValue("occasions", out var occasions))
+                        {
+                            <input type="hidden" name="occasions" value="@occasions" />
+                        }
+                        <select name="compositionDays" aria-label="Long-term comparison period" data-composition-period>
+                            @foreach (var days in new[] { 30, 60, 90, 180 })
+                            {
+                                <option value="@days" selected="@(days == Model.ComparisonDays)">@days day</option>
+                            }
+                        </select>
+                        <h3>BODY FAT change</h3>
+                        <noscript><button type="submit">Apply</button></noscript>
+                    </form>
+                }
+                else
+                {
+                    <h3>@Model.ComparisonDays day @(metric.Key == "muscle" ? "MUSCLE MASS" : "BODY FAT") change</h3>
+                }
                 @if (metric.DisplayChangeLb is decimal result)
                 {
                     <strong>@result.ToString("+0.0;-0.0;0.0") lb · @metric.Status</strong>

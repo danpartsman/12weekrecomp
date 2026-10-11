@@ -46,7 +46,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
     private const string FlexVersion = "RECOMP_FLEX_V1";
 
     public async Task<RecompCockpit> BuildAsync(AppClientContext context, DashboardViewModel day,
-        MacroDayPlan mealPlan, CancellationToken ct)
+        MacroDayPlan mealPlan, CancellationToken ct, int compositionDays = 30)
     {
         var client = context.Client!;
         var program = context.Program!;
@@ -181,7 +181,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 mealPlan.Bands[0].Target, mealPlan.Bands[1].Target, mealPlan.Bands[2].Target,
                 mealPlan.EnergyTarget, mealPlan.Bands[0].Eaten, mealPlan.Bands[1].Eaten, mealPlan.Bands[2].Eaten,
                 mealPlan.EnergyEaten, flex.GetValueOrDefault(today), "Current engine prescription")).ToList(),
-            BodyComposition = await BuildBodyCompositionAsync(context, today, ct),
+            BodyComposition = await BuildBodyCompositionAsync(context, today, compositionDays, ct),
             Score = score, Training = training, Glycogen = glycogen, Days = days, History = history, UpcomingWorkouts = upcoming,
             Change = !score.HasEvidence || previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
             TodayFlexibleItems = flex.GetValueOrDefault(today),
@@ -249,13 +249,14 @@ public sealed class RecompCockpitService(RecompDbContext db,
     }
 
     private async Task<RecompBodyCompositionTrends> BuildBodyCompositionAsync(AppClientContext context,
-        DateOnly date, CancellationToken ct)
+        DateOnly date, int compositionDays, CancellationToken ct)
     {
-        var from = date.AddDays(-32);
+        compositionDays = RecompBodyCompositionTrends.NormalizeComparisonDays(compositionDays);
+        var from = date.AddDays(-compositionDays - 2);
         var rows = await db.Measurements.AsNoTracking().Where(x => x.ClientId == context.Client!.ClientId
             && x.ProgramId == context.Program!.ProgramId && !x.IsDeleted
             && x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= date).ToListAsync(ct);
-        return RecompBodyCompositionTrends.Build(date, rows);
+        return RecompBodyCompositionTrends.Build(date, rows, compositionDays);
     }
 
     private static AnalysisRun NewRun(AppClientContext context, DateOnly date, string version, string json, string confidence) => new()
