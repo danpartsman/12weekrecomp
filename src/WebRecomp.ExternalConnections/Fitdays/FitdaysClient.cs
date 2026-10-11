@@ -134,7 +134,19 @@ public sealed class FitdaysClient(HttpClient http)
                 readings.Add(new(id.Value, measured, lb.Value, Text(w, "data_id") ?? Number(w, "id")?.ToString(CultureInfo.InvariantCulture) ?? "Unavailable", Decimal(w, "bfr"), Decimal(w, "rom"), Decimal(w, "rosm"), Decimal(w, "vwc"), Decimal(w, "sfr"), Decimal(w, "uvi")));
             }
         }
-        return new(profiles, readings.OrderByDescending(x => x.MeasuredAt).ToList(), DateTimeOffset.UtcNow, timezone);
+        var rawDates = new Dictionary<long, List<long>>();
+        if (data.TryGetProperty("weight_list", out var rawList) && rawList.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var row in rawList.EnumerateArray())
+            {
+                if (Number(row, "is_deleted") == 1) continue;
+                var rawPerson = Number(row, "suid"); var rawTime = Number(row, "measured_time");
+                if (rawPerson is null || rawTime is null) continue;
+                if (!rawDates.TryGetValue(rawPerson.Value, out var dates)) rawDates[rawPerson.Value] = dates = [];
+                dates.Add(rawTime.Value);
+            }
+        }
+        return new(profiles, readings.OrderByDescending(x => x.MeasuredAt).ToList(), DateTimeOffset.UtcNow, timezone) { RawMeasurementTimes = rawDates };
     }
     private static string? Text(JsonElement e, string name) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
     private static decimal? Decimal(JsonElement e, string name)
@@ -157,4 +169,7 @@ public sealed class FitdaysSession
 }
 public sealed record FitdaysPerson(long Id, string Name);
 public sealed record FitdaysReading(long PersonId, DateTimeOffset MeasuredAt, decimal WeightLb, string RecordId, decimal? Bfr, decimal? Rom, decimal? Rosm, decimal? Vwc, decimal? Sfr, decimal? Uvi);
-public sealed record FitdaysSnapshot(List<FitdaysPerson> People, List<FitdaysReading> Readings, DateTimeOffset FetchedAt, string Timezone);
+public sealed record FitdaysSnapshot(List<FitdaysPerson> People, List<FitdaysReading> Readings, DateTimeOffset FetchedAt, string Timezone)
+{
+    public Dictionary<long, List<long>> RawMeasurementTimes { get; init; } = new();
+}

@@ -74,8 +74,20 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
             var latestText=latest==null?"none":latest.MeasuredAt.ToString("yyyy-MM-dd HH:mm zzz");
             var missingIds=selected.Count(r=>r.RecordId=="Unavailable"||r.RecordId.Length>70);
             var beforeProgram=selected.Count(r=>r.MeasuredAt.Date<program.StartDate.ToDateTime(TimeOnly.MinValue).Date);
+            var rawTimes=snapshot.RawMeasurementTimes.GetValueOrDefault(connection.PersonId) ?? [];
+            string FormatRawTime(long timestamp)
+            {
+                try { return TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeSeconds(timestamp),zone).ToString("yyyy-MM-dd HH:mm zzz"); }
+                catch(ArgumentOutOfRangeException) { return $"unsupported timestamp {timestamp}"; }
+            }
+            var rawLatest=rawTimes.Count==0?"none":FormatRawTime(rawTimes.Max());
+            var profileSummary=string.Join("; ",snapshot.People.Take(10).Select(p=>
+            {
+                var times=snapshot.RawMeasurementTimes.GetValueOrDefault(p.Id) ?? [];
+                return $"{p.Name}: latest raw {(times.Count==0?"none":FormatRawTime(times.Max()))}";
+            }));
             updatedSecret=protector.Protect(connection,login);succeeded=true;
-            message=$"Fitdays responded at {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC. Returned {snapshot.Readings.Count} supported readings across profiles; {selected.Count} match your selected profile. Latest selected reading: {latestText}. For local today ({localToday:yyyy-MM-dd}, {person.TimeZone}): {todayCount} returned. Imported {result.inserted}; duplicates {result.duplicates}; blocked by manual days {result.manualBlocked}; unusable record IDs {missingIds}; before program start {beforeProgram}.";
+            message=$"Fitdays responded at {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC. Returned {snapshot.Readings.Count} supported readings across profiles; {selected.Count} match your selected profile. Latest selected reading: {latestText}. For local today ({localToday:yyyy-MM-dd}, {person.TimeZone}): {todayCount} returned. Imported {result.inserted}; duplicates {result.duplicates}; blocked by manual days {result.manualBlocked}; unusable record IDs {missingIds}; before program start {beforeProgram}. Raw selected-profile records: {rawTimes.Count}; newest raw timestamp: {rawLatest}. Account profiles: {profileSummary}.";
         }
         catch(FitdaysPreviewException ex) {message=ex.Message;status="ATTENTION";}
         catch(CryptographicException) {message="Saved sign-in could not be opened. Reconnect Fitdays once to restore automatic sync.";status="RECONNECT";}
