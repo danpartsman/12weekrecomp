@@ -8,7 +8,6 @@
     ViewData["BodyClass"] = "command-center-page";
     var plan = (MacroDayPlan)ViewData["MacroDayPlan"]!;
     var cockpit = ViewData["RecompCockpit"] as RecompCockpit;
-    var compositionDays = (int?)ViewData["CompositionDays"] ?? 30;
     var coach = CoachCatalog.Resolve(Model.PreferredCoachCode);
     var coachImage = coach.Code == "MARISOL" ? "/images/coach/marisol-coach-avatar.webp" : CoachCatalog.ResolveImage(coach, 1);
     var analysis = Model.Engine30Analysis;
@@ -23,10 +22,10 @@
         <button type="button" class="d3-team-photo d3-team-open" data-open-team aria-haspopup="dialog" aria-label="Meet your Recomp coaches"><img src="~/images/coach/recomp-trainer-team.webp" asp-append-version="true" alt="All eight Recomp trainers together in the gym: Grant, Owen, Cassie, Marcus, Marisol, Aisha, Lucía and Nina" width="1536" height="512" fetchpriority="high" /><span>Meet your coaches ↗</span></button>
         <div class="d3-date-panel"><div class="d3-title-block"><p class="d3-eyebrow">YOUR RECOMP TEAM</p><h1>Command Center</h1><p>Week @Model.ProgramWeek · <time datetime="@Model.ActionDate.ToString("yyyy-MM-dd")">@Model.ActionDate.ToString("ddd, MMM d")</time> · @(historical ? "Saved day" : "Today")</p></div>
             <div class="d3-date-controls">
-            <form action="/CommandCenter" method="get" class="d3-date-form"><input type="hidden" name="compositionDays" value="@compositionDays" /><label for="d3-date">Choose a day</label><input id="d3-date" name="date" type="date" value="@Model.ActionDate.ToString("yyyy-MM-dd")" min="@start.ToString("yyyy-MM-dd")" max="@today.ToString("yyyy-MM-dd")" required /><button class="button" type="submit">View day</button></form>
+            <form action="/CommandCenter" method="get" class="d3-date-form"><label for="d3-date">Choose a day</label><input id="d3-date" name="date" type="date" value="@Model.ActionDate.ToString("yyyy-MM-dd")" min="@start.ToString("yyyy-MM-dd")" max="@today.ToString("yyyy-MM-dd")" required /><button class="button" type="submit">View day</button></form>
             <nav class="d3-date-nav" aria-label="Browse dashboard days">
-                @if (Model.ActionDate > start) { <a href="/CommandCenter?date=@Model.ActionDate.AddDays(-1).ToString("yyyy-MM-dd")&compositionDays=@compositionDays" aria-label="Previous day">← Previous</a> }
-                @if (historical) { <a href="/CommandCenter?date=@Model.ActionDate.AddDays(1).ToString("yyyy-MM-dd")&compositionDays=@compositionDays" aria-label="Next day">Next →</a><a href="/CommandCenter?compositionDays=@compositionDays">Today</a> }
+                @if (Model.ActionDate > start) { <a href="/CommandCenter?date=@Model.ActionDate.AddDays(-1).ToString("yyyy-MM-dd")" aria-label="Previous day">← Previous</a> }
+                @if (historical) { <a href="/CommandCenter?date=@Model.ActionDate.AddDays(1).ToString("yyyy-MM-dd")" aria-label="Next day">Next →</a><a href="/CommandCenter">Today</a> }
             </nav>
             </div>
         </div>
@@ -115,7 +114,7 @@
             <p>Protein, training-day carbohydrate, and fat balance combine into this gauge. It uses the same daily target bands as your plan. Each completed-day category miss loses that day's credit. Today's unfinished meals and unknown categories are excluded.</p><p>@cockpit.Score.KnownNutritionDays / @cockpit.Score.CompletedNutritionDays completed days have known macros.@(cockpit.RollingScore && cockpit.Score.CompletedNutritionDays < 7 ? $" Building baseline: {cockpit.Score.CompletedNutritionDays} of 7 completed days available." : "") Unknown intake is excluded, not treated as perfect or zero.</p>
             <div class="d3-components">@foreach (var part in cockpit.Score.Components.Take(3)) { <article><h3>@part.Label · @part.Earned.ToString("0.#") / @part.Weight points</h3><p>@part.Explanation</p></article> }</div>
         @if (!historical) {
-        <details class="d3-food-next"><summary>Plan the rest of today</summary><p>@plan.Advice</p><form method="get" action="/CommandCenter" class="d2-form"><input type="hidden" name="date" value="@Model.ActionDate.ToString("yyyy-MM-dd")" /><input type="hidden" name="compositionDays" value="@compositionDays" /><label for="d3-occasions">Eating occasions remaining</label><input id="d3-occasions" name="occasions" type="number" min="1" max="4" value="@plan.Occasions" /><button type="submit" class="button secondary">Refresh meal plan</button></form>
+        <details class="d3-food-next"><summary>Plan the rest of today</summary><p>@plan.Advice</p><form method="get" action="/CommandCenter" class="d2-form"><input type="hidden" name="date" value="@Model.ActionDate.ToString("yyyy-MM-dd")" /><label for="d3-occasions">Eating occasions remaining</label><input id="d3-occasions" name="occasions" type="number" min="1" max="4" value="@plan.Occasions" /><button type="submit" class="button secondary">Refresh meal plan</button></form>
             @if (plan.Suggestions.Count > 0) { <div class="d2-meal-plan">@foreach (var meal in plan.Suggestions) { <article><h4>@meal.Label</h4><strong>@meal.Protein.ToString("0") g protein</strong><p>@meal.Carbs.ToString("0") g carbs · @meal.Fat.ToString("0") g fat</p></article> }</div> }
             <p class="d3-sub">@plan.SourceNote @ViewData["MealLogNotice"]</p>
         </details>

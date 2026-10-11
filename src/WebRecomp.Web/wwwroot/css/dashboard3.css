@@ -61,10 +61,6 @@ body.test-live-preview.app-shell.command-center-page .d3 .d3-instrument,body.tes
 .d3-composition-row{--change-color:var(--d3-neutral);display:flex;flex-direction:column;gap:7px;min-width:0}
 .d3-composition-green{--change-color:var(--d3-green)}.d3-composition-red{--change-color:var(--d3-red)}.d3-composition-yellow{--change-color:var(--d3-yellow)}
 .d3-composition-label{display:flex;justify-content:space-between;align-items:baseline;gap:8px;line-height:1.25}
-.d3-composition-row[data-composition="fat"]>.d3-composition-label{min-height:24px}
-.d3-composition-name{display:flex;align-items:baseline;flex:1;min-width:0;gap:4px;flex-wrap:wrap;margin:0}
-.d3 .d3-composition-name select{font:inherit;font-size:.78rem;font-weight:750;color:var(--d3-ink);min-height:24px;height:24px;padding:1px 3px;background:#10151c;border:1px solid #637597;border-radius:4px;max-width:100%;flex-shrink:0}
-.d3 .d3-composition-name h3{flex:0 1 auto}
 .d3 .d3-composition-label h3{font-size:.82rem;margin:0;flex:1;min-width:0}.d3-composition-label strong{font-size:.8rem;color:var(--change-color);font-variant-numeric:tabular-nums;text-align:right;flex-shrink:0}
 .d3-composition-track{margin:0;flex-shrink:0}
 .d3-composition-track>.d3-composition-fill{position:absolute;top:0;background:var(--change-color)}
