@@ -51,21 +51,31 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
             var result = await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
             {
             db.ChangeTracker.Clear();
-            var inserted=0;var skipped=0;
+            var inserted=0;var duplicates=0;var manualBlocked=0;
             await using var transaction=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable,ct);
             var earliest=DateOnly.FromDateTime(DateTime.Today.AddDays(-setting.HistoryDays-2));
             var existing=await db.Measurements.Where(m=>m.ClientId==connection.ClientId&&m.ProgramId==program.ProgramId&&m.LocalMeasurementDate>=earliest).ToListAsync(ct);
             foreach(var reading in readings)
             {
                 var mapped=FitdaysMeasurementMapper.Create(reading,connection,program.ProgramId,setting);
-                if(!FitdaysMeasurementMapper.CanImportDay(existing.Where(m=>m.LocalMeasurementDate==mapped.LocalMeasurementDate))||existing.Any(m=>m.MeasurementSourceCode=="FITDAYS"&&m.SourceRecordId==mapped.SourceRecordId)) {skipped++;continue;}
+                if(!FitdaysMeasurementMapper.CanImportDay(existing.Where(m=>m.LocalMeasurementDate==mapped.LocalMeasurementDate))) {manualBlocked++;continue;}
+                if(existing.Any(m=>m.MeasurementSourceCode=="FITDAYS"&&m.SourceRecordId==mapped.SourceRecordId)) {duplicates++;continue;}
                 db.Measurements.Add(mapped);existing.Add(mapped);inserted++;
             }
             await db.SaveChangesAsync(ct);await transaction.CommitAsync(ct);
-            return (inserted, skipped);
+            return (inserted, duplicates, manualBlocked);
             });
             LastImportedCount=result.inserted;
-            updatedSecret=protector.Protect(connection,login);succeeded=true;message=$"Synced {result.inserted} new readings. {result.skipped} existing readings or manually recorded days kept unchanged.";
+            var selected=snapshot.Readings.Where(r=>r.PersonId==connection.PersonId).OrderByDescending(r=>r.MeasuredAt).ToList();
+            var zone=TimeZoneInfo.FindSystemTimeZoneById(person.TimeZone);
+            var localToday=TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,zone).Date;
+            var todayCount=selected.Count(r=>r.MeasuredAt.Date==localToday);
+            var latest=selected.FirstOrDefault();
+            var latestText=latest==null?"none":latest.MeasuredAt.ToString("yyyy-MM-dd HH:mm zzz");
+            var missingIds=selected.Count(r=>r.RecordId=="Unavailable"||r.RecordId.Length>70);
+            var beforeProgram=selected.Count(r=>r.MeasuredAt.Date<program.StartDate.ToDateTime(TimeOnly.MinValue).Date);
+            updatedSecret=protector.Protect(connection,login);succeeded=true;
+            message=$"Fitdays responded at {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC. Returned {snapshot.Readings.Count} supported readings across profiles; {selected.Count} match your selected profile. Latest selected reading: {latestText}. For local today ({localToday:yyyy-MM-dd}, {person.TimeZone}): {todayCount} returned. Imported {result.inserted}; duplicates {result.duplicates}; blocked by manual days {result.manualBlocked}; unusable record IDs {missingIds}; before program start {beforeProgram}.";
         }
         catch(FitdaysPreviewException ex) {message=ex.Message;status="ATTENTION";}
         catch(CryptographicException) {message="Saved sign-in could not be opened. Reconnect Fitdays once to restore automatic sync.";status="RECONNECT";}
