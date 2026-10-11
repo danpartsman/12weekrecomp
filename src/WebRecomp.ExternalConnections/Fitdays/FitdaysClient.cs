@@ -149,7 +149,7 @@ public sealed class FitdaysClient(HttpClient http)
                 dates.Add(rawTime.Value);
             }
         }
-        return new(profiles, readings.OrderByDescending(x => x.MeasuredAt).ToList(), DateTimeOffset.UtcNow, timezone) { RawMeasurementTimes = rawDates, RawRecordCount=rawCount, RawMalformedCount=malformed, RawDeletedCount=deleted, RawLatestTimestamp=latestRaw };
+        return new(profiles, readings.OrderByDescending(x => x.MeasuredAt).ToList(), DateTimeOffset.UtcNow, timezone) { RawMeasurementTimes = rawDates, RawRecordCount=rawCount, RawMalformedCount=malformed, RawDeletedCount=deleted, RawLatestTimestamp=latestRaw, AccountApiHost=data.TryGetProperty("account",out var accountInfo) && Uri.TryCreate(Text(accountInfo,"api_url"),UriKind.Absolute,out var accountUri) ? accountUri.Host : null };
     }
     private static string? Text(JsonElement e, string name) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
     private static decimal? Decimal(JsonElement e, string name)
@@ -179,4 +179,5 @@ public sealed record FitdaysSnapshot(List<FitdaysPerson> People, List<FitdaysRea
     public int RawMalformedCount { get; init; }
     public int RawDeletedCount { get; init; }
     public long? RawLatestTimestamp { get; init; }
+    public string? AccountApiHost { get; init; }
 }
