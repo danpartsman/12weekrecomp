@@ -6,7 +6,7 @@
     {
         <div class="d3-composition-row d3-composition-@metric.Band" data-composition="@metric.Key">
             <div class="d3-composition-label">
-                <h3>@(metric.Key == "muscle" ? "7 day muscle mass change" : "7 day body fat change")</h3>
+                <h3>@(metric.Key == "muscle" ? "7 day MUSCLE MASS change" : "7 day BODY FAT change")</h3>
                 @if (metric.DisplayChangeLb is decimal result)
                 {
                     <strong>@result.ToString("+0.0;-0.0;0.0") lb · @metric.Status</strong>
@@ -31,6 +31,10 @@
                 <div class="d3-energy-track d3-composition-track" aria-hidden="true"></div>
             }
         </div>
+        @if (metric.Key == "fat")
+        {
+            <div class="d3-composition-divider" aria-hidden="true"></div>
+        }
     }
     <details class="d3-composition-details"><summary>Dates, averages and calculation</summary>
         <p>Latest three-day average minus the three-day average ending seven days earlier. One or two available readings are enough; missing values are excluded, never treated as zero.</p>
