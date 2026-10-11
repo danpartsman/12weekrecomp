@@ -42,10 +42,10 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
             if(program==null)throw new FitdaysPreviewException("An active Recomp program is required to import weigh-ins.");
             var login=protector.Unprotect(connection);login.Session.AppVersion=setting.AppVersion;
             using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);timeout.CancelAfter(TimeSpan.FromSeconds(55));
-            FitdaysSnapshot snapshot;
+            FitdaysSnapshot snapshot;bool renewedSession=false;
             try { snapshot=await client.ReadAsync(login.Session,person.TimeZone,timeout.Token,setting.HistoryDays); }
             catch(FitdaysPreviewException ex) when(ex.SessionRejected)
-            { login=login with { Session=await client.LoginHashedAsync(login.Email,login.PasswordHash,connection.Region,timeout.Token,setting.AppVersion) };snapshot=await client.ReadAsync(login.Session,person.TimeZone,timeout.Token,setting.HistoryDays); }
+            { renewedSession=true;login=login with { Session=await client.LoginHashedAsync(login.Email,login.PasswordHash,connection.Region,timeout.Token,setting.AppVersion) };snapshot=await client.ReadAsync(login.Session,person.TimeZone,timeout.Token,setting.HistoryDays); }
             if(!snapshot.People.Any(p=>p.Id==connection.PersonId))throw new FitdaysPreviewException("The selected Fitdays profile is no longer available. Reconnect and select your profile.");
             var readings=snapshot.Readings.Where(r=>r.PersonId==connection.PersonId&&r.RecordId!="Unavailable"&&r.RecordId.Length<=70&&r.MeasuredAt.Date>=program.StartDate.ToDateTime(TimeOnly.MinValue).Date).OrderBy(r=>r.MeasuredAt).ToList();
             var result = await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
@@ -87,7 +87,7 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
                 return $"{p.Name}: latest raw {(times.Count==0?"none":FormatRawTime(times.Max()))}";
             }));
             updatedSecret=protector.Protect(connection,login);succeeded=true;
-            message=$"Fitdays responded at {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC. Returned {snapshot.Readings.Count} supported readings across profiles; {selected.Count} match your selected profile. Latest selected reading: {latestText}. For local today ({localToday:yyyy-MM-dd}, {person.TimeZone}): {todayCount} returned. Imported {result.inserted}; duplicates {result.duplicates}; blocked by manual days {result.manualBlocked}; unusable record IDs {missingIds}; before program start {beforeProgram}. Raw selected-profile records: {rawTimes.Count}; newest raw timestamp: {rawLatest}. Account profiles: {profileSummary}.";
+            message=$"Fitdays responded at {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC. Returned {snapshot.Readings.Count} supported readings across profiles; {selected.Count} match your selected profile. Latest selected reading: {latestText}. For local today ({localToday:yyyy-MM-dd}, {person.TimeZone}): {todayCount} returned. Imported {result.inserted}; duplicates {result.duplicates}; blocked by manual days {result.manualBlocked}; unusable record IDs {missingIds}; before program start {beforeProgram}. Raw selected-profile records: {rawTimes.Count}; newest raw timestamp: {rawLatest}. Account profiles: {profileSummary}. Authentication: {(renewedSession?"saved session rejected; automatic login renewed it":"saved session accepted; no login performed")}. Raw response rows {snapshot.RawRecordCount}; deleted {snapshot.RawDeletedCount}; malformed profile/timestamp {snapshot.RawMalformedCount}; newest raw across all profile IDs {(snapshot.RawLatestTimestamp is long rawNewest?FormatRawTime(rawNewest):"none")}.";
         }
         catch(FitdaysPreviewException ex) {message=ex.Message;status="ATTENTION";}
         catch(CryptographicException) {message="Saved sign-in could not be opened. Reconnect Fitdays once to restore automatic sync.";status="RECONNECT";}

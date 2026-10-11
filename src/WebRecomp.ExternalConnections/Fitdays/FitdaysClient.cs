@@ -135,18 +135,21 @@ public sealed class FitdaysClient(HttpClient http)
             }
         }
         var rawDates = new Dictionary<long, List<long>>();
+        var rawCount=0;var malformed=0;var deleted=0;long? latestRaw=null;
         if (data.TryGetProperty("weight_list", out var rawList) && rawList.ValueKind == JsonValueKind.Array)
         {
             foreach (var row in rawList.EnumerateArray())
             {
-                if (Number(row, "is_deleted") == 1) continue;
+                rawCount++;
+                if (Number(row, "is_deleted") == 1) {deleted++;continue;}
                 var rawPerson = Number(row, "suid"); var rawTime = Number(row, "measured_time");
-                if (rawPerson is null || rawTime is null) continue;
+                if (rawPerson is null || rawTime is null) {malformed++;continue;}
+                latestRaw=latestRaw is null?rawTime.Value:Math.Max(latestRaw.Value,rawTime.Value);
                 if (!rawDates.TryGetValue(rawPerson.Value, out var dates)) rawDates[rawPerson.Value] = dates = [];
                 dates.Add(rawTime.Value);
             }
         }
-        return new(profiles, readings.OrderByDescending(x => x.MeasuredAt).ToList(), DateTimeOffset.UtcNow, timezone) { RawMeasurementTimes = rawDates };
+        return new(profiles, readings.OrderByDescending(x => x.MeasuredAt).ToList(), DateTimeOffset.UtcNow, timezone) { RawMeasurementTimes = rawDates, RawRecordCount=rawCount, RawMalformedCount=malformed, RawDeletedCount=deleted, RawLatestTimestamp=latestRaw };
     }
     private static string? Text(JsonElement e, string name) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
     private static decimal? Decimal(JsonElement e, string name)
@@ -172,4 +175,8 @@ public sealed record FitdaysReading(long PersonId, DateTimeOffset MeasuredAt, de
 public sealed record FitdaysSnapshot(List<FitdaysPerson> People, List<FitdaysReading> Readings, DateTimeOffset FetchedAt, string Timezone)
 {
     public Dictionary<long, List<long>> RawMeasurementTimes { get; init; } = new();
+    public int RawRecordCount { get; init; }
+    public int RawMalformedCount { get; init; }
+    public int RawDeletedCount { get; init; }
+    public long? RawLatestTimestamp { get; init; }
 }
