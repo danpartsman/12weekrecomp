@@ -9,10 +9,7 @@
         return;
     }
 
-    const defaultUnit =
-        (root.dataset.defaultUnit || "LB").toUpperCase() === "KG"
-            ? "KG"
-            : "LB";
+    const defaultUnit = "LB";
 
     const emptyState =
         document.getElementById("wi-empty-workout");
@@ -589,11 +586,7 @@
         hiddenUnit.type = "hidden";
         hiddenUnit.dataset.field =
             "LoadUnitCode";
-        hiddenUnit.value =
-            (item.defaultLoadUnitCode || defaultUnit)
-                .toUpperCase() === "KG"
-                ? "KG"
-                : "LB";
+        hiddenUnit.value = "LB";
 
         card.appendChild(hiddenUnit);
 
@@ -640,7 +633,7 @@
                     item.defaultMaxWeight == null
                         ? null
                         : Math.round(
-                            Number(item.defaultMaxWeight)),
+                            Number(item.defaultMaxWeight) * ((item.defaultLoadUnitCode || "LB").toUpperCase() === "KG" ? 2.2046226218 : 1)),
                     0,
                     10000,
                     1,

@@ -33,7 +33,7 @@ public sealed class RecompScoreResult
     public int? DisplayScore => HasEvidence ? Score : null;
     public int? NutritionScore => ComponentScore(Components.Take(3));
     public int? WorkoutScore => ComponentScore(Components.Skip(3).SkipLast(1));
-    private static int? ComponentScore(IEnumerable<RecompScoreComponent> components)
+    internal static int? ComponentScore(IEnumerable<RecompScoreComponent> components)
     {
         var parts = components.Where(x => x.Included).ToArray();
         var total = parts.Sum(x => x.Weight);
@@ -104,7 +104,7 @@ public static class RecompAdherenceScorer
             : $"{flex} reported items across completed days. 0–2 green; 3–4 yellow; 5+ red.", flex.HasValue));
         return new()
         {
-            Score = ComponentScore(components) ?? 0,
+            Score = RecompScoreResult.ComponentScore(components) ?? 0,
             Components = components, FlexibleItems = flex, FlexibleDayOverMacros = flexOver,
             FlexibleConfirmedDays = knownFlex.Length,
             CompletedNutritionDays = days.Count(x => x.Date < today),
