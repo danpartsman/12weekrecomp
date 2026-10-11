@@ -1,6 +1,6 @@
 @using WebRecomp.Web.Services.Dashboard3
 @model RecompBodyCompositionTrends
-<div class="d3-composition-grid" aria-label="7-day and 30-day body composition comparisons">
+<div class="d3-composition-grid" aria-label="7-day and @Model.LongTerm.ComparisonDays-day body composition comparisons">
     @await Html.PartialAsync("~/Views/Dashboard/_RecompBodyComposition.cshtml", Model.SevenDay)
-    @await Html.PartialAsync("~/Views/Dashboard/_RecompBodyComposition.cshtml", Model.ThirtyDay)
+    @await Html.PartialAsync("~/Views/Dashboard/_RecompBodyComposition.cshtml", Model.LongTerm)
 </div>
