@@ -11,7 +11,7 @@ public sealed record RecompTrainingGauge(
     string Key, string Label, int Completed, int Target, int RemainingPlanned, decimal Weight)
 {
     public decimal ProjectedFraction => Target == 0 ? 1m : Math.Min(1m, (decimal)(Completed + RemainingPlanned) / Target);
-    public string Status => Target == 0 ? "Not in this week's plan" : Completed >= Target ? "Weekly goal reached"
+    public string Status => Target == 0 ? "Not in this period's plan" : Completed >= Target ? "Period goal reached"
         : ProjectedFraction < 1m ? "Behind plan · recoverable" : "Still on schedule";
 }
 
@@ -24,7 +24,7 @@ public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, dec
 public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation, bool Included = true);
 public sealed class RecompScoreResult
 {
-    public const string Version = "RECOMP_SCORE_V3";
+    public const string Version = "RECOMP_SCORE_V4";
     public int Score { get; init; }
     public string Band => !HasEvidence ? "gray" : Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
     public string Status => !HasEvidence ? "Awaiting completed evidence" : Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";
