@@ -22,17 +22,21 @@ public sealed record RecompCompositionChange(string Key, string Label, RecompCom
         : Previous.Count == 0 ? $"No {Label.ToLowerInvariant()} readings in the earlier three-day period." : null;
 }
 
-public sealed record RecompBodyCompositionComparison(RecompCompositionChange Fat, RecompCompositionChange Muscle)
+public sealed record RecompBodyCompositionComparison(RecompCompositionChange Fat, RecompCompositionChange Muscle,
+    int ComparisonDays = 7)
 {
-    public decimal ScaleLb => Math.Max(1m, Math.Ceiling(Math.Max(Math.Abs(Fat.ChangeLb ?? 0m),
+    public decimal MinimumScaleLb { get; init; } = 1m;
+    public decimal ScaleLb => Math.Max(MinimumScaleLb, Math.Ceiling(Math.Max(Math.Abs(Fat.ChangeLb ?? 0m),
         Math.Abs(Muscle.ChangeLb ?? 0m)) * 2m) / 2m);
     public decimal Position(decimal change) => 50m + change / ScaleLb * 45m;
 
-    public static RecompBodyCompositionComparison Build(DateOnly date, IEnumerable<Measurement> readings)
+    public static RecompBodyCompositionComparison Build(DateOnly date, IEnumerable<Measurement> readings,
+        int comparisonDays = 7)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(comparisonDays, 3);
         var latestStart = date.AddDays(-2);
-        var previousEnd = date.AddDays(-7);
-        var previousStart = date.AddDays(-9);
+        var previousEnd = date.AddDays(-comparisonDays);
+        var previousStart = previousEnd.AddDays(-2);
         // One canonical reading per local date, like Daily Entry / Progress. Repeated
         // imports or extra weigh-ins must not give one day disproportionate weight.
         var daily = readings.Where(x => !x.IsDeleted && x.LocalMeasurementDate <= date
@@ -59,6 +63,20 @@ public sealed record RecompBodyCompositionComparison(RecompCompositionChange Fat
         }
         return new(new("fat", "Body fat", Window(latestStart, date, Fat), Window(previousStart, previousEnd, Fat), false),
             new("muscle", skeletal ? "Skeletal muscle mass" : "Muscle mass",
-                Window(latestStart, date, Muscle), Window(previousStart, previousEnd, Muscle), true));
+                Window(latestStart, date, Muscle), Window(previousStart, previousEnd, Muscle), true), comparisonDays);
+    }
+}
+
+public sealed record RecompBodyCompositionTrends(RecompBodyCompositionComparison SevenDay,
+    RecompBodyCompositionComparison ThirtyDay)
+{
+    public static RecompBodyCompositionTrends Build(DateOnly date, IEnumerable<Measurement> readings)
+    {
+        var rows = readings.ToArray();
+        var sevenDay = RecompBodyCompositionComparison.Build(date, rows);
+        var thirtyDay = RecompBodyCompositionComparison.Build(date, rows, 30);
+        // Equal changes must have equal lengths when comparing the two horizons.
+        var scale = Math.Max(sevenDay.ScaleLb, thirtyDay.ScaleLb);
+        return new(sevenDay with { MinimumScaleLb = scale }, thirtyDay with { MinimumScaleLb = scale });
     }
 }

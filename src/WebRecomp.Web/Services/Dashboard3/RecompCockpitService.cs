@@ -24,7 +24,7 @@ public sealed class RecompCockpit
     public DateOnly ScoreEnd { get; init; }
     public bool RollingScore { get; init; } = true;
     public List<RecompDayEvidence> EditableDays { get; init; } = [];
-    public RecompBodyCompositionComparison? BodyComposition { get; init; }
+    public RecompBodyCompositionTrends? BodyComposition { get; init; }
     public RecompScoreResult Score { get; init; } = new();
     public RecompGlycogenWork? Glycogen { get; init; }
     public List<RecompUpcomingWorkout> UpcomingWorkouts { get; init; } = [];
@@ -248,14 +248,14 @@ public sealed class RecompCockpitService(RecompDbContext db,
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task<RecompBodyCompositionComparison> BuildBodyCompositionAsync(AppClientContext context,
+    private async Task<RecompBodyCompositionTrends> BuildBodyCompositionAsync(AppClientContext context,
         DateOnly date, CancellationToken ct)
     {
-        var from = date.AddDays(-9);
+        var from = date.AddDays(-32);
         var rows = await db.Measurements.AsNoTracking().Where(x => x.ClientId == context.Client!.ClientId
             && x.ProgramId == context.Program!.ProgramId && !x.IsDeleted
             && x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= date).ToListAsync(ct);
-        return RecompBodyCompositionComparison.Build(date, rows);
+        return RecompBodyCompositionTrends.Build(date, rows);
     }
 
     private static AnalysisRun NewRun(AppClientContext context, DateOnly date, string version, string json, string confidence) => new()
