@@ -26,7 +26,7 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
     }
     public Task<bool> OwnsAsync(Guid user,Guid owner,CancellationToken ct) => db.UserClientAccess.AnyAsync(a=>a.UserId==user&&a.ClientId==owner&&a.AccessRoleCode=="OWNER"&&a.RevokedAtUtc==null,ct);
 
-    public async Task<string> SyncAsync(Guid id,CancellationToken ct)
+    public async Task<string> SyncAsync(Guid id,CancellationToken ct,bool diagnose=false)
     {
         if(!ExternalConnectionFeatures.IsEnabled)return "Device syncing is unavailable in this environment.";
         var setting=await ProviderAsync(ct);if(!setting.Enabled)return "Fitdays is disabled by the administrator.";
@@ -81,13 +81,25 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
                 catch(ArgumentOutOfRangeException) { return $"unsupported timestamp {timestamp}"; }
             }
             var rawLatest=rawTimes.Count==0?"none":FormatRawTime(rawTimes.Max());
+            var widerWindow="";
+            if(diagnose && string.Equals(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"),"recomp-test",StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var expanded=await client.ReadAsync(login.Session,person.TimeZone,timeout.Token,90,24);
+                    var expandedTimes=expanded.RawMeasurementTimes.GetValueOrDefault(connection.PersonId) ?? [];
+                    widerWindow=$" Wider diagnostic request (90 days back, 24 hours ahead): {expanded.RawRecordCount} raw rows, selected-profile newest {(expandedTimes.Count==0?"none":FormatRawTime(expandedTimes.Max()))}; all-profile newest {(expanded.RawLatestTimestamp is long expandedNewest?FormatRawTime(expandedNewest):"none")}.";
+                }
+                catch(Exception ex) when(ex is FitdaysPreviewException or HttpRequestException or OperationCanceledException or System.Text.Json.JsonException or InvalidOperationException or KeyNotFoundException)
+                { widerWindow=" Wider diagnostic request failed; normal sync result retained."; }
+            }
             var profileSummary=string.Join("; ",snapshot.People.Take(10).Select(p=>
             {
                 var times=snapshot.RawMeasurementTimes.GetValueOrDefault(p.Id) ?? [];
                 return $"{p.Name}: latest raw {(times.Count==0?"none":FormatRawTime(times.Max()))}";
             }));
             updatedSecret=protector.Protect(connection,login);succeeded=true;
-            message=$"Fitdays responded at {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC. Returned {snapshot.Readings.Count} supported readings across profiles; {selected.Count} match your selected profile. Latest selected reading: {latestText}. For local today ({localToday:yyyy-MM-dd}, {person.TimeZone}): {todayCount} returned. Imported {result.inserted}; duplicates {result.duplicates}; blocked by manual days {result.manualBlocked}; unusable record IDs {missingIds}; before program start {beforeProgram}. Raw selected-profile records: {rawTimes.Count}; newest raw timestamp: {rawLatest}. Account profiles: {profileSummary}. Authentication: {(renewedSession?"saved session rejected; automatic login renewed it":"saved session accepted; no login performed")}. Raw response rows {snapshot.RawRecordCount}; deleted {snapshot.RawDeletedCount}; malformed profile/timestamp {snapshot.RawMalformedCount}; newest raw across all profile IDs {(snapshot.RawLatestTimestamp is long rawNewest?FormatRawTime(rawNewest):"none")}.";
+            message=$"Fitdays responded at {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC. Returned {snapshot.Readings.Count} supported readings across profiles; {selected.Count} match your selected profile. Latest selected reading: {latestText}. For local today ({localToday:yyyy-MM-dd}, {person.TimeZone}): {todayCount} returned. Imported {result.inserted}; duplicates {result.duplicates}; blocked by manual days {result.manualBlocked}; unusable record IDs {missingIds}; before program start {beforeProgram}. Raw selected-profile records: {rawTimes.Count}; newest raw timestamp: {rawLatest}. Account profiles: {profileSummary}. Authentication: {(renewedSession?"saved session rejected; automatic login renewed it":"saved session accepted; no login performed")}. Raw response rows {snapshot.RawRecordCount}; deleted {snapshot.RawDeletedCount}; malformed profile/timestamp {snapshot.RawMalformedCount}; newest raw across all profile IDs {(snapshot.RawLatestTimestamp is long rawNewest?FormatRawTime(rawNewest):"none")}.{widerWindow}";
         }
         catch(FitdaysPreviewException ex) {message=ex.Message;status="ATTENTION";}
         catch(CryptographicException) {message="Saved sign-in could not be opened. Reconnect Fitdays once to restore automatic sync.";status="RECONNECT";}

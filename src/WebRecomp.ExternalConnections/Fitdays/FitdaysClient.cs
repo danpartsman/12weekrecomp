@@ -39,10 +39,10 @@ public sealed class FitdaysClient(HttpClient http)
         return session;
     }
 
-    public async Task<FitdaysSnapshot> ReadAsync(FitdaysSession session, string timezone, CancellationToken ct, int historyDays = 30)
+    public async Task<FitdaysSnapshot> ReadAsync(FitdaysSession session, string timezone, CancellationToken ct, int historyDays = 30, int newestOffsetHours = 0)
     {
         var now = DateTimeOffset.UtcNow;
-        using var doc = await RequestAsync(session, "api/sync/syncFromServer", new { start_time = now.ToUnixTimeSeconds(), end_time = now.AddDays(-Math.Clamp(historyDays, 1, 90)).ToUnixTimeSeconds() }, ct);
+        using var doc = await RequestAsync(session, "api/sync/syncFromServer", new { start_time = now.AddHours(Math.Clamp(newestOffsetHours,0,24)).ToUnixTimeSeconds(), end_time = now.AddDays(-Math.Clamp(historyDays, 1, 90)).ToUnixTimeSeconds() }, ct);
         var snapshot = Parse(doc.RootElement.GetProperty("data"), timezone);
         snapshot.Readings.RemoveAll(r => r.MeasuredAt < now.AddDays(-Math.Clamp(historyDays, 1, 90)) || r.MeasuredAt > now.AddMinutes(5));
         return snapshot;

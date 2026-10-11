@@ -40,7 +40,7 @@ public sealed class ExternalConnectionsController(AppUserContextService users,De
         var context=await users.GetAsync(HttpContext,ct);if(context.Client==null)return RedirectToAction("Index","Intake");
         if(!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Forbid();
         var connection=await service.ConnectionAsync(context.User.UserId,context.Client.ClientId,ct);
-        if(connection!=null)TempData["DeviceMessage"]=await service.SyncAsync(connection.DeviceConnectionId,ct);
+        if(connection!=null)TempData["DeviceMessage"]=await service.SyncAsync(connection.DeviceConnectionId,ct,diagnose:true);
         return RedirectToAction(nameof(Index));
     }
     [HttpPost,ValidateAntiForgeryToken]
