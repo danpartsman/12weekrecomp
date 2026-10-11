@@ -337,7 +337,7 @@ public sealed class ScheduleController(
                 day.ScaledGlycogenBurnG =
                     engine30Day.GlycogenDemandG;
                 day.TimingNote =
-                    "Engine 3.0 prescription";
+                    "12 Week Recomp prescription";
             }
 
             vm.Days.Add(day);

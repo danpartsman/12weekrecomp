@@ -21,21 +21,23 @@ public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, dec
         : Math.Clamp((CompletedG + RemainingPlannedG) / TargetG, 0m, 1m);
 }
 
-public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation);
+public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation, bool Included = true);
 public sealed class RecompScoreResult
 {
-    public const string Version = "RECOMP_SCORE_V2";
+    public const string Version = "RECOMP_SCORE_V3";
     public int Score { get; init; }
-    public string Band => Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
-    public string Status => Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";
+    public string Band => !HasEvidence ? "gray" : Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
+    public string Status => !HasEvidence ? "Awaiting completed evidence" : Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";
     public List<RecompScoreComponent> Components { get; init; } = [];
-    public int NutritionScore => ComponentScore(Components.Take(3));
-    public int WorkoutScore => ComponentScore(Components.Skip(3).SkipLast(1));
-    private static int ComponentScore(IEnumerable<RecompScoreComponent> components)
+    public bool HasEvidence => Components.Any(x => x.Included);
+    public int? DisplayScore => HasEvidence ? Score : null;
+    public int? NutritionScore => ComponentScore(Components.Take(3));
+    public int? WorkoutScore => ComponentScore(Components.Skip(3).SkipLast(1));
+    internal static int? ComponentScore(IEnumerable<RecompScoreComponent> components)
     {
-        var parts = components.ToArray();
+        var parts = components.Where(x => x.Included).ToArray();
         var total = parts.Sum(x => x.Weight);
-        return total <= 0 ? 100 : (int)Math.Round(parts.Sum(x => x.Earned) / total * 100m,
+        return total <= 0 ? null : (int)Math.Round(parts.Sum(x => x.Earned) / total * 100m,
             MidpointRounding.AwayFromZero);
     }
     public int CompletedNutritionDays { get; init; }
@@ -43,14 +45,14 @@ public sealed class RecompScoreResult
     public int? FlexibleItems { get; init; }
     public int FlexibleConfirmedDays { get; init; }
     public bool FlexibleDayOverMacros { get; init; }
-    public string FlexibleBand => FlexibleDayOverMacros || FlexibleItems >= 5 ? "red"
+    public string FlexibleBand => !FlexibleItems.HasValue ? "gray" : FlexibleDayOverMacros || FlexibleItems >= 5 ? "red"
         : FlexibleItems >= 3 ? "yellow" : "green";
 }
 
 /// <summary>
 /// Versioned product adherence rubric, not a physiological or outcome measurement.
-/// Unknown intake never means zero intake or loses points. Unfinished/future days retain
-/// potential, so the visible score MUST travel with its evidence coverage when evaluated.
+/// Unknown or unfinished categories are excluded from the denominator. Nutrition is
+/// scored as daily category hits/misses, using the same bands as the dashboard.
 /// </summary>
 public static class RecompAdherenceScorer
 {
@@ -61,43 +63,48 @@ public static class RecompAdherenceScorer
         foreach (var (key, label, weight) in new[] { ("protein", "Protein consistency", 25m),
             ("carbs", "Training-day carbohydrate", 20m), ("fat", "Fat balance", 10m) })
         {
-            var qualities = days.Select(d =>
-            {
-                var band = MacroDayPlanner.Bands(d.ProteinTarget, d.CarbsTarget, d.FatTarget,
-                    d.Protein, d.Carbs, d.Fat).Single(x => x.Key == key);
-                return d.Date > today ? 1m : Quality(band.Eaten, band.Low, band.High, d.Date == today);
-            }).ToArray();
-            var fraction = qualities.Length == 0 ? 1m : qualities.Average();
+            var bands = days.Where(d => d.Date < today).Select(d =>
+                MacroDayPlanner.Bands(d.ProteinTarget, d.CarbsTarget, d.FatTarget,
+                    d.Protein, d.Carbs, d.Fat).Single(x => x.Key == key))
+                .Where(b => b.Eaten.HasValue && b.Target > 0m).ToArray();
+            var hits = bands.Count(b => Quality(b.Eaten, b.Low, b.High, false) == 1m);
+            var included = bands.Length > 0;
+            var fraction = included ? (decimal)hits / bands.Length : 0m;
             components.Add(new(label, weight, weight * fraction,
-                fraction == 1m ? "No known misses; unfinished days retain their potential."
-                    : "Completed-day shortfalls and known overages lower this part; future days can still be followed."));
+                included ? $"{hits}/{bands.Length} completed, known days within range. Each out-of-range day is a full miss for this category."
+                    : "Pending: unfinished and unknown days are excluded from the score.", included));
         }
         foreach (var gauge in training)
         {
-            var fraction = gauge.ProjectedFraction;
+            var due = Math.Max(gauge.Completed, Math.Max(0, gauge.Target - gauge.RemainingPlanned));
+            var included = due > 0;
+            var fraction = included ? Math.Min(1m, (decimal)gauge.Completed / due) : 0m;
             var label = gauge.Label;
-            var explanation = $"{gauge.Completed}/{gauge.Target} completed; {gauge.RemainingPlanned} scheduled opportunities remain. {gauge.Status}.";
+            var explanation = included
+                ? $"{gauge.Completed}/{due} sessions completed against commitments due so far. Future sessions earn no points."
+                : "Pending: no completed or due sessions in this category yet; excluded from the score.";
             if (gauge.Key == "resistance" && glycogen is not null)
             {
-                fraction = Math.Min(fraction, glycogen.ProjectedFraction);
+                var dueWork = Math.Max(glycogen.CompletedG, Math.Max(0m, glycogen.TargetG - glycogen.RemainingPlannedG));
+                if (included && dueWork > 0m) fraction = Math.Min(fraction, glycogen.CompletedG / dueWork);
                 label = "Glycogen work + resistance";
-                explanation += $" Modeled glycogen work: {glycogen.CompletedG:0} g completed against {glycogen.TargetG:0} g planned; {glycogen.RemainingPlannedG:0} g remains scheduled. Both planned resistance sessions and modeled work must stay on course. Extra burn cannot replace missed resistance.";
+                explanation += $" Modeled work: {glycogen.CompletedG:0} g completed, {dueWork:0} g due so far. Extra burn cannot replace missed resistance.";
             }
-            components.Add(new(label, gauge.Weight, gauge.Weight * fraction, explanation));
+            components.Add(new(label, gauge.Weight, gauge.Weight * fraction, explanation, included));
         }
 
-        var knownFlex = days.Where(x => x.Date <= today && x.FlexibleItems.HasValue).ToArray();
+        var knownFlex = days.Where(x => x.Date < today && x.FlexibleItems.HasValue).ToArray();
         int? flex = knownFlex.Length == 0 ? null : knownFlex.Sum(x => x.FlexibleItems!.Value);
         var flexOver = knownFlex.Any(x => x.FlexibleItems > 0 && MacroDayPlanner.Bands(
             x.ProteinTarget, x.CarbsTarget, x.FatTarget, x.Protein, x.Carbs, x.Fat).Any(b => b.Eaten > b.High));
-        var flexQuality = flexOver || flex >= 5 ? 0m : flex >= 3 ? .6m : 1m;
+        var flexQuality = flex is null || flexOver || flex >= 5 ? 0m : flex >= 3 ? .6m : 1m;
         components.Add(new("Planned flexibility", 5m, 5m * flexQuality,
-            flex is null ? "Not confirmed yet; no unreported items have been assumed."
+            flex is null ? "Pending: not confirmed on a completed day; excluded from the score."
             : flexOver ? "A day with flexible items is over a macro range. Review the combined intake."
-            : $"{flex} reported items this week. 0–2 green; 3–4 yellow; 5+ red."));
+            : $"{flex} reported items across completed days. 0–2 green; 3–4 yellow; 5+ red.", flex.HasValue));
         return new()
         {
-            Score = (int)Math.Round(components.Sum(x => x.Earned), MidpointRounding.AwayFromZero),
+            Score = RecompScoreResult.ComponentScore(components) ?? 0,
             Components = components, FlexibleItems = flex, FlexibleDayOverMacros = flexOver,
             FlexibleConfirmedDays = knownFlex.Length,
             CompletedNutritionDays = days.Count(x => x.Date < today),
@@ -107,9 +114,7 @@ public static class RecompAdherenceScorer
 
     public static decimal Quality(decimal? actual, decimal low, decimal high, bool unfinished)
     {
-        if (!actual.HasValue || low <= 0m || high <= 0m) return 1m;
-        if (actual > high) return Math.Clamp(high / actual.Value, 0m, 1m);
-        if (unfinished || actual >= low) return 1m;
-        return Math.Clamp(actual.Value / low, 0m, 1m);
+        if (!actual.HasValue || unfinished || low <= 0m || high <= 0m) return 0m;
+        return actual >= low && actual <= high ? 1m : 0m;
     }
 }

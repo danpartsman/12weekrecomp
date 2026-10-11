@@ -43,7 +43,7 @@ public static class MacroDayPlanner
     public static List<MacroBand> Bands(decimal protein, decimal carbs, decimal fat,
         decimal? actualProtein = null, decimal? actualCarbs = null, decimal? actualFat = null) =>
     [
-        new("protein", "Protein", "#168CFF", protein, protein, Math.Ceiling(protein * 1.10m), actualProtein),
+        new("protein", "Protein", "#168CFF", protein, Math.Floor(protein * .95m), Math.Ceiling(protein * 1.25m), actualProtein),
         new("carbs", "Carbs", "#FFD400", carbs, Math.Floor(carbs * .90m), Math.Ceiling(carbs * 1.10m), actualCarbs),
         new("fat", "Fat", "#24D96B", fat, Math.Floor(fat * .90m), Math.Ceiling(fat * 1.10m), actualFat)
     ];

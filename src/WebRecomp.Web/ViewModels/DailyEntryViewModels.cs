@@ -5,6 +5,7 @@ namespace WebRecomp.Web.ViewModels;
 public sealed class DailyEntryViewModel
 {
     public DateOnly Date { get; set; }
+    public Guid? RenderedMeasurementId { get; set; }
 
     public string PlannedWorkoutName { get; set; } = "No workout planned";
     public string? PlannedWorkoutTypeCode { get; set; }

@@ -1,6 +1,10 @@
 (() => {
     'use strict';
     const root = document.querySelector('[data-dashboard3]');
+    const team = root?.querySelector('[data-team-dialog]');
+    root?.querySelector('[data-open-team]')?.addEventListener('click', () => team.showModal());
+    root?.querySelector('[data-close-team]')?.addEventListener('click', () => team.close());
+    team?.addEventListener('click', event => { if (event.target === team) { const r = team.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) team.close(); } });
     const dataNode = document.getElementById('d3-data');
     if (!root || !dataNode) return;
     const data = JSON.parse(dataNode.textContent);
@@ -14,7 +18,7 @@
         const end = point(fraction, 62);
         host.innerHTML = `<svg viewBox="0 0 220 148" role="img" aria-label="${esc(label)}"><title>${esc(label)}</title>${zones.map(([a, b, color]) => `<path d="${arc(a, b)}" fill="none" stroke="var(--d3-${color})" stroke-width="12"/>`).join('')}${value == null ? '' : `<path d="M110,103 L${end[0]},${end[1]}" class="d3-needle"/><circle cx="110" cy="103" r="6" class="d3-hub"/>`}<text x="110" y="140" text-anchor="middle" class="d3-dial-value">${value == null ? '—' : Math.round(value)}${esc(suffix)}</text><text x="28" y="127" text-anchor="middle" class="d3-dial-tick">0</text><text x="192" y="127" text-anchor="middle" class="d3-dial-tick">${Math.round(max)}</text></svg>`;
     }
-    [['score', data.Score.Score, 'Recomp Plan Score'], ['nutrition', data.Score.NutritionScore, 'Nutrition'], ['workout', data.Score.WorkoutScore, 'Workout']].forEach(([key, value, label]) => draw(key, value, 100, [[0, .6, 'red'], [.6, .8, 'yellow'], [.8, 1, 'green']], `${label}: ${value} out of 100, projected weekly adherence`));
+    [['score', data.Score.DisplayScore, 'Recomp Plan Score'], ['nutrition', data.Score.NutritionScore, 'Nutrition'], ['workout', data.Score.WorkoutScore, 'Workout']].forEach(([key, value, label]) => draw(key, value, 100, [[0, .6, 'red'], [.6, .8, 'yellow'], [.8, 1, 'green']], `${label}: ${value} out of 100, completed-evidence adherence`));
     data.Bands.forEach(b => {
         const maximum = Math.max(1, b.High * 1.3, (b.Eaten || 0) * 1.07);
         draw(b.Key, b.Eaten, maximum, [[0, b.Low / maximum, 'yellow'], [b.Low / maximum, b.High / maximum, 'green'], [b.High / maximum, 1, 'red']], `${b.Name}: ${b.Eaten == null ? 'not logged' : b.Eaten + ' grams'}, target ${b.Low} to ${b.High} grams`, ' g');

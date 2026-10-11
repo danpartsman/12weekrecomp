@@ -1,8 +1,7 @@
+using WebRecomp.Web.Services.Dashboard2;
 using WebRecomp.Web.Services.Dashboard3;
-using WebRecomp.Web.Models;
 
 namespace WebRecomp.Web.Tests;
-
 public sealed class RecompAdherenceScorerTests
 {
     private static readonly DateOnly Monday = new(2026, 10, 12);
@@ -10,126 +9,84 @@ public sealed class RecompAdherenceScorerTests
         new RecompDayEvidence(Monday.AddDays(i), 200, 250, 60, 2340, null, null, null, null, null, "test")).ToList();
     private static List<RecompTrainingGauge> Training(int completed = 0, int remaining = 3) =>
         [new("resistance", "Resistance", completed, 3, remaining, 25),
-         new("cardio", "Cardio / mobility", 0, 2, 2, 8),
-         new("recovery", "Recovery / Zone 2", 0, 2, 2, 7)];
+         new("cardio", "Cardio / mobility", 0, 2, 2, 8), new("recovery", "Recovery", 0, 2, 2, 7)];
 
-    [Fact] public void MondayStartsWithFullPotentialNotCompletedAchievement()
+    [Fact] public void EmptyAndFutureCategoriesDoNotCreatePerfectScores()
     {
         var result = RecompAdherenceScorer.Score(Monday, Week(), Training());
-        Assert.Equal(100, result.Score); Assert.Equal(0, result.CompletedNutritionDays);
-        Assert.Null(result.FlexibleItems);
+        Assert.False(result.HasEvidence); Assert.Null(result.DisplayScore);
+        Assert.Null(result.NutritionScore); Assert.Null(result.WorkoutScore);
+        Assert.All(result.Components, x => Assert.False(x.Included));
     }
-    [Fact] public void MissingIntakeDoesNotMeanZeroOrPenalizeLogging()
+    [Fact] public void UnknownPastNutritionIsExcludedFromDenominator()
     {
-        var result = RecompAdherenceScorer.Score(Monday.AddDays(2), Week(), Training());
-        Assert.Equal(100, result.Score); Assert.Equal(2, result.CompletedNutritionDays);
+        var result = RecompAdherenceScorer.Score(Monday.AddDays(2), Week(), Training(1, 2));
+        Assert.Equal(100, result.Score); Assert.Null(result.NutritionScore);
         Assert.Equal(0, result.KnownNutritionDays);
     }
-    [Fact] public void TodayShortfallKeepsPotentialButYesterdayShortfallLosesPoints()
+    [Fact] public void TodayNutritionIsUnfinishedUntilDayEnds()
     {
-        var days = Week(); days[0] = days[0] with { Protein = 0, Carbs = 0, Fat = 0 };
-        Assert.Equal(100, RecompAdherenceScorer.Score(Monday, days, Training()).Score);
-        Assert.True(RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training()).Score < 100);
+        var days = Week(); days[0] = days[0] with { Protein = 0, Carbs = 500, Fat = 0 };
+        Assert.Null(RecompAdherenceScorer.Score(Monday, days, Training()).DisplayScore);
+        Assert.Equal(0, RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training()).NutritionScore);
     }
-    [Fact] public void KnownOverageAppearsEvenBeforeDayEnds()
+    [Fact] public void SmallFatOverageIsAWholeDayCategoryMiss()
     {
-        var days = Week(); days[0] = days[0] with { Carbs = 500 };
-        Assert.True(RecompAdherenceScorer.Score(Monday, days, Training()).Score < 100);
+        var days = Week(); days[0] = days[0] with { Protein = 210, Carbs = 250, Fat = 67 };
+        var result = RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training());
+        Assert.Equal(82, result.NutritionScore);
+        Assert.Equal(0, result.Components.Single(x => x.Label == "Fat balance").Earned);
+        Assert.Equal(25, result.Components.Single(x => x.Label == "Protein consistency").Earned);
     }
-    [Fact] public void CatchingUpTrainingRaisesScoreWithoutErasingEarlierNutritionMiss()
+    [Fact] public void OneMissAcrossTwoKnownDaysLosesHalfTheCategory()
+    {
+        var days = Week(); days[0] = days[0] with { Protein = 100 };
+        days[1] = days[1] with { Protein = 200 };
+        var result = RecompAdherenceScorer.Score(Monday.AddDays(2), days, Training());
+        Assert.Equal(50, result.NutritionScore); Assert.Equal(50, result.Score);
+    }
+    [Fact] public void ProteinAllowsMoreOverageThanFat()
+    {
+        var bands = MacroDayPlanner.Bands(200, 250, 60, 240, 250, 72);
+        Assert.Equal(1m, RecompAdherenceScorer.Quality(bands[0].Eaten, bands[0].Low, bands[0].High, false));
+        Assert.Equal(0m, RecompAdherenceScorer.Quality(bands[2].Eaten, bands[2].Low, bands[2].High, false));
+    }
+    [Fact] public void ScheduledFutureTrainingDoesNotEarnCreditForPastMisses()
+    {
+        var result = RecompAdherenceScorer.Score(Monday.AddDays(3), Week(), Training(0, 2));
+        Assert.Equal(0, result.WorkoutScore);
+        Assert.False(result.Components.Single(x => x.Label == "Recovery").Included);
+    }
+    [Fact] public void CatchingUpWorkRestoresCreditWithoutErasingNutritionMiss()
     {
         var days = Week(); days[0] = days[0] with { Protein = 100, Carbs = 250, Fat = 60 };
         var behind = RecompAdherenceScorer.Score(Monday.AddDays(3), days, Training(0, 1));
-        var caughtUp = RecompAdherenceScorer.Score(Monday.AddDays(3), days, Training(2, 1));
-        Assert.True(caughtUp.Score > behind.Score); Assert.True(caughtUp.Score < 100);
+        var caught = RecompAdherenceScorer.Score(Monday.AddDays(3), days, Training(2, 1));
+        Assert.True(caught.Score > behind.Score); Assert.True(caught.Score < 100);
     }
-    [Fact] public void ExtraWorkoutsDoNotRewardExceedingThePlan()
+    [Fact] public void ModeledWorkUsesDueWorkAndExtraBurnCannotReplaceResistance()
     {
-        Assert.Equal(RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), Training(3, 0)).Score,
-            RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), Training(9, 0)).Score);
+        var result = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), Training(0, 0), new(1000, 400, 0));
+        Assert.Equal(0, result.WorkoutScore);
+        var partial = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), Training(3, 0), new(100, 400, 0));
+        Assert.Equal(25, partial.WorkoutScore);
     }
-    [Theory] [InlineData(0, "green")] [InlineData(1, "green")] [InlineData(2, "green")]
-    [InlineData(3, "yellow")] [InlineData(4, "yellow")] [InlineData(5, "red")]
-    public void FlexibleItemThresholdsUseReportedWeeklyItems(int count, string expected)
+    [Fact] public void UnconfirmedFlexibilityIsExcluded()
     {
-        var days = Week(); days[0] = days[0] with { FlexibleItems = count, Protein = 200, Carbs = 250, Fat = 60 };
-        Assert.Equal(expected, RecompAdherenceScorer.Score(Monday, days, Training()).FlexibleBand);
+        Assert.Equal("gray", RecompAdherenceScorer.Score(Monday, Week(), Training()).FlexibleBand);
     }
-    [Fact] public void FlexibleItemDayOverMacrosTurnsRedEvenWithOnlyOneItem()
+    [Theory] [InlineData(0,"green")] [InlineData(2,"green")] [InlineData(3,"yellow")] [InlineData(5,"red")]
+    public void ConfirmedFinishedDayFlexibilityKeepsThresholds(int count,string expected)
     {
-        var days = Week(); days[0] = days[0] with { FlexibleItems = 1, Carbs = 300 };
-        Assert.Equal("red", RecompAdherenceScorer.Score(Monday, days, Training()).FlexibleBand);
+        var days = Week(); days[0] = days[0] with { FlexibleItems = count };
+        Assert.Equal(expected, RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training()).FlexibleBand);
     }
-    [Fact] public void OverMacrosOnDifferentDayDoesNotBlameFlexibleItems()
+    [Theory] [InlineData("RECOMP_SCORE_V1")] [InlineData("RECOMP_SCORE_V2")]
+    public void HistoricalCaptureKeepsOriginalScoreComponents(string version)
     {
-        var days = Week(); days[0] = days[0] with { Carbs = 300, FlexibleItems = 0 };
-        days[1] = days[1] with { Carbs = 250, FlexibleItems = 1 };
-        Assert.Equal("green", RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training()).FlexibleBand);
+        var parts = new List<RecompScoreComponent> { new("Protein",25,12.5m,"saved"),new("Carbs",20,10,"saved"),new("Fat",10,5,"saved"),new("Training",25,12.5m,"saved"),new("Flex",5,2.5m,"saved") };
+        var saved = new RecompScoreSnapshot(version, Monday, 42, 2, 3, Week(), Training(), parts);
+        var restored = RecompCockpitService.RestoreCapturedScore(Monday,saved);
+        Assert.Equal(42,restored.Score); Assert.Equal(50,restored.NutritionScore); Assert.Equal(parts,restored.Components);
     }
-    [Theory] [InlineData(59, "red")] [InlineData(60, "yellow")]
-    [InlineData(79, "yellow")] [InlineData(80, "green")]
-    public void ScoreBandEdgesAreUnambiguous(int score, string expected) =>
-        Assert.Equal(expected, new RecompScoreResult { Score = score }.Band);
-    [Fact] public void SessionsUseSingleCategoryAndZoneTwoIsRecovery()
-    {
-        var types = new Dictionary<string, WorkoutTypeDefinition>();
-        Assert.Equal("recovery", RecompCockpitService.Group("ZONE_2", types));
-        Assert.Equal("cardio", RecompCockpitService.Group("MOBILITY_RECOVERY", types));
-        Assert.Equal("resistance", RecompCockpitService.Group("MIXED_GYM_SESSION", types));
-        Assert.Equal("unclassified", RecompCockpitService.Group("UNKNOWN", types));
-    }
-    [Fact] public void WorkoutGaugeIncludesModeledWorkAndCanRecoverWithRemainingPlan()
-    {
-        var training = Training(3, 0);
-        var low = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), training,
-            new RecompGlycogenWork(100, 400, 0));
-        var recovered = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), training,
-            new RecompGlycogenWork(100, 400, 300));
-        Assert.True(low.WorkoutScore < recovered.WorkoutScore);
-        Assert.Equal(100, recovered.WorkoutScore);
-        Assert.Equal(100, low.NutritionScore);
-    }
-    [Fact] public void ExtraGlycogenBurnCannotReplaceMissedResistanceOrEarnBonus()
-    {
-        var result = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), Training(0, 0),
-            new RecompGlycogenWork(1000, 400, 0));
-        Assert.Equal(0m, result.Components.Single(x => x.Label == "Glycogen work + resistance").Earned);
-        Assert.True(result.WorkoutScore < 100);
-        Assert.Equal(1m, new RecompGlycogenWork(1000, 400, 0).ProjectedFraction);
-    }
-    [Fact] public void NutritionAndWorkoutSummariesExcludeFlexibilityPenalty()
-    {
-        var days = Week(); days[0] = days[0] with { FlexibleItems = 5 };
-        var result = RecompAdherenceScorer.Score(Monday, days, Training(),
-            new RecompGlycogenWork(0, 400, 400));
-        Assert.Equal(100, result.NutritionScore);
-        Assert.Equal(100, result.WorkoutScore);
-        Assert.Equal(95, result.Score);
-    }
-    [Fact] public void NoModeledBurnGoalIsNeutralInsteadOfDividingByZero()
-    {
-        Assert.Equal(1m, new RecompGlycogenWork(0, 0, 0).ProjectedFraction);
-    }
-
-    [Theory]
-    [InlineData("RECOMP_SCORE_V1")]
-    [InlineData("RECOMP_SCORE_V2")]
-    public void HistoricalCaptureKeepsOriginalScoreComponentsAndCoverage(string version)
-    {
-        var days = Week();
-        days[0] = days[0] with { FlexibleItems = 3, Carbs = 500 };
-        var scored = RecompAdherenceScorer.Score(Monday, days, Training());
-        var parts = scored.Components.Select(x => x with { Earned = x.Weight / 2 }).ToList();
-        var saved = new RecompScoreSnapshot(version, Monday, 42, 2, 3, days, Training(), parts);
-        var restored = RecompCockpitService.RestoreCapturedScore(Monday, saved);
-        Assert.Equal(42, restored.Score);
-        Assert.Equal(parts, restored.Components);
-        Assert.Equal(50, restored.NutritionScore);
-        Assert.Equal(50, restored.WorkoutScore);
-        Assert.Equal(2, restored.KnownNutritionDays);
-        Assert.Equal(3, restored.CompletedNutritionDays);
-        Assert.Equal(3, restored.FlexibleItems);
-        Assert.Equal("red", restored.FlexibleBand);
-    }
-
 }

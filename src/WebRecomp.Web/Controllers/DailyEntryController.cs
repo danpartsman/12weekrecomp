@@ -146,8 +146,36 @@ public sealed class DailyEntryController(
             .OrderByDescending(x => x.MeasurementAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (bodyDataEntered || measurement is not null)
+        Measurement? renderedMeasurement = null;
+        if (measurement?.MeasurementSourceCode == "FITDAYS"
+            && model.RenderedMeasurementId.HasValue
+            && model.RenderedMeasurementId != measurement.MeasurementId)
         {
+            renderedMeasurement = await db.Measurements.AsNoTracking().SingleOrDefaultAsync(x =>
+                x.MeasurementId == model.RenderedMeasurementId
+                && x.ProgramId == program.ProgramId && x.LocalMeasurementDate == model.Date
+                && !x.IsDeleted, cancellationToken);
+        }
+        var unchangedDeviceMeasurement = measurement?.MeasurementSourceCode == "FITDAYS"
+            && ((!bodyDataEntered && model.RenderedMeasurementId != measurement.MeasurementId)
+                || WebRecomp.Web.Services.ExternalConnections.FitdaysMeasurementMapper.BodyValuesUnchanged(measurement, renderedMeasurement, model));
+        if (!unchangedDeviceMeasurement && (bodyDataEntered || measurement is not null))
+        {
+            if (measurement?.MeasurementSourceCode == "FITDAYS")
+            {
+                // Preserve the original provider reading and its deduplication key.
+                // A separate manual record makes this day ineligible for future imports.
+                var original = measurement;
+                measurement = new Measurement
+                {
+                    MeasurementId = Guid.NewGuid(), ClientId = original.ClientId,
+                    ProgramId = original.ProgramId, LocalMeasurementDate = model.Date,
+                    MeasurementAtUtc = now, MeasurementSourceCode = "MANUAL",
+                    MuscleMassLb = original.MuscleMassLb, ScaleWhr = original.ScaleWhr,
+                    Notes = original.Notes, CreatedAtUtc = now
+                };
+                db.Measurements.Add(measurement);
+            }
             if (measurement is null)
             {
                 measurement = new Measurement
@@ -749,6 +777,7 @@ public sealed class DailyEntryController(
         var model = new DailyEntryViewModel
         {
             Date = date,
+            RenderedMeasurementId = measurement?.MeasurementId,
             DetailedWorkoutEntryEnabled =
                 program.DetailedWorkoutEntryEnabled,
             NutritionFoodLogEnabled =

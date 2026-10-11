@@ -1,0 +1,28 @@
+@model WebRecomp.Web.Controllers.ProviderSettingsModel
+@{ViewData["Title"]="External connections administration";}
+<link rel="stylesheet" href="~/css/fitdays-preview.css" asp-append-version="true" />
+<div class="fitdays-page">
+<header class="page-head"><div><div class="eyebrow">ADMINISTRATION · EXTERNAL CONNECTIONS · TEST</div><h1>External connections</h1><p class="lede">Manage supported providers, page-open checks, and account connection status.</p></div><a class="button" asp-controller="Admin" asp-action="Index">Administration</a></header>
+@if(TempData["DeviceMessage"] is string message){<div class="status-card" role="status">@message</div>}
+<section class="card"><h2>Fitdays · Smart scales</h2><p>Server connection to the existing Fitdays cloud. No developer API key or additional phone app is needed. Users connect their own accounts in Profile → Device integrations.</p>
+<form method="post" class="fitdays-connect">
+<div asp-validation-summary="All" role="alert"></div>
+<label class="fitdays-consent"><input asp-for="Enabled"/><span>Enable Fitdays connections and manual sync</span></label>
+<label class="fitdays-consent"><input asp-for="AutomaticSyncEnabled"/><span>Enable Daily Entry page-open sync for users who opt in</span></label>
+<label>Minimum time between page-open checks (minutes)<input asp-for="SyncIntervalMinutes" type="number" min="15" max="1440"/></label>
+<label>History to check (days)<input asp-for="HistoryDays" type="number" min="1" max="90"/></label>
+<label>Fitdays API app version<input asp-for="AppVersion"/><small>Current protocol version: 1.21.0. Change only when required by Fitdays.</small></label>
+<label class="fitdays-consent"><input asp-for="BodyCompositionEnabled"/><span>Import supported body composition alongside weight</span></label>
+<label>Skeletal muscle provider unit (rosm)<select asp-for="SkeletalMuscleUnit"><option value="PERCENT">Percent of body weight</option><option value="LB">Pounds</option></select></label>
+<label>Body water provider unit (vwc)<select asp-for="BodyWaterUnit"><option value="PERCENT">Percent of body weight</option><option value="LB">Pounds</option></select></label>
+<button type="submit" class="primary">Save provider settings</button>
+</form><p class="small">Settings apply to future syncs. Existing imported and manual records are retained. Skeletal muscle and body water default to percentages, converted to pounds; body-fat and subcutaneous-fat values use percentages. General muscle rate is not substituted for skeletal muscle.</p>
+</section>
+<section class="card"><h2>User connections</h2>
+@if(Model.Connections.Count==0){<p>No persistent connections yet. Users can connect once through their profile.</p>}
+else {<div class="fitdays-table" tabindex="0" role="region" aria-label="User device connections"><table><thead><tr><th>User</th><th>Scale profile</th><th>Status</th><th>Auto sync</th><th>Last success (UTC)</th><th>Manage</th></tr></thead><tbody>
+@foreach(var row in Model.Connections){<tr><td>@row.UserName</td><td>@row.PersonName</td><td>@row.Status</td><td>@(row.Automatic?"On":"Off")</td><td>@(row.LastSuccess?.ToString("yyyy-MM-dd HH:mm")??"—")</td><td><form asp-action="Pause" method="post"><input type="hidden" name="connectionId" value="@row.Id"/><button type="submit" disabled="@(!row.Automatic)">Pause auto sync</button></form></td></tr><tr><td colspan="6" class="small">@row.Message</td></tr>}
+</tbody></table></div>}
+<p class="small">Saved passwords and tokens are never displayed here. Pausing a connection preserves its saved sign-in and imported measurements.</p></section>
+<section class="card"><h2>Provider modules</h2><p>Fitdays is the first supported adapter. This module is separate from the fitness engine. Additional providers can share these management screens, account connections, and page-open syncing once their adapter is added.</p></section>
+</div>

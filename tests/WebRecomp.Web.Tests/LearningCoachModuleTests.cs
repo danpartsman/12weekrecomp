@@ -47,7 +47,7 @@ public sealed class LearningCoachModuleTests
 
     [Theory]
     [InlineData("DASHBOARD", "AEROBIC_ENERGY", 9)]
-    [InlineData("NUTRITION", "FOOD_AND_FUEL", 15)]
+    [InlineData("NUTRITION", "FOOD_AND_FUEL", 18)]
     [InlineData("WORKOUT", "TRAINING_ADAPTATION", 15)]
     public void LearningSeries_AreContiguousAndSurfaceSpecific(
         string surface,

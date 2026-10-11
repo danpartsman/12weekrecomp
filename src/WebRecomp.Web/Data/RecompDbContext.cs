@@ -58,6 +58,7 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+
         Map<UserAccount>(modelBuilder, "UserAccounts", "app", nameof(UserAccount.UserId));
         Map<LearningCoachPreference>(modelBuilder, "LearningCoachPreferences", "app", nameof(LearningCoachPreference.UserId));
         Map<LearningSeriesProgress>(

@@ -1,0 +1,16 @@
+.fitdays-page { max-width:1040px; margin-inline:auto; min-width:0; }
+.fitdays-page .card { min-width:0; margin-block:1rem; padding:1.25rem; }
+.fitdays-connect { display:grid; gap:1rem; max-width:32rem; }
+.fitdays-connect label,.fitdays-profile label { display:grid; gap:.35rem; min-width:0; }
+.fitdays-connect input:not([type=checkbox]),.fitdays-connect select,.fitdays-profile select { width:100%; min-width:0; max-width:100%; }
+.fitdays-connect .fitdays-consent { display:flex; align-items:flex-start; gap:.65rem; }
+.fitdays-consent input { flex:0 0 auto; width:1.1rem; margin-top:.25rem; }
+.fitdays-connected,.fitdays-profile { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+.fitdays-profile { justify-content:flex-start; }
+.fitdays-profile label { flex:0 1 24rem; }
+.fitdays-table { max-width:100%; overflow-x:auto; }
+.fitdays-table table { width:100%; border-collapse:collapse; }
+.fitdays-table th,.fitdays-table td { text-align:left; padding:.75rem; border-bottom:1px solid #315f8d; white-space:nowrap; }
+.fitdays-page .validation-summary-errors { color:#ffadb5; }
+.fitdays-page small,.fitdays-page .small { overflow-wrap:anywhere; }
+@media(max-width:520px) { .fitdays-page .page-head { display:block; } .fitdays-page h1 { font-size:2.2rem; } .fitdays-page .card { padding:1rem; } }

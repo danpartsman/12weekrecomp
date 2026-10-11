@@ -293,6 +293,13 @@ var standardCarbUpper =
                 "STABLE_FAT_RAISED_FOR_ENERGY_SAFETY_GUARDRAIL");
         }
 
+        // Keep the baseline fat floor and existing energy safeguards. Exchange only
+        // discretionary fat for protein, preserving the calorie and carbohydrate plan.
+        var fatExchange = Math.Min(10m, Math.Max(0m, fat - baseFat));
+        fat -= fatExchange;
+        protein += fatExchange * 9m / 4m;
+        if (fatExchange > 0m) reasons.Add("DISCRETIONARY_FAT_EXCHANGED_FOR_PROTEIN");
+
         var results =
             new List<Engine30PrescriptionDayResult>(7);
 

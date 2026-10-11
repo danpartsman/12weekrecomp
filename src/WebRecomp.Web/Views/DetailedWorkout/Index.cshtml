@@ -14,6 +14,18 @@
 @* B2.35.6 MOBILE WORKOUT FINISH UX *@
 @{
     ViewData["Title"] = "Workouts";
+    // Present existing metric records in pounds without relabeling their numeric loads.
+    Model.DefaultLoadUnitCode = "LB";
+    var displayedExercises = Model.Exercises
+        .Concat(Model.SelectedTemplate?.Exercises ?? new List<DetailedWorkoutExerciseInputModel>())
+        .Concat(Model.SelectedSystemWorkout?.Exercises ?? new List<DetailedWorkoutExerciseInputModel>());
+    foreach (var displayedExercise in displayedExercises)
+    {
+        if (string.Equals(displayedExercise.LoadUnitCode, "KG", StringComparison.OrdinalIgnoreCase))
+            displayedExercise.MaxWeight *= 2.2046226218m;
+        displayedExercise.LoadUnitCode = "LB";
+    }
+
 
     var mode =
         Model.WorkspaceMode?.Trim().ToLowerInvariant()
