@@ -108,3 +108,37 @@ The header uses a single generated eight-trainer gym photograph based on the exi
 ## Command Center rollout
 
 The cockpit is now titled Command Center at `/CommandCenter`. It is the first navigation item and the default landing/return destination for ready users; the original `/Dashboard` remains available immediately after it. Dashboard2 is retired. Old Dashboard2 and Dashboard3 URLs redirect to Command Center, preserving selected dates and meal-planning parameters. Date browsing, meal planning, flexible-item saving and workout recommendations use the canonical route. TEST deployment checks cover Command Center before promotion to LIVE.
+
+
+## Rolling execution and body-composition comparison (2026-10-11)
+
+New `RECOMP_SCORE_V4` captures use the last seven completed local days (selected date
+minus seven through selected date minus one), clipped to the program start. Monday
+never resets the gauges. Today's unfinished data joins after the day ends. Prior V1–V3
+captures retain their saved calendar-week results and are labeled as such. Nutrition
+uses each day's captured prescription where available, otherwise the reconstructed
+planning prescription. Planning weeks are resolved individually when the window crosses
+a week boundary. Per-date training commitments in V4 snapshots prevent deleting a
+captured missed plan from erasing its obligation, while commitments outside the rolling
+window expire. Flexible-item corrections accept the rolling period and today. Product
+weights and the completed-evidence rubric are unchanged.
+
+Immediately below the three execution gauges, two signed horizontal lines show body-fat
+mass and muscle-mass change. Calculation: mean of the selected date and preceding two
+days, minus the mean of the three days ending seven days earlier. For October 11 this
+compares October 9–11 with October 2–4. Use the latest nondeleted measurement per local
+day, scoped to the active client/program; compute fat mass as each reading's weight
+in pounds times its body-fat fraction before averaging. One or two valid readings are
+sufficient. Average fat and muscle independently. Never zero-fill missing days or pull
+readings from the intervening gap. A missing measure in either window suppresses only
+that line and explicitly names the latest, earlier, or both periods. Counts, dates and
+averages appear in the expandable details.
+
+Prefer comparable skeletal-muscle values, otherwise comparable legacy generic-muscle
+values; never mix the two fields. No estimated fat-free-mass proxy is substituted for
+missing muscle data. Both lines share a symmetric scale: loss left, gain right. Fat loss
+and muscle gain are green; the inverse is red; absolute displayed change <=0.2 lb is yellow (one decimal, midpoint away from zero). This
+is a product display tolerance, not a biological or measurement-precision threshold.
+The chart labels its data as scale estimates and does not feed the execution score.
+Historical selection recomputes composition from saved readings for that date without
+creating score history. No schema migration is needed.

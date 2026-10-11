@@ -81,7 +81,7 @@ public sealed class RecompAdherenceScorerTests
         var days = Week(); days[0] = days[0] with { FlexibleItems = count };
         Assert.Equal(expected, RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training()).FlexibleBand);
     }
-    [Theory] [InlineData("RECOMP_SCORE_V1")] [InlineData("RECOMP_SCORE_V2")]
+    [Theory] [InlineData("RECOMP_SCORE_V1")] [InlineData("RECOMP_SCORE_V2")] [InlineData("RECOMP_SCORE_V3")]
     public void HistoricalCaptureKeepsOriginalScoreComponents(string version)
     {
         var parts = new List<RecompScoreComponent> { new("Protein",25,12.5m,"saved"),new("Carbs",20,10,"saved"),new("Fat",10,5,"saved"),new("Training",25,12.5m,"saved"),new("Flex",5,2.5m,"saved") };
@@ -89,4 +89,24 @@ public sealed class RecompAdherenceScorerTests
         var restored = RecompCockpitService.RestoreCapturedScore(Monday,saved);
         Assert.Equal(42,restored.Score); Assert.Equal(50,restored.NutritionScore); Assert.Equal(parts,restored.Components);
     }
+    [Fact] public void RollingMondayRetainsPreviousSevenCompletedDays()
+    {
+        var start = RecompCockpitService.RollingStart(Monday, Monday.AddDays(-30));
+        var days = Enumerable.Range(0, 7).Select(i => new RecompDayEvidence(start.AddDays(i),
+            200, 250, 60, 2340, i == 0 ? 100 : 200, 250, 60, 2340, null, "test")).ToList();
+        var result = RecompAdherenceScorer.Score(Monday, days, []);
+        Assert.Equal(Monday.AddDays(-7), start);
+        Assert.Equal(7, result.CompletedNutritionDays); Assert.Equal(7, result.KnownNutritionDays);
+        Assert.Equal(94, result.NutritionScore);
+        Assert.Equal(6m / 7m * 25m, result.Components[0].Earned);
+    }
+    [Fact] public void NewProgramUsesAvailableCompletedDaysWithoutInventingEarlierEvidence()
+    {
+        var start = RecompCockpitService.RollingStart(Monday, Monday.AddDays(-2));
+        var days = Enumerable.Range(0, 2).Select(i => new RecompDayEvidence(start.AddDays(i),
+            200, 250, 60, 2340, 200, 250, 60, 2340, null, "test")).ToList();
+        var result = RecompAdherenceScorer.Score(Monday, days, []);
+        Assert.Equal(2, result.CompletedNutritionDays); Assert.Equal(100, result.NutritionScore);
+    }
+
 }
