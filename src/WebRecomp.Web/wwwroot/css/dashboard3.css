@@ -63,7 +63,7 @@ body.test-live-preview.app-shell.command-center-page .d3 .d3-instrument,body.tes
 .d3 .d3-composition-label h3{font-size:.82rem;margin:0;flex:1;min-width:0}.d3-composition-label strong{font-size:.8rem;color:var(--change-color);font-variant-numeric:tabular-nums;text-align:right;flex-shrink:0}
 .d3-composition-track{margin:0;flex-shrink:0}
 .d3-composition-track>.d3-composition-fill{position:absolute;top:0;background:var(--change-color)}
-.d3-composition-row[data-composition="muscle"]{margin-top:10px}.d3-composition-row[data-composition="muscle"] .d3-composition-track{order:-1}
+.d3-composition-divider{height:1px;background:var(--d3-yellow);opacity:.65;margin:5px 0}.d3-composition-row[data-composition="muscle"] .d3-composition-track{order:-1}
 .d3-composition-track .d3-energy-needle{transform:translateX(-50%)}
 .d3-composition-missing{font-size:.75rem;color:var(--d3-sub);text-align:right;max-width:55%}
 .d3-composition-details{margin-top:6px;font-size:.74rem;color:var(--d3-sub)}.d3 .d3-composition-details summary{cursor:pointer;color:#88d3ff;min-height:24px;line-height:24px;padding:0}.d3 .d3-composition-details p{margin:9px 0;font-size:.76rem;line-height:1.45}
