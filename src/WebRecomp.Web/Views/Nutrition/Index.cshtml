@@ -2225,7 +2225,7 @@
         }
     };
 
-    const openPicker = (opener, query = "") => {
+    const openPicker = opener => {
         const slot =
             opener.dataset.mealSlot
             || "BREAKFAST";
@@ -2238,7 +2238,7 @@
             opener);
 
         mealSelect.value = slot;
-        searchInput.value = query;
+        searchInput.value = "";
 
         clearSelection();
         syncPickerMode();
@@ -2263,8 +2263,7 @@
         try {
             sessionStorage.setItem(resumeKey, JSON.stringify({
                 date: dialog.dataset.pickerDate,
-                meal: mealSelect.value,
-                query: searchInput.value
+                meal: mealSelect.value
             }));
         } catch (_) {}
     };
@@ -2277,7 +2276,7 @@
         sessionStorage.removeItem(resumeKey);
         if (saved?.date === dialog.dataset.pickerDate) {
             const opener = openers.find(x => x.dataset.mealSlot === saved.meal && (x.dataset.pickerMode || "food") === "food");
-            if (opener) openPicker(opener, typeof saved.query === "string" ? saved.query : "");
+            if (opener) openPicker(opener);
         }
     } catch (_) {}
 
