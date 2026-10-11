@@ -1,8 +1,8 @@
-# External Connections module (TEST)
+# External Connections module
 
 Provider protocol adapters live in `src/WebRecomp.ExternalConnections`, an independent .NET class library with no dependency on the fitness engine, web UI, or database. Fitdays is the first adapter. Host orchestration, encrypted storage, background scheduling, and measurement mapping live together under `WebRecomp.Web/Services/ExternalConnections`. Future providers need their own adapter and mapping; supported provider settings are maintained through Administration without editing code.
 
-Routes: `/ExternalConnections` (Profile → Device integrations), `/Fitdays` (connect, preview and select scale profile), `/AdminExternalConnections` (Administration → External connections). All actions and background syncing require the Azure application name `recomp-test`, read server-side from WEBSITE_SITE_NAME. LIVE cannot enable the feature through a host header.
+Routes: `/ExternalConnections` (Profile → Device integrations), `/Fitdays` (connect, preview and select scale profile), `/AdminExternalConnections` (Administration → External connections). The supported module is enabled on `recomp-test` and `recomp-live`, read server-side from WEBSITE_SITE_NAME. Each environment keeps its own connections and keys; TEST sign-ins are not copied to LIVE. Diagnostic routes remain TEST-only.
 
 Connection settings and encrypted sign-ins are stored under App Service HOME/data/external-connections, outside wwwroot, using exclusive file locks and atomic writes. This storage needs no new database tables or privileges. Fitness measurements remain in the existing SQL database. Keep this directory and the App Service Data Protection key ring in backups; losing either requires reconnecting. The store is isolated from the provider adapter and can be replaced with a database implementation later.
 

@@ -18,7 +18,7 @@
     <div class="status-card good">@statusMessage</div>
 }
 
-@if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsTestSite)
+@if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled)
 {
     <section class="card stack"><div class="profile-panel-label">DEVICE INTEGRATIONS</div><h2>External connections</h2><p>Connect your Fitdays scale account and manage automatic weigh-in syncing.</p><a class="button primary" asp-controller="ExternalConnections" asp-action="Index">Manage device integrations</a></section>
 }
@@ -54,7 +54,7 @@
 
     <section class="card stack">
         <div>
-            <div class="profile-panel-label">YOUR COACH</div>
+            <div class="profile-panel-label" id="your-coach">YOUR COACH</div>
             <h2>Choose who teaches you</h2>
             <p class="small">Your selected coach appears throughout Dashboard learning, nutrition topics, workout topics and “The Why” series.</p>
         </div>

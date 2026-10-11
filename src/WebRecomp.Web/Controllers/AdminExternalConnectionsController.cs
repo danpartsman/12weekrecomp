@@ -13,7 +13,7 @@ public sealed class AdminExternalConnectionsController(RecompDbContext db,Device
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
         var p=await connections.ProviderAsync(ct);
         var model=new ProviderSettingsModel {Enabled=p.Enabled,AutomaticSyncEnabled=p.AutomaticSyncEnabled,SyncIntervalMinutes=p.SyncIntervalMinutes,HistoryDays=p.HistoryDays,AppVersion=p.AppVersion,BodyCompositionEnabled=p.BodyCompositionEnabled,SkeletalMuscleUnit=p.SkeletalMuscleUnit,BodyWaterUnit=p.BodyWaterUnit};
         await Populate(model,ct);return View(model);
@@ -21,7 +21,7 @@ public sealed class AdminExternalConnectionsController(RecompDbContext db,Device
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(ProviderSettingsModel model,CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
         if(!ModelState.IsValid){await Populate(model,ct);return View(model);}
         await connections.UpdateProviderAsync(new DeviceProviderSetting {Enabled=model.Enabled,AutomaticSyncEnabled=model.AutomaticSyncEnabled,SyncIntervalMinutes=model.SyncIntervalMinutes,HistoryDays=model.HistoryDays,AppVersion=model.AppVersion,BodyCompositionEnabled=model.BodyCompositionEnabled,SkeletalMuscleUnit=model.SkeletalMuscleUnit,BodyWaterUnit=model.BodyWaterUnit,UpdatedAtUtc=DateTime.UtcNow},ct);
         TempData["DeviceMessage"]="External connection settings saved.";return RedirectToAction(nameof(Index));
@@ -29,7 +29,7 @@ public sealed class AdminExternalConnectionsController(RecompDbContext db,Device
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Pause(Guid connectionId,CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
         await connections.PauseAsync(connectionId,ct);
         TempData["DeviceMessage"]="Automatic sync paused for this connection.";return RedirectToAction(nameof(Index));
     }

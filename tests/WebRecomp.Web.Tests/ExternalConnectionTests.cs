@@ -8,6 +8,11 @@ using WebRecomp.Web.ViewModels;
 namespace WebRecomp.Web.Tests;
 public sealed class ExternalConnectionTests
 {
+    [Theory]
+    [InlineData("recomp-test",true)] [InlineData("recomp-live",true)]
+    [InlineData("other-site",false)] [InlineData(null,false)]
+    public void SupportedEnvironmentsAreExplicit(string? site,bool expected)
+        => Assert.Equal(expected,ExternalConnectionFeatures.IsSupportedSite(site));
     [Fact]
     public void PageOpenPollingWaitsForTheConfiguredInterval()
     {

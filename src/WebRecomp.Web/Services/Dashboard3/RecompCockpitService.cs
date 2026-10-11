@@ -66,11 +66,11 @@ public sealed class RecompCockpitService(RecompDbContext db,
             && x.CheckinDate >= activeStart && x.CheckinDate <= today).ToListAsync(ct);
         var records = await db.AnalysisRuns.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.ActionDate >= activeStart && x.ActionDate <= today
-            && (x.EngineVersion == RecompScoreResult.Version || x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == FlexVersion))
+            && (x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2") || x.EngineVersion == FlexVersion))
             .OrderByDescending(x => x.StartedAtUtc).ThenByDescending(x => x.AnalysisRunId).ToListAsync(ct);
         var flex = records.Where(x => x.EngineVersion == FlexVersion).GroupBy(x => x.ActionDate)
             .ToDictionary(x => x.Key, x => Read<FlexibleItemEntry>(x.First().DiagnosticJson)?.Count);
-        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || x.EngineVersion == "RECOMP_SCORE_V1")
+        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2"))
             .Select(x => (Run: x, Snapshot: Read<RecompScoreSnapshot>(x.DiagnosticJson)))
             .Where(x => x.Snapshot is not null).ToArray();
         var days = new List<RecompDayEvidence>();
@@ -174,7 +174,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var result = new RecompCockpit
         {
             WeekStart = start, Score = score, Training = training, Glycogen = glycogen, Days = days, History = history, UpcomingWorkouts = upcoming,
-            Change = previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
+            Change = !score.HasEvidence || previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
             TodayFlexibleItems = flex.GetValueOrDefault(today),
             HistoryNotice = !historical ? null : capture is not null
                 ? $"Saved weekly projection · {today:MMM d} · {capture.Version}. Daily cards show the saved entries."
@@ -183,7 +183,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 : training.Single(x => x.Key == "resistance").Target == 0
                 ? "This week has no resistance goal. Review the plan before using the score to evaluate a recomp strategy."
                 : score.KnownNutritionDays < score.CompletedNutritionDays
-                ? "Some completed days have unknown intake. This is a provisional projection; unknown days have not been scored as failures." : null,
+                ? "Some completed days have unknown intake. Unknown days are excluded from the score." : null,
             NextAction = behind is not null ? $"{behind.Label} is behind the saved schedule. Review the remaining week and choose the next appropriate session."
                 : mealPlan.Bands.Any(x => x.Eaten > x.High) ? "Review today's combined intake, then return to the next planned day."
                 : mealPlan.Bands.Any(x => x.Remaining > 0) && mealPlan.CanPlan ? mealPlan.Advice
@@ -192,7 +192,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var snapshot = new RecompScoreSnapshot(RecompScoreResult.Version, start, score.Score,
             score.KnownNutritionDays, score.CompletedNutritionDays, days, training, score.Components, glycogen);
         var json = JsonSerializer.Serialize(snapshot);
-        if (!historical && snapshots.FirstOrDefault().Run?.DiagnosticJson != json)
+        if (!historical && score.HasEvidence && snapshots.FirstOrDefault().Run?.DiagnosticJson != json)
         {
             try
             {
@@ -207,7 +207,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 result.StorageNotice = "Your current score is shown, but its history could not be saved. Please try again later.";
             }
         }
-        if (!historical)
+        if (!historical && score.HasEvidence)
         {
             result.History.RemoveAll(x => x.Date == today);
             result.History.Add(new(today, score.Score, DateTime.UtcNow, RecompScoreResult.Version));

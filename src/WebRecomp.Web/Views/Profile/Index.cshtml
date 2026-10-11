@@ -22,7 +22,7 @@
         <a class="button" asp-action="Edit">Edit profile</a>
         <a class="button" asp-controller="HabitualActivity" asp-action="Index">Work &amp; activity</a>
         <a class="button" asp-action="Settings">Settings</a>
-        @if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsTestSite)
+        @if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled)
         {
             <a class="button" asp-controller="ExternalConnections" asp-action="Index">Device integrations</a>
         }

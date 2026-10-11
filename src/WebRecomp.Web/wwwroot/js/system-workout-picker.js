@@ -11,18 +11,7 @@
         const style = document.createElement("style");
         style.id = styleId;
         style.textContent = `
-            .cwp-native {
-                position: absolute !important;
-                width: 1px !important;
-                height: 1px !important;
-                padding: 0 !important;
-                margin: -1px !important;
-                overflow: hidden !important;
-                clip: rect(0, 0, 0, 0) !important;
-                white-space: nowrap !important;
-                border: 0 !important;
-                opacity: .01 !important;
-            }
+            .cwp-native { display: none !important; }
             .cwp { position: relative; width: 100%; margin-top: .25rem; }
             .cwp-toggle {
                 width: 100%; min-height: 2.65rem; display: flex; align-items: center;
@@ -31,13 +20,13 @@
                 border-radius: .45rem; background: var(--surface, #fff); color: inherit;
                 font: inherit; cursor: pointer;
             }
-            .cwp-toggle::after { content: ""; flex: 0 0 auto; }
-            .cwp.is-open > .cwp-toggle::after { content: ""; }
+            .cwp-toggle::after { content: "▾"; flex: 0 0 auto; }
+            .cwp.is-open > .cwp-toggle::after { content: "▴"; }
             .cwp-panel {
-                position: absolute; z-index: 1200; left: 0; right: 0;
-                top: calc(100% + .25rem); max-height: min(70vh, 32rem); overflow: auto;
+                position: fixed; z-index: 60000; margin: 0; box-sizing: border-box;
+                max-height: min(70dvh, 32rem); overflow: auto; overscroll-behavior: contain;
                 padding: .45rem; border: 1px solid rgba(127,127,127,.45);
-                border-radius: .5rem; background: var(--surface, #fff); color: inherit;
+                border-radius: .5rem; background: #0b1f33; color: #d8eafa;
                 box-shadow: 0 .65rem 1.6rem rgba(0,0,0,.18);
             }
             .cwp-panel[hidden], .cwp-options[hidden] { display: none !important; }
@@ -49,7 +38,7 @@
                 font-weight: 700; text-align: left; cursor: pointer;
             }
             .cwp-category-button::after { content: "+"; flex: 0 0 auto; font-size: 1.1em; }
-            .cwp-category-button[aria-expanded="true"]::after { content: ""; }
+            .cwp-category-button[aria-expanded="true"]::after { content: "−"; }
             .cwp-count { margin-left: auto; margin-right: .35rem; font-size: .82em; font-weight: 500; opacity: .72; }
             .cwp-options { padding: .3rem 0 .15rem; }
             .cwp-option {
@@ -61,11 +50,26 @@
                 background: rgba(127,127,127,.14); outline: none;
             }
             .cwp-option.is-selected { font-weight: 700; }
-            @media (max-width: 720px) {
-                .cwp-panel { position: fixed; left: .75rem; right: .75rem; top: 15vh; max-height: 70vh; }
-            }
         `;
         document.head.appendChild(style);
+    }
+
+    function positionPanel(shell) {
+        const toggle = shell.querySelector(".cwp-toggle");
+        const panel = shell.querySelector(".cwp-panel");
+        if (panel.hidden) return;
+        const r = toggle.getBoundingClientRect();
+        const viewport = window.visualViewport;
+        const height = viewport?.height || window.innerHeight;
+        const width = viewport?.width || window.innerWidth;
+        const panelWidth = Math.min(Math.max(r.width, 280), width - 24);
+        panel.style.width = `${panelWidth}px`;
+        panel.style.left = `${Math.max(12, Math.min(r.left, width - panelWidth - 12))}px`;
+        const below = height - r.bottom - 12;
+        const above = r.top - 12;
+        const openAbove = below < 240 && above > below;
+        panel.style.maxHeight = `${Math.max(100, Math.min(height * .70, openAbove ? above : below))}px`;
+        panel.style.top = `${openAbove ? Math.max(12, r.top - panel.offsetHeight - 4) : Math.max(12, r.bottom + 4)}px`;
     }
 
     function closeCategory(category) {
@@ -82,7 +86,7 @@
     function closePicker(shell) {
         const panel = shell.querySelector(".cwp-panel");
         const toggle = shell.querySelector(".cwp-toggle");
-        if (panel) panel.hidden = true;
+        if (panel) { if (panel.matches(":popover-open")) panel.hidePopover(); panel.hidden = true; }
         shell.classList.remove("is-open");
         toggle?.setAttribute("aria-expanded", "false");
         closeCategories(shell);
@@ -174,6 +178,7 @@
             if (!wasOpen) {
                 heading.setAttribute("aria-expanded", "true");
                 list.hidden = false;
+                positionPanel(shell);
             }
         });
 
@@ -199,6 +204,7 @@
         const panel = document.createElement("div");
         panel.className = "cwp-panel";
         panel.hidden = true;
+        panel.setAttribute("popover", "manual");
 
         const placeholder = Array.from(select.options).find(option => !option.value);
         select.dataset.collapsiblePlaceholder = optionText(placeholder);
@@ -244,11 +250,15 @@
             panel.hidden = !opening;
             shell.classList.toggle("is-open", opening);
             toggle.setAttribute("aria-expanded", opening ? "true" : "false");
+            if (opening) { panel.scrollTop = 0; panel.showPopover?.(); positionPanel(shell); }
+            else closePicker(shell);
         });
 
         panel.addEventListener("click", event => event.stopPropagation());
 
         select.classList.add("cwp-native");
+        select.tabIndex = -1;
+        select.setAttribute("aria-hidden", "true");
         select.insertAdjacentElement("afterend", shell);
         shell.appendChild(toggle);
         shell.appendChild(panel);
@@ -262,7 +272,13 @@
         root.querySelectorAll?.(selector).forEach(enhance);
     }
 
-    document.addEventListener("click", () => closeAll());
+    document.addEventListener("click", event => {
+        if (!event.target.closest(".cwp")) closeAll();
+    });
+    window.addEventListener("resize", () => document.querySelectorAll(".cwp.is-open").forEach(positionPanel));
+    window.addEventListener("scroll", event => {
+        if (!event.target.closest?.(".cwp-panel")) document.querySelectorAll(".cwp.is-open").forEach(positionPanel);
+    }, true);
     document.addEventListener("keydown", event => {
         if (event.key === "Escape") closeAll();
     });

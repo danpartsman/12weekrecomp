@@ -1493,3 +1493,12 @@ body.test-live-preview.app-shell .daily-entry-activity-grid input[type="number"]
 
 .daily-scale-actions { display:flex; gap:.7rem; flex-wrap:wrap; align-items:center; margin-bottom:.8rem; }
 .daily-scale-actions p { flex-basis:100%; margin:0; }
+
+.daily-entry-section .daily-scale-actions { padding:.75rem; border:1px solid #315a78; border-radius:14px; background:rgba(13,39,61,.6); }
+.daily-entry-section .daily-scale-button { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:.65rem 1rem; border:1px solid #42728f; border-radius:10px; color:#e4f3ff; background:#12334d; font:inherit; font-weight:700; text-decoration:none; cursor:pointer; }
+.daily-entry-section .daily-scale-pull { border-color:#41c8da; background:#145565; }
+.daily-entry-section .daily-scale-button:hover { filter:brightness(1.15); }
+.daily-entry-section .daily-scale-button:focus-visible { outline:3px solid #6ae6f1; outline-offset:3px; }
+.daily-entry-section .daily-scale-button:disabled { opacity:.65; cursor:wait; }
+.daily-scale-actions p:empty { display:none; }
+@media(max-width:520px) { .daily-scale-button { flex:1 1 160px; } }

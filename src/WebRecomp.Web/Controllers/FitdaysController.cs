@@ -19,7 +19,7 @@ public sealed class FitdaysController(AppUserContextService users, FitdaysClient
     [HttpGet]
     public async Task<IActionResult> Index(long? personId, CancellationToken ct, bool reconnect = false)
     {
-        if (!ExternalConnectionFeatures.IsTestSite) return NotFound();
+        if (!ExternalConnectionFeatures.IsEnabled) return NotFound();
         var context = await users.GetAsync(HttpContext, ct);
         if (context.Client is null || context.Program is null) return RedirectToAction("Index", "Intake");
         var preview = GetPreview(context.Client.ClientId, context.User.UserId);
@@ -35,7 +35,7 @@ public sealed class FitdaysController(AppUserContextService users, FitdaysClient
     [HttpPost, ValidateAntiForgeryToken, EnableRateLimiting("fitdays-preview")]
     public async Task<IActionResult> Connect(FitdaysPageModel model, CancellationToken ct)
     {
-        if (!ExternalConnectionFeatures.IsTestSite) return NotFound();
+        if (!ExternalConnectionFeatures.IsEnabled) return NotFound();
         var context = await users.GetAsync(HttpContext, ct);
         if (context.Client is null || context.Program is null) return RedirectToAction("Index", "Intake");
         if (!await devices.OwnsAsync(context.User.UserId,context.Client.ClientId,ct)) return Forbid();
@@ -67,7 +67,7 @@ public sealed class FitdaysController(AppUserContextService users, FitdaysClient
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(long personId, bool automaticSync, bool persistConsent, CancellationToken ct)
     {
-        if (!ExternalConnectionFeatures.IsTestSite) return NotFound();
+        if (!ExternalConnectionFeatures.IsEnabled) return NotFound();
         var context=await users.GetAsync(HttpContext,ct);
         if(context.Client==null||context.Program==null)return RedirectToAction("Index","Intake");
         var preview=GetPreview(context.Client.ClientId,context.User.UserId);
@@ -86,7 +86,7 @@ public sealed class FitdaysController(AppUserContextService users, FitdaysClient
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Disconnect(CancellationToken ct)
     {
-        if (!ExternalConnectionFeatures.IsTestSite) return NotFound();
+        if (!ExternalConnectionFeatures.IsEnabled) return NotFound();
         var context = await users.GetAsync(HttpContext, ct);
         if (context.Client == null) return RedirectToAction("Index", "Intake");
         if (GetPreview(context.Client.ClientId, context.User.UserId) != null) RemovePreview();

@@ -14,7 +14,7 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
     public async Task<DeviceConnection> SaveAsync(AppClientContext context, SavedFitdaysLogin login, FitdaysPerson person, bool automatic, CancellationToken ct)
     {
         var setting=await ProviderAsync(ct);
-        if (!setting.Enabled || !ExternalConnectionFeatures.IsTestSite) throw new FitdaysPreviewException("Fitdays connections are currently disabled.");
+        if (!setting.Enabled || !ExternalConnectionFeatures.IsEnabled) throw new FitdaysPreviewException("Fitdays connections are currently disabled.");
         if (!await OwnsAsync(context.User.UserId,context.Client!.ClientId,ct)) throw new FitdaysPreviewException("Only the profile owner can connect a scale.");
         var c=await ConnectionAsync(context.User.UserId,context.Client.ClientId,ct);
         if (c?.SyncLeaseUntilUtc > DateTime.UtcNow) throw new FitdaysPreviewException("A sync is in progress. Please wait before changing the connection.");
@@ -28,7 +28,7 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
 
     public async Task<string> SyncAsync(Guid id,CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsTestSite)return "Device syncing is unavailable in this environment.";
+        if(!ExternalConnectionFeatures.IsEnabled)return "Device syncing is unavailable in this environment.";
         var setting=await ProviderAsync(ct);if(!setting.Enabled)return "Fitdays is disabled by the administrator.";
         var now=DateTime.UtcNow;var lease=Guid.NewGuid();
         var connection=await connections.ClaimAsync(id,lease,now,ct);

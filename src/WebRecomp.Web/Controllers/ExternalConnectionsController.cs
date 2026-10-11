@@ -13,7 +13,7 @@ public sealed class ExternalConnectionsController(AppUserContextService users,De
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
         var context=await users.GetAsync(HttpContext,ct);if(context.Client==null||context.Program==null)return RedirectToAction("Index","Intake");
         if(!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Forbid();
         return View(new ExternalConnectionsPage(await service.ProviderAsync(ct),await service.ConnectionAsync(context.User.UserId,context.Client.ClientId,ct)));
@@ -22,7 +22,7 @@ public sealed class ExternalConnectionsController(AppUserContextService users,De
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("fitdays-preview")]
     public async Task<IActionResult> SyncOnOpen(CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
         var setting=await service.ProviderAsync(ct);
         if(!setting.Enabled||!setting.AutomaticSyncEnabled)return Json(new {updated=false});
         var context=await users.GetAsync(HttpContext,ct);
@@ -36,7 +36,7 @@ public sealed class ExternalConnectionsController(AppUserContextService users,De
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("fitdays-preview")]
     public async Task<IActionResult> Sync(CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
         var context=await users.GetAsync(HttpContext,ct);if(context.Client==null)return RedirectToAction("Index","Intake");
         if(!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Forbid();
         var connection=await service.ConnectionAsync(context.User.UserId,context.Client.ClientId,ct);
@@ -47,7 +47,7 @@ public sealed class ExternalConnectionsController(AppUserContextService users,De
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("fitdays-preview")]
     public async Task<IActionResult> PullReadings(CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
         var context=await users.GetAsync(HttpContext,ct);
         if(context.Client==null||!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Forbid();
         var c=await service.ConnectionAsync(context.User.UserId,context.Client.ClientId,ct);
@@ -58,7 +58,7 @@ public sealed class ExternalConnectionsController(AppUserContextService users,De
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Settings(bool automaticSync,CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
         var context=await users.GetAsync(HttpContext,ct);if(context.Client==null)return RedirectToAction("Index","Intake");
         if(!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Forbid();
         await connections.PreferenceAsync(context.User.UserId,context.Client.ClientId,automaticSync,ct);
@@ -67,7 +67,7 @@ public sealed class ExternalConnectionsController(AppUserContextService users,De
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Disconnect(CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsTestSite)return NotFound();
+        if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
         var context=await users.GetAsync(HttpContext,ct);if(context.Client==null)return RedirectToAction("Index","Intake");
         if(!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Forbid();
         var changed=await connections.DisconnectAsync(context.User.UserId,context.Client.ClientId,ct);
