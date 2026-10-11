@@ -1,7 +1,6 @@
 (() => {
     'use strict';
     const root = document.querySelector('[data-dashboard3]');
-    root?.querySelector('[data-composition-period]')?.addEventListener('change', event => event.currentTarget.form.requestSubmit());
     const team = root?.querySelector('[data-team-dialog]');
     root?.querySelector('[data-open-team]')?.addEventListener('click', () => team.showModal());
     root?.querySelector('[data-close-team]')?.addEventListener('click', () => team.close());

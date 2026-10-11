@@ -172,11 +172,9 @@ public sealed class DashboardController(
         [FromServices] WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore foodLog,
         [FromServices] ILogger<DashboardController> logger,
         [FromServices] WebRecomp.Web.Services.Dashboard3.RecompCockpitService cockpit,
-        int? occasions, DateOnly? date, CancellationToken cancellationToken, int? compositionDays = null)
+        int? occasions, DateOnly? date, CancellationToken cancellationToken)
     {
-        if (!ModelState.IsValid) return BadRequest("Choose a valid dashboard date and comparison period.");
-        var period = WebRecomp.Web.Services.Dashboard3.RecompBodyCompositionTrends.NormalizeComparisonDays(compositionDays);
-        ViewData["CompositionDays"] = period;
+        if (!ModelState.IsValid) return BadRequest("Choose a valid dashboard date.");
         var result = await BuildDashboardAsync(date, cancellationToken);
         if (result is not ViewResult view || view.Model is not WebRecomp.Web.ViewModels.DashboardViewModel day)
             return result;
@@ -185,7 +183,7 @@ public sealed class DashboardController(
         {
             var context = await userContext.GetAsync(HttpContext, cancellationToken);
             ViewData["RecompCockpit"] = await cockpit.BuildAsync(context, day,
-                (WebRecomp.Web.Services.Dashboard2.MacroDayPlan)ViewData["MacroDayPlan"]!, cancellationToken, period);
+                (WebRecomp.Web.Services.Dashboard2.MacroDayPlan)ViewData["MacroDayPlan"]!, cancellationToken);
         }
         view.ViewName = "CommandCenter";
         return view;
