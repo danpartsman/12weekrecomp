@@ -82,7 +82,7 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         var active = (await types.GetActiveMapAsync(ct)).Where(x=>x.Value.IsSelectable).ToDictionary(x=>x.Key,x=>x.Value);
         var templates = await db.WorkoutTemplates.AsNoTracking().Where(x=>x.ClientId==client.ClientId).Include(x=>x.Exercises).ToListAsync(ct);
         var candidates = new List<WorkoutTargetChoice>();
-        foreach(var recipe in SystemWorkoutRecipeCatalog.PresentationRecipes.Where(x=>active.ContainsKey(x.EngineWorkoutTypeCode)))
+        foreach(var recipe in SystemWorkoutRecipeCatalog.CoreRecipes.Concat(SystemWorkoutRecipeCatalog.SignatureRecipes).Where(x=>active.ContainsKey(x.EngineWorkoutTypeCode)))
         {
             var choice = new WorkoutTargetChoice { Key="system:"+recipe.SystemCode, Name=recipe.DisplayName, Source="System Workouts", TypeCode=recipe.EngineWorkoutTypeCode,
                 SystemCode=recipe.SystemCode, Minutes=input.Minutes, Rpe=rpeCap };
@@ -221,9 +221,11 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
             BodyRegions.FromMuscles(e.MuscleTargets.Select(m=>m.MuscleName)),note,false,seconds);
     private static int SlotScore(ExerciseCatalogItemRecord e,SystemWorkoutExerciseSlot s)
     {
-        var name=s.PreferredNameTerms.Select((t,i)=>e.Name.Contains(t,StringComparison.OrdinalIgnoreCase)?100-i:0).DefaultIfEmpty().Max();
+        var name=s.PreferredNameTerms.Select((t,i)=>e.Name.Equals(t,StringComparison.OrdinalIgnoreCase)?300-i
+            : e.Name.Contains(t,StringComparison.OrdinalIgnoreCase)?100-i:0).DefaultIfEmpty().Max();
         if(s.RequireNameMatch&&name==0) return 0;
-        var muscle=s.MuscleTerms.Any(t=>e.MuscleTargets.Any(m=>m.MuscleName.Contains(t,StringComparison.OrdinalIgnoreCase)));
+        var muscle=s.MuscleTerms.Any(t=>e.MuscleTargets.Where(m=>m.RoleCode=="primary").Any(m=>m.MuscleName.Contains(t,StringComparison.OrdinalIgnoreCase)));
+        if(s.MuscleTerms.Count>0 && !muscle && !s.RequireNameMatch) return 0;
         if(e.Category?.Contains("stretch",StringComparison.OrdinalIgnoreCase)==true&&!s.AllowStretching) return 0;
         return name>0?name:muscle?10:0;
     }
