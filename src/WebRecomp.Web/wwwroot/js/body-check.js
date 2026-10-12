@@ -2,26 +2,26 @@
  const root = document.querySelector('[data-body-check]'); if (!root) return;
  const checked = root.querySelector('[name="BodyChecked"]');
  function refresh() {
-  root.querySelectorAll('[data-region-row]').forEach(row => {
-   const s = Number(row.querySelector('[data-soreness]').value), p = Number(row.querySelector('[data-pain]').value);
-   row.querySelector('[data-region-label]').textContent = s || p ? `S ${s} · P ${p}` : '';
-   root.querySelectorAll(`[data-body-region="${row.dataset.regionRow}"]`).forEach(spot => {
-    spot.classList.toggle('is-sore', s > 0); spot.classList.toggle('is-pain', p > 0);
-   });
+  const summary=[];
+  root.querySelectorAll('[data-body-region]').forEach(spot => {
+   const state=Number(root.querySelector(`[data-region-mark="${spot.dataset.bodyRegion}"]`).value);
+   const label=state===1?'sore':state===2?'pain / injury':'clear';
+   spot.classList.toggle('is-sore',state===1); spot.classList.toggle('is-pain',state===2);
+   spot.textContent=state?'×':'□';
+   spot.setAttribute('aria-label',`${spot.dataset.regionName}: ${label}`);
+   spot.setAttribute('aria-pressed',String(state>0));
+   if(state) summary.push(`${spot.dataset.regionName}: ${label}`);
   });
+  root.querySelector('[data-mark-summary]').textContent=summary.join(' · ') || 'No regions marked.';
  }
  root.querySelectorAll('[data-body-region]').forEach(spot => spot.addEventListener('click', () => {
-  const row = root.querySelector(`[data-region-row="${spot.dataset.bodyRegion}"]`);
-  row.open = true; row.scrollIntoView({block:'center',behavior:'smooth'}); row.querySelector('[data-soreness]').focus();
+  const mark=root.querySelector(`[data-region-mark="${spot.dataset.bodyRegion}"]`);
+  mark.value=String((Number(mark.value)+1)%3); if(checked) checked.checked=true; refresh();
  }));
- root.addEventListener('input', () => { refresh(); });
  root.querySelector('[data-body-clear]').addEventListener('click', () => {
-  root.querySelectorAll('input[type="number"]').forEach(x=>x.value='0');
-  root.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=false);
-  if (checked) checked.checked=true;
-  const painFlag=document.querySelector('[name="PainFlag"][type="checkbox"]'); if(painFlag) painFlag.checked=false;
-  const globalSoreness=document.querySelector('[name="SorenessScore"]'); if(globalSoreness) globalSoreness.value='';
-  refresh();
+  root.querySelectorAll('[data-region-mark]').forEach(x=>x.value='0');
+  root.querySelector('[name="KeepPain"][type="checkbox"]').checked=false;
+  if(checked) checked.checked=true; refresh();
  });
  refresh();
 })();

@@ -49,7 +49,7 @@ public sealed class DailyEntryController(
         // A GET must show the freshly rebuilt DB-backed model.
         ModelState.Clear();
 
-        return View(Request.Query.ContainsKey("edit") ? "Index" : "Ledger", model);
+        return View("Index", model);
     }
 
     [HttpGet]
@@ -86,6 +86,12 @@ public sealed class DailyEntryController(
             model.Workouts.Clear(); // Past workout corrections belong to Workouts, not this ledger.
         if (checkInOnly)
         {
+            foreach (var feeling in model.RegionFeelings)
+            {
+                feeling.Soreness = feeling.Mark == 1 ? model.SorenessRating : 0;
+                feeling.Pain = feeling.Mark == 2 ? model.PainRating : 0;
+                feeling.MovementLimited = false; feeling.SharpOrWorsening = false; feeling.Side = "both";
+            }
             if (model.RegionFeelings.Count > BodyRegions.All.Length
                 || model.RegionFeelings.Select(x => x.Region).Distinct().Count() != model.RegionFeelings.Count
                 || model.RegionFeelings.Any(x => !BodyRegions.All.Any(r => r.Code == x.Region)))
@@ -156,7 +162,7 @@ public sealed class DailyEntryController(
         checkin.PainFlag = model.PainFlag || model.RegionFeelings.Any(x => x.Pain > 0 || x.SharpOrWorsening || x.MovementLimited);
         checkin.IllnessFlag = model.IllnessFlag;
         checkin.IntendedWorkoutTypeCode = null;
-        checkin.Notes = BodyCheckinCodec.Write(Clean(model.RecoveryNotes), model.BodyChecked, model.RegionFeelings, model.PainFlag);
+        checkin.Notes = BodyCheckinCodec.Write(Clean(model.RecoveryNotes), model.BodyChecked, model.RegionFeelings, model.PainFlag, model.KeepPain, model.SorenessRating, model.PainRating);
         checkin.UpdatedAtUtc = now;
 
         var bodyDataEntered =
@@ -819,6 +825,10 @@ public sealed class DailyEntryController(
                 date,
                 cancellationToken);
 
+        var body = BodyCheckinCodec.Read(checkin?.Notes);
+        var persistent = await BodyCheckinCodec.PersistentPainAsync(db, program.ProgramId, date, cancellationToken);
+        var hasBodyCheck = checkin?.Notes?.StartsWith("12WR_BODY_V1:", StringComparison.Ordinal) == true;
+
         var model = new DailyEntryViewModel
         {
             Date = date,
@@ -862,7 +872,10 @@ public sealed class DailyEntryController(
             IllnessFlag = checkin?.IllnessFlag == true,
             RecoveryNotes = BodyCheckinCodec.Read(checkin?.Notes).Note,
             BodyChecked = BodyCheckinCodec.Read(checkin?.Notes).Checked,
-            RegionFeelings = BodyCheckinCodec.Read(checkin?.Notes).Regions,
+            RegionFeelings = hasBodyCheck ? body.Regions : persistent.Regions,
+            KeepPain = hasBodyCheck ? body.KeepPain : persistent.KeepPain,
+            SorenessRating = body.SorenessRating,
+            PainRating = hasBodyCheck ? body.PainRating : persistent.PainRating,
             IsPastDay = date < AppUserContextService.GetClientToday(client),
 
             Calories = nutrition?.ActualCalories,

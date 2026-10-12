@@ -21,15 +21,15 @@ public sealed class WorkoutTargetPolicyTests
         var stored=BodyCheckinCodec.Write(new string('a',1000),true,BodyRegions.All.Select(r=>new RegionFeeling{Region=r.Code,Soreness=10,Pain=10,MovementLimited=true,SharpOrWorsening=true}));
         Assert.True(stored.Length<=2000);Assert.Equal(BodyRegions.All.Length,BodyCheckinCodec.Read(stored).Regions.Count);
     }
-    [Fact] public void ChestExerciseIsExcludedForShoulderAndElbowPain()
+    [Fact] public void ExercisesAreExcludedOnlyForTaggedRegions()
     {
         var loading=BodyRegions.LoadingRegions(["Pectorals","Triceps"]);
-        Assert.True(WorkoutTargetPolicy.Excluded(loading,[new(){Region="shoulders",Pain=2}]));
-        Assert.True(WorkoutTargetPolicy.Excluded(loading,[new(){Region="elbows",Pain=2}]));
+        Assert.True(WorkoutTargetPolicy.Excluded(loading,[new(){Region="chest",Pain=2}]));
+        Assert.False(WorkoutTargetPolicy.Excluded(loading,[new(){Region="shoulders",Pain=2}]));
         Assert.False(WorkoutTargetPolicy.Excluded(loading,[new(){Region="quads",Pain=2}]));
     }
-    [Fact] public void MildSorenessDoesNotAutomaticallyBanTraining()
-        => Assert.False(WorkoutTargetPolicy.Excluded(["quads"],[new(){Region="quads",Soreness=3}]));
+    [Fact] public void EvenMildSorenessExcludesMatchingExercises()
+        => Assert.True(WorkoutTargetPolicy.Excluded(["quads"],[new(){Region="quads",Soreness=1}]));
     [Theory] [InlineData(0,true,false)] [InlineData(0,false,true)] [InlineData(8,false,false)]
     public void LimitedMovementOrSevereSorenessExcludesLoading(int soreness,bool limited,bool sharp)
         => Assert.True(WorkoutTargetPolicy.Excluded(["quads"],[new(){Region="quads",Soreness=soreness,MovementLimited=limited,SharpOrWorsening=sharp}]));
@@ -38,6 +38,18 @@ public sealed class WorkoutTargetPolicyTests
         Assert.Equal(6m,WorkoutTargetPolicy.EffortCap("hard",true,null));
         Assert.Equal(6m,WorkoutTargetPolicy.EffortCap("hard",false,new(){EnergyScore=2}));
         Assert.Equal(8m,WorkoutTargetPolicy.EffortCap("hard",false,null));
+    }
+    [Fact] public void PersistentPainSettingsSurviveNoteUpdates()
+    {
+        var stored = BodyCheckinCodec.Write(null, true, [new() { Region="quads", Mark=2, Pain=5 }], false, true, 2, 5);
+        var result = BodyCheckinCodec.Read(BodyCheckinCodec.UpdateNote(stored, "note"));
+        Assert.True(result.KeepPain); Assert.Equal(5, result.PainRating); Assert.Equal(2, result.Regions.Single().Mark);
+    }
+    [Fact] public void ExactSimplifiedRegionsAreAvailable()
+    {
+        Assert.Equal(5, BodyRegions.All.Count(x => x.View == "front"));
+        Assert.Equal(6, BodyRegions.All.Count(x => x.View == "back"));
+        Assert.Contains("upperback", BodyRegions.FromMuscles(["Latissimus dorsi"]));
     }
     [Fact] public void PastAndCompletedPlansCannotBeEdited()
     {

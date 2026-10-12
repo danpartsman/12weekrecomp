@@ -6,22 +6,27 @@
 @foreach (var view in new[] { "front", "back" }) {
 <div class="tw-body-map"><h3>@(view == "front" ? "Front" : "Back")</h3>
 <svg viewBox="0 0 240 430" aria-hidden="true"><circle cx="120" cy="35" r="23"/><path d="M104 59 L136 59 L143 78 L165 88 L185 165 L176 226 L159 220 L162 161 L148 118 L145 210 L151 230 L149 318 L145 397 L125 397 L121 316 L119 246 L115 316 L111 397 L91 397 L87 318 L89 230 L95 210 L92 118 L78 161 L81 220 L64 226 L55 165 L75 88 L97 78 Z"/></svg>
-@{ var spots = view == "front" ? new[] { ("neck",120,66), ("shoulders",155,93), ("chest",120,112), ("biceps",172,143), ("forearms",177,194), ("wrists",171,221), ("elbows",167,166), ("core",120,172), ("hips",137,221), ("quads",138,278), ("knees",137,321), ("ankles",137,384) } : new[] { ("shoulders",153,95), ("upperback",120,110), ("lats",139,151), ("triceps",171,144), ("lowerback",120,193), ("glutes",137,239), ("hamstrings",137,280), ("calves",137,355) }; }
-@foreach (var spot in spots) { <button type="button" class="tw-body-spot" style="left:@(spot.Item2 / 2.4)%;top:@(spot.Item3 / 4.3)%" data-body-region="@spot.Item1" aria-label="Select @regions.First(r=>r.Code == spot.Item1).Name">+</button> }
+@{ var spots = view == "front" ? new[] { ("shoulders",155,93), ("chest",120,120), ("core",120,174), ("hips",138,224), ("quads",138,286) } : new[] { ("upperback",120,103), ("lowerback",120,193), ("triceps",172,145), ("glutes",137,239), ("hamstrings",137,288), ("calves",137,357) }; }
+@foreach (var spot in spots) {
+var region = regions.First(r => r.Code == spot.Item1);
+<button type="button" class="tw-body-spot" style="left:@(spot.Item2 / 2.4)%;top:@(spot.Item3 / 4.3)%" data-body-region="@region.Code" data-region-name="@region.Name" title="@region.Name" aria-label="@region.Name: clear" aria-pressed="false">□</button>
+}
+<p class="small">@string.Join(" · ", regions.Where(r => r.View == view).Select(r => r.Name))</p>
 </div>}
 </div>
-<p><button type="button" data-body-clear>No soreness or pain today</button></p>
-<label><input asp-for="BodyChecked" /> I have checked these regions for this date.</label>
-<p class="small">0 = none · 3 = mild · 6 = affects movement · 10 = severe. Pain ratings do not diagnose an injury.</p>
-<div class="tw-region-list">
-@for (var i=0; i<regions.Length; i++) {
-var region=regions[i]; var feeling=Model.RegionFeelings.FirstOrDefault(x=>x.Region==region.Code) ?? new RegionFeeling { Region=region.Code };
-<details data-region-row="@region.Code" open="@(feeling.Soreness > 0 || feeling.Pain > 0 ? "open" : null)"><summary>@region.Name <span data-region-label>@(feeling.Soreness > 0 || feeling.Pain > 0 ? $"S {feeling.Soreness} · P {feeling.Pain}" : "")</span></summary>
-<input type="hidden" name="RegionFeelings[@i].Region" value="@region.Code" />
-<div class="tw-region-fields"><label>Side <select name="RegionFeelings[@i].Side">@foreach(var side in new[]{"both","left","right"}) { <option value="@side" selected="@(feeling.Side==side ? "selected":null)">@side</option> }</select></label>
-<label>Soreness (0–10)<input type="number" name="RegionFeelings[@i].Soreness" min="0" max="10" value="@feeling.Soreness" data-soreness /></label>
-<label>Pain (0–10)<input type="number" name="RegionFeelings[@i].Pain" min="0" max="10" value="@feeling.Pain" data-pain /></label></div>
-<label><input type="checkbox" name="RegionFeelings[@i].MovementLimited" value="true" checked="@(feeling.MovementLimited ? "checked":null)" /> Movement is limited</label>
-<label><input type="checkbox" name="RegionFeelings[@i].SharpOrWorsening" value="true" checked="@(feeling.SharpOrWorsening ? "checked":null)" /> Pain is sharp or worsening</label>
-</details>}
-</div></div>
+@for (var i = 0; i < regions.Length; i++) {
+var feeling = Model.RegionFeelings.FirstOrDefault(x => x.Region == regions[i].Code);
+var mark = feeling?.Mark > 0 ? feeling.Mark : feeling?.Pain > 0 || feeling?.MovementLimited == true || feeling?.SharpOrWorsening == true ? 2 : feeling?.Soreness > 0 ? 1 : 0;
+<input type="hidden" name="RegionFeelings[@i].Region" value="@regions[i].Code" />
+<input type="hidden" name="RegionFeelings[@i].Mark" value="@mark" data-region-mark="@regions[i].Code" />
+}
+<div class="tw-controls">
+<label>Soreness rating (1–10)<input asp-for="SorenessRating" type="number" min="1" max="10" /><span asp-validation-for="SorenessRating"></span></label>
+<label>Pain / injury rating (1–10)<input asp-for="PainRating" type="number" min="1" max="10" /><span asp-validation-for="PainRating"></span></label>
+</div>
+<p><label><input asp-for="KeepPain" /> Keep pain/injury marks and rating on following days until turned off.</label></p>
+<p data-mark-summary aria-live="polite"></p>
+<p><button type="button" data-body-clear>Clear all marks</button></p>
+<label><input asp-for="BodyChecked" /> I have checked my body for this date.</label>
+<p class="small">All marked regions are excluded from recommended exercises, regardless of rating.</p>
+</div>

@@ -20,6 +20,8 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         var body = BodyCheckinCodec.Read(checkin?.Notes);
         input.BodyChecked = body.Checked;
         var feelings = body.Regions;
+        if (checkin?.Notes?.StartsWith("12WR_BODY_V1:", StringComparison.Ordinal) != true)
+            feelings = (await BodyCheckinCodec.PersistentPainAsync(db, program.ProgramId, today, ct)).Regions;
         if (!body.Checked) input.Notices.Add("Body readiness is incomplete. Save today’s Scale & Feel before starting a recommendation.");
         if (feelings.Any(x => x.SharpOrWorsening)) input.Notices.Add("Sharp or worsening pain needs assessment. Recommendations exclude the affected region; stop movements that provoke it.");
         if (checkin?.IllnessFlag == true || body.UnlocatedPain || (checkin?.PainFlag == true && !feelings.Any(x => x.Pain > 0 || x.MovementLimited || x.SharpOrWorsening)))
@@ -61,7 +63,7 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         foreach(var region in BodyRegions.All)
         {
             var feeling = feelings.FirstOrDefault(x=>x.Region == region.Code);
-            var status = feeling is not null && (feeling.Pain > 0 || feeling.MovementLimited || feeling.SharpOrWorsening || feeling.Soreness >= 8)
+            var status = feeling is not null && (feeling.Mark > 0 || feeling.Pain > 0 || feeling.MovementLimited || feeling.SharpOrWorsening || feeling.Soreness > 0)
                 ? "Avoid loading" : feeling?.Soreness >= 4 || recentLoad.GetValueOrDefault(region.Code) >= 1.5m
                 ? "Reduce / reassess" : !body.Checked ? "Check needed" : "Available candidate";
             input.Readiness.Add(new(region.Code,region.Name,status,recentLoad.GetValueOrDefault(region.Code),feeling?.Soreness??0,feeling?.Pain??0));
@@ -238,13 +240,11 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
     }
     private static HashSet<string> Loading(ExerciseCatalogItemRecord e)
     {
-        var result=BodyRegions.LoadingRegions(e.MuscleTargets.Select(x=>x.MuscleName));
-        if(new[]{"deadlift","squat","bent over","bent-over","good morning"}.Any(t=>e.Name.Contains(t,StringComparison.OrdinalIgnoreCase))) result.Add("lowerback");
-        return result;
+        return BodyRegions.LoadingRegions(e.MuscleTargets.Select(x=>x.MuscleName));
     }
     private static IReadOnlyList<string> CoarseRegions(string type)
-        => type.Contains("PUSH")?["chest","shoulders","triceps","elbows","wrists"]
-            :type.Contains("PULL")?["lats","upperback","biceps","shoulders","elbows","wrists","lowerback"]
-            :type.Contains("LEG")||WorkoutTargetPolicy.ActivityFor(type)=="cardio"?["quads","hamstrings","glutes","calves","hips","knees","ankles"]
+        => type.Contains("PUSH")?["chest","shoulders","upperback","triceps"]
+            :type.Contains("PULL")?["upperback","shoulders","triceps","lowerback"]
+            :type.Contains("LEG")||WorkoutTargetPolicy.ActivityFor(type)=="cardio"?["quads","hamstrings","glutes","calves","hips"]
             :type=="REST"?[]:BodyRegions.All.Select(x=>x.Code).ToArray();
 }

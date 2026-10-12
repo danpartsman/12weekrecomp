@@ -49,7 +49,7 @@ public static class WorkoutTargetPolicy
     // Explicit recommendation heuristics, not validated recovery-time or diagnostic thresholds.
     public static bool Excluded(IEnumerable<string> loadingRegions, IEnumerable<RegionFeeling> feelings)
         => feelings.Any(f => loadingRegions.Contains(f.Region)
-            && (f.Pain > 0 || f.SharpOrWorsening || f.MovementLimited || f.Soreness >= 8));
+            && (f.Mark > 0 || f.Pain > 0 || f.SharpOrWorsening || f.MovementLimited || f.Soreness > 0));
     public static decimal EffortCap(string requested, bool lowFuel, DailyCheckin? checkin)
     {
         var cap = requested == "hard" ? 8m : requested == "easy" ? 4m : 6m;

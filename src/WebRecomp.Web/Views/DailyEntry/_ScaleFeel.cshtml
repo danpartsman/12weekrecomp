@@ -1,7 +1,7 @@
 @model WebRecomp.Web.ViewModels.DailyEntryViewModel
         <section class="daily-entry-section" id="body-recovery">
 
-            @if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled)
+            @if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled && ViewContext.RouteData.Values["action"]?.ToString() == "CheckIn")
             {
                 <div class="daily-scale-actions">
                     <button class="daily-scale-button daily-scale-pull" type="button" id="pull-scale-readings" data-url="@Url.Action("PullReadings", "ExternalConnections")">Pull scale readings</button>

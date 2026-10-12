@@ -28,6 +28,7 @@ public sealed class WorkoutTargetIntegrationTests
         {
             var exercise=new ExerciseCatalogItemRecord{ExerciseCatalogItemId=Guid.NewGuid(),SourceCode="TEST",SourceExternalId=name,Name=name,MeasurementType="reps",IsActive=true};
             exercise.MuscleTargets.Add(new(){ExerciseMuscleTargetId=Guid.NewGuid(),ExerciseCatalogItemId=exercise.ExerciseCatalogItemId,ExternalId=muscle,MuscleSlug=muscle,MuscleName=muscle,RoleCode="primary"});
+            if (name.Contains("Chest Press")) exercise.MuscleTargets.Add(new(){ExerciseMuscleTargetId=Guid.NewGuid(),ExerciseCatalogItemId=exercise.ExerciseCatalogItemId,ExternalId="shoulder",MuscleSlug="deltoids",MuscleName="Anterior deltoid",RoleCode="secondary"});
             exercise.Equipment.Add(new(){ExerciseEquipmentRequirementId=Guid.NewGuid(),ExerciseCatalogItemId=exercise.ExerciseCatalogItemId,ExternalId=equipment,EquipmentName=equipment,EquipmentType=equipment});
             db.ExerciseCatalogItems.Add(exercise);
         }
@@ -46,6 +47,36 @@ public sealed class WorkoutTargetIntegrationTests
             Assert.All(result.Choices.SelectMany(x=>x.Exercises),e=>Assert.DoesNotContain("Chest Press",e.Name));
             Assert.Contains(result.Choices.SelectMany(x=>x.Exercises),e=>e.Name.Contains("Leg Extension"));
             Assert.True(result.CanStart);
+        }
+    }
+    [Fact] public async Task SoreRegionNeverAppearsInRecommendation()
+    {
+        var (db,context)=await SetupAsync(new RegionFeeling(){Region="quads",Soreness=1}); using(db)
+        {
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["quads","glutes"]},default);
+            Assert.Contains(result.Choices.SelectMany(x=>x.Exercises),e=>e.Name.Contains("Glute Bridge"));
+            Assert.DoesNotContain(result.Choices.SelectMany(x=>x.Exercises),e=>e.Name.Contains("Leg Extension"));
+            Assert.Equal("Avoid loading",result.Readiness.Single(x=>x.Region=="quads").Status);
+        }
+    }
+    [Fact] public async Task PersistentPainCarriesWithoutSorenessAndStopsWhenTurnedOff()
+    {
+        var (db,context)=await SetupAsync(); using(db)
+        {
+            var check=await db.DailyCheckins.SingleAsync();
+            check.CheckinDate=check.CheckinDate.AddDays(-2);
+            check.Notes=BodyCheckinCodec.Write(null,true,[new(){Region="quads",Mark=2,Pain=6},new(){Region="chest",Mark=1,Soreness=2}],false,true,2,6);
+            await db.SaveChangesAsync();
+            var date=AppUserContextService.GetClientToday(context.Client!);
+            var inherited=await BodyCheckinCodec.PersistentPainAsync(db,context.Program!.ProgramId,date,default);
+            Assert.True(inherited.KeepPain); Assert.Equal(6,inherited.PainRating);
+            Assert.Equal("quads",inherited.Regions.Single().Region); Assert.Equal(0,inherited.Regions.Single().Soreness);
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["quads","glutes"]},default);
+            Assert.DoesNotContain(result.Choices.SelectMany(x=>x.Exercises),e=>e.Name.Contains("Leg Extension"));
+            db.DailyCheckins.Add(new(){CheckinId=Guid.NewGuid(),ClientId=context.Client!.ClientId,ProgramId=context.Program.ProgramId,
+                CheckinDate=date.AddDays(-1),Notes=BodyCheckinCodec.Write(null,true,[],false,false)});
+            await db.SaveChangesAsync();
+            Assert.Empty((await BodyCheckinCodec.PersistentPainAsync(db,context.Program.ProgramId,date,default)).Regions);
         }
     }
     [Fact] public async Task EmptyHomeEquipmentCannotSelectMachineOrDumbbellExercises()
@@ -112,6 +143,33 @@ public sealed class WorkoutTargetIntegrationTests
             Assert.Equal(210m,(await db.Measurements.SingleAsync()).WeightLb);
             Assert.Equal(2100m,(await db.NutritionDays.SingleAsync()).ActualCalories);
         }
+    }
+    [Fact] public async Task CheckinSaveAppliesSharedRatingsAndDailyEntriesShowsSavedScale()
+    {
+        var (db,context)=await SetupAsync(); using(db)
+        {
+            var date=AppUserContextService.GetClientToday(context.Client!);
+            var http=new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            http.User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new("sub","synthetic")],"test"));
+            var users=new AppUserContextService(db,new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+            var controller=new WebRecomp.Web.Controllers.DailyEntryController(db,users,new(db),new(db),null!);
+            controller.ControllerContext=new(){HttpContext=http};
+            controller.TempData=new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(http,new TestTempDataProvider());
+            await controller.CheckIn(new WebRecomp.Web.ViewModels.DailyEntryViewModel(){Date=date,WeightLb=205,BodyChecked=true,SorenessRating=2,PainRating=5,KeepPain=true,
+                RegionFeelings=[new(){Region="quads",Mark=1,Soreness=10},new(){Region="chest",Mark=1},new(){Region="lowerback",Mark=2,Pain=1}]},default);
+            var stored=BodyCheckinCodec.Read((await db.DailyCheckins.SingleAsync()).Notes);
+            Assert.All(stored.Regions.Where(x=>x.Mark==1),x=>Assert.Equal(2,x.Soreness));
+            Assert.Equal(5,stored.Regions.Single(x=>x.Mark==2).Pain); Assert.True(stored.KeepPain);
+            var result=Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(await controller.Index(date,default));
+            Assert.Equal("Index",result.ViewName);
+            var model=Assert.IsType<WebRecomp.Web.ViewModels.DailyEntryViewModel>(result.Model);
+            Assert.Equal(205m,model.WeightLb); Assert.Equal((byte?)2,model.SorenessScore);
+        }
+    }
+    private sealed class TestTempDataProvider : Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider
+    {
+        public IDictionary<string,object> LoadTempData(Microsoft.AspNetCore.Http.HttpContext context)=>new Dictionary<string,object>();
+        public void SaveTempData(Microsoft.AspNetCore.Http.HttpContext context,IDictionary<string,object> values){}
     }
     [Fact] public async Task PastDailyEntryCannotOverwriteCompletedWorkout()
     {

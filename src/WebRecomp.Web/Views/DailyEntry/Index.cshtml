@@ -138,7 +138,11 @@
         <div asp-validation-summary="ModelOnly"
              class="validation"></div>
 
-        <p><a asp-action="CheckIn" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Scale &amp; Feel</a> is saved separately.</p>
+        <p><a asp-action="CheckIn" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Daily Scale &amp; Feel</a> supplies the scale log and recovery values below.</p>
+        <fieldset disabled aria-label="Scale and feel log from daily check-in">
+            <partial name="_ScaleFeel" model="Model" />
+            <p>Soreness: @(Model.SorenessScore?.ToString() ?? "None logged") · Pain / injury: @(Model.RegionFeelings.Any(x => x.Pain > 0) ? Model.PainRating.ToString() : Model.PainFlag ? "Unlocated" : "None logged")</p>
+        </fieldset>
         @if (Model.IsPastDay)
         {
             <p>Past workout corrections belong in <a asp-controller="Workouts" asp-action="New" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Workouts</a>. They update this record and the weekly plan.</p>
