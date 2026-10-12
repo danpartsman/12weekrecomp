@@ -3,3 +3,6 @@
 .scale-feel-editor .tw-body-map{width:260px;max-width:46%}.scale-feel-editor .tw-person-figure{aspect-ratio:656/1199;overflow:visible;border-radius:8px;background:#102033}.tw-person-image{display:block!important;position:absolute!important;top:0!important;width:200%!important;max-width:none!important;height:100%!important;object-fit:fill!important}.tw-person-front{left:0}.tw-person-back{left:-100%}.tw-person-figure{clip-path:inset(0 round 8px)}
 #scale-feel-form [data-body-check] .tw-body-spot.is-pain{width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;font-size:30px!important;background:#fff0f0!important;border:2px solid #d21c1c!important;font-weight:900!important;z-index:2}
 @media(max-width:760px){.scale-feel-editor .daily-entry-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.scale-feel-editor .daily-entry-activity-grid{grid-template-columns:1fr 1fr}.scale-feel-editor .tw-body-maps{gap:10px}.scale-feel-editor .daily-entry-section,.sf-body-section{padding:1rem}.scale-feel-editor .tw-body-map .small{font-size:.75rem}}
+/* Keep both faces visible in the wide header photo. */
+.scale-feel-page .nutrition-header-photo img{object-position:center top!important}
+body.test-live-preview .scale-feel-page > .app-page-head h1{font-size:2rem!important;line-height:1.15!important}
