@@ -239,7 +239,7 @@ jobs:
           }
           foreach ($route in @("TodayWorkout", "DailyEntry", "DailyEntry/CheckIn")) {
               $page = Invoke-WebRequest -Uri "$base/$route" -TimeoutSec 30
-              if ($page.StatusCode -ne 200 -or $page.Content -notmatch 'Keep me signed in for 7 days|Today’s Workout|Daily Entries|Scale &amp; Feel') {
+              if ($page.StatusCode -ne 200 -or $page.Content -notmatch 'Keep me signed in for 7 days|Today.*Workout|Daily Entries|Scale &amp; Feel') {
                   throw "Protected route failed: $route"
               }
           }
