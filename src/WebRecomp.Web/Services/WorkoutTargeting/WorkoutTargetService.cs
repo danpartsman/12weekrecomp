@@ -16,10 +16,15 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         var activity = plan is null ? "auto" : WorkoutTargetPolicy.ActivityFor(plan.WorkoutTypeCode);
         var definitions = await types.GetActiveMapAsync(ct);
         var definition = plan is not null ? definitions.GetValueOrDefault(plan.WorkoutTypeCode) : null;
+        var templateMinutes = plan?.WorkoutTemplateId is Guid templateId
+            ? await db.WorkoutTemplates.AsNoTracking().Where(x => x.ClientId == context.Client!.ClientId && x.WorkoutTemplateId == templateId)
+                .Select(x => (decimal?)x.DefaultDurationMin).FirstOrDefaultAsync(ct) : null;
+        var minutes = plan?.PlannedDurationMin is > 0 ? plan.PlannedDurationMin.Value
+            : templateMinutes is > 0 ? templateMinutes.Value : definition?.DefaultMinutes is > 0 ? definition.DefaultMinutes : 45m;
         var plannedRpe = plan?.PlannedRpe ?? (definition?.CountsDedicatedHeavy == true ? 8m : activity is "recovery" or "mobility" ? 4m : 6m);
         var input = new TodayWorkoutViewModel { Activity = activity == "strength" ? "auto" : activity,
             Effort = plannedRpe >= 7 ? "hard" : plannedRpe <= 4 ? "easy" : "moderate",
-            Minutes = Math.Clamp((int)(plan?.PlannedDurationMin ?? definition?.DefaultMinutes ?? 45), 10, 120) };
+            Minutes = Math.Clamp((int)minutes, 10, 120) };
         return await BuildAsync(context, input, ct);
     }
 
@@ -182,7 +187,11 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
                 if(choice.Exercises.Count==0) continue;
             }
             var covered=choice.Exercises.Where(e=>!e.IsAddon).SelectMany(e=>WorkoutSessionComposer.PrimaryRegions(byId[e.ExerciseId])).Distinct().ToList();
-            if(input.Activity=="fullbody" && (!covered.Intersect(new[]{"chest","upperback","shoulders","triceps"}).Any() || !covered.Intersect(new[]{"quads","hamstrings","glutes"}).Any()))
+            var fullBodyCoverage = covered.Intersect(new[]{"chest","upperback","shoulders","triceps"}).Any()
+                && covered.Intersect(new[]{"quads","hamstrings","glutes"}).Any();
+            if(input.Activity=="fullbody" && fullBodyCoverage) choice.Score += 100;
+            choice.Score -= choice.Reasons.Count(r=>r.StartsWith("Requested ") && r.Contains("unavailable"))*80;
+            if(input.Activity=="fullbody" && !fullBodyCoverage)
             { choice.Name+=" — partial body coverage";choice.Adapted=true;choice.Reasons.Add("Full-body coverage is unavailable under today’s constraints; this is a partial alternative."); }
             if(input.Targets.Count>0)
             {
@@ -225,7 +234,7 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
             var exercise=catalog.Where(x=>terms.Any(t=>x.Name.Contains(t,StringComparison.OrdinalIgnoreCase)) && EquipmentFits(x,input)
                 && x.MuscleTargets.Count>0 && !WorkoutTargetPolicy.Excluded(Loading(x),feelings)
                 && !choice.Exercises.Any(e=>e.ExerciseId==x.ExerciseCatalogItemId)).OrderBy(x=>x.Name).FirstOrDefault();
-            if(exercise is null) {choice.Reasons.Add("Requested "+addition+" add-on is unavailable with today’s constraints/library metadata.");continue;}
+            if(exercise is null) {choice.Adapted=true;choice.Reasons.Add("Requested "+addition+" add-on is unavailable with today’s constraints/library metadata.");continue;}
             choice.Exercises.Add(ToExercise(exercise,1,8,Math.Min(rpe,4m),"Controlled, comfortable movement; stop if symptoms worsen.") with {IsAddon=true});
             choice.Reasons.Add("Includes a brief "+addition+" add-on.");
         }

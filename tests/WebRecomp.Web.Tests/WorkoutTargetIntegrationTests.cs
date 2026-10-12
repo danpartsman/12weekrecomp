@@ -149,6 +149,30 @@ public sealed class WorkoutTargetIntegrationTests
             Assert.Equal("MAJOR_PUSH",(await db.PlannedWorkouts.SingleAsync()).WorkoutTypeCode);
         }
     }
+    [Fact] public async Task FullBodyWithPostureRanksCompleteMatchesAheadOfPartialAlternatives()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="fullbody",Effort="hard",Minutes=45,Additions=["posture"]},default);
+            var first=result.Choices.First();
+            Assert.DoesNotContain("partial body",first.Name);
+            Assert.Contains(first.Exercises,e=>e.IsAddon);
+            Assert.Contains(first.Exercises,e=>!e.IsAddon && e.Regions.Contains("quads"));
+            Assert.Contains(first.Exercises,e=>!e.IsAddon && e.Regions.Contains("chest"));
+        }
+    }
+    [Fact] public async Task DashboardIgnoresZeroDurationAndUsesOwnedTemplateDefault()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var today=AppUserContextService.GetClientToday(context.Client!);var templateId=Guid.NewGuid();
+            db.WorkoutTemplates.Add(new(){WorkoutTemplateId=templateId,ClientId=context.Client!.ClientId,TemplateName="Saved session",WorkoutTypeCode="MAJOR_PUSH",DefaultDurationMin=60});
+            db.PlannedWorkouts.Add(new(){PlannedWorkoutId=Guid.NewGuid(),ClientId=context.Client.ClientId,ProgramId=context.Program!.ProgramId,
+                PlannedDate=today,WorkoutTypeCode="MAJOR_PUSH",WorkoutTemplateId=templateId,PlannedDurationMin=0,PlannedRpe=8});await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildDashboardAsync(context,default);
+            Assert.Equal(60,result.Minutes);Assert.All(result.Choices,c=>Assert.True(c.Minutes<=60));
+        }
+    }
     [Fact] public async Task EligiblePlannedTemplateIsPreferredAndPendingDraftRemainsVisible()
     {
         var (db,context)=await SetupAsync();using(db)
