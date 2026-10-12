@@ -173,6 +173,7 @@ public sealed class WeeklyPlanService(
         var now = DateTime.UtcNow;
         for (var i = 0; i < 7; i++)
         {
+            if (weekStart.AddDays(i) < AppUserContextService.GetClientToday(client)) continue;
             db.PlannedWorkouts.Add(NewPlannedWorkout(
                 client,
                 program,
@@ -235,6 +236,8 @@ public sealed class WeeklyPlanService(
         sourceWeekStart = PlanningWeek.Start(sourceWeekStart);
         targetWeekStart = PlanningWeek.Start(targetWeekStart);
         var targetEnd = targetWeekStart.AddDays(6);
+        if (targetEnd < AppUserContextService.GetClientToday(client))
+            return new WeekCopyResult(false, false, 0, "Past plan days are updated only through Workouts.");
 
         var targetHasPlan = await db.PlannedWorkouts.AnyAsync(
             x => x.ProgramId == program.ProgramId
@@ -271,10 +274,12 @@ public sealed class WeeklyPlanService(
 
         var validCodes = await GetValidCodesAsync(program.ConfigVersionId, cancellationToken);
         var now = DateTime.UtcNow;
+        var copied = 0;
 
         foreach (var item in source)
         {
             var offset = item.PlannedDate.DayNumber - sourceWeekStart.DayNumber;
+            if (targetWeekStart.AddDays(offset) < AppUserContextService.GetClientToday(client)) continue;
             db.PlannedWorkouts.Add(NewPlannedWorkout(
                 client,
                 program,
@@ -286,6 +291,7 @@ public sealed class WeeklyPlanService(
                 item.SystemWorkoutCode,
                 item.PlannedDurationMin,
                 item.PlannedRpe));
+            copied++;
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -293,7 +299,7 @@ public sealed class WeeklyPlanService(
         return new WeekCopyResult(
             true,
             false,
-            source.Count,
+            copied,
             sourceCode == "AUTO_ROLLOVER"
                 ? "Recomp carried last week's plan forward because the new week was blank."
                 : "This week's plan was copied to next week. Review it and adjust anything that changes.");
@@ -308,11 +314,18 @@ public sealed class WeeklyPlanService(
     {
         weekStart = PlanningWeek.Start(weekStart);
         var weekEnd = weekStart.AddDays(6);
+        var today = AppUserContextService.GetClientToday(client);
+        if (effectiveDate < today) effectiveDate = today;
         if (effectiveDate < weekStart) effectiveDate = weekStart;
         if (effectiveDate > weekEnd) return 0;
 
+        var completedDates = await db.WorkoutSessions.AsNoTracking()
+            .Where(x => x.ClientId == client.ClientId && x.ProgramId == program.ProgramId && x.CompletedFlag
+                && x.WorkoutDate >= effectiveDate && x.WorkoutDate <= weekEnd)
+            .Select(x => x.WorkoutDate).Distinct().ToListAsync(cancellationToken);
         var existing = await db.PlannedWorkouts
             .Where(x => x.ProgramId == program.ProgramId
+                        && !completedDates.Contains(x.PlannedDate)
                         && x.PlannedDate >= effectiveDate
                         && x.PlannedDate <= weekEnd)
             .ToListAsync(cancellationToken);
@@ -330,7 +343,7 @@ public sealed class WeeklyPlanService(
         for (var i = 0; i < 7; i++)
         {
             var date = weekStart.AddDays(i);
-            if (date < effectiveDate)
+            if (date < effectiveDate || completedDates.Contains(date))
                 continue;
 
             db.PlannedWorkouts.Add(NewPlannedWorkout(

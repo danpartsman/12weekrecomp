@@ -1,0 +1,182 @@
+@model WebRecomp.Web.ViewModels.DailyEntryViewModel
+        <section class="daily-entry-section" id="body-recovery">
+
+            @if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled)
+            {
+                <div class="daily-scale-actions">
+                    <button class="daily-scale-button daily-scale-pull" type="button" id="pull-scale-readings" data-url="@Url.Action("PullReadings", "ExternalConnections")">Pull scale readings</button>
+                    <a class="daily-scale-button daily-scale-manage" asp-controller="ExternalConnections" asp-action="Index">Manage connection</a>
+                    <p id="scale-pull-status" class="small" role="status" aria-live="polite"></p>
+                </div>
+            }
+            <div class="daily-entry-section-heading">
+                <div class="daily-entry-section-number">1</div>
+                <div>
+                    <h2>Body &amp; Recovery</h2>
+                    <p>
+                        Track the body-composition signals that matter most to
+                        recomposition, plus the recovery signals that help shape
+                        today's recommendation.
+                    </p>
+                </div>
+            </div>
+
+            <div class="daily-entry-info">
+                <strong>Recomposition means fat down, skeletal muscle protected or up</strong>
+                <span>
+                    Body weight is useful, but it cannot tell that story by
+                    itself. If your scale provides skeletal muscle,
+                    subcutaneous fat, or visceral fat estimates, enter them
+                    here and judge them by trend rather than a single reading.
+                </span>
+
+                @if (!string.IsNullOrWhiteSpace(Model.MeasurementSourceLabel))
+                {
+                    <small>Source: @Model.MeasurementSourceLabel</small>
+                }
+            </div>
+
+            <div class="daily-entry-grid daily-entry-grid-body">
+
+                <label>
+                    Weight (lb)
+                    <input asp-for="WeightLb"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <span asp-validation-for="WeightLb"></span>
+                </label>
+
+                <label>
+                    Body fat (%)
+                    <input asp-for="BodyFatPercent"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="BodyFatPercent"></span>
+                </label>
+
+                <label>
+                    Skeletal muscle (lb)
+                    <input asp-for="SkeletalMuscleMassLb"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Preferred muscle metric</small>
+                    <span asp-validation-for="SkeletalMuscleMassLb"></span>
+                </label>
+
+                <label>
+                    Subcutaneous fat (%)
+                    <input asp-for="SubcutaneousFatPercent"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="SubcutaneousFatPercent"></span>
+                </label>
+
+                <label>
+                    Visceral fat rating
+                    <input asp-for="VisceralFatRating"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="VisceralFatRating"></span>
+                </label>
+
+                <label>
+                    Body water (lb)
+                    <input asp-for="BodyWaterLb"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="BodyWaterLb"></span>
+                </label>
+
+                <label>
+                    Waist (in)
+                    <input asp-for="WaistIn"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional secondary metric</small>
+                    <span asp-validation-for="WaistIn"></span>
+                </label>
+
+                <label>
+                    Hips (in)
+                    <input asp-for="HipsIn"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional secondary metric</small>
+                    <span asp-validation-for="HipsIn"></span>
+                </label>
+
+            </div>
+
+            <div class="daily-entry-subheading">
+                <h3>Recovery signals</h3>
+                <p>
+                    Sleep, resting heart rate, energy, soreness, pain, and
+                    illness give the analytical engine context when evaluating
+                    the workout on your Weekly Plan.
+                </p>
+            </div>
+
+            <div class="daily-entry-grid">
+
+                <label>
+                    Sleep (hours)
+                    <input asp-for="SleepHours"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <span asp-validation-for="SleepHours"></span>
+                </label>
+
+                <label>
+                    Resting HR
+                    <input asp-for="RestingHr"
+                           inputmode="numeric" />
+                    <span asp-validation-for="RestingHr"></span>
+                </label>
+
+
+
+                <label>
+                    Energy (1-10)
+                    <input asp-for="EnergyScore"
+                           inputmode="numeric"
+                           min="1"
+                           max="10" />
+                    <span asp-validation-for="EnergyScore"></span>
+                </label>
+
+                <label>
+                    Soreness (1-10)
+                    <input asp-for="SorenessScore"
+                           inputmode="numeric"
+                           min="1"
+                           max="10" />
+                    <span asp-validation-for="SorenessScore"></span>
+                </label>
+
+            </div>
+
+            <div class="daily-entry-checks">
+                <label>
+                    <input asp-for="PainFlag" />
+                    Pain or injury today
+                </label>
+
+                <label>
+                    <input asp-for="IllnessFlag" />
+                    Illness today
+                </label>
+            </div>
+
+            <label class="daily-entry-notes">
+                Recovery notes
+                <textarea asp-for="RecoveryNotes" rows="2"></textarea>
+                <small>Optional</small>
+                <span asp-validation-for="RecoveryNotes"></span>
+            </label>
+
+        </section>
+

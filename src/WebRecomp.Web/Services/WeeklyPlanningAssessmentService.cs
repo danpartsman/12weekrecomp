@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using WebRecomp.Web.Models;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Services.Engine30;
 
@@ -47,6 +48,16 @@ public sealed class WeeklyPlanningAssessmentService(
                     && x.PlannedDate >= start
                     && x.PlannedDate <= end)
                 .ToListAsync(cancellationToken);
+
+        var completed = await db.WorkoutSessions.AsNoTracking()
+            .Where(x => x.ProgramId == programId && x.CompletedFlag && x.WorkoutDate >= start && x.WorkoutDate <= end)
+            .ToListAsync(cancellationToken);
+        var actualDates = completed.Select(x => x.WorkoutDate).ToHashSet();
+        planned.RemoveAll(x => actualDates.Contains(x.PlannedDate));
+        planned.AddRange(completed.Select(x => new PlannedWorkout {
+            PlannedWorkoutId = x.WorkoutSessionId, ClientId = x.ClientId, ProgramId = x.ProgramId,
+            PlannedDate = x.WorkoutDate, WorkoutTypeCode = x.WorkoutTypeCode, SourceCode = "ACTUAL_PROJECTION"
+        }));
 
         if (planned.Count == 0)
         {

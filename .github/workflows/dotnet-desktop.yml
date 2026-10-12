@@ -227,6 +227,24 @@ jobs:
           }
           Write-Host "Command Center cockpit assets and protected route passed."
 
+      - name: Verify Today workout and separate daily pages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $base = "https://test.12weekrecomp.com"
+          $css = Invoke-WebRequest -Uri "$base/css/today-workout.css?v=${{ github.sha }}" -TimeoutSec 30
+          $js = Invoke-WebRequest -Uri "$base/js/body-check.js?v=${{ github.sha }}" -TimeoutSec 30
+          if (-not $css.Content.Contains(".tw-body-map") -or -not $js.Content.Contains("data-body-region")) {
+              throw "Today workout/body check assets were not deployed."
+          }
+          foreach ($route in @("TodayWorkout", "DailyEntry", "DailyEntry/CheckIn")) {
+              $page = Invoke-WebRequest -Uri "$base/$route" -TimeoutSec 30
+              if ($page.StatusCode -ne 200 -or $page.Content -notmatch 'Keep me signed in for 7 days|Today’s Workout|Daily Entries|Scale &amp; Feel') {
+                  throw "Protected route failed: $route"
+              }
+          }
+          Write-Host "Today workout assets and protected daily routes passed."
+
       - name: Report optional learning schema readiness
         shell: pwsh
         run: |

@@ -1,0 +1,38 @@
+@model WebRecomp.Web.Services.WorkoutTargeting.TodayWorkoutViewModel
+@using WebRecomp.Web.Services.WorkoutTargeting
+@{ ViewData["Title"]="Today’s Workout"; }
+<link rel="stylesheet" href="~/css/today-workout.css" asp-append-version="true" />
+<div class="tw-page"><header class="tw-header"><p class="tw-eyebrow">12WR · Train with a purpose</p><h1>Today’s Workout</h1><p>@Model.Date.ToString("dddd, MMMM d") · Choose what you want to do; we’ll match it to your recent training and body check.</p>
+<nav class="tw-links"><a asp-controller="DailyEntry" asp-action="CheckIn">Scale &amp; Feel</a><a asp-controller="DailyEntry" asp-action="Index">Daily Entries</a><a asp-controller="Schedule" asp-action="Index">Weekly Plan</a></nav></header>
+<div asp-validation-summary="All" class="validation"></div>
+@foreach(var notice in Model.Notices) {<p class="tw-warning">@notice</p>}
+<section class="card"><h2>Today’s starting point</h2><p>Planned: @(Model.PlanName ?? "No workout planned")</p><p>@Model.FuelSummary</p>
+<details><summary>Body-region readiness estimates</summary><p>Recent load is a weighted ranking indicator from the past seven days, not a recovery percentage. Left/right symptoms conservatively restrict the whole exercise.</p><div class="tw-readiness">
+@foreach(var region in Model.Readiness) {<span><strong>@region.Name</strong><br />@region.Status · S @region.Soreness · P @region.Pain · recent load @region.RecentHardSets.ToString("0.#")</span>}
+</div></details></section>
+<section class="card"><h2>What would you like to do?</h2>
+<form asp-action="Recommend" method="post">@Html.AntiForgeryToken()
+<div class="tw-controls"><label>Primary activity <select asp-for="Activity"><option value="auto">Choose for me</option><option value="targeted">Targeted strength</option><option value="fullbody">Full-body strength</option><option value="conditioning">Conditioning</option><option value="cardio">Cardio</option><option value="mobility">Mobility / posture</option><option value="recovery">Recovery / rest</option></select></label>
+<label>Effort <select asp-for="Effort"><option value="hard">Hard</option><option value="moderate">Moderate</option><option value="easy">Easy</option></select></label>
+<label>Minutes available <input asp-for="Minutes" type="number" min="10" max="120" /></label>
+<label>Location <select asp-for="Location"><option value="gym">Gym — full equipment</option><option value="home">Home — select equipment below</option><option value="bodyweight">Bodyweight only</option></select></label></div>
+<details open="@(Model.Activity=="targeted"?"open":null)"><summary>Muscle targets</summary><div class="tw-options">
+@foreach(var region in BodyRegions.All.Where(r=>r.MuscleTerms.Length>0 && r.Code is not ("neck" or "hips"))) {<label><input type="checkbox" name="Targets" value="@region.Code" checked="@(Model.Targets.Contains(region.Code)?"checked":null)" />@region.Name</label>}
+</div></details>
+<p>Add to the main session:</p><div class="tw-options">@foreach(var addon in new[]{"posture","core","mobility","balance"}) {<label><input type="checkbox" name="Additions" value="@addon" checked="@(Model.Additions.Contains(addon)?"checked":null)" />@addon</label>}</div>
+<details><summary>Home equipment</summary><div class="tw-options">@foreach(var equipment in new[]{"dumbbell","barbell","cable","machine","band","bench"}) {<label><input type="checkbox" name="Equipment" value="@equipment" checked="@(Model.Equipment.Contains(equipment)?"checked":null)" />@equipment</label>}</div></details>
+<button class="primary" type="submit">Find my workout</button></form></section>
+<section><h2>Your matches</h2><p>Review the exercises before starting. Original System Workouts and My Workouts stay reusable.</p>
+@foreach(var choice in Model.Choices) {
+<article class="card tw-result"><span class="tw-badge">@choice.Source @(choice.Adapted?"· Adapted":"")</span><h3>@choice.Name</h3><p>@choice.Minutes min @(choice.Rpe>0?$"· effort up to RPE {choice.Rpe}":"")</p>
+@foreach(var reason in choice.Reasons) {<p>@reason</p>}
+@if(choice.Exercises.Count>0) {<table class="tw-preview"><thead><tr><th>Exercise</th><th>Sets × reps/time</th><th>Effort</th></tr></thead><tbody>
+@foreach(var exercise in choice.Exercises) {<tr><td>@exercise.Name @(exercise.IsAddon?"· Add-on":"")<details><summary>Guidance</summary><p>@exercise.Note</p></details></td><td>@exercise.Sets × @(exercise.DurationSeconds.HasValue?$"{exercise.DurationSeconds}s":exercise.Reps.ToString())</td><td>@exercise.Rpe</td></tr>}
+</tbody></table>}
+<form asp-action="Accept" method="post">@Html.AntiForgeryToken()<input name="choiceKey" type="hidden" value="@choice.Key" /><input name="choiceRevision" type="hidden" value="@choice.Revision" /><input name="Activity" type="hidden" value="@Model.Activity" /><input name="Effort" type="hidden" value="@Model.Effort" /><input name="Minutes" type="hidden" value="@Model.Minutes" /><input name="Location" type="hidden" value="@Model.Location" />
+@foreach(var target in Model.Targets) {<input type="hidden" name="Targets" value="@target" />}
+@foreach(var addon in Model.Additions) {<input type="hidden" name="Additions" value="@addon" />}
+@foreach(var equipment in Model.Equipment) {<input type="hidden" name="Equipment" value="@equipment" />}
+<button class="primary" type="submit" disabled="@(!Model.CanStart?"disabled":null)">Use this workout</button></form></article>
+}
+</section></div>

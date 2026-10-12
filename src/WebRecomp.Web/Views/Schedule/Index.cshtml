@@ -454,7 +454,7 @@
             @for (var i = 0; i < Model.Days.Count; i++)
             {
                 var day = Model.Days[i];
-                var category = CategoryFromDay(day.WorkoutTypeCode, day.WeeklyRole);
+                var category = CategoryFromDay(day.ActualWorkoutTypeCode ?? day.WorkoutTypeCode, day.HasActualWorkout ? null : day.WeeklyRole);
                 var selectedTemplate =
                     day.WorkoutTemplateId.HasValue
                         ? Model.MyWorkouts.SingleOrDefault(
@@ -505,9 +505,19 @@
                         <span class="plan-category-badge" data-category-label>@CategoryLabel(category)</span>
                     </div>
 
+                    @if (day.HasActualWorkout)
+                    {
+                        <div class="plan-actual-summary"><strong>✓ Completed: @day.ActualWorkoutSummary</strong><p>@day.ActualDurationMin.ToString("0.#") minutes total · Actual workouts drive nutrition.</p>
+                        @foreach (var id in day.ActualWorkoutIds) { <a asp-controller="Workouts" asp-action="New" asp-route-editId="@id">Correct workout</a> }
+                        </div>
+                    }
+                    else if (!day.CanEditPlan)
+                    {
+                        <p>Past day · No completed workout recorded. <a asp-controller="Workouts" asp-action="New" asp-route-date="@day.Date.ToString("yyyy-MM-dd")">Record or correct in Workouts</a></p>
+                    }
                     <div class="plan-day-workout">
                         <label for="workout-@i">
-                            Planned workout
+                            Originally planned workout
                             <button type="button"
                                     class="help-tip small-tip"
                                     aria-label="Planned workout help"
@@ -517,6 +527,7 @@
                         </label>
 
                         <select id="workout-@i"
+                                disabled="@(!day.CanEditPlan ? "disabled" : null)"
                                 class="plan-workout-select"
                                 data-collapsible-workout-picker
                                 data-no-autosave
@@ -738,8 +749,8 @@
 
         if (!row) return;
 
-        const category =
-            selectedCategory(select);
+        const category = select.disabled && row.dataset.category
+            ? row.dataset.category : selectedCategory(select);
 
         categories.forEach(
             value =>
@@ -841,8 +852,9 @@
                     value => [value, 0]));
 
         selects.forEach(select => {
-            const category =
-                selectedCategory(select);
+            const category = select.disabled
+                ? select.closest("[data-plan-day]")?.dataset.category || selectedCategory(select)
+                : selectedCategory(select);
 
             counts[category] =
                 (counts[category] || 0) + 1;

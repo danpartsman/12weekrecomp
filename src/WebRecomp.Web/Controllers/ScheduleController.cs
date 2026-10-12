@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using WebRecomp.Web.Services.WorkoutTargeting;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
@@ -151,6 +152,11 @@ public sealed class ScheduleController(
             .OrderBy(x => x.PlannedDate)
             .ToListAsync(cancellationToken);
 
+        var completed = await db.WorkoutSessions.AsNoTracking()
+            .Where(x => x.ClientId == context.Client.ClientId && x.ProgramId == context.Program.ProgramId
+                && x.CompletedFlag && x.WorkoutDate >= start && x.WorkoutDate <= end)
+            .OrderBy(x => x.CreatedAtUtc).ToListAsync(cancellationToken);
+        var actualByDate = completed.GroupBy(x => x.WorkoutDate).ToDictionary(x => x.Key, x => x.ToList());
         var saved = savedRows.ToDictionary(x => x.PlannedDate);
         var nextStart = start.AddDays(7);
         var nextEnd = nextStart.AddDays(6);
@@ -287,8 +293,15 @@ public sealed class ScheduleController(
                     ? systemOption
                     : null;
 
+            actualByDate.TryGetValue(date, out var actuals);
             var day = new PlannedDayViewModel
             {
+                CanEditPlan = WorkoutPlanPolicy.CanEdit(date, today, actuals?.Count > 0),
+                HasActualWorkout = actuals?.Count > 0,
+                ActualWorkoutSummary = actuals is null ? null : string.Join(" + ", actuals.Select(x => x.WorkoutName ?? x.WorkoutTypeCode)),
+                ActualWorkoutTypeCode = actuals?.OrderByDescending(x => x.SessionRpe).ThenByDescending(x => x.DurationMin).FirstOrDefault()?.WorkoutTypeCode,
+                ActualDurationMin = actuals?.Sum(x => x.DurationMin) ?? 0m,
+                ActualWorkoutIds = actuals?.Select(x => x.WorkoutSessionId).ToList() ?? [],
                 Date = date,
                 DayName = date.DayOfWeek.ToString(),
                 WorkoutTypeCode =
@@ -314,7 +327,8 @@ public sealed class ScheduleController(
             {
 
                 day.WorkoutDisplayName =
-                    plannedTemplate?.TemplateName
+                    (planned?.SourceCode == "WORKOUT_TARGET" ? planned.Notes : null)
+                    ?? plannedTemplate?.TemplateName
                     ?? plannedSystem?.DisplayName
                     ?? type.DisplayName;
                 day.WeeklyRole = type.WeeklyRoleCode;
@@ -337,7 +351,7 @@ public sealed class ScheduleController(
                 day.ScaledGlycogenBurnG =
                     engine30Day.GlycogenDemandG;
                 day.TimingNote =
-                    "12 Week Recomp prescription";
+                    day.HasActualWorkout ? "Nutrition recalculated from completed workouts" : date < today ? "Planned estimate — actual workout not recorded" : "Nutrition estimate from planned workout";
             }
 
             vm.Days.Add(day);
@@ -486,6 +500,16 @@ public sealed class ScheduleController(
         if (context.Client is null || context.Program is null)
             return RedirectToAction("Index", "Intake");
 
+        var today = AppUserContextService.GetClientToday(context.Client);
+        var normalizedStart = PlanningWeek.Start(model.WeekStart);
+        if (model.Days.Any(x => x.Date < normalizedStart || x.Date > normalizedStart.AddDays(6))
+            || model.Days.Select(x => x.Date).Distinct().Count() != model.Days.Count)
+            return BadRequest("Choose each date once within the displayed week.");
+        var completedDates = await db.WorkoutSessions.AsNoTracking()
+            .Where(x => x.ClientId == context.Client.ClientId && x.ProgramId == context.Program.ProgramId && x.CompletedFlag
+                && x.WorkoutDate >= normalizedStart && x.WorkoutDate <= normalizedStart.AddDays(6))
+            .Select(x => x.WorkoutDate).Distinct().ToListAsync(cancellationToken);
+
         var activeWorkoutTypes =
             await engine30WorkoutCatalog
                 .GetActiveListAsync(cancellationToken);
@@ -533,6 +557,7 @@ public sealed class ScheduleController(
 
         foreach (var day in model.Days)
         {
+            if (!WorkoutPlanPolicy.CanEdit(day.Date, today, completedDates.Contains(day.Date))) continue;
             var old =
                 existing.SingleOrDefault(
                     x => x.PlannedDate == day.Date);

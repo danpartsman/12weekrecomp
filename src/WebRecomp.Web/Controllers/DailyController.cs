@@ -45,7 +45,7 @@ public sealed class DailyController(
             SorenessScore = checkin?.SorenessScore,
             PainFlag = checkin?.PainFlag ?? false,
             IllnessFlag = checkin?.IllnessFlag ?? false,
-            Notes = checkin?.Notes
+            Notes = WebRecomp.Web.Services.WorkoutTargeting.BodyCheckinCodec.Read(checkin?.Notes).Note
         };
 
         return View(vm);
@@ -91,7 +91,7 @@ public sealed class DailyController(
         checkin.PainFlag = model.PainFlag;
         checkin.IllnessFlag = model.IllnessFlag;
         checkin.IntendedWorkoutTypeCode = null;
-        checkin.Notes = model.Notes;
+        checkin.Notes = WebRecomp.Web.Services.WorkoutTargeting.BodyCheckinCodec.UpdateNote(checkin.Notes, model.Notes);
         checkin.UpdatedAtUtc = DateTime.UtcNow;
 
         var hasMeasurementValues =

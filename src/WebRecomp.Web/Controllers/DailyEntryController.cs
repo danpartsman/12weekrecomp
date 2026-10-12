@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using WebRecomp.Web.Services.WorkoutTargeting;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.NutritionIntelligence.Persistence;
 using WebRecomp.Web.Data;
@@ -48,15 +49,30 @@ public sealed class DailyEntryController(
         // A GET must show the freshly rebuilt DB-backed model.
         ModelState.Clear();
 
-        return View(model);
+        return View(Request.Query.ContainsKey("edit") ? "Index" : "Ledger", model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> CheckIn(DateOnly? date, CancellationToken cancellationToken)
+    {
+        var context = await userContext.GetAsync(HttpContext, cancellationToken);
+        if (context.Client is null || context.Program is null) return RedirectToAction("Index", "Intake");
+        var model = await BuildAsync(context, date ?? AppUserContextService.GetClientToday(context.Client), cancellationToken);
+        Response.Headers["Cache-Control"] = "no-store";
+        return View("CheckIn", model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(
-        DailyEntryViewModel model,
-        bool nutritionManualOverride,
-        CancellationToken cancellationToken)
+    public Task<IActionResult> CheckIn(DailyEntryViewModel model, CancellationToken cancellationToken)
+        => SaveAsync(model, false, true, cancellationToken);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> Index(DailyEntryViewModel model, bool nutritionManualOverride, CancellationToken cancellationToken)
+        => SaveAsync(model, nutritionManualOverride, false, cancellationToken);
+
+    private async Task<IActionResult> SaveAsync(DailyEntryViewModel model, bool nutritionManualOverride, bool checkInOnly, CancellationToken cancellationToken)
     {
         var context =
             await userContext.GetAsync(HttpContext, cancellationToken);
@@ -65,6 +81,18 @@ public sealed class DailyEntryController(
             return RedirectToAction("Index", "Intake");
 
         var isAjax = IsAjaxRequest();
+
+        if (checkInOnly || model.Date < AppUserContextService.GetClientToday(context.Client))
+            model.Workouts.Clear(); // Past workout corrections belong to Workouts, not this ledger.
+        if (checkInOnly)
+        {
+            if (model.RegionFeelings.Count > BodyRegions.All.Length
+                || model.RegionFeelings.Select(x => x.Region).Distinct().Count() != model.RegionFeelings.Count
+                || model.RegionFeelings.Any(x => !BodyRegions.All.Any(r => r.Code == x.Region)))
+                ModelState.AddModelError("RegionFeelings", "Choose each body region once from the list.");
+            try { _ = BodyCheckinCodec.Write(model.RecoveryNotes, model.BodyChecked, model.RegionFeelings); }
+            catch (ArgumentException ex) { ModelState.AddModelError("RecoveryNotes", ex.Message); }
+        }
 
         ValidateWorkoutRows(
             model,
@@ -87,13 +115,15 @@ public sealed class DailyEntryController(
                 model,
                 cancellationToken);
 
-            return View(model);
+            return View(checkInOnly ? "CheckIn" : "Index", model);
         }
 
         var client = context.Client;
         var program = context.Program;
         var now = DateTime.UtcNow;
 
+        if (checkInOnly)
+        {
         var checkin = await db.DailyCheckins
             .SingleOrDefaultAsync(
                 x =>
@@ -121,11 +151,12 @@ public sealed class DailyEntryController(
         checkin.DailyActivityHours = model.DailyActivityHours;
         checkin.DailyActivityEffortCode = Clean(model.DailyActivityEffortCode)?.ToUpperInvariant();
         checkin.EnergyScore = model.EnergyScore;
-        checkin.SorenessScore = model.SorenessScore;
-        checkin.PainFlag = model.PainFlag;
+        checkin.SorenessScore = model.RegionFeelings.Any(x => x.Soreness > 0)
+            ? (byte)model.RegionFeelings.Max(x => x.Soreness) : model.SorenessScore;
+        checkin.PainFlag = model.PainFlag || model.RegionFeelings.Any(x => x.Pain > 0 || x.SharpOrWorsening || x.MovementLimited);
         checkin.IllnessFlag = model.IllnessFlag;
         checkin.IntendedWorkoutTypeCode = null;
-        checkin.Notes = Clean(model.RecoveryNotes);
+        checkin.Notes = BodyCheckinCodec.Write(Clean(model.RecoveryNotes), model.BodyChecked, model.RegionFeelings);
         checkin.UpdatedAtUtc = now;
 
         var bodyDataEntered =
@@ -224,6 +255,11 @@ public sealed class DailyEntryController(
             {
                 measurement.MeasurementSourceCode = "MANUAL";
             }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        TempData["StatusMessage"] = "Scale & Feel saved. Your workout recommendations use this check-in.";
+        return RedirectToAction("CheckIn", new { date = model.Date.ToString("yyyy-MM-dd") });
         }
 
         var nutritionEntered =
@@ -606,7 +642,7 @@ public sealed class DailyEntryController(
                 model,
                 cancellationToken);
 
-            return View(model);
+            return View(checkInOnly ? "CheckIn" : "Index", model);
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -697,6 +733,9 @@ public sealed class DailyEntryController(
                 message = "Workout was not found."
             });
         }
+
+        if (session.WorkoutDate < AppUserContextService.GetClientToday(context.Client))
+            return BadRequest("Correct past workouts from Workouts. The plan and Daily Entries update from that record.");
 
         if (session.WorkoutDate != date)
         {
@@ -814,7 +853,10 @@ public sealed class DailyEntryController(
             SorenessScore = checkin?.SorenessScore,
             PainFlag = checkin?.PainFlag == true,
             IllnessFlag = checkin?.IllnessFlag == true,
-            RecoveryNotes = checkin?.Notes,
+            RecoveryNotes = BodyCheckinCodec.Read(checkin?.Notes).Note,
+            BodyChecked = BodyCheckinCodec.Read(checkin?.Notes).Checked,
+            RegionFeelings = BodyCheckinCodec.Read(checkin?.Notes).Regions,
+            IsPastDay = date < AppUserContextService.GetClientToday(client),
 
             Calories = nutrition?.ActualCalories,
             ProteinG = nutrition?.ActualProteinG,
@@ -1074,7 +1116,11 @@ public sealed class DailyEntryController(
                             StringComparison.OrdinalIgnoreCase))
                 : null;
 
-        if (plannedTemplate is not null)
+        if (planned?.SourceCode == "WORKOUT_TARGET" && !string.IsNullOrWhiteSpace(planned.Notes))
+        {
+            model.PlannedWorkoutName = planned.Notes;
+        }
+        else if (plannedTemplate is not null)
         {
             model.PlannedWorkoutName =
                 plannedTemplate.TemplateName;

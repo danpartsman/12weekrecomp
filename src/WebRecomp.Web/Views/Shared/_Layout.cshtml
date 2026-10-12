@@ -265,9 +265,11 @@
                 Weekly Plan
             </a>
 
+            <a asp-controller="TodayWorkout" asp-action="Index">Today’s Workout</a>
+            <a asp-controller="DailyEntry" asp-action="CheckIn">Scale &amp; Feel</a>
             <a asp-controller="DailyEntry"
                asp-action="Index">
-                Daily Entry
+                Daily Entries
             </a>
             <a asp-controller="Nutrition"
                asp-action="Index">
@@ -325,9 +327,11 @@
                 Weekly Plan
             </a>
 
+            <a asp-controller="TodayWorkout" asp-action="Index">Today’s Workout</a>
+            <a asp-controller="DailyEntry" asp-action="CheckIn">Scale &amp; Feel</a>
             <a asp-controller="DailyEntry"
                asp-action="Index">
-                Daily Entry
+                Daily Entries
             </a>
             <a asp-controller="Nutrition"
                asp-action="Index">
@@ -443,13 +447,13 @@
             </div>
 
             <div class="guided-demo-daily-guide"
-                 aria-label="Daily Entry">
+                 aria-label="Daily Entries">
                 <span class="guided-demo-daily-badge">DAILY INPUT</span>
                 <span class="guided-demo-daily-arrow">&rarr;</span>
 
                 <a asp-controller="DailyEntry"
                    asp-action="Index">
-                    Daily Entry
+                    Daily Entries
                 </a>
 
                 <span class="guided-demo-daily-result">
@@ -570,7 +574,7 @@
     <script src="~/js/learning-v1015c.js" asp-append-version="true"></script>
     <script src="~/js/recent-workout-picker.js" asp-append-version="true"></script>
     <script src="~/js/live-workout-notes.js" asp-append-version="true"></script>
-@if (User.Identity?.IsAuthenticated == true && WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled && !isPublicPage && !isOnboardingPage && string.Equals(Context.Request.RouteValues["controller"]?.ToString(), "DailyEntry", StringComparison.OrdinalIgnoreCase))
+@if (User.Identity?.IsAuthenticated == true && WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled && !isPublicPage && !isOnboardingPage && string.Equals(Context.Request.RouteValues["controller"]?.ToString(), "DailyEntry", StringComparison.OrdinalIgnoreCase) && string.Equals(Context.Request.RouteValues["action"]?.ToString(), "CheckIn", StringComparison.OrdinalIgnoreCase))
 {
     var deviceToken = DeviceAntiforgery.GetAndStoreTokens(Context);
     <div id="device-sync-on-open" hidden data-url="@Url.Action("SyncOnOpen", "ExternalConnections")" data-field="@deviceToken.FormFieldName" data-token="@deviceToken.RequestToken"></div>

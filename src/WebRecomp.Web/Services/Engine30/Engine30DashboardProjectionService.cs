@@ -656,14 +656,13 @@ public sealed class Engine30DashboardProjectionService(
         if (context.Client is null || context.Program is null)
             throw new InvalidOperationException("Active client/program required.");
 
-        var client =
-            context.Client;
+        return await BuildActualWorkoutForClientAsync(context.Client, context.Program, actionDate, cancellationToken);
+    }
 
-        var program =
-            context.Program;
-
-        ValidateClientProfile(
-            client);
+    private async Task<Engine30DashboardActualWorkoutProjection> BuildActualWorkoutForClientAsync(
+        Client client, ProgramRecord program, DateOnly actionDate, CancellationToken cancellationToken)
+    {
+        ValidateClientProfile(client);
 
         var sessions =
             await db.WorkoutSessions
@@ -1131,8 +1130,8 @@ public sealed class Engine30DashboardProjectionService(
                 ));
         }
 
-        var prescriptionInputs =
-            new List<Engine30PrescriptionDayInput>(7);
+        var prescriptionInputs = new List<Engine30PrescriptionDayInput>(7);
+        var actualizedInputs = new Dictionary<DateOnly, Engine30PrescriptionDayInput>();
 
         foreach (var item in dailyResults)
         {
@@ -1172,8 +1171,8 @@ public sealed class Engine30DashboardProjectionService(
             // If actual physiology cannot be resolved completely (for example,
             // an unmapped legacy workout), preserve the original planned target
             // rather than silently undercounting the day's workload.
-            prescriptionInputs.Add(
-                actualized ?? plannedInput);
+            if (actualized is not null) actualizedInputs[item.Runtime.ActionDate] = actualized;
+            prescriptionInputs.Add(actualized ?? plannedInput);
         }
 
         var anchorDate =
@@ -1237,35 +1236,40 @@ public sealed class Engine30DashboardProjectionService(
             var day =
                 carryoverDay.AdjustedPrescription;
 
-            var workout =
-                item.Runtime.Workout;
+            var workout = item.Runtime.Workout;
+            actualizedInputs.TryGetValue(item.Runtime.ActionDate, out var actualInput);
+            var actualMetrics = actualInput is null ? null : await BuildActualWorkoutForClientAsync(client, program, item.Runtime.ActionDate, cancellationToken);
+            completedByDate.TryGetValue(item.Runtime.ActionDate, out var daySessions);
 
             result[item.Runtime.ActionDate] =
                 new Engine30DashboardDayProjection(
                     Date: item.Runtime.ActionDate,
                     HasPlannedWorkout: item.WorkoutCode is not null,
-                    WorkoutTypeCode: item.WorkoutCode,
+                    WorkoutTypeCode: actualMetrics is not null && daySessions?.Count == 1
+                        ? Engine30WorkoutUiCatalogService.NormalizeCode(daySessions[0].WorkoutTypeCode) : item.WorkoutCode,
                     WorkoutDisplayName:
-                        workout?.ProfileProvenance.WorkoutDisplayName
+                        actualMetrics?.WorkoutSummary
+                        ?? (plannedByDate.TryGetValue(item.Runtime.ActionDate, out var dayPlan) && dayPlan.SourceCode == "WORKOUT_TARGET" ? dayPlan.Notes : null)
+                        ?? workout?.ProfileProvenance.WorkoutDisplayName
                         ?? "No workout planned",
                     WorkoutCategoryCode:
-                        item.WorkoutCategoryCode,
+                        actualInput?.WorkoutCategoryCode ?? item.WorkoutCategoryCode,
                     PlannedDurationMinutes:
-                        workout?.ResolvedSession.AnalysisDuration.Minutes
+                        actualMetrics?.TotalDurationMinutes ?? workout?.ResolvedSession.AnalysisDuration.Minutes
                         ?? 0m,
                     PlannedRpe:
-                        workout?.ResolvedSession.PlannedRpe.Value,
+                        actualMetrics is not null ? actualMetrics.DurationWeightedRpe : workout?.ResolvedSession.PlannedRpe.Value,
                     BaseLivingEnergyKcal:
                         item.Runtime.Energy.BaseLivingEnergyKcal,
                     HabitualActivityEnergyKcal:
                         item.Runtime.Energy.HabitualActivityEnergyKcal,
                     GrossWorkoutEnergyKcal:
-                        item.Runtime.Workout?.Energy.GrossWorkoutEnergyKcal
+                        actualMetrics?.GrossWorkoutEnergyKcal ?? item.Runtime.Workout?.Energy.GrossWorkoutEnergyKcal
                         ?? 0m,
                     NetWorkoutActivityEnergyKcal:
-                        item.Runtime.Energy.NetWorkoutActivityEnergyKcal,
+                        actualMetrics?.NetWorkoutEnergyKcal ?? item.Runtime.Energy.NetWorkoutActivityEnergyKcal,
                     MaintenanceEnergyKcal:
-                        item.Runtime.Energy.MaintenanceEnergyKcal,
+                        actualInput?.MaintenanceEnergyKcal ?? item.Runtime.Energy.MaintenanceEnergyKcal,
                     BaselinePrescribedEnergyKcal:
                         carryoverDay.BaselinePrescription.PrescribedEnergyKcal,
                     EnergyCarryoverCorrectionKcal:
@@ -1287,9 +1291,9 @@ public sealed class Engine30DashboardProjectionService(
                     CarbGoverningRuleCode:
                         day.CarbGoverningRuleCode,
                     GlycogenDemandG:
-                        item.Runtime.Glycogen.EstimatedGlycogenDepletedG,
+                        actualMetrics?.GlycogenDemandG ?? item.Runtime.Glycogen.EstimatedGlycogenDepletedG,
                     GlycogenReloadRequirementG:
-                        item.Runtime.Glycogen.CarbohydrateReloadRequirementG,
+                        actualInput?.GlycogenReloadRequirementG ?? item.Runtime.Glycogen.CarbohydrateReloadRequirementG,
                     EngineVersionCode:
                         EngineVersionCode,
                     ConfigVersionCode:

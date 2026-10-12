@@ -2008,8 +2008,11 @@ public sealed class DetailedWorkoutController(
                     });
             }
 
-            var plannedDate =
-                model.Date;
+            var plannedDate = model.Date;
+            if (plannedDate < AppUserContextService.GetClientToday(context.Client)
+                || await db.WorkoutSessions.AnyAsync(x => x.ClientId == context.Client.ClientId
+                    && x.ProgramId == context.Program.ProgramId && x.WorkoutDate == plannedDate && x.CompletedFlag, cancellationToken))
+                return BadRequest("Past/completed days are updated through Workouts, not the weekly plan.");
 
             var planned =
                 await db.PlannedWorkouts

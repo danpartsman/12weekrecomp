@@ -1,0 +1,19 @@
+@model WebRecomp.Web.ViewModels.DailyEntryViewModel
+@{ ViewData["Title"] = "Scale & Feel"; ViewData["BodyClass"] = "daily-entry-view"; }
+<link rel="stylesheet" href="~/css/daily-entry.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/today-workout.css" asp-append-version="true" />
+<div class="daily-entry-page">
+<header class="tw-header"><p class="tw-eyebrow">12WR · Daily check-in</p><h1>Scale &amp; Feel</h1><p>Measurements, recovery and where your body needs attention.</p>
+<nav class="tw-links"><a asp-action="Index" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Daily Entries</a><a asp-controller="TodayWorkout" asp-action="Index">Today’s Workout →</a></nav></header>
+@if (TempData["StatusMessage"] is string message) { <p class="daily-entry-success" role="status">@message</p> }
+<form method="get" asp-action="CheckIn" class="app-date-picker"><label>Date <input type="date" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" /></label><button type="submit">Open date</button></form>
+<form asp-action="CheckIn" method="post" id="scale-feel-form">
+@Html.AntiForgeryToken()<input asp-for="Date" type="hidden" /><input asp-for="RenderedMeasurementId" type="hidden" />
+<div asp-validation-summary="All" class="validation"></div>
+<partial name="_ScaleFeel" model="Model" />
+<section class="card"><h2>Where do you feel it?</h2><p>Tap the front/back map or open a region below. Soreness and pain are separate. Left/right refers to your body.</p>
+<partial name="_BodyCheck" model="Model" />
+</section>
+<button type="submit" class="primary">Save Scale &amp; Feel</button>
+</form></div>
+<script src="~/js/body-check.js" asp-append-version="true"></script>
