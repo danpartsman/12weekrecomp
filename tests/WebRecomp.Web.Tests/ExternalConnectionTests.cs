@@ -84,6 +84,26 @@ public sealed class ExternalConnectionTests
         Assert.True(FitdaysMeasurementMapper.BodyValuesUnchanged(latest,rendered,entry));
         entry.WeightLb=198;Assert.False(FitdaysMeasurementMapper.BodyValuesUnchanged(latest,rendered,entry));
     }
+    [Fact]
+    public void SavedAccountDisplayReturnsOnlyEmailWithoutChangingCredentials()
+    {
+        var dir = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "recomp-account-display-" + Guid.NewGuid())); dir.Create();
+        try
+        {
+            var protector = new DeviceCredentialProtector(DataProtectionProvider.Create(dir));
+            var connection = new DeviceConnection { UserId=Guid.NewGuid(), ClientId=Guid.NewGuid() };
+            connection.ProtectedCredential = protector.Protect(connection, new("test@example.com", "synthetic-hash", new() { Token="synthetic-token", Uid=12 }));
+            var stored = connection.ProtectedCredential;
+            var service = new DeviceIntegrationService(null!, null!, protector, null!);
+            Assert.Equal("test@example.com", service.SavedAccountEmail(connection));
+            Assert.Equal(stored, connection.ProtectedCredential);
+            connection.UserId = Guid.NewGuid();
+            Assert.Null(service.SavedAccountEmail(connection));
+            Assert.Equal(stored, connection.ProtectedCredential);
+            Assert.Null(service.SavedAccountEmail(null));
+        }
+        finally { dir.Delete(true); }
+    }
     private static FitdaysReading Reading() => new(12,new DateTimeOffset(2026,10,10,23,30,0,TimeSpan.FromHours(-7)),212.7m,"record-a",26.2m,68.8m,42.4m,54.1m,18.7m,10m);
     [Fact]
     public void MapsVerifiedPercentFieldsAndLocalDateWithoutGenericMuscle()

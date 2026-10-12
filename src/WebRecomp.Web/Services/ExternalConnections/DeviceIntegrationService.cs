@@ -11,6 +11,14 @@ public sealed class DeviceIntegrationService(RecompDbContext db, FitdaysClient c
     public int LastImportedCount { get; private set; }
     public Task<DeviceProviderSetting> ProviderAsync(CancellationToken ct) => connections.ProviderAsync(ct);
     public Task<DeviceConnection?> ConnectionAsync(Guid user, Guid owner, CancellationToken ct) => connections.ConnectionAsync(user,owner,ct);
+    // Account display only: never expose the saved hash or session to a page.
+    public string? SavedAccountEmail(DeviceConnection? connection)
+    {
+        if (connection?.ProtectedCredential is null) return null;
+        try { return protector.Unprotect(connection).Email; }
+        catch (Exception ex) when (ex is CryptographicException or System.Text.Json.JsonException or InvalidOperationException)
+        { return null; }
+    }
     public async Task<DeviceConnection> SaveAsync(AppClientContext context, SavedFitdaysLogin login, FitdaysPerson person, bool automatic, CancellationToken ct)
     {
         var setting=await ProviderAsync(ct);
