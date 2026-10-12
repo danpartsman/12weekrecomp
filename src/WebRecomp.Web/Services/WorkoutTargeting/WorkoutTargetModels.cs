@@ -16,6 +16,8 @@ public sealed class TodayWorkoutViewModel
     public List<string> Additions { get; set; } = [];
     public List<string> Equipment { get; set; } = [];
     public DateOnly Date { get; set; }
+    public Guid? ActiveWorkoutSessionId { get; set; }
+    public bool HasCompletedWorkout { get; set; }
     public bool BodyChecked { get; set; }
     public bool CanStart { get; set; }
     public string? FuelSummary { get; set; }
@@ -26,7 +28,7 @@ public sealed class TodayWorkoutViewModel
 }
 public sealed record RegionReadiness(string Region, string Name, string Status, decimal RecentHardSets, int Soreness, int Pain);
 public sealed record TargetExercise(Guid ExerciseId, string Name, string? Mechanics, int Sets, int Reps, decimal Rpe,
-    IReadOnlyList<string> Regions, string? Note = null, bool IsAddon = false, int? DurationSeconds = null);
+    IReadOnlyList<string> Regions, string? Note = null, bool IsAddon = false, int? DurationSeconds = null, int RestSeconds = 60);
 public sealed class WorkoutTargetChoice
 {
     public string Key { get; set; } = "";
@@ -39,6 +41,7 @@ public sealed class WorkoutTargetChoice
     public int Minutes { get; set; }
     public decimal Rpe { get; set; }
     public decimal Score { get; set; }
+    public int WarmupMinutes { get; set; }
     public bool Adapted { get; set; }
     public List<string> Reasons { get; set; } = [];
     public List<TargetExercise> Exercises { get; set; } = [];

@@ -124,6 +124,60 @@ public sealed class WorkoutTargetIntegrationTests
             Assert.Equal("Reduce / reassess",result.Readiness.Single(x=>x.Region=="chest").Status);
         }
     }
+    [Fact] public async Task RecentHardCategoryOnlyLogStillReducesLoadingAndDeclaresUncertainty()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var today=AppUserContextService.GetClientToday(context.Client!);
+            db.WorkoutSessions.Add(new(){WorkoutSessionId=Guid.NewGuid(),ClientId=context.Client!.ClientId,ProgramId=context.Program!.ProgramId,
+                WorkoutDate=today.AddDays(-1),WorkoutTypeCode="MAJOR_PUSH",SessionRpe=8,DurationMin=45,CompletedFlag=true});await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["chest"],Effort="hard"},default);
+            Assert.NotEmpty(result.Choices);Assert.Contains(result.Notices,n=>n.Contains("no exercise detail"));
+            Assert.All(result.Choices,c=>{Assert.True(c.Rpe<=6);Assert.All(c.Exercises,e=>Assert.True(e.Sets<=2));});
+        }
+    }
+    [Fact] public async Task DashboardDefaultsFollowPlannedActivityEffortAndDurationWithoutWriting()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var today=AppUserContextService.GetClientToday(context.Client!);
+            db.PlannedWorkouts.Add(new(){PlannedWorkoutId=Guid.NewGuid(),ClientId=context.Client!.ClientId,ProgramId=context.Program!.ProgramId,
+                PlannedDate=today,WorkoutTypeCode="MAJOR_PUSH",PlannedDurationMin=30,PlannedRpe=8});await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildDashboardAsync(context,default);
+            Assert.Equal("hard",result.Effort);Assert.Equal(30,result.Minutes);Assert.NotEmpty(result.Choices);
+            Assert.All(result.Choices,c=>Assert.True(c.Minutes<=30));Assert.Empty(await db.WorkoutSessions.ToListAsync());
+            Assert.Equal("MAJOR_PUSH",(await db.PlannedWorkouts.SingleAsync()).WorkoutTypeCode);
+        }
+    }
+    [Fact] public async Task EligiblePlannedTemplateIsPreferredAndPendingDraftRemainsVisible()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var today=AppUserContextService.GetClientToday(context.Client!);
+            var exercise=await db.ExerciseCatalogItems.FirstAsync(e=>e.Name.Contains("Chest Press"));
+            var template=new WorkoutTemplateRecord{WorkoutTemplateId=Guid.NewGuid(),ClientId=context.Client!.ClientId,TemplateName="My planned chest workout",WorkoutTypeCode="MAJOR_PUSH"};
+            template.Exercises.Add(new(){WorkoutTemplateExerciseId=Guid.NewGuid(),WorkoutTemplateId=template.WorkoutTemplateId,ExerciseCatalogItemId=exercise.ExerciseCatalogItemId,ExerciseNameSnapshot=exercise.Name,Sets=3,Reps=10});
+            db.WorkoutTemplates.Add(template);
+            db.PlannedWorkouts.Add(new(){PlannedWorkoutId=Guid.NewGuid(),ClientId=context.Client.ClientId,ProgramId=context.Program!.ProgramId,PlannedDate=today,WorkoutTypeCode="MAJOR_PUSH",WorkoutTemplateId=template.WorkoutTemplateId});
+            var draft=new WorkoutSession{WorkoutSessionId=Guid.NewGuid(),ClientId=context.Client.ClientId,ProgramId=context.Program.ProgramId,WorkoutDate=today,WorkoutTypeCode="MAJOR_PUSH",SourceRecordId="TARGET:test",CompletedFlag=false};db.WorkoutSessions.Add(draft);
+            await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["chest"],Effort="hard"},default);
+            Assert.Equal(template.WorkoutTemplateId,result.Choices.First().TemplateId);
+            Assert.Equal(template.TemplateName,result.PlanName);Assert.Equal(draft.WorkoutSessionId,result.ActiveWorkoutSessionId);
+            Assert.False(result.HasCompletedWorkout);Assert.Single(await db.WorkoutSessions.ToListAsync());
+        }
+    }
+    [Fact] public async Task PersistedSorenessRemovesSecondaryMuscleExercisesAndExplainsExclusion()
+    {
+        var (db,context)=await SetupAsync(new RegionFeeling(){Region="shoulders",Mark=1,Soreness=1});using(db)
+        {
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="fullbody",Effort="hard",Minutes=25},default);
+            Assert.NotEmpty(result.Choices);
+            Assert.DoesNotContain(result.Choices.SelectMany(c=>c.Exercises),e=>e.Name.Contains("Chest Press"));
+            Assert.All(result.Choices,c=>Assert.Contains(c.Reasons,r=>r.StartsWith("Excluded for soreness or pain:")));
+            Assert.All(result.Choices,c=>Assert.True(c.Minutes<=25));
+        }
+    }
     [Fact] public async Task DailyTotalsSaveDoesNotClearScaleOrRegionalCheckin()
     {
         var (db,context)=await SetupAsync(new RegionFeeling(){Region="shoulders",Pain=2});using(db)

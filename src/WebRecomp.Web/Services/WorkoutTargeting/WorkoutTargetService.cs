@@ -9,6 +9,20 @@ namespace WebRecomp.Web.Services.WorkoutTargeting;
 public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCatalogService types,
     Engine30DashboardProjectionService projection)
 {
+    public async Task<TodayWorkoutViewModel> BuildDashboardAsync(AppClientContext context, CancellationToken ct)
+    {
+        var today = AppUserContextService.GetClientToday(context.Client!);
+        var plan = await db.PlannedWorkouts.AsNoTracking().SingleOrDefaultAsync(x => x.ProgramId == context.Program!.ProgramId && x.PlannedDate == today, ct);
+        var activity = plan is null ? "auto" : WorkoutTargetPolicy.ActivityFor(plan.WorkoutTypeCode);
+        var definitions = await types.GetActiveMapAsync(ct);
+        var definition = plan is not null ? definitions.GetValueOrDefault(plan.WorkoutTypeCode) : null;
+        var plannedRpe = plan?.PlannedRpe ?? (definition?.CountsDedicatedHeavy == true ? 8m : activity is "recovery" or "mobility" ? 4m : 6m);
+        var input = new TodayWorkoutViewModel { Activity = activity == "strength" ? "auto" : activity,
+            Effort = plannedRpe >= 7 ? "hard" : plannedRpe <= 4 ? "easy" : "moderate",
+            Minutes = Math.Clamp((int)(plan?.PlannedDurationMin ?? definition?.DefaultMinutes ?? 45), 10, 120) };
+        return await BuildAsync(context, input, ct);
+    }
+
     public async Task<TodayWorkoutViewModel> BuildAsync(AppClientContext context, TodayWorkoutViewModel input, CancellationToken ct)
     {
         var client = context.Client!; var program = context.Program!;
@@ -22,7 +36,7 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         var feelings = body.Regions;
         if (checkin?.Notes?.StartsWith("12WR_BODY_V1:", StringComparison.Ordinal) != true)
             feelings = (await BodyCheckinCodec.PersistentPainAsync(db, program.ProgramId, today, ct)).Regions;
-        if (!body.Checked) input.Notices.Add("Body readiness is incomplete. Save today’s Scale & Feel before starting a recommendation.");
+        if (!body.Checked) input.Notices.Add("Body readiness is incomplete. Complete today’s Scale & Feel body check before starting a recommendation.");
         if (feelings.Any(x => x.SharpOrWorsening)) input.Notices.Add("Sharp or worsening pain needs assessment. Recommendations exclude the affected region; stop movements that provoke it.");
         if (checkin?.IllnessFlag == true || body.UnlocatedPain || (checkin?.PainFlag == true && !feelings.Any(x => x.Pain > 0 || x.MovementLimited || x.SharpOrWorsening)))
         {
@@ -40,7 +54,14 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
             && x.CompletedFlag && x.WorkoutDate >= start && x.WorkoutDate <= today).ToListAsync(ct);
         var ids = recent.Select(x => x.WorkoutSessionId).ToArray();
         var details = await db.DetailedWorkoutExercises.AsNoTracking().Where(x => ids.Contains(x.WorkoutSessionId)).Include(x=>x.Sets).ToListAsync(ct);
+        input.HasCompletedWorkout = recent.Any(x => x.WorkoutDate == today);
+        input.ActiveWorkoutSessionId = await db.WorkoutSessions.AsNoTracking().Where(x => x.ClientId == client.ClientId && x.ProgramId == program.ProgramId
+            && x.WorkoutDate == today && !x.CompletedFlag && x.SourceRecordId != null && x.SourceRecordId.StartsWith("TARGET:"))
+            .OrderByDescending(x => x.UpdatedAtUtc).Select(x => (Guid?)x.WorkoutSessionId).FirstOrDefaultAsync(ct);
         var recentLoad = new Dictionary<string, decimal>();
+        var recentExerciseLoad = new Dictionary<Guid, decimal>();
+        var recentMuscleLoad = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        static string MuscleKey(ExerciseMuscleTargetRecord muscle) => string.IsNullOrWhiteSpace(muscle.MuscleSlug) ? muscle.MuscleName.Trim() : muscle.MuscleSlug.Trim();
         foreach(var session in recent)
         {
             var rows = details.Where(x => x.WorkoutSessionId == session.WorkoutSessionId).ToList();
@@ -50,13 +71,19 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
                 var sets = row.Sets.Count(s => !s.IsWarmup && (s.Rpe ?? session.SessionRpe ?? 0m) >= 7m);
                 // Recent exposures decay for ranking only. Counts remain visible below.
                 var factor = 1m / (1 + today.DayNumber - session.WorkoutDate.DayNumber);
+                foreach(var muscle in exercise.MuscleTargets)
+                {
+                    var key=MuscleKey(muscle);
+                    recentMuscleLoad[key]=recentMuscleLoad.GetValueOrDefault(key) + sets*factor*(muscle.RoleCode.Equals("primary",StringComparison.OrdinalIgnoreCase)?1m:.5m);
+                }
+                recentExerciseLoad[exercise.ExerciseCatalogItemId] = recentExerciseLoad.GetValueOrDefault(exercise.ExerciseCatalogItemId) + sets * factor;
                 foreach(var region in BodyRegions.FromMuscles(exercise.MuscleTargets.Select(m=>m.MuscleName)))
                     recentLoad[region] = recentLoad.GetValueOrDefault(region) + sets * factor;
             }
             if (rows.Count == 0 && session.SessionRpe >= 7m)
             {
                 var rough = CoarseRegions(session.WorkoutTypeCode);
-                foreach(var region in rough) recentLoad[region] = recentLoad.GetValueOrDefault(region) + 2m / (1 + today.DayNumber-session.WorkoutDate.DayNumber);
+                foreach(var region in rough) recentLoad[region] = recentLoad.GetValueOrDefault(region) + 4m / (1 + today.DayNumber-session.WorkoutDate.DayNumber);
                 input.Notices.Add($"{session.WorkoutDate:MMM d}: {session.WorkoutName ?? session.WorkoutTypeCode} has no exercise detail; regional loading is estimated from its category.");
             }
         }
@@ -64,7 +91,7 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         {
             var feeling = feelings.FirstOrDefault(x=>x.Region == region.Code);
             var status = feeling is not null && (feeling.Mark > 0 || feeling.Pain > 0 || feeling.MovementLimited || feeling.SharpOrWorsening || feeling.Soreness > 0)
-                ? "Avoid loading" : feeling?.Soreness >= 4 || recentLoad.GetValueOrDefault(region.Code) >= 1.5m
+                ? "Avoid loading" : recentLoad.GetValueOrDefault(region.Code) >= 1.5m
                 ? "Reduce / reassess" : !body.Checked ? "Check needed" : "Available candidate";
             input.Readiness.Add(new(region.Code,region.Name,status,recentLoad.GetValueOrDefault(region.Code),feeling?.Soreness??0,feeling?.Pain??0));
         }
@@ -83,6 +110,10 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         var rpeCap = WorkoutTargetPolicy.EffortCap(input.Effort,lowFuel,checkin);
         var active = (await types.GetActiveMapAsync(ct)).Where(x=>x.Value.IsSelectable).ToDictionary(x=>x.Key,x=>x.Value);
         var templates = await db.WorkoutTemplates.AsNoTracking().Where(x=>x.ClientId==client.ClientId).Include(x=>x.Exercises).ToListAsync(ct);
+        if (plan is not null && plan.SourceCode != "WORKOUT_TARGET")
+            input.PlanName = plan.WorkoutTemplateId.HasValue ? templates.FirstOrDefault(t=>t.WorkoutTemplateId==plan.WorkoutTemplateId)?.TemplateName ?? input.PlanName
+                : plan.SystemWorkoutCode is not null ? SystemWorkoutRecipeCatalog.CoreRecipes.Concat(SystemWorkoutRecipeCatalog.SignatureRecipes).FirstOrDefault(r=>r.SystemCode==plan.SystemWorkoutCode)?.DisplayName ?? input.PlanName
+                : active.GetValueOrDefault(plan.WorkoutTypeCode)?.DisplayName ?? input.PlanName;
         var candidates = new List<WorkoutTargetChoice>();
         foreach(var recipe in SystemWorkoutRecipeCatalog.CoreRecipes.Concat(SystemWorkoutRecipeCatalog.SignatureRecipes).Where(x=>active.ContainsKey(x.EngineWorkoutTypeCode)))
         {
@@ -91,9 +122,9 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
             var used = new HashSet<Guid>();
             foreach(var slot in recipe.Slots)
             {
-                var exercise = catalog.Where(x=>!used.Contains(x.ExerciseCatalogItemId) && EquipmentFits(x,input) && !WorkoutTargetPolicy.Excluded(Loading(x),feelings))
+                var exercise = catalog.Where(x=>x.MuscleTargets.Count>0 && !used.Contains(x.ExerciseCatalogItemId) && EquipmentFits(x,input) && !WorkoutTargetPolicy.Excluded(Loading(x),feelings))
                     .Select(x=>new { Item=x, Score=SlotScore(x,slot) }).Where(x=>x.Score>0)
-                    .OrderByDescending(x=>x.Score).ThenBy(x=>x.Item.Name).Select(x=>x.Item).FirstOrDefault();
+                    .OrderByDescending(x=>x.Score + WorkoutSessionComposer.RankExercise(x.Item, BodyRegions.FromMuscles(slot.MuscleTerms), recentLoad, recentExerciseLoad)).ThenBy(x=>x.Item.Name).Select(x=>x.Item).FirstOrDefault();
                 if(exercise is null) { choice.Adapted=true; continue; }
                 used.Add(exercise.ExerciseCatalogItemId);
                 choice.Exercises.Add(ToExercise(exercise,slot.Sets,slot.Reps,rpeCap,slot.Notes,slot.DurationSeconds));
@@ -114,16 +145,11 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         }
         if(input.Activity is "targeted" or "fullbody" or "auto")
         {
-            var targets=input.Targets.Count>0 ? input.Targets : new List<string>{"chest","lats","upperback","shoulders","quads","hamstrings","glutes"};
-            var generated=new WorkoutTargetChoice { Key="build:targeted",Name=input.Activity=="fullbody"?"Your full-body session":"Your targeted session",Source="Built for today",TypeCode=input.Activity=="fullbody"?"FULL_BODY_STRENGTH":TargetType(targets,input.Effort),Minutes=input.Minutes,Rpe=rpeCap };
-            foreach(var target in targets)
-            {
-                var exercise=catalog.Where(x=>EquipmentFits(x,input) && x.Category?.Contains("stretch",StringComparison.OrdinalIgnoreCase)!=true
-                    && BodyRegions.FromMuscles(x.MuscleTargets.Where(m=>m.RoleCode=="primary").Select(m=>m.MuscleName)).Contains(target)
-                    && !WorkoutTargetPolicy.Excluded(Loading(x),feelings) && !generated.Exercises.Any(e=>e.ExerciseId==x.ExerciseCatalogItemId))
-                    .OrderBy(x=>x.Name.Contains("machine",StringComparison.OrdinalIgnoreCase)?0:1).ThenBy(x=>x.Name).FirstOrDefault();
-                if(exercise is not null) generated.Exercises.Add(ToExercise(exercise,3,10,rpeCap,"Choose a load appropriate for the prescribed effort; warm up first."));
-            }
+            var targets=input.Targets.Count>0 ? input.Targets : new List<string>{"chest","upperback","shoulders","quads","hamstrings","glutes"};
+            var generated=new WorkoutTargetChoice { Key="build:targeted",Name=input.Activity=="fullbody"?"Your full-body session":input.Activity=="auto"?"Your readiness-based session":"Your targeted session",Source="Built for today",TypeCode=input.Activity=="fullbody"?"FULL_BODY_STRENGTH":TargetType(targets,input.Effort),Minutes=input.Minutes,Rpe=rpeCap };
+            var eligible = catalog.Where(e => e.MuscleTargets.Count > 0 && EquipmentFits(e,input) && !WorkoutTargetPolicy.Excluded(Loading(e),feelings)).ToList();
+            generated.Exercises = WorkoutSessionComposer.Generate(eligible,input,rpeCap,recentLoad,recentExerciseLoad);
+            generated.Reasons.Add("Built from eligible muscle targets, with movement variety and larger compound exercises first.");
             if(generated.Exercises.Count>0 && active.ContainsKey(generated.TypeCode)) candidates.Add(generated);
         }
         foreach(var choice in candidates)
@@ -131,42 +157,52 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
             var activity=WorkoutTargetPolicy.ActivityFor(choice.TypeCode);
             if(input.Activity is "targeted" or "fullbody" ? activity!="strength" : input.Activity!="auto" && activity!=input.Activity) continue;
             if(choice.TypeCode=="REST") {choice.Minutes=0;choice.Rpe=0;}
+            if(activity=="mobility") { choice.Rpe=Math.Min(choice.Rpe,4m); choice.Exercises=choice.Exercises.Select(e=>e with {Rpe=Math.Min(e.Rpe,4m)}).ToList(); }
             var originalCount=choice.Exercises.Count;
             choice.Exercises=choice.Exercises.Where(e=>!WorkoutTargetPolicy.Excluded(Loading(byId[e.ExerciseId]),feelings)
-                && (byId[e.ExerciseId].MuscleTargets.Count>0 || feelings.Count==0)
+                && byId[e.ExerciseId].MuscleTargets.Count>0
                 && (input.Activity!="targeted" || e.Regions.Intersect(input.Targets).Any())).ToList();
             if(originalCount>0 && choice.Exercises.Count==0) continue;
             if(choice.Exercises.Count==0 && choice.TypeCode!="REST" && WorkoutTargetPolicy.Excluded(CoarseRegions(choice.TypeCode),feelings)) continue;
             choice.Adapted |= originalCount!=choice.Exercises.Count;
             if(choice.Adapted) choice.Reasons.Add("Exercises unavailable or conflicting with your symptoms/targets were removed. Review the adapted preview.");
             choice.Exercises=choice.Exercises.Select(e=>{
-                var reduce=Loading(byId[e.ExerciseId]).Any(r=>feelings.Any(f=>f.Region==r&&f.Soreness>=4)||recentLoad.GetValueOrDefault(r)>=1.5m);
-                return reduce ? e with { Sets=Math.Min(e.Sets,2),Rpe=Math.Min(e.Rpe,6m),Note=(e.Note+" Recent load or soreness: reduced volume and effort.").Trim() } : e;
+                var reduce=Loading(byId[e.ExerciseId]).Any(r=>recentLoad.GetValueOrDefault(r)>=1.5m)
+                    || byId[e.ExerciseId].MuscleTargets.Any(m=>recentMuscleLoad.GetValueOrDefault(MuscleKey(m))>=1.5m);
+                if (reduce) choice.Adapted = true;
+                return reduce ? e with { Sets=Math.Min(e.Sets,2),Rpe=Math.Min(e.Rpe,6m),Note=(e.Note+" Recent hard training: reduced volume and effort.").Trim() } : e;
             }).ToList();
-            var wanted=input.Activity=="fullbody";
-            var covered=choice.Exercises.SelectMany(e=>e.Regions).Distinct().ToList();
-            if(wanted && (!covered.Intersect(new[]{"chest","lats","upperback","shoulders"}).Any() || !covered.Intersect(new[]{"quads","hamstrings","glutes"}).Any()))
+            if(choice.Exercises.Any(e => Loading(byId[e.ExerciseId]).Any(r => recentLoad.GetValueOrDefault(r)>=1.5m)
+                || byId[e.ExerciseId].MuscleTargets.Any(m=>recentMuscleLoad.GetValueOrDefault(MuscleKey(m))>=1.5m)))
+                choice.Reasons.Add("Recent hard work in these muscle groups calls for lower volume and effort.");
+            if(choice.Exercises.Count>0)
+            {
+                if(input.Additions.Count>0) AddExtras(choice,input,catalog,feelings,rpeCap);
+                WorkoutSessionComposer.FitSession(choice,input.Minutes,byId);
+                if(choice.Exercises.Count==0) continue;
+            }
+            var covered=choice.Exercises.Where(e=>!e.IsAddon).SelectMany(e=>WorkoutSessionComposer.PrimaryRegions(byId[e.ExerciseId])).Distinct().ToList();
+            if(input.Activity=="fullbody" && (!covered.Intersect(new[]{"chest","upperback","shoulders","triceps"}).Any() || !covered.Intersect(new[]{"quads","hamstrings","glutes"}).Any()))
             { choice.Name+=" — partial body coverage";choice.Adapted=true;choice.Reasons.Add("Full-body coverage is unavailable under today’s constraints; this is a partial alternative."); }
             if(input.Targets.Count>0)
             {
                 var missing=input.Targets.Except(covered).ToList();
-                if(missing.Count>0) choice.Reasons.Add("Targets not covered: "+string.Join(", ",missing));
-                choice.Score+=covered.Intersect(input.Targets).Count()*15;
+                if(missing.Count>0) choice.Reasons.Add("Targets not covered: "+string.Join(", ",missing.Select(r=>BodyRegions.All.FirstOrDefault(x=>x.Code==r)?.Name ?? r)));
+                choice.Score+=covered.Intersect(input.Targets).Count()*20;
             }
-            choice.Score+=covered.Count*2;
-            choice.Score-=covered.Sum(r=>recentLoad.GetValueOrDefault(r))*3;
-            if(plan?.WorkoutTemplateId==choice.TemplateId && choice.TemplateId.HasValue || plan?.SystemWorkoutCode==choice.SystemCode && choice.SystemCode is not null)
-            { choice.Score+=5;choice.Reasons.Add("Matches your weekly plan."); }
-            if(input.Effort=="hard" && choice.Exercises.Any(e=>e.Rpe<rpeCap)) choice.Adapted=true;
-            if(rpeCap < (input.Effort=="hard"?8m:6m)) choice.Reasons.Add("Effort reduced for current fuel/recovery information.");
-            if(choice.Exercises.Count>0)
-            {
-                var addonBudget=input.Additions.Count*4;
-                var setBudget=Math.Max(2,(input.Minutes-addonBudget-5)/3);
-                choice.Exercises=FitBudget(choice.Exercises,setBudget);
-                if(input.Additions.Count>0) AddExtras(choice,input,catalog,feelings,rpeCap);
-                choice.Score+=choice.Exercises.Count;
-            }
+            choice.Score += covered.Count*4 - covered.Sum(r=>recentLoad.GetValueOrDefault(r))*8;
+            choice.Score += choice.Source == "My Workouts" ? 30 : choice.Source == "System Workouts" ? 25 : 20;
+            choice.Score -= choice.Exercises.Sum(e=>recentExerciseLoad.GetValueOrDefault(e.ExerciseId));
+            var planMatch = plan?.WorkoutTemplateId==choice.TemplateId && choice.TemplateId.HasValue || plan?.SystemWorkoutCode==choice.SystemCode && choice.SystemCode is not null
+                || plan is not null && plan.SourceCode != "WORKOUT_TARGET" && plan.WorkoutTemplateId is null && plan.SystemWorkoutCode is null && plan.WorkoutTypeCode==choice.TypeCode;
+            if(planMatch && !choice.Adapted)
+            { choice.Score+=1000;choice.Reasons.Add("Your planned workout fits today’s check-in and available time; keep the plan."); }
+            else if(planMatch) {choice.Score+=5;choice.Reasons.Add("An adjusted version of your planned workout.");}
+            var priority = covered.OrderBy(r=>recentLoad.GetValueOrDefault(r)).Take(3).Select(r=>BodyRegions.All.First(x=>x.Code==r).Name).ToList();
+            if(priority.Count>0) choice.Reasons.Add("Eligible targets with the least recent loading in this session: "+string.Join(", ",priority)+".");
+            var exclusions=feelings.Where(f=>f.Mark>0||f.Soreness>0||f.Pain>0).Select(f=>BodyRegions.All.FirstOrDefault(r=>r.Code==f.Region)?.Name ?? f.Region).Distinct().ToList();
+            if(exclusions.Count>0) choice.Reasons.Add("Excluded for soreness or pain: "+string.Join(", ",exclusions)+".");
+            if(rpeCap < (input.Effort=="hard"?8m:input.Effort=="easy"?4m:6m)) choice.Reasons.Add("Effort reduced for current fuel/recovery information.");
             if(choice.Exercises.Count==0 && choice.TypeCode!="REST" && input.Additions.Count>0)
                 choice.Reasons.Add("Add-ons are available with exercise-based strength/mobility matches; this cardio/conditioning match has no add-on exercise block.");
             choice.Reasons.Add("Selection uses your check-in, recent training, equipment and today’s preferences. Readiness is an estimate.");
@@ -181,21 +217,6 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         return input;
     }
 
-    private static List<TargetExercise> FitBudget(List<TargetExercise> exercises,int budget)
-    {
-        var chosen=exercises.Take(budget).ToList();
-        var counts=Enumerable.Repeat(1,chosen.Count).ToArray();
-        var remaining=budget-chosen.Count;
-        while(remaining>0)
-        {
-            var changed=false;
-            for(var i=0;i<chosen.Count&&remaining>0;i++)
-                if(counts[i]<chosen[i].Sets) {counts[i]++;remaining--;changed=true;}
-            if(!changed) break;
-        }
-        var result=chosen.Select((e,i)=>e with { Sets=counts[i] }).ToList();
-        return result;
-    }
     private static void AddExtras(WorkoutTargetChoice choice,TodayWorkoutViewModel input,List<ExerciseCatalogItemRecord> catalog,List<RegionFeeling> feelings,decimal rpe)
     {
         foreach(var addition in input.Additions)
@@ -214,9 +235,9 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         var set=targets.ToHashSet();
         if(effort!="hard") return "ACCESSORY";
         if(set.IsSubsetOf(new[]{"chest","shoulders","triceps"})&&set.Contains("chest")) return "MAJOR_PUSH";
-        if(set.IsSubsetOf(new[]{"lats","upperback","biceps"})&&set.Overlaps(new[]{"lats","upperback"})) return "MAJOR_PULL";
+        if(set.IsSubsetOf(new[]{"upperback","lowerback"})&&set.Contains("upperback")) return "MAJOR_PULL";
         if(set.IsSubsetOf(new[]{"quads","hamstrings","glutes","calves"})&&set.Overlaps(new[]{"quads","hamstrings","glutes"})) return "MAJOR_LEGS";
-        return "ACCESSORY";
+        return set.Overlaps(new[]{"chest","upperback","shoulders","triceps"}) && set.Overlaps(new[]{"quads","hamstrings","glutes"}) ? "FULL_BODY_STRENGTH" : "ACCESSORY";
     }
     private static TargetExercise ToExercise(ExerciseCatalogItemRecord e,int sets,int reps,decimal rpe,string? note,int? seconds=null)
         =>new(e.ExerciseCatalogItemId,e.Name,e.Mechanics,Math.Clamp(sets,1,6),Math.Clamp(reps,1,30),rpe,
@@ -229,7 +250,10 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         var muscle=s.MuscleTerms.Any(t=>e.MuscleTargets.Where(m=>m.RoleCode=="primary").Any(m=>m.MuscleName.Contains(t,StringComparison.OrdinalIgnoreCase)));
         if(s.MuscleTerms.Count>0 && !muscle && !s.RequireNameMatch) return 0;
         if(e.Category?.Contains("stretch",StringComparison.OrdinalIgnoreCase)==true&&!s.AllowStretching) return 0;
-        return name>0?name:muscle?10:0;
+        var score = name>0?name:muscle?10:0;
+        if(s.PreferCompound && WorkoutSessionComposer.IsCompound(e)) score+=6;
+        if(s.PreferIsolation && e.Mechanics?.Contains("isolation",StringComparison.OrdinalIgnoreCase)==true) score+=6;
+        return score;
     }
     private static bool EquipmentFits(ExerciseCatalogItemRecord e,TodayWorkoutViewModel input)
     {

@@ -656,6 +656,7 @@
             "Regular dieting can reduce muscle along with fat. Recomp combines resistance training, high protein, and controlled calories to lose fat while protecting - and when possible building - lean muscle."
         })
 
+@await Component.InvokeAsync("WorkoutRecommendations", new { date = Model.ActionDate })
 <div class="dash-primary-grid">
         <section class="dash-panel dash-workout dash-planactual-panel">
             <!-- B2.35.31_DASHBOARD_PLAN_ACTUAL_CARDS -->
@@ -707,7 +708,7 @@
                     @if (Model.ScheduleChangeRecommended)
                     {
                         <div class="dash-pa-recommendation review">
-                            <strong>Recomp recommendation</strong>
+                            <strong>Engine plan estimate</strong>
                             <span>Change to @Model.RecommendedWorkout</span>
                             @if (!string.IsNullOrWhiteSpace(Model.WorkoutRecommendationRationale))
                             {
@@ -716,27 +717,21 @@
                             @if (recommendedSystemWorkout is not null)
                             {
                                 <a class="btn btn-sm btn-primary mt-2"
-                                   asp-controller="DetailedWorkout"
-                                   asp-action="Index"
-                                   asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")"
-                                   asp-route-mode="system"
-                                   asp-route-systemCode="@recommendedSystemWorkout.SystemCode">Open Recommended Workout</a>
+                                   asp-controller="TodayWorkout"
+                                   asp-action="Index">Review readiness-based options</a>
                             }
                         </div>
                     }
                     else
                     {
                         <div class="dash-pa-recommendation">
-                            <strong>Recomp recommendation</strong>
+                            <strong>Engine plan estimate</strong>
                             <span>Keep the planned session.</span>
                             @if (recommendedSystemWorkout is not null)
                             {
                                 <a class="btn btn-sm btn-primary mt-2"
-                                   asp-controller="DetailedWorkout"
-                                   asp-action="Index"
-                                   asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")"
-                                   asp-route-mode="system"
-                                   asp-route-systemCode="@recommendedSystemWorkout.SystemCode">Open Recommended Workout</a>
+                                   asp-controller="TodayWorkout"
+                                   asp-action="Index">Review readiness-based options</a>
                             }
                         </div>
                     }

@@ -10,12 +10,13 @@ namespace WebRecomp.Web.Controllers;
 public sealed class TodayWorkoutController(RecompDbContext db, AppUserContextService users, WorkoutTargetService targets) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(CancellationToken cancellationToken, string? choiceKey = null)
     {
         var context=await users.GetAsync(HttpContext,cancellationToken);
         if(context.Client is null || context.Program is null) return RedirectToAction("Index","Intake");
         Response.Headers["Cache-Control"]="no-store";
-        return View(await targets.BuildAsync(context,new TodayWorkoutViewModel(),cancellationToken));
+        ViewData["SelectedChoice"] = choiceKey;
+        return View(await targets.BuildDashboardAsync(context,cancellationToken));
     }
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -54,7 +55,7 @@ public sealed class TodayWorkoutController(RecompDbContext db, AppUserContextSer
             WorkoutName=((choice.Adapted?"Adapted: ":"")+choice.Name)[..Math.Min(120,((choice.Adapted?"Adapted: ":"")+choice.Name).Length)],WorkoutTypeCode=choice.TypeCode,
             // The customized draft owns its exercises; reusable templates/system recipes remain unchanged.
             SystemWorkoutCode=choice.SystemCode,DurationMin=choice.Minutes,SessionRpe=choice.TypeCode=="REST"?null:choice.Rpe,
-            TypicalRestSec=choice.TypeCode=="REST"?null:(short)60,CompletedFlag=false,EntrySourceCode=RecompInputSourceCodes.DetailedWorkout,
+            TypicalRestSec=choice.TypeCode=="REST"?null:choice.Exercises.Count>0?(short)Math.Round(choice.Exercises.Average(e=>e.RestSeconds)):(short)60,CompletedFlag=false,EntrySourceCode=RecompInputSourceCodes.DetailedWorkout,
             SourceRecordId=source,CalculationEngineVersion=WorkoutActualService.ActiveEngineVersionCode,CreatedAtUtc=now,UpdatedAtUtc=now,
             Notes="Today’s Workout recommendation. "+string.Join(" ",choice.Reasons)
         };
@@ -67,7 +68,7 @@ public sealed class TodayWorkoutController(RecompDbContext db, AppUserContextSer
                 Notes=exercise.Note,CreatedAtUtc=now,UpdatedAtUtc=now };
             for(short set=1;set<=exercise.Sets;set++) row.Sets.Add(new DetailedWorkoutSetRecord { DetailedWorkoutSetId=Guid.NewGuid(),
                 DetailedWorkoutExerciseId=row.DetailedWorkoutExerciseId,SetOrder=set,Reps=exercise.DurationSeconds.HasValue?null:(short)exercise.Reps,
-                Rpe=exercise.Rpe,RestSeconds=60,DurationSeconds=exercise.DurationSeconds,CreatedAtUtc=now,UpdatedAtUtc=now });
+                Rpe=exercise.Rpe,RestSeconds=(short)exercise.RestSeconds,DurationSeconds=exercise.DurationSeconds,CreatedAtUtc=now,UpdatedAtUtc=now });
             db.DetailedWorkoutExercises.Add(row);
         }
         // Accepted draft replaces the estimate only while there are no completed actuals today.

@@ -74,10 +74,11 @@
                 <a class="button secondary" asp-controller="DailyEntry" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")">Review actual training ↗</a>
             </article>
         </div>
-        @if (Model.ScheduleChangeRecommended) { <div class="d2-next"><h3>Suggested adjustment: @Model.RecommendedWorkout</h3><p>@Model.WorkoutRecommendationRationale</p>@{ var recommended = WebRecomp.Web.Services.WorkoutIntelligence.SystemWorkoutRecipeCatalog.GetDefaultPresentationForEngine(Model.RecompRecommendation?.RecommendedWorkoutTypeCode); }
+        @if (Model.ScheduleChangeRecommended && historical) { <div class="d2-next"><h3>Suggested adjustment: @Model.RecommendedWorkout</h3><p>@Model.WorkoutRecommendationRationale</p>@{ var recommended = WebRecomp.Web.Services.WorkoutIntelligence.SystemWorkoutRecipeCatalog.GetDefaultPresentationForEngine(Model.RecompRecommendation?.RecommendedWorkoutTypeCode); }
             @if (recommended is not null) { <a class="button secondary" asp-controller="DetailedWorkout" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")" asp-route-mode="system" asp-route-systemCode="@recommended.SystemCode">Open recommended workout ↗</a> }
             @if (!historical) { @await Component.InvokeAsync("DashboardPlanDecision", new { date = Model.ActionDate, originalWorkout = Model.PlannedWorkout, recommendedWorkout = Model.RecommendedWorkout, originalCalories = Model.Calories, originalProteinG = Model.ProteinG, originalCarbsG = Model.CarbsG, originalFatG = Model.FatG, showDecision = true }) }</div> }
     </section>
+    @await Component.InvokeAsync("WorkoutRecommendations", new { date = Model.ActionDate })
     <section class="d2-panel d3-next-section" aria-labelledby="d3-next-title"><p class="d3-eyebrow">LOOK AHEAD · NEXT TWO DAYS</p><h2 id="d3-next-title">Your next moves.</h2><div class="d3-training-grid">
         @foreach (var upcoming in cockpit.UpcomingWorkouts) {
             <article class="d3-workout-card d3-upcoming-card d3-load-@upcoming.Tone"><p class="d3-eyebrow">@(upcoming.Date == Model.ActionDate.AddDays(1) ? "Tomorrow" : "Coming next")</p><h3>@upcoming.Date.ToString("dddd, MMM d")</h3><h4>@upcoming.Name</h4>

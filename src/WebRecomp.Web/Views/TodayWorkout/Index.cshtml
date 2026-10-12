@@ -24,10 +24,11 @@
 <button class="primary" type="submit">Find my workout</button></form></section>
 <section><h2>Your matches</h2><p>Review the exercises before starting. Original System Workouts and My Workouts stay reusable.</p>
 @foreach(var choice in Model.Choices) {
-<article class="card tw-result"><span class="tw-badge">@choice.Source @(choice.Adapted?"· Adapted":"")</span><h3>@choice.Name</h3><p>@choice.Minutes min @(choice.Rpe>0?$"· effort up to RPE {choice.Rpe}":"")</p>
+<article class="card tw-result" style="@(ViewData["SelectedChoice"] as string == choice.Key ? "border:2px solid #a9d66d" : "")"><span class="tw-badge">@choice.Source @(choice.Adapted?"· Adapted":"")</span><h3>@choice.Name</h3><p>@choice.Minutes min @(choice.Rpe>0?$"· effort up to RPE {choice.Rpe}":"")</p>
 @foreach(var reason in choice.Reasons) {<p>@reason</p>}
-@if(choice.Exercises.Count>0) {<table class="tw-preview"><thead><tr><th>Exercise</th><th>Sets × reps/time</th><th>Effort</th></tr></thead><tbody>
-@foreach(var exercise in choice.Exercises) {<tr><td>@exercise.Name @(exercise.IsAddon?"· Add-on":"")<details><summary>Guidance</summary><p>@exercise.Note</p></details></td><td>@exercise.Sets × @(exercise.DurationSeconds.HasValue?$"{exercise.DurationSeconds}s":exercise.Reps.ToString())</td><td>@exercise.Rpe</td></tr>}
+@if(choice.WarmupMinutes>0) {<p>Warm-up: @choice.WarmupMinutes minutes. Session duration includes transitions and rests.</p>}
+@if(choice.Exercises.Count>0) {<table class="tw-preview"><thead><tr><th>Exercise</th><th>Sets × reps/time</th><th>Effort / rest</th></tr></thead><tbody>
+@foreach(var exercise in choice.Exercises) {<tr><td>@exercise.Name @(exercise.IsAddon?"· Add-on":"")<details><summary>Guidance</summary><p>@exercise.Note</p></details></td><td>@exercise.Sets × @(exercise.DurationSeconds.HasValue?$"{exercise.DurationSeconds}s":exercise.Reps.ToString())</td><td>RPE @exercise.Rpe · @exercise.RestSeconds s rest</td></tr>}
 </tbody></table>}
 <form asp-action="Accept" method="post">@Html.AntiForgeryToken()<input name="choiceKey" type="hidden" value="@choice.Key" /><input name="choiceRevision" type="hidden" value="@choice.Revision" /><input name="Activity" type="hidden" value="@Model.Activity" /><input name="Effort" type="hidden" value="@Model.Effort" /><input name="Minutes" type="hidden" value="@Model.Minutes" /><input name="Location" type="hidden" value="@Model.Location" />
 @foreach(var target in Model.Targets) {<input type="hidden" name="Targets" value="@target" />}
