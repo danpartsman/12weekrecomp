@@ -126,6 +126,8 @@ public sealed class WorkoutTargetIntegrationTests
             var controller=new WebRecomp.Web.Controllers.DailyEntryController(db,users,new(db),new(db),null!);controller.ControllerContext=new(){HttpContext=http};
             await controller.Index(new(){Date=date,Calories=2000,Workouts=[new(){WorkoutSessionId=session.WorkoutSessionId,WorkoutTypeCode="MAJOR_LEGS",DurationMin=90}]},false,default);
             Assert.Equal("MAJOR_PUSH",(await db.WorkoutSessions.SingleAsync()).WorkoutTypeCode);Assert.Equal(45m,session.DurationMin);
+            await controller.Index(new(){Date=date.AddDays(1),Workouts=[new(){WorkoutSessionId=session.WorkoutSessionId,WorkoutTypeCode="MAJOR_LEGS",DurationMin=90}]},false,default);
+            Assert.Equal(date,session.WorkoutDate);Assert.Equal("MAJOR_PUSH",session.WorkoutTypeCode);
         }
     }
     [Fact] public async Task PlannerSaveCannotRewritePastDayEvenWithForgedPost()

@@ -525,6 +525,12 @@ public sealed class DailyEntryController(
                         cancellationToken);
             }
 
+            if (session is not null && session.WorkoutDate < AppUserContextService.GetClientToday(client))
+            {
+                ModelState.AddModelError(nameof(model.Workouts), "Correct past workouts from Workouts; changing the form date does not unlock them.");
+                continue;
+            }
+
             // Autosave idempotency: a manual row carries a stable source key
             // before its first POST. If the browser has not yet received the
             // generated WorkoutSessionId, a repeated POST must update the same
