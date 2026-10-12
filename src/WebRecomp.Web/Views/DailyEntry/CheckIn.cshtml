@@ -1,19 +1,17 @@
 @model WebRecomp.Web.ViewModels.DailyEntryViewModel
-@{ ViewData["Title"] = "Daily Scale & Feel"; ViewData["BodyClass"] = "daily-entry-view"; }
+@{ ViewData["Title"] = "Scale & Feel"; ViewData["BodyClass"] = "scale-feel-view"; }
 <link rel="stylesheet" href="~/css/daily-entry.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/nutrition-intelligence.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/today-workout.css" asp-append-version="true" />
-<div class="daily-entry-page">
-<header class="tw-header"><p class="tw-eyebrow">12WR · Daily check-in</p><h1>Daily Scale &amp; Feel</h1><p>Measurements, recovery and where your body needs attention.</p>
-<nav class="tw-links"><a asp-action="Index" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Daily Entries</a><a asp-controller="TodayWorkout" asp-action="Index">Today’s Workout →</a></nav></header>
-@if (TempData["StatusMessage"] is string message) { <p class="daily-entry-success" role="status">@message</p> }
-<form method="get" asp-action="CheckIn" class="app-date-picker"><label>Date <input type="date" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" /></label><button type="submit">Open date</button></form>
-<form asp-action="CheckIn" method="post" id="scale-feel-form">
-@Html.AntiForgeryToken()<input asp-for="Date" type="hidden" /><input asp-for="RenderedMeasurementId" type="hidden" />
-<div asp-validation-summary="All" class="validation"></div>
-<partial name="_ScaleFeel" model="Model" />
-<section class="card"><h2>Where do you feel it?</h2><p>Click once for soreness (yellow X), twice for pain/injury (red X), and a third time to clear. Each rating applies to every matching mark.</p>
-<partial name="_BodyCheck" model="Model" />
-</section>
-<button type="submit" class="primary">Save Daily Scale &amp; Feel</button>
-</form></div>
+<link rel="stylesheet" href="~/css/scale-feel.css" asp-append-version="true" />
+<div class="app-page app-page-nutrition scale-feel-page">
+<header class="app-page-head">
+<div><div class="app-kicker">DAILY | RECOVERY</div><h1>Scale &amp; Feel</h1><p class="lede app-date-heading">@Model.Date.ToString("dddd, MMMM d")</p><p class="small">Check your progress and how your body feels.</p></div>
+<figure class="nutrition-header-photo"><img src="~/images/daily-entry-trainer-client.jpg" asp-append-version="true" alt="Fitness coach supporting a daily progress check-in" /></figure>
+<div class="nutrition-intel-header-actions"><form asp-action="CheckIn" method="get" class="app-date-picker"><label>Date <input name="date" type="date" value="@Model.Date.ToString("yyyy-MM-dd")" onchange="this.form.submit()" /></label><div class="app-adjacent-days"><a asp-action="CheckIn" asp-route-date="@Model.Date.AddDays(-1).ToString("yyyy-MM-dd")" class="button app-day-nav-button" aria-label="Previous day">← Previous day</a><a asp-action="CheckIn" asp-route-date="@Model.Date.AddDays(1).ToString("yyyy-MM-dd")" class="button app-day-nav-button" aria-label="Next day">Next day →</a></div></form></div>
+</header>
+<nav class="tw-links"><a asp-action="Index" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Daily Entries</a><a asp-controller="TodayWorkout" asp-action="Index">Today’s Workout →</a></nav>
+<partial name="_CheckInForm" model="Model" />
+</div>
 <script src="~/js/body-check.js" asp-append-version="true"></script>
+<script src="~/js/scale-feel.js" asp-append-version="true"></script>

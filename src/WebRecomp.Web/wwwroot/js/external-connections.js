@@ -5,6 +5,7 @@
     const status = document.getElementById('scale-pull-status');
     let edited = false;
     document.addEventListener('input', () => { edited = true; }, { once: true });
+    document.addEventListener('bodycheckchange', () => { edited = true; }, { once: true });
     document.addEventListener('change', () => { edited = true; }, { once: true });
     async function pull(manual) {
         if (button) button.disabled = true;
@@ -19,7 +20,7 @@
             if (result.updated && !edited) { window.location.reload(); return; }
             if (status && (manual || result.updated)) {
                 status.textContent = result.updated && edited
-                    ? 'New scale readings synced. Finish saving your edits, then refresh to see them.'
+                    ? 'New scale readings synced. Your changes save automatically. Refresh after they finish to see the new reading.'
                     : result.message || 'Your scale readings are up to date.';
             }
         } catch {

@@ -166,6 +166,31 @@ public sealed class WorkoutTargetIntegrationTests
             Assert.Equal(205m,model.WeightLb); Assert.Equal((byte?)2,model.SorenessScore);
         }
     }
+    [Fact] public async Task CheckinAutosaveReturnsJsonAndUpdatesOneSharedRecord()
+    {
+        var (db,context)=await SetupAsync(); using(db)
+        {
+            var date=AppUserContextService.GetClientToday(context.Client!);
+            var http=new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            http.User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new("sub","synthetic")],"test"));
+            http.Request.Headers["X-Requested-With"]="XMLHttpRequest";
+            var users=new AppUserContextService(db,new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+            var controller=new WebRecomp.Web.Controllers.DailyEntryController(db,users,new(db),new(db),null!);
+            controller.ControllerContext=new(){HttpContext=http};
+            var input=new WebRecomp.Web.ViewModels.DailyEntryViewModel(){Date=date,WeightLb=205,BodyChecked=true,PainRating=6,
+                RegionFeelings=[new(){Region="shoulders",Mark=2}]};
+            var result=Assert.IsType<Microsoft.AspNetCore.Mvc.JsonResult>(await controller.CheckIn(input,default));
+            var json=System.Text.Json.JsonSerializer.SerializeToElement(result.Value);
+            Assert.True(json.GetProperty("success").GetBoolean());
+            Assert.Equal((await db.Measurements.SingleAsync()).MeasurementId,json.GetProperty("renderedMeasurementId").GetGuid());
+            input.WeightLb=204; input.PainRating=5;
+            Assert.IsType<Microsoft.AspNetCore.Mvc.JsonResult>(await controller.CheckIn(input,default));
+            Assert.Single(await db.Measurements.ToListAsync()); Assert.Single(await db.DailyCheckins.ToListAsync());
+            Assert.Equal(204m,(await db.Measurements.SingleAsync()).WeightLb);
+            Assert.Equal(5,BodyCheckinCodec.Read((await db.DailyCheckins.SingleAsync()).Notes).Regions.Single().Pain);
+            Assert.Empty(await db.NutritionDays.ToListAsync()); Assert.Empty(await db.WorkoutSessions.ToListAsync());
+        }
+    }
     private sealed class TestTempDataProvider : Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider
     {
         public IDictionary<string,object> LoadTempData(Microsoft.AspNetCore.Http.HttpContext context)=>new Dictionary<string,object>();

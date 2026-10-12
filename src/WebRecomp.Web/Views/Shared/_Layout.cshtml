@@ -273,7 +273,7 @@
                asp-action="Index">
                 Nutrition
             </a>
-            <a asp-controller="DailyEntry" asp-action="CheckIn">Daily Scale &amp; Feel</a>
+            <a asp-controller="DailyEntry" asp-action="CheckIn">Scale &amp; Feel</a>
 
             <a asp-controller="DetailedWorkout"
                asp-action="Index">
@@ -336,7 +336,7 @@
                asp-action="Index">
                 Nutrition
             </a>
-            <a asp-controller="DailyEntry" asp-action="CheckIn">Daily Scale &amp; Feel</a>
+            <a asp-controller="DailyEntry" asp-action="CheckIn">Scale &amp; Feel</a>
 
             <a asp-controller="DetailedWorkout"
                asp-action="Index">
@@ -574,7 +574,7 @@
     <script src="~/js/learning-v1015c.js" asp-append-version="true"></script>
     <script src="~/js/recent-workout-picker.js" asp-append-version="true"></script>
     <script src="~/js/live-workout-notes.js" asp-append-version="true"></script>
-@if (User.Identity?.IsAuthenticated == true && WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled && !isPublicPage && !isOnboardingPage && string.Equals(Context.Request.RouteValues["controller"]?.ToString(), "DailyEntry", StringComparison.OrdinalIgnoreCase) && string.Equals(Context.Request.RouteValues["action"]?.ToString(), "CheckIn", StringComparison.OrdinalIgnoreCase))
+@if (User.Identity?.IsAuthenticated == true && WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled && !isPublicPage && !isOnboardingPage && string.Equals(Context.Request.RouteValues["controller"]?.ToString(), "DailyEntry", StringComparison.OrdinalIgnoreCase) && (string.Equals(Context.Request.RouteValues["action"]?.ToString(), "CheckIn", StringComparison.OrdinalIgnoreCase) || string.Equals(Context.Request.RouteValues["action"]?.ToString(), "Index", StringComparison.OrdinalIgnoreCase)))
 {
     var deviceToken = DeviceAntiforgery.GetAndStoreTokens(Context);
     <div id="device-sync-on-open" hidden data-url="@Url.Action("SyncOnOpen", "ExternalConnections")" data-field="@deviceToken.FormFieldName" data-token="@deviceToken.RequestToken"></div>
