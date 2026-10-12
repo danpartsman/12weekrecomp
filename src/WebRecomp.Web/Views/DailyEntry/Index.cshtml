@@ -444,42 +444,6 @@
 
                         </div>
 
-                        @if (i == 0)
-                        {
-                            <div class="daily-entry-activity-grid">
-                                <label>
-                                    Daily activity (hours)
-                                    <input asp-for="DailyActivityHours"
-                                           type="number"
-                                           inputmode="decimal"
-                                           min="0"
-                                           max="24"
-                                           step="0.1" />
-                                    <small>
-                                        Non-workout activity for the day: walking,
-                                        yardwork, housework, vehicle cleaning,
-                                        moving, construction, and similar activity.
-                                    </small>
-                                    <span asp-validation-for="DailyActivityHours"></span>
-                                </label>
-
-                                <label>
-                                    Activity effort
-                                    <select asp-for="DailyActivityEffortCode">
-                                        <option value="">Not specified</option>
-                                        <option value="LIGHT">Light</option>
-                                        <option value="MODERATE">Moderate</option>
-                                        <option value="HARD">Hard</option>
-                                    </select>
-                                    <small>
-                                        Overall effort of your non-workout activity
-                                        for the day.
-                                    </small>
-                                    <span asp-validation-for="DailyActivityEffortCode"></span>
-                                </label>
-                            </div>
-                        }
-
                         <label class="daily-entry-notes">
                             Workout notes
                             <textarea asp-for="Workouts[i].Notes"

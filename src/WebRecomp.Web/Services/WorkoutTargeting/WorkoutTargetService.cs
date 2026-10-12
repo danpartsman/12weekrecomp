@@ -22,7 +22,7 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         var feelings = body.Regions;
         if (!body.Checked) input.Notices.Add("Body readiness is incomplete. Save today’s Scale & Feel before starting a recommendation.");
         if (feelings.Any(x => x.SharpOrWorsening)) input.Notices.Add("Sharp or worsening pain needs assessment. Recommendations exclude the affected region; stop movements that provoke it.");
-        if (checkin?.IllnessFlag == true || (checkin?.PainFlag == true && !feelings.Any(x => x.Pain > 0 || x.MovementLimited || x.SharpOrWorsening)))
+        if (checkin?.IllnessFlag == true || body.UnlocatedPain || (checkin?.PainFlag == true && !feelings.Any(x => x.Pain > 0 || x.MovementLimited || x.SharpOrWorsening)))
         {
             input.CanStart = false;
             input.Notices.Add("Illness or unlocated pain is recorded. Clarify your check-in before starting a training recommendation.");

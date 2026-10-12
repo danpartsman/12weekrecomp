@@ -152,11 +152,11 @@ public sealed class DailyEntryController(
         checkin.DailyActivityEffortCode = Clean(model.DailyActivityEffortCode)?.ToUpperInvariant();
         checkin.EnergyScore = model.EnergyScore;
         checkin.SorenessScore = model.RegionFeelings.Any(x => x.Soreness > 0)
-            ? (byte)model.RegionFeelings.Max(x => x.Soreness) : model.SorenessScore;
+            ? (byte)model.RegionFeelings.Max(x => x.Soreness) : model.BodyChecked ? null : model.SorenessScore;
         checkin.PainFlag = model.PainFlag || model.RegionFeelings.Any(x => x.Pain > 0 || x.SharpOrWorsening || x.MovementLimited);
         checkin.IllnessFlag = model.IllnessFlag;
         checkin.IntendedWorkoutTypeCode = null;
-        checkin.Notes = BodyCheckinCodec.Write(Clean(model.RecoveryNotes), model.BodyChecked, model.RegionFeelings);
+        checkin.Notes = BodyCheckinCodec.Write(Clean(model.RecoveryNotes), model.BodyChecked, model.RegionFeelings, model.PainFlag);
         checkin.UpdatedAtUtc = now;
 
         var bodyDataEntered =
@@ -851,7 +851,8 @@ public sealed class DailyEntryController(
             DailyActivityEffortCode = checkin?.DailyActivityEffortCode,
             EnergyScore = checkin?.EnergyScore,
             SorenessScore = checkin?.SorenessScore,
-            PainFlag = checkin?.PainFlag == true,
+            PainFlag = BodyCheckinCodec.Read(checkin?.Notes).Checked || BodyCheckinCodec.Read(checkin?.Notes).Regions.Count > 0
+                ? BodyCheckinCodec.Read(checkin?.Notes).UnlocatedPain : checkin?.PainFlag == true,
             IllnessFlag = checkin?.IllnessFlag == true,
             RecoveryNotes = BodyCheckinCodec.Read(checkin?.Notes).Note,
             BodyChecked = BodyCheckinCodec.Read(checkin?.Notes).Checked,
