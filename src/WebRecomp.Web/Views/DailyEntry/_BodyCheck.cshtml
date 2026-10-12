@@ -5,12 +5,13 @@
 <div class="tw-body-maps">
 @foreach (var view in new[] { "front", "back" }) {
 <div class="tw-body-map"><h3>@(view == "front" ? "Front" : "Back")</h3>
-<svg viewBox="0 0 240 430" aria-hidden="true"><circle cx="120" cy="35" r="23"/><path d="M104 59 L136 59 L143 78 L165 88 L185 165 L176 226 L159 220 L162 161 L148 118 L145 210 L151 230 L149 318 L145 397 L125 397 L121 316 L119 246 L115 316 L111 397 L91 397 L87 318 L89 230 L95 210 L92 118 L78 161 L81 220 L64 226 L55 165 L75 88 L97 78 Z"/></svg>
+<div class="tw-body-figure"><svg viewBox="0 0 240 430" aria-hidden="true"><circle cx="120" cy="35" r="23"/><path d="M104 59 L136 59 L143 78 L165 88 L185 165 L176 226 L159 220 L162 161 L148 118 L145 210 L151 230 L149 318 L145 397 L125 397 L121 316 L119 246 L115 316 L111 397 L91 397 L87 318 L89 230 L95 210 L92 118 L78 161 L81 220 L64 226 L55 165 L75 88 L97 78 Z"/></svg>
 @{ var spots = view == "front" ? new[] { ("shoulders",155,93), ("chest",120,120), ("core",120,174), ("hips",138,224), ("quads",138,286) } : new[] { ("upperback",120,103), ("lowerback",120,193), ("triceps",172,145), ("glutes",137,239), ("hamstrings",137,288), ("calves",137,357) }; }
 @foreach (var spot in spots) {
 var region = regions.First(r => r.Code == spot.Item1);
-<button type="button" class="tw-body-spot" style="left:@(spot.Item2 / 2.4)%;top:@(spot.Item3 / 4.3)%" data-body-region="@region.Code" data-region-name="@region.Name" title="@region.Name" aria-label="@region.Name: clear" aria-pressed="false">□</button>
+<button type="button" class="tw-body-spot" style="left:@(spot.Item2 / 2.4)%;top:@(spot.Item3 / 4.3)%" data-body-region="@region.Code" data-region-name="@region.Name" title="@region.Name" aria-label="@region.Name: clear" aria-pressed="false"></button>
 }
+</div>
 <p class="small">@string.Join(" · ", regions.Where(r => r.View == view).Select(r => r.Name))</p>
 </div>}
 </div>

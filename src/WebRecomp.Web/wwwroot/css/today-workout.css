@@ -2,3 +2,25 @@
 
 html[data-theme="light"] body:not(.test-live-preview) .tw-eyebrow,html[data-theme="light"] body:not(.test-live-preview) .tw-badge{color:#3c641b}html[data-theme="light"] body:not(.test-live-preview) .tw-region-list summary span{color:#775b12}
 .tw-body-spot{border-radius:5px;width:32px;height:32px;font-size:24px;line-height:1;user-select:none;touch-action:manipulation}.tw-body-spot.is-sore{background:#26313a;color:#ffda46;border-color:#ffda46}.tw-body-spot.is-pain{background:#26313a;color:#ff6262;border-color:#ff6262}.tw-body-map .small{text-align:center;line-height:1.7}
+
+/* Keep map coordinates relative to the illustration, excluding its caption. */
+.tw-body-figure{position:relative;width:100%}
+/* Plain checkbox appearance; override the application's animated button theme. */
+#scale-feel-form [data-body-check] .tw-body-spot,
+#scale-feel-form [data-body-check] .tw-body-spot:hover,
+#scale-feel-form [data-body-check] .tw-body-spot:focus,
+#scale-feel-form [data-body-check] .tw-body-spot:active{
+ appearance:none!important;display:grid!important;place-items:center!important;
+ width:20px!important;height:20px!important;min-width:20px!important;min-height:20px!important;
+ padding:0!important;margin:0!important;border:1px solid #777!important;border-radius:2px!important;
+ background:#fff!important;background-image:none!important;color:#222!important;
+ box-shadow:none!important;text-shadow:none!important;filter:none!important;
+ transform:translate(-50%,-50%)!important;transition:none!important;animation:none!important;
+ font:700 20px/1 Arial,sans-serif!important;letter-spacing:0!important;
+}
+#scale-feel-form [data-body-check] .tw-body-spot.is-sore{color:#b58b00!important}
+#scale-feel-form [data-body-check] .tw-body-spot.is-pain{color:#d21c1c!important}
+#scale-feel-form [data-body-check] .tw-body-spot:focus-visible{outline:2px solid #4796e6!important;outline-offset:2px}
+
+#scale-feel-form [data-body-check] .tw-body-spot::before,
+#scale-feel-form [data-body-check] .tw-body-spot::after{content:none!important}

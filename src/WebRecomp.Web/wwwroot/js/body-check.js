@@ -7,7 +7,7 @@
    const state=Number(root.querySelector(`[data-region-mark="${spot.dataset.bodyRegion}"]`).value);
    const label=state===1?'sore':state===2?'pain / injury':'clear';
    spot.classList.toggle('is-sore',state===1); spot.classList.toggle('is-pain',state===2);
-   spot.textContent=state?'×':'□';
+   spot.textContent=state?'×':'';
    spot.setAttribute('aria-label',`${spot.dataset.regionName}: ${label}`);
    spot.setAttribute('aria-pressed',String(state>0));
    if(state) summary.push(`${spot.dataset.regionName}: ${label}`);
