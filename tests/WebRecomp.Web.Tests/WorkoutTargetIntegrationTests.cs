@@ -46,7 +46,7 @@ public sealed class WorkoutTargetIntegrationTests
             var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="fullbody",Minutes=45},default);
             Assert.NotEmpty(result.Choices);
             Assert.DoesNotContain(result.Choices.SelectMany(c=>c.Exercises),e=>e.ExerciseId==row.ExerciseCatalogItemId);
-            Assert.Equal("Avoid loading",result.Readiness.Single(r=>r.Code=="biceps").Status);
+            Assert.Equal("Avoid loading",result.Readiness.Single(r=>r.Region=="biceps").Status);
         }
     }
     [Fact] public async Task ShoulderPainRemovesPressingButKeepsLegRecommendation()
