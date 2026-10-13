@@ -6,3 +6,59 @@
 /* Keep both faces visible in the wide header photo. */
 .scale-feel-page .nutrition-header-photo img{object-position:center top!important}
 body.test-live-preview .scale-feel-page > .app-page-head h1{font-size:2rem!important;line-height:1.15!important}
+
+/* Allow shared form content to shrink instead of widening the phone viewport. */
+.scale-feel-page,
+.scale-feel-page > *,
+.scale-feel-page .app-page-head > *,
+.scale-feel-editor,
+.scale-feel-editor fieldset,
+.scale-feel-editor .daily-entry-section-heading > div,
+.scale-feel-editor label,
+.scale-feel-editor .tw-body-map {
+    min-width:0;
+    min-inline-size:0;
+    max-width:100%;
+    box-sizing:border-box;
+}
+.scale-feel-page .app-date-picker,
+.scale-feel-page .app-date-picker input,
+.scale-feel-editor input:not([type="checkbox"]):not([type="hidden"]),
+.scale-feel-editor select,
+.scale-feel-editor textarea {
+    min-width:0;
+    max-width:100%;
+    box-sizing:border-box;
+}
+.scale-feel-editor .daily-entry-section-heading,
+.scale-feel-editor .daily-entry-info,
+.scale-feel-editor label,
+.scale-feel-editor .daily-scale-actions p {
+    overflow-wrap:anywhere;
+}
+/* Each person is one half of a two-person image; contain the other half. */
+.scale-feel-editor .tw-person-figure { overflow:hidden; }
+.sf-legend,
+.sf-save-bar { flex-wrap:wrap; }
+
+@media (max-width:900px) {
+    .scale-feel-page > .app-page-head { grid-template-columns:minmax(0,1fr); }
+    .scale-feel-page .app-date-picker { min-width:0; width:100%; }
+    .scale-feel-page .app-date-picker label { display:grid; gap:.4rem; min-width:0; }
+    .scale-feel-page .app-date-picker input { width:100%; }
+    .scale-feel-page .app-adjacent-days { display:flex; flex-wrap:wrap; gap:.5rem; }
+    .scale-feel-page .app-day-nav-button { flex:1 1 120px; min-width:0; white-space:normal; text-align:center; }
+}
+@media (max-width:520px) {
+    .scale-feel-editor .daily-entry-section,
+    .scale-feel-editor .sf-body-section { padding:.8rem; }
+    .scale-feel-editor .daily-entry-activity-grid { grid-template-columns:minmax(0,1fr); }
+    .scale-feel-editor .tw-controls { display:grid; grid-template-columns:minmax(0,1fr); gap:.75rem; }
+    .scale-feel-editor .tw-body-maps { flex-direction:column; align-items:center; gap:3rem; }
+    .scale-feel-editor .tw-body-map { width:260px; max-width:100%; }
+    .scale-feel-editor .daily-scale-button { max-width:100%; white-space:normal; }
+    .sf-legend { gap:.75rem; }
+}
+@media (max-width:360px) {
+    .scale-feel-editor .daily-entry-grid { grid-template-columns:minmax(0,1fr); }
+}
