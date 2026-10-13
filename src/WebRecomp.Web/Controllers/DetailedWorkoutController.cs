@@ -6,6 +6,7 @@ using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Engine30;
 using WebRecomp.Web.Services.WorkoutIntelligence;
+using WebRecomp.Web.Services.WorkoutTargeting;
 using WebRecomp.Web.ViewModels;
 using WebRecomp.WorkoutIntelligence;
 using WebRecomp.WorkoutIntelligence.Persistence;
@@ -20,6 +21,7 @@ public sealed class DetailedWorkoutController(
     Engine30DashboardProjectionService engine30Projection,
     WorkoutActualService workoutActuals,
     IWorkoutIntelligenceGateway workoutIntelligence,
+    WorkoutTargetService workoutTargets,
     Microsoft.Extensions.Logging.ILogger<DetailedWorkoutController> logger) : Controller
 {
     // B2.35.1 WORKOUT UX SEPARATION
@@ -159,6 +161,31 @@ public sealed class DetailedWorkoutController(
             model,
             context.Program.ConfigVersionId,
             cancellationToken);
+
+        // Preview the owned plan and current recommendation without starting a session.
+        if (normalizedMode == "start" && !model.TemplateOnlyMode)
+        {
+            if (model.PlannedWorkoutTemplateId is Guid plannedTemplateId)
+                model.PlannedTemplatePreview = await GetTemplateDetailAsync(
+                    context.Client.ClientId, plannedTemplateId, model.DefaultLoadUnitCode, cancellationToken);
+            else if (!string.IsNullOrWhiteSpace(model.PlannedSystemWorkoutCode))
+                model.PlannedSystemPreview = await BuildSystemWorkoutPreviewAsync(
+                    context.Client.ClientId, context.Program.ConfigVersionId,
+                    model.PlannedSystemWorkoutCode, model.DefaultLoadUnitCode, cancellationToken);
+
+            if (targetDate == AppUserContextService.GetClientToday(context.Client))
+            {
+                try
+                {
+                    model.StartRecommendations = await workoutTargets.BuildDashboardAsync(context, cancellationToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "Workout selector recommendation unavailable");
+                    model.RecommendationNotice = "Recommendations are temporarily unavailable. Your planned workout is still available.";
+                }
+            }
+        }
 
         if (!model.TemplateOnlyMode)
         {
@@ -4715,7 +4742,7 @@ public sealed class DetailedWorkoutController(
 
         return normalized is "start" or "new" or "saved" or "system" or "live"
             ? normalized
-            : "";
+            : "start";
     }
 
     // B2.35.16 TEMPLATE PRESCRIPTION TEXT

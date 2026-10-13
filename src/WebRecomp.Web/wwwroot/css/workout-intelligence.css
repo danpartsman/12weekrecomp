@@ -4342,3 +4342,16 @@ body.test-live-preview
 .workout-intelligence-page .wi-complete-sync .wi-actions {
     margin-top:.15rem;
 }
+
+/* The workout selector opens the plan and a different top recommendation. */
+.workout-intelligence-page .wi-start-previews { order: 2; display: grid; gap: .75rem; min-width: 0; }
+.workout-intelligence-page .wi-start-preview { border: 1px solid #527b58; border-radius: .8rem; background: rgba(9, 30, 49, .76); min-width: 0; }
+.workout-intelligence-page .wi-recommended-workout-card { border-color: #d4ab48; }
+.workout-intelligence-page .wi-start-preview > summary { cursor: pointer; padding: .8rem .9rem; }
+.workout-intelligence-page .wi-start-preview > summary strong { display: block; margin-top: .2rem; overflow-wrap: anywhere; }
+.workout-intelligence-page .wi-start-preview-body { padding: 0 .9rem .9rem; }
+.workout-intelligence-page .wi-start-preview .wi-preview-exercise { grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+    .workout-intelligence-page .wi-start-preview .wi-preview-exercise { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .workout-intelligence-page .wi-start-preview .wi-preview-exercise strong { grid-column: 1 / -1; }
+}

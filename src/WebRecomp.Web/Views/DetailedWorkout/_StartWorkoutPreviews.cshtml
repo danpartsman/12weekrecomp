@@ -1,0 +1,106 @@
+@model DetailedWorkoutEditorViewModel
+@{
+    var template = Model.PlannedTemplatePreview;
+    var system = Model.PlannedSystemPreview;
+    var plannedExercises = template?.Exercises ?? system?.Exercises ?? [];
+    var recommendation = Model.DifferentRecommendedWorkout;
+    var recommendations = Model.StartRecommendations;
+}
+<div class="wi-start-previews">
+    @if (template is not null || system is not null)
+    {
+        <details class="wi-start-preview wi-today-workout-card" open>
+            <summary><span class="wi-start-card-kicker">PLANNED WORKOUT</span><strong>@(template?.TemplateName ?? system?.DisplayName)</strong></summary>
+            <div class="wi-start-preview-body">
+                <p>@(template?.DefaultDurationMin ?? system?.DefaultMinutes) min</p>
+                <div class="wi-preview-list">
+                    @foreach (var exercise in plannedExercises)
+                    {
+                        <div class="wi-preview-exercise">
+                            <strong>@exercise.ExerciseName</strong>
+                            <span>@(exercise.SetsPrescription ?? exercise.Sets.ToString()) sets</span>
+                            <span>@(exercise.RepsPrescription ?? exercise.Reps.ToString()) reps</span>
+                            <span>@(exercise.WeightPrescription ?? (exercise.MaxWeight.HasValue ? $"{exercise.MaxWeight:0.##} lb" : "weight —"))</span>
+                        </div>
+                    }
+                </div>
+                <div class="wi-actions">
+                    @if (template is not null)
+                    {
+                        <form asp-action="UseTemplate" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="templateId" value="@template.WorkoutTemplateId" />
+                            <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                            <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                            <button class="button primary" type="submit">Start Workout</button>
+                        </form>
+                        <a class="button" asp-action="Index" asp-route-mode="saved" asp-route-templateId="@template.WorkoutTemplateId" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")" asp-route-returnContext="@Model.ReturnContext">Workout Details</a>
+                    }
+                    else if (system is not null)
+                    {
+                        @if (plannedExercises.Count > 0 && !system.GroupName.Equals("Orangetheory", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <form asp-action="UseSystemWorkout" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="systemCode" value="@system.SystemCode" />
+                                <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                                <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                                <button class="button primary" type="submit">Start Workout</button>
+                            </form>
+                        }
+                        <a class="button" asp-action="Index" asp-route-mode="system" asp-route-systemCode="@system.SystemCode" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")" asp-route-returnContext="@Model.ReturnContext">Workout Details</a>
+                    }
+                </div>
+            </div>
+        </details>
+    }
+    @if (recommendation is not null && recommendations is not null)
+    {
+        <details class="wi-start-preview wi-recommended-workout-card" open>
+            <summary><span class="wi-start-card-kicker">RECOMMENDED WORKOUT @(recommendation.Adapted ? "· Adjusted" : "")</span><strong>@recommendation.Name</strong></summary>
+            <div class="wi-start-preview-body">
+                <p>@recommendation.Minutes min · effort up to RPE @recommendation.Rpe</p>
+                @foreach (var reason in recommendation.Reasons.Where(r => !r.StartsWith("Selection uses")).Take(3))
+                {
+                    <p>@reason</p>
+                }
+                @if (recommendation.WarmupMinutes > 0)
+                {
+                    <p>Warm-up: @recommendation.WarmupMinutes min</p>
+                }
+                <div class="wi-preview-list">
+                    @foreach (var exercise in recommendation.Exercises)
+                    {
+                        <div class="wi-preview-exercise">
+                            <strong>@exercise.Name</strong>
+                            <span>@exercise.Sets sets</span>
+                            <span>@(exercise.DurationSeconds.HasValue ? $"{exercise.DurationSeconds}s" : $"{exercise.Reps} reps")</span>
+                            <span>RPE @exercise.Rpe · @exercise.RestSeconds s rest</span>
+                        </div>
+                    }
+                </div>
+                <form asp-controller="TodayWorkout" asp-action="Accept" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="choiceKey" value="@recommendation.Key" />
+                    <input type="hidden" name="choiceRevision" value="@recommendation.Revision" />
+                    <input type="hidden" name="Activity" value="@recommendations.Activity" />
+                    <input type="hidden" name="Effort" value="@recommendations.Effort" />
+                    <input type="hidden" name="Minutes" value="@recommendations.Minutes" />
+                    <input type="hidden" name="Location" value="@recommendations.Location" />
+                    @foreach (var target in recommendations.Targets) { <input type="hidden" name="Targets" value="@target" /> }
+                    @foreach (var addition in recommendations.Additions) { <input type="hidden" name="Additions" value="@addition" /> }
+                    @foreach (var equipment in recommendations.Equipment) { <input type="hidden" name="Equipment" value="@equipment" /> }
+                    <button class="button primary" type="submit" disabled="@(!recommendations.CanStart)">Use Recommended Workout</button>
+                </form>
+                @if (!recommendations.CanStart)
+                {
+                    <p>Update <a asp-controller="DailyEntry" asp-action="CheckIn">Recomp Tracking</a> before starting this recommendation.</p>
+                }
+            </div>
+        </details>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.RecommendationNotice))
+    {
+        <p class="app-message">@Model.RecommendationNotice</p>
+    }
+</div>
