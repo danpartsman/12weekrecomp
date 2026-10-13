@@ -12,15 +12,18 @@
         <details class="wi-start-preview wi-today-workout-card" open>
             <summary><span class="wi-start-card-kicker">PLANNED WORKOUT</span><strong>@(template?.TemplateName ?? system?.DisplayName)</strong></summary>
             <div class="wi-start-preview-body">
-                <p>@(template?.DefaultDurationMin ?? system?.DefaultMinutes) min</p>
+                @if ((template?.DefaultDurationMin ?? system?.DefaultMinutes) is > 0)
+                {
+                    <p>@(template?.DefaultDurationMin ?? system?.DefaultMinutes) min</p>
+                }
                 <div class="wi-preview-list">
                     @foreach (var exercise in plannedExercises)
                     {
                         <div class="wi-preview-exercise">
                             <strong>@exercise.ExerciseName</strong>
-                            <span>@(exercise.SetsPrescription ?? exercise.Sets.ToString()) sets</span>
-                            <span>@(exercise.RepsPrescription ?? exercise.Reps.ToString()) reps</span>
-                            <span>@(exercise.WeightPrescription ?? (exercise.MaxWeight.HasValue ? $"{exercise.MaxWeight:0.##} lb" : "weight —"))</span>
+                            <span>@(string.IsNullOrWhiteSpace(exercise.SetsPrescription) ? exercise.Sets.ToString() : exercise.SetsPrescription) sets</span>
+                            <span>@(string.IsNullOrWhiteSpace(exercise.RepsPrescription) ? exercise.Reps.ToString() : exercise.RepsPrescription) reps</span>
+                            <span>@(!string.IsNullOrWhiteSpace(exercise.WeightPrescription) ? exercise.WeightPrescription : (exercise.MaxWeight.HasValue ? $"{exercise.MaxWeight:0.##} lb" : "weight —"))</span>
                         </div>
                     }
                 </div>
