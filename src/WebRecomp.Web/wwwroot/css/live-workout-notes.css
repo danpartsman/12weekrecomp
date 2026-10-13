@@ -116,8 +116,14 @@ body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-exercise-acti
 body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-exercise-history {
     grid-column:1 / -1!important; grid-row:auto!important;
 }
-.wi-history-table th,.wi-history-table td { white-space:nowrap; }
-.wi-history-table .wi-history-note-cell { white-space:nowrap; max-width:18rem; overflow:hidden; text-overflow:ellipsis; }
+body.app-shell .workout-intelligence-page .wi-history-table th,
+body.app-shell .workout-intelligence-page .wi-history-table td { white-space:nowrap!important; }
+body.app-shell .workout-intelligence-page .wi-history-table .wi-history-note-cell {
+    white-space:nowrap!important; max-width:18rem!important; overflow:hidden!important; text-overflow:ellipsis!important;
+}
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-notes-field textarea {
+    line-height:42px!important; padding:0 .65rem!important; overflow-y:hidden!important;
+}
 @media(max-width:520px) {
     body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-workout-exercise {
         grid-template-columns:minmax(0,4rem) minmax(0,1fr)!important;
