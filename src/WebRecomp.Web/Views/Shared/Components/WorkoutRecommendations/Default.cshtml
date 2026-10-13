@@ -7,6 +7,7 @@
 @if(Model.ActiveWorkoutSessionId.HasValue) { <p class="wr-notice">Your selected workout is ready. <a asp-controller="DetailedWorkout" asp-action="Index" asp-route-workoutSessionId="@Model.ActiveWorkoutSessionId" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Continue your selected workout →</a></p> }
 @{ var excluded = Model.Readiness.Where(r=>r.Status=="Avoid loading").Select(r=>r.Name).ToList(); }
 @if(excluded.Count>0) { <p class="wr-notice"><strong>Excluded today:</strong> @string.Join(", ",excluded). Every matching primary or secondary muscle tag is filtered out.</p> }
+<p class="wr-notice">How we choose: exercises that use a sore or painful region are excluded, even when it is a supporting muscle. Recently worked muscles get lower priority; heavier recent work reduces sets and effort. Custom sessions combine eligible exercises with your goals, time and equipment, while today’s sleep, energy and fuel readiness can lower the effort.</p>
 <p class="wr-fuel">@Model.FuelSummary</p>
 @foreach(var notice in Model.Notices.Take(3)) { <p class="wr-notice">@notice</p> }
 @if(Model.Choices.Count>0) {

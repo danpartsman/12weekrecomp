@@ -244,7 +244,7 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         var set=targets.ToHashSet();
         if(effort!="hard") return "ACCESSORY";
         if(set.IsSubsetOf(new[]{"chest","shoulders","triceps"})&&set.Contains("chest")) return "MAJOR_PUSH";
-        if(set.IsSubsetOf(new[]{"upperback","lowerback"})&&set.Contains("upperback")) return "MAJOR_PULL";
+        if(set.IsSubsetOf(new[]{"upperback","lowerback","biceps"})&&set.Contains("upperback")) return "MAJOR_PULL";
         if(set.IsSubsetOf(new[]{"quads","hamstrings","glutes","calves"})&&set.Overlaps(new[]{"quads","hamstrings","glutes"})) return "MAJOR_LEGS";
         return set.Overlaps(new[]{"chest","upperback","shoulders","triceps"}) && set.Overlaps(new[]{"quads","hamstrings","glutes"}) ? "FULL_BODY_STRENGTH" : "ACCESSORY";
     }
@@ -277,7 +277,7 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
     }
     private static IReadOnlyList<string> CoarseRegions(string type)
         => type.Contains("PUSH")?["chest","shoulders","upperback","triceps"]
-            :type.Contains("PULL")?["upperback","shoulders","triceps","lowerback"]
+            :type.Contains("PULL")?["upperback","shoulders","biceps","lowerback"]
             :type.Contains("LEG")||WorkoutTargetPolicy.ActivityFor(type)=="cardio"?["quads","hamstrings","glutes","calves","hips"]
             :type=="REST"?[]:BodyRegions.All.Select(x=>x.Code).ToArray();
 }

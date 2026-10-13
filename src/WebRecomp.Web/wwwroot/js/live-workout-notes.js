@@ -57,7 +57,8 @@
         notes =
             document.createElement("textarea");
 
-        notes.rows = 2;
+        notes.rows = 1;
+        notes.wrap = "off";
         notes.dataset.field = "Notes";
         notes.value = existingText;
         notes.placeholder =

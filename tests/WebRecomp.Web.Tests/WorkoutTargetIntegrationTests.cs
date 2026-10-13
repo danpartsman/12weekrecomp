@@ -37,6 +37,18 @@ public sealed class WorkoutTargetIntegrationTests
         await db.SaveChangesAsync();
         return (db,new(user,client,program));
     }
+    [Fact] public async Task BicepsSorenessExcludesPullingWithSecondaryArmLoading()
+    {
+        var (db,context)=await SetupAsync(new RegionFeeling(){Region="biceps",Mark=1,Soreness=2});using(db)
+        {
+            var row=await db.ExerciseCatalogItems.Include(x=>x.MuscleTargets).SingleAsync(x=>x.Name=="Dumbbell Row");
+            row.MuscleTargets.Add(new(){ExerciseMuscleTargetId=Guid.NewGuid(),ExerciseCatalogItemId=row.ExerciseCatalogItemId,ExternalId="biceps",MuscleSlug="biceps",MuscleName="Biceps brachii",RoleCode="secondary"});await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="fullbody",Minutes=45},default);
+            Assert.NotEmpty(result.Choices);
+            Assert.DoesNotContain(result.Choices.SelectMany(c=>c.Exercises),e=>e.ExerciseId==row.ExerciseCatalogItemId);
+            Assert.Equal("Avoid loading",result.Readiness.Single(r=>r.Code=="biceps").Status);
+        }
+    }
     [Fact] public async Task ShoulderPainRemovesPressingButKeepsLegRecommendation()
     {
         var (db,context)=await SetupAsync(new RegionFeeling(){Region="shoulders",Side="right",Pain=3});using(db)

@@ -15,8 +15,9 @@
     box-sizing: border-box;
     width: 100% !important;
     min-width: 0 !important;
-    min-height: 74px;
-    max-height: 132px;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
     margin: 0;
     padding: .55rem .65rem;
     border: 1px solid var(--border, #315a84);
@@ -26,7 +27,8 @@
     font: inherit;
     font-weight: 650;
     line-height: 1.25;
-    resize: vertical;
+    resize: none;
+    overflow: auto;
     user-select: text;
     pointer-events: auto;
 }
@@ -54,7 +56,8 @@
     }
 
     .workout-intelligence-page.wi-live-page-minimal .wi-notes-field textarea {
-        min-height: 74px;
-        max-height: 110px;
+        height: 44px !important;
+        min-height: 44px !important;
+        max-height: 44px !important;
     }
 }

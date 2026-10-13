@@ -47,9 +47,17 @@ public sealed class WorkoutTargetPolicyTests
     }
     [Fact] public void ExactSimplifiedRegionsAreAvailable()
     {
-        Assert.Equal(5, BodyRegions.All.Count(x => x.View == "front"));
+        Assert.Equal(6, BodyRegions.All.Count(x => x.View == "front"));
         Assert.Equal(6, BodyRegions.All.Count(x => x.View == "back"));
         Assert.Contains("upperback", BodyRegions.FromMuscles(["Latissimus dorsi"]));
+    }
+    [Fact] public void ArmBicepsAreDistinctFromHamstringBicepsFemoris()
+    {
+        Assert.Contains("biceps",BodyRegions.LoadingRegions(["Biceps brachii"]));
+        var hamstring=BodyRegions.LoadingRegions(["Biceps femoris"]);
+        Assert.DoesNotContain("biceps",hamstring);Assert.Contains("hamstrings",hamstring);
+        var stored=BodyCheckinCodec.Write(null,true,[new(){Region="biceps",Mark=2,Pain=4}],keepPain:true,painRating:4);
+        Assert.Equal("biceps",BodyCheckinCodec.Read(stored).Regions.Single().Region);
     }
     [Fact] public void PastAndCompletedPlansCannotBeEdited()
     {

@@ -10,7 +10,6 @@
 <figure class="nutrition-header-photo"><img src="~/images/daily-entry-trainer-client.jpg" asp-append-version="true" alt="Fitness coach supporting a daily progress check-in" /></figure>
 <div class="nutrition-intel-header-actions"><form asp-action="CheckIn" method="get" class="app-date-picker"><label>Date <input name="date" type="date" value="@Model.Date.ToString("yyyy-MM-dd")" onchange="this.form.submit()" /></label><div class="app-adjacent-days"><a asp-action="CheckIn" asp-route-date="@Model.Date.AddDays(-1).ToString("yyyy-MM-dd")" class="button app-day-nav-button" aria-label="Previous day">← Previous day</a><a asp-action="CheckIn" asp-route-date="@Model.Date.AddDays(1).ToString("yyyy-MM-dd")" class="button app-day-nav-button" aria-label="Next day">Next day →</a></div></form></div>
 </header>
-<nav class="tw-links"><a asp-action="Index" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Daily Entries</a><a asp-controller="TodayWorkout" asp-action="Index">Today’s Workout →</a></nav>
 <partial name="_CheckInForm" model="Model" />
 </div>
 <script src="~/js/body-check.js" asp-append-version="true"></script>

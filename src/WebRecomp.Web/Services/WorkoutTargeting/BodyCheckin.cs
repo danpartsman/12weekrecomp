@@ -10,6 +10,7 @@ public static class BodyRegions
     public static readonly BodyRegion[] All =
     [
         new("shoulders", "Front shoulders", "front", "anterior deltoid", "front shoulder", "shoulder", "deltoid"),
+        new("biceps", "Biceps", "front", "bicep"),
         new("chest", "Chest", "front", "chest", "pectoral"),
         new("core", "Abs", "front", "abdomin", "oblique", "core"),
         new("hips", "Hips", "front", "hip", "adductor", "abductor"),
@@ -18,13 +19,14 @@ public static class BodyRegions
         new("lowerback", "Lower back", "back", "lower back", "erector"),
         new("triceps", "Triceps", "back", "tricep"),
         new("glutes", "Glutes", "back", "glute"),
-        new("hamstrings", "Hamstrings", "back", "hamstring"),
+        new("hamstrings", "Hamstrings", "back", "hamstring", "biceps femoris"),
         new("calves", "Calves", "back", "calf", "calves", "gastrocnemius", "soleus")
     ];
     public static IReadOnlyList<string> FromMuscles(IEnumerable<string> muscles)
     {
         var names = muscles.ToList();
-        return All.Where(r => r.MuscleTerms.Any(term => names.Any(m => m.Contains(term, StringComparison.OrdinalIgnoreCase))))
+        return All.Where(r => r.MuscleTerms.Any(term => names.Any(m => m.Contains(term, StringComparison.OrdinalIgnoreCase)
+                && (r.Code != "biceps" || !m.Contains("femoris", StringComparison.OrdinalIgnoreCase)))))
             .Select(r => r.Code).Distinct().ToList();
     }
     public static HashSet<string> LoadingRegions(IEnumerable<string> muscles)

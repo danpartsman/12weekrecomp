@@ -6,7 +6,7 @@
 @foreach (var view in new[] { "front", "back" }) {
 <div class="tw-body-map"><h3>@(view == "front" ? "Front" : "Back")</h3>
 <div class="tw-body-figure tw-person-figure"><img src="~/images/scale-feel-body-person.webp" asp-append-version="true" alt="@(view == "front" ? "Front view of a person" : "Back view of a person")" class="tw-person-image tw-person-@view" />
-@{ var spots = view == "front" ? new[] { ("shoulders",73,22), ("chest",55,28), ("core",56,37), ("hips",69,46), ("quads",68,59) } : new[] { ("upperback",44,24), ("lowerback",44,37), ("triceps",67,31), ("glutes",54,47), ("hamstrings",54,61), ("calves",56,77) }; }
+@{ var spots = view == "front" ? new[] { ("shoulders",73,22), ("biceps",75,32), ("chest",55,28), ("core",56,37), ("hips",69,46), ("quads",68,59) } : new[] { ("upperback",44,24), ("lowerback",44,37), ("triceps",67,31), ("glutes",54,47), ("hamstrings",54,61), ("calves",56,77) }; }
 @foreach (var spot in spots) {
 var region = regions.First(r => r.Code == spot.Item1);
 <button type="button" class="tw-body-spot" style="left:@(spot.Item2)%;top:@(spot.Item3)%" data-body-region="@region.Code" data-region-name="@region.Name" title="@region.Name" aria-label="@region.Name: clear" aria-pressed="false"></button>
