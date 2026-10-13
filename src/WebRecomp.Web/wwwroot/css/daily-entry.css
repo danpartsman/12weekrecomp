@@ -1502,3 +1502,7 @@ body.test-live-preview.app-shell .daily-entry-activity-grid input[type="number"]
 .daily-entry-section .daily-scale-button:disabled { opacity:.65; cursor:wait; }
 .daily-scale-actions p:empty { display:none; }
 @media(max-width:520px) { .daily-scale-button { flex:1 1 160px; } }
+
+/* Status cards also provide keyboard-accessible navigation to the selected day. */
+.daily-entry-progress > a { text-decoration:none; color:inherit; }
+.daily-entry-progress > a:focus-visible { outline:3px solid #6ae6f1; outline-offset:3px; }

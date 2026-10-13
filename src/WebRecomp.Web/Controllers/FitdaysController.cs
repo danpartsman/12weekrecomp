@@ -23,7 +23,11 @@ public sealed class FitdaysController(AppUserContextService users, FitdaysClient
         var context = await users.GetAsync(HttpContext, ct);
         if (context.Client is null || context.Program is null) return RedirectToAction("Index", "Intake");
         var preview = GetPreview(context.Client.ClientId, context.User.UserId);
-        var model = new FitdaysPageModel { Snapshot = preview?.Snapshot, Connection = reconnect ? null : await devices.ConnectionAsync(context.User.UserId, context.Client.ClientId, ct), ProviderEnabled = (await devices.ProviderAsync(ct)).Enabled };
+        var connection = await devices.ConnectionAsync(context.User.UserId, context.Client.ClientId, ct);
+        var savedEmail = devices.SavedAccountEmail(connection);
+        var model = new FitdaysPageModel { Snapshot = preview?.Snapshot, Connection = connection,
+            Reconnect = reconnect, SavedAccountEmail = savedEmail, Email = savedEmail ?? "",
+            Region = connection?.Region ?? "us", ProviderEnabled = (await devices.ProviderAsync(ct)).Enabled };
         if (preview != null)
         {
             var selected = personId ?? (preview.Snapshot.People.Count == 1 ? preview.Snapshot.People[0].Id : (long?)null);
@@ -40,6 +44,9 @@ public sealed class FitdaysController(AppUserContextService users, FitdaysClient
         if (context.Client is null || context.Program is null) return RedirectToAction("Index", "Intake");
         if (!await devices.OwnsAsync(context.User.UserId,context.Client.ClientId,ct)) return Forbid();
         if (!(await devices.ProviderAsync(ct)).Enabled) return BadRequest("Fitdays is disabled by the administrator.");
+        model.Connection = await devices.ConnectionAsync(context.User.UserId, context.Client.ClientId, ct);
+        model.SavedAccountEmail = devices.SavedAccountEmail(model.Connection);
+        model.Reconnect = model.Connection?.ProtectedCredential is not null;
         if (!model.Consent) ModelState.AddModelError(nameof(model.Consent), "Allow Recomp TEST to read your Fitdays profiles and recent weigh-ins to continue.");
         if (!ModelState.IsValid) { ClearPassword(model); return View("Index", model); }
         try
@@ -104,6 +111,8 @@ public sealed class FitdaysPageModel
     [Required, RegularExpression("^(us|eu|cn)$")] public string Region { get; set; } = "us";
     public bool Consent { get; set; }
     public long? PersonId { get; set; }
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever] public bool Reconnect { get; set; }
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever] public string? SavedAccountEmail { get; set; }
     [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever] public FitdaysSnapshot? Snapshot { get; set; }
     [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever] public WebRecomp.Web.Models.DeviceConnection? Connection { get; set; }
     [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever] public bool ProviderEnabled { get; set; } = true;

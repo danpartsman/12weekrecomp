@@ -5,6 +5,12 @@ namespace WebRecomp.Web.ViewModels;
 public sealed class DailyEntryViewModel
 {
     public DateOnly Date { get; set; }
+    public bool IsPastDay { get; set; }
+    [Range(1, 10)] public int SorenessRating { get; set; } = 3;
+    [Range(1, 10)] public int PainRating { get; set; } = 3;
+    public bool KeepPain { get; set; }
+    public bool BodyChecked { get; set; }
+    public List<WebRecomp.Web.Services.WorkoutTargeting.RegionFeeling> RegionFeelings { get; set; } = [];
     public Guid? RenderedMeasurementId { get; set; }
 
     public string PlannedWorkoutName { get; set; } = "No workout planned";

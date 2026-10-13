@@ -39,10 +39,10 @@ public sealed class FitdaysClient(HttpClient http)
         return session;
     }
 
-    public async Task<FitdaysSnapshot> ReadAsync(FitdaysSession session, string timezone, CancellationToken ct, int historyDays = 30)
+    public async Task<FitdaysSnapshot> ReadAsync(FitdaysSession session, string timezone, CancellationToken ct, int historyDays = 30, int newestOffsetHours = 0)
     {
         var now = DateTimeOffset.UtcNow;
-        using var doc = await RequestAsync(session, "api/sync/syncFromServer", new { start_time = now.ToUnixTimeSeconds(), end_time = now.AddDays(-Math.Clamp(historyDays, 1, 90)).ToUnixTimeSeconds() }, ct);
+        using var doc = await RequestAsync(session, "api/sync/syncFromServer", new { start_time = now.AddHours(Math.Clamp(newestOffsetHours,0,24)).ToUnixTimeSeconds(), end_time = now.AddDays(-Math.Clamp(historyDays, 1, 90)).ToUnixTimeSeconds() }, ct);
         var snapshot = Parse(doc.RootElement.GetProperty("data"), timezone);
         snapshot.Readings.RemoveAll(r => r.MeasuredAt < now.AddDays(-Math.Clamp(historyDays, 1, 90)) || r.MeasuredAt > now.AddMinutes(5));
         return snapshot;
@@ -134,7 +134,22 @@ public sealed class FitdaysClient(HttpClient http)
                 readings.Add(new(id.Value, measured, lb.Value, Text(w, "data_id") ?? Number(w, "id")?.ToString(CultureInfo.InvariantCulture) ?? "Unavailable", Decimal(w, "bfr"), Decimal(w, "rom"), Decimal(w, "rosm"), Decimal(w, "vwc"), Decimal(w, "sfr"), Decimal(w, "uvi")));
             }
         }
-        return new(profiles, readings.OrderByDescending(x => x.MeasuredAt).ToList(), DateTimeOffset.UtcNow, timezone);
+        var rawDates = new Dictionary<long, List<long>>();
+        var rawCount=0;var malformed=0;var deleted=0;long? latestRaw=null;
+        if (data.TryGetProperty("weight_list", out var rawList) && rawList.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var row in rawList.EnumerateArray())
+            {
+                rawCount++;
+                if (Number(row, "is_deleted") == 1) {deleted++;continue;}
+                var rawPerson = Number(row, "suid"); var rawTime = Number(row, "measured_time");
+                if (rawPerson is null || rawTime is null) {malformed++;continue;}
+                latestRaw=latestRaw is null?rawTime.Value:Math.Max(latestRaw.Value,rawTime.Value);
+                if (!rawDates.TryGetValue(rawPerson.Value, out var dates)) rawDates[rawPerson.Value] = dates = [];
+                dates.Add(rawTime.Value);
+            }
+        }
+        return new(profiles, readings.OrderByDescending(x => x.MeasuredAt).ToList(), DateTimeOffset.UtcNow, timezone) { RawMeasurementTimes = rawDates, RawRecordCount=rawCount, RawMalformedCount=malformed, RawDeletedCount=deleted, RawLatestTimestamp=latestRaw, AccountApiHost=data.TryGetProperty("account",out var accountInfo) && Uri.TryCreate(Text(accountInfo,"api_url"),UriKind.Absolute,out var accountUri) ? accountUri.Host : null };
     }
     private static string? Text(JsonElement e, string name) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
     private static decimal? Decimal(JsonElement e, string name)
@@ -157,4 +172,12 @@ public sealed class FitdaysSession
 }
 public sealed record FitdaysPerson(long Id, string Name);
 public sealed record FitdaysReading(long PersonId, DateTimeOffset MeasuredAt, decimal WeightLb, string RecordId, decimal? Bfr, decimal? Rom, decimal? Rosm, decimal? Vwc, decimal? Sfr, decimal? Uvi);
-public sealed record FitdaysSnapshot(List<FitdaysPerson> People, List<FitdaysReading> Readings, DateTimeOffset FetchedAt, string Timezone);
+public sealed record FitdaysSnapshot(List<FitdaysPerson> People, List<FitdaysReading> Readings, DateTimeOffset FetchedAt, string Timezone)
+{
+    public Dictionary<long, List<long>> RawMeasurementTimes { get; init; } = new();
+    public int RawRecordCount { get; init; }
+    public int RawMalformedCount { get; init; }
+    public int RawDeletedCount { get; init; }
+    public long? RawLatestTimestamp { get; init; }
+    public string? AccountApiHost { get; init; }
+}

@@ -1,0 +1,37 @@
+@model WebRecomp.Web.Services.WorkoutTargeting.TodayWorkoutViewModel
+@using WebRecomp.Web.Services.WorkoutTargeting
+<link rel="stylesheet" href="~/css/workout-recommendations.css" asp-append-version="true" />
+<section class="wr-dashboard" aria-labelledby="wr-title" data-workout-recommendations>
+<div class="wr-heading"><div><p class="wr-eyebrow">TRAINING · RECOMP TRACKING</p><h2 id="wr-title">Your workout recommendations</h2><p>Planned: @(Model.PlanName ?? "No workout planned")</p></div><a class="button" asp-controller="DailyEntry" asp-action="CheckIn">Update Recomp Tracking</a></div>
+@if(Model.HasCompletedWorkout) { <p class="wr-notice">You have recorded training today. These choices are optional additional sessions.</p> }
+@if(Model.ActiveWorkoutSessionId.HasValue) { <p class="wr-notice">Your selected workout is ready. <a asp-controller="DetailedWorkout" asp-action="Index" asp-route-workoutSessionId="@Model.ActiveWorkoutSessionId" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Continue your selected workout →</a></p> }
+@{ var excluded = Model.Readiness.Where(r=>r.Status=="Avoid loading").Select(r=>r.Name).ToList(); }
+@if(excluded.Count>0) { <p class="wr-notice"><strong>Excluded today:</strong> @string.Join(", ",excluded). Every matching primary or secondary muscle tag is filtered out.</p> }
+<p class="wr-notice">How we choose: exercises that use a sore or painful region are excluded, even when it is a supporting muscle. Recently worked muscles get lower priority; heavier recent work reduces sets and effort. Custom sessions combine eligible exercises with your goals, time and equipment, while today’s sleep, energy and fuel readiness can lower the effort.</p>
+<p class="wr-fuel">@Model.FuelSummary</p>
+@foreach(var notice in Model.Notices.Take(3)) { <p class="wr-notice">@notice</p> }
+@if(Model.Choices.Count>0) {
+<details class="wr-session-options" open="@(!Model.HasCompletedWorkout && !Model.ActiveWorkoutSessionId.HasValue)"><summary>@(Model.HasCompletedWorkout || Model.ActiveWorkoutSessionId.HasValue ? "Optional alternatives and additional sessions" : "Recommended sessions")</summary>
+<div class="wr-choices">
+@for(var i=0;i<Model.Choices.Count;i++) { var choice=Model.Choices[i];
+<article class="wr-choice"><p class="wr-eyebrow">@(i==0?"TOP MATCH":"ALTERNATIVE") · @choice.Source @(choice.Adapted?"· Adjusted":"")</p><h3>@choice.Name</h3><p>@choice.Minutes min @(choice.Rpe>0?$"· effort up to RPE {choice.Rpe}":"")</p>
+<ul class="wr-reasons">@foreach(var reason in choice.Reasons.Where(r=>!r.StartsWith("Selection uses")).Take(4)) { <li>@reason</li> }</ul>
+<details><summary>Exercise preview · @choice.Exercises.Count exercises</summary>
+@if(choice.WarmupMinutes>0) { <p>Warm-up: @choice.WarmupMinutes min</p> }
+<ol>@foreach(var exercise in choice.Exercises) { <li><strong>@exercise.Name</strong><br />@exercise.Sets × @(exercise.DurationSeconds.HasValue?$"{exercise.DurationSeconds}s":$"{exercise.Reps} reps") · RPE @exercise.Rpe · rest @exercise.RestSeconds s @(exercise.IsAddon?"· Add-on":"")</li> }</ol>
+</details><a class="button" asp-controller="TodayWorkout" asp-action="Index" asp-route-choiceKey="@choice.Key">Review this workout →</a>
+</article>}
+</div></details>}
+@if(!Model.CanStart) { <p class="wr-notice">Complete your body check before starting a recommended workout. Previews remain available.</p> }
+<details class="wr-customize"><summary>Choose what you want to do today</summary>
+<form asp-controller="TodayWorkout" asp-action="Recommend" method="post">@Html.AntiForgeryToken()
+<div class="wr-controls"><label>Activity<select name="Activity"><option value="auto" selected="@(Model.Activity=="auto")">Choose for me</option><option value="targeted">Targeted strength</option><option value="fullbody">Full-body strength</option><option value="conditioning" selected="@(Model.Activity=="conditioning")">Conditioning</option><option value="cardio" selected="@(Model.Activity=="cardio")">Cardio</option><option value="mobility" selected="@(Model.Activity=="mobility")">Mobility</option><option value="recovery" selected="@(Model.Activity=="recovery")">Recovery / rest</option></select></label>
+<label>Effort<select name="Effort">@foreach(var effort in new[]{"hard","moderate","easy"}) { <option value="@effort" selected="@(Model.Effort==effort)">@effort</option> }</select></label>
+<label>Minutes<input name="Minutes" type="number" min="10" max="120" value="@Model.Minutes" /></label>
+<label>Location<select name="Location"><option value="gym">Gym</option><option value="home">Home</option><option value="bodyweight">Bodyweight</option></select></label></div>
+<p>Add to the session:</p><div class="wr-checks">@foreach(var addition in new[]{"posture","core","mobility","balance"}) { <label><input name="Additions" value="@addition" type="checkbox" />@addition</label> }</div>
+<details><summary>Muscle targets and home equipment</summary><div class="wr-checks">@foreach(var region in BodyRegions.All) { <label><input name="Targets" value="@region.Code" type="checkbox" />@region.Name</label> }</div><div class="wr-checks">@foreach(var equipment in new[]{"dumbbell","barbell","cable","machine","band","bench"}) { <label><input name="Equipment" value="@equipment" type="checkbox" />@equipment</label> }</div></details>
+<button type="submit" class="button">Find my workout</button></form>
+</details>
+<p class="wr-footnote">Marked regions are excluded using exercise muscle tags. Recent loading and fuel readiness are estimates; your workouts and plan change when you select and complete a session.</p>
+</section>

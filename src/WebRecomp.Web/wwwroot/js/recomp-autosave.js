@@ -62,7 +62,7 @@
                     ? await response.json()
                     : null;
 
-                if (!response.ok || payload?.success === false) {
+                if (!response.ok || payload?.success === false || (options.requireJson && payload?.success !== true)) {
                     throw new Error(payload?.message || "Could not save this change.");
                 }
 
@@ -143,6 +143,8 @@
             if (!isEditable(event.target)) return;
             schedule(true);
         });
+
+        form.addEventListener("bodycheckchange", () => schedule(false));
 
         form.addEventListener("focusout", event => {
             if (!isEditable(event.target) || !dirty) return;

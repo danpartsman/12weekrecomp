@@ -18,7 +18,9 @@
     Model.DefaultLoadUnitCode = "LB";
     var displayedExercises = Model.Exercises
         .Concat(Model.SelectedTemplate?.Exercises ?? new List<DetailedWorkoutExerciseInputModel>())
-        .Concat(Model.SelectedSystemWorkout?.Exercises ?? new List<DetailedWorkoutExerciseInputModel>());
+        .Concat(Model.SelectedSystemWorkout?.Exercises ?? new List<DetailedWorkoutExerciseInputModel>())
+        .Concat(Model.PlannedTemplatePreview?.Exercises ?? new List<DetailedWorkoutExerciseInputModel>())
+        .Concat(Model.PlannedSystemPreview?.Exercises ?? new List<DetailedWorkoutExerciseInputModel>());
     foreach (var displayedExercise in displayedExercises)
     {
         if (string.Equals(displayedExercise.LoadUnitCode, "KG", StringComparison.OrdinalIgnoreCase))
@@ -132,46 +134,6 @@
 
 <div class="app-page workout-intelligence-page wi-simple-page @(isHome ? "wi-workouts-home-minimal" : "") @(isStart ? "wi-start-page-minimal" : "") @(isLive ? "wi-live-page-minimal" : "") @((isNew || isSaved || isSystem) ? "wi-manage-page" : "")">
 
-    @if (isHome && Model.FeatureEnabled)
-    {
-        <header class="app-page-head wi-entry-hero">
-            <div class="wi-entry-hero-title">
-                <div class="app-kicker">WORKOUT INTELLIGENCE</div>
-                <h1>Workouts</h1>
-                <p class="lede app-date-heading">@Model.Date.ToString("dddd, MMMM d")</p>
-            </div>
-            <figure class="wi-entry-hero-photo">
-                <img src="~/images/workout-lifting-gym.png"
-                     asp-append-version="true"
-                     alt="People lifting weights in a gym"
-                     width="2048"
-                     height="768" />
-            </figure>
-            <form asp-action="Index"
-                  method="get"
-                  class="app-date-picker wi-home-date-picker">
-                <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
-                <label>Date
-                    <input type="date"
-                           name="date"
-                           value="@Model.Date.ToString("yyyy-MM-dd")"
-                           onchange="this.form.submit()" />
-                </label>
-                <div class="app-adjacent-days">
-                    <a asp-action="Index"
-                       asp-route-date="@(Model.Date.AddDays(-1).ToString("yyyy-MM-dd"))"
-                       asp-route-returnContext="@Model.ReturnContext"
-                       aria-label="Previous day"
-                       class="button app-day-nav-button">← Previous day</a>
-                    <a asp-action="Index"
-                       asp-route-date="@(Model.Date.AddDays(1).ToString("yyyy-MM-dd"))"
-                       asp-route-returnContext="@Model.ReturnContext"
-                       aria-label="Next day"
-                       class="button app-day-nav-button">Next day →</a>
-                </div>
-            </form>
-        </header>
-    }
     <header class="app-page-head wi-simple-head wi-analysis-head">
         <div class="wi-head-title">
             <div class="app-kicker">WORKOUT INTELLIGENCE</div>
@@ -546,15 +508,6 @@
                     <nav class="wi-start-category-tabs"
                          aria-label="Start Workout choices">
 
-                        <a class="wi-start-category-button @(startCategory == "create" ? "is-active" : "")"
-                           asp-action="Index"
-                           asp-route-mode="start"
-                           asp-route-startCategory="create"
-                           asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
-                           asp-route-returnContext="@Model.ReturnContext">
-                            Create Workout
-                        </a>
-
                         <a class="wi-start-category-button @(startCategory == "my" ? "is-active" : "")"
                            asp-action="Index"
                            asp-route-mode="start"
@@ -572,7 +525,21 @@
                            asp-route-returnContext="@Model.ReturnContext">
                             System Workouts
                         </a>
+                        <a class="wi-start-category-button @(startCategory == "create" ? "is-active" : "")"
+                           asp-action="Index"
+                           asp-route-mode="start"
+                           asp-route-startCategory="create"
+                           asp-route-date="@Model.Date.ToString("yyyy-MM-dd")"
+                           asp-route-returnContext="@Model.ReturnContext">
+                            Create Workout
+                        </a>
+
                     </nav>
+
+                    @if (string.IsNullOrWhiteSpace(requestedStartCategory))
+                    {
+                        <partial name="_StartWorkoutPreviews" model="Model" />
+                    }
 
                     <section class="wi-start-category-content">
                         @if (startCategory == "create")
@@ -631,7 +598,7 @@
                                 </div>
                             </div>
 
-                            @if (plannedTemplate is not null)
+                            @if (plannedTemplate is not null && !string.IsNullOrWhiteSpace(requestedStartCategory))
                             {
                                 string plannedMuscles = string.Empty;
 
@@ -673,7 +640,7 @@
                                         </span>
                                     </a>
                             }
-                            else if (plannedSystem is not null)
+                            else if (plannedSystem is not null && !string.IsNullOrWhiteSpace(requestedStartCategory))
                             {
                                 var plannedSystemTargets =
                                     SystemWorkoutTargets(

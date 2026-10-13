@@ -143,6 +143,13 @@ public sealed class NutritionViewModel
 
 public sealed class PlannedDayViewModel
 {
+    public bool CanEditPlan { get; set; }
+    public bool HasActualWorkout { get; set; }
+    public string? ActualWorkoutSummary { get; set; }
+    public string? ActualWorkoutTypeCode { get; set; }
+    public decimal ActualDurationMin { get; set; }
+    public List<Guid> ActualWorkoutIds { get; set; } = [];
+
     [DataType(DataType.Date)]
     public DateOnly Date { get; set; }
     public string DayName { get; set; } = "";

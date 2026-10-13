@@ -5478,3 +5478,5 @@ html[data-theme="dark"] .learn12wr-recomp-emphasis p {
         align-items:flex-start;
     }
 }
+
+.app-shell .app-quick-nav{flex-wrap:wrap;min-width:0}

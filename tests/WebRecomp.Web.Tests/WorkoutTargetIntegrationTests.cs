@@ -1,0 +1,340 @@
+using Microsoft.EntityFrameworkCore;
+using WebRecomp.Web.Data;
+using WebRecomp.Web.Models;
+using WebRecomp.Web.Services;
+using WebRecomp.Web.Services.Engine30;
+using WebRecomp.Web.Services.WorkoutTargeting;
+
+namespace WebRecomp.Web.Tests;
+
+public sealed class WorkoutTargetIntegrationTests
+{
+    private static async Task<(RecompDbContext Db, AppClientContext Context)> SetupAsync(params RegionFeeling[] feelings)
+    {
+        var db=new RecompDbContext(new DbContextOptionsBuilder<RecompDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        var client=new Client{ClientId=Guid.NewGuid(),ClientName="Synthetic test",TimeZone="America/Los_Angeles"};
+        var config=new ConfigVersion{ConfigVersionId=Guid.NewGuid(),VersionCode="CFG-3000.0",StatusCode="ACTIVE"};
+        var program=new ProgramRecord{ProgramId=Guid.NewGuid(),ClientId=client.ClientId,ConfigVersionId=config.ConfigVersionId,
+            SelectedPlanCode="PLAN_3",GoalCode="MUSCLE_BUILD",DetailedWorkoutEntryEnabled=true};
+        var user=new UserAccount{UserId=Guid.NewGuid(),ExternalSubject="synthetic"};
+        db.ConfigVersions.Add(config);db.Clients.Add(client);db.Programs.Add(program);db.UserAccounts.Add(user);
+        db.UserClientAccess.Add(new(){UserClientAccessId=Guid.NewGuid(),UserId=user.UserId,ClientId=client.ClientId});
+        foreach(var code in new[]{"ACCESSORY","FULL_BODY_STRENGTH","MAJOR_PUSH","MAJOR_PULL","MAJOR_LEGS","REST","MOBILITY_RECOVERY"})
+            db.WorkoutTypeDefinitions.Add(new(){WorkoutTypeDefinitionId=Guid.NewGuid(),ConfigVersionId=config.ConfigVersionId,
+                WorkoutTypeCode=code,DisplayName=code,WorkoutCategoryCode="RESISTANCE",WeeklyRoleCode="HEAVY",FuelPriorityCode="NORMAL",
+                SchedulePrincipleCode="TEST",IsActive=true,IsSelectable=true,DefaultMinutes=45});
+        foreach(var (name,muscle,equipment) in new[]{("Dumbbell Chest Press","Pectorals","Dumbbell"),("Machine Leg Extension","Quadriceps","Machine"),
+            ("Dumbbell Row","Latissimus dorsi","Dumbbell"),("Bodyweight Glute Bridge","Glutes","Bodyweight"),("Wall Slide","Deltoids","Bodyweight")})
+        {
+            var exercise=new ExerciseCatalogItemRecord{ExerciseCatalogItemId=Guid.NewGuid(),SourceCode="TEST",SourceExternalId=name,Name=name,MeasurementType="reps",IsActive=true};
+            exercise.MuscleTargets.Add(new(){ExerciseMuscleTargetId=Guid.NewGuid(),ExerciseCatalogItemId=exercise.ExerciseCatalogItemId,ExternalId=muscle,MuscleSlug=muscle,MuscleName=muscle,RoleCode="primary"});
+            if (name.Contains("Chest Press")) exercise.MuscleTargets.Add(new(){ExerciseMuscleTargetId=Guid.NewGuid(),ExerciseCatalogItemId=exercise.ExerciseCatalogItemId,ExternalId="shoulder",MuscleSlug="deltoids",MuscleName="Anterior deltoid",RoleCode="secondary"});
+            exercise.Equipment.Add(new(){ExerciseEquipmentRequirementId=Guid.NewGuid(),ExerciseCatalogItemId=exercise.ExerciseCatalogItemId,ExternalId=equipment,EquipmentName=equipment,EquipmentType=equipment});
+            db.ExerciseCatalogItems.Add(exercise);
+        }
+        db.DailyCheckins.Add(new(){CheckinId=Guid.NewGuid(),ClientId=client.ClientId,ProgramId=program.ProgramId,
+            CheckinDate=AppUserContextService.GetClientToday(client),Notes=BodyCheckinCodec.Write(null,true,feelings)});
+        await db.SaveChangesAsync();
+        return (db,new(user,client,program));
+    }
+    [Fact] public async Task BicepsSorenessExcludesPullingWithSecondaryArmLoading()
+    {
+        var (db,context)=await SetupAsync(new RegionFeeling(){Region="biceps",Mark=1,Soreness=2});using(db)
+        {
+            var row=await db.ExerciseCatalogItems.Include(x=>x.MuscleTargets).SingleAsync(x=>x.Name=="Dumbbell Row");
+            db.ExerciseMuscleTargets.Add(new(){ExerciseMuscleTargetId=Guid.NewGuid(),ExerciseCatalogItemId=row.ExerciseCatalogItemId,ExternalId="biceps",MuscleSlug="biceps",MuscleName="Biceps brachii",RoleCode="secondary"});await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="fullbody",Minutes=45},default);
+            Assert.NotEmpty(result.Choices);
+            Assert.DoesNotContain(result.Choices.SelectMany(c=>c.Exercises),e=>e.ExerciseId==row.ExerciseCatalogItemId);
+            Assert.Equal("Avoid loading",result.Readiness.Single(r=>r.Region=="biceps").Status);
+        }
+    }
+    [Fact] public async Task ShoulderPainRemovesPressingButKeepsLegRecommendation()
+    {
+        var (db,context)=await SetupAsync(new RegionFeeling(){Region="shoulders",Side="right",Pain=3});using(db)
+        {
+            var service=new WorkoutTargetService(db,new(db),null!);
+            var result=await service.BuildAsync(context,new(){Activity="targeted",Targets=["chest","quads"],Effort="hard"},default);
+            Assert.NotEmpty(result.Choices);
+            Assert.All(result.Choices.SelectMany(x=>x.Exercises),e=>Assert.DoesNotContain("Chest Press",e.Name));
+            Assert.Contains(result.Choices.SelectMany(x=>x.Exercises),e=>e.Name.Contains("Leg Extension"));
+            Assert.True(result.CanStart);
+        }
+    }
+    [Fact] public async Task SoreRegionNeverAppearsInRecommendation()
+    {
+        var (db,context)=await SetupAsync(new RegionFeeling(){Region="quads",Soreness=1}); using(db)
+        {
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["quads","glutes"]},default);
+            Assert.Contains(result.Choices.SelectMany(x=>x.Exercises),e=>e.Name.Contains("Glute Bridge"));
+            Assert.DoesNotContain(result.Choices.SelectMany(x=>x.Exercises),e=>e.Name.Contains("Leg Extension"));
+            Assert.Equal("Avoid loading",result.Readiness.Single(x=>x.Region=="quads").Status);
+        }
+    }
+    [Fact] public async Task PersistentPainCarriesWithoutSorenessAndStopsWhenTurnedOff()
+    {
+        var (db,context)=await SetupAsync(); using(db)
+        {
+            var check=await db.DailyCheckins.SingleAsync();
+            check.CheckinDate=check.CheckinDate.AddDays(-2);
+            check.Notes=BodyCheckinCodec.Write(null,true,[new(){Region="quads",Mark=2,Pain=6},new(){Region="chest",Mark=1,Soreness=2}],false,true,2,6);
+            await db.SaveChangesAsync();
+            var date=AppUserContextService.GetClientToday(context.Client!);
+            var inherited=await BodyCheckinCodec.PersistentPainAsync(db,context.Program!.ProgramId,date,default);
+            Assert.True(inherited.KeepPain); Assert.Equal(6,inherited.PainRating);
+            Assert.Equal("quads",inherited.Regions.Single().Region); Assert.Equal(0,inherited.Regions.Single().Soreness);
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["quads","glutes"]},default);
+            Assert.DoesNotContain(result.Choices.SelectMany(x=>x.Exercises),e=>e.Name.Contains("Leg Extension"));
+            db.DailyCheckins.Add(new(){CheckinId=Guid.NewGuid(),ClientId=context.Client!.ClientId,ProgramId=context.Program.ProgramId,
+                CheckinDate=date.AddDays(-1),Notes=BodyCheckinCodec.Write(null,true,[],false,false)});
+            await db.SaveChangesAsync();
+            Assert.Empty((await BodyCheckinCodec.PersistentPainAsync(db,context.Program.ProgramId,date,default)).Regions);
+        }
+    }
+    [Fact] public async Task EmptyHomeEquipmentCannotSelectMachineOrDumbbellExercises()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["quads","glutes"],Location="home",Equipment=[]},default);
+            Assert.All(result.Choices.SelectMany(x=>x.Exercises),e=>Assert.DoesNotContain("Machine",e.Name));
+            Assert.All(result.Choices.SelectMany(x=>x.Exercises),e=>Assert.DoesNotContain("Dumbbell",e.Name));
+            Assert.Contains(result.Choices.SelectMany(x=>x.Exercises),e=>e.Name.Contains("Glute Bridge"));
+        }
+    }
+    [Fact] public async Task RecommendationDoesNotCreateOrCompleteWorkoutOrModifyPlan()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["chest"]},default);
+            Assert.NotEmpty(result.Choices);Assert.Empty(await db.WorkoutSessions.ToListAsync());Assert.Empty(await db.PlannedWorkouts.ToListAsync());
+            Assert.All(result.Choices,c=>Assert.Equal(64,c.Revision.Length));
+        }
+    }
+    [Fact] public async Task MissingBodyCheckAllowsPreviewButPreventsStart()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var check=await db.DailyCheckins.SingleAsync();check.Notes=null;await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["chest"]},default);
+            Assert.False(result.CanStart);Assert.NotEmpty(result.Choices);
+        }
+    }
+    [Fact] public async Task RecentHardSetsReduceVolumeAndEffortForThatMuscle()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var exercise=await db.ExerciseCatalogItems.FirstAsync(x=>x.Name.Contains("Chest Press"));
+            var session=new WorkoutSession{WorkoutSessionId=Guid.NewGuid(),ClientId=context.Client!.ClientId,ProgramId=context.Program!.ProgramId,
+                WorkoutDate=AppUserContextService.GetClientToday(context.Client).AddDays(-1),WorkoutTypeCode="MAJOR_PUSH",DurationMin=45,SessionRpe=8,CompletedFlag=true};
+            db.WorkoutSessions.Add(session);
+            var row=new DetailedWorkoutExerciseRecord{DetailedWorkoutExerciseId=Guid.NewGuid(),WorkoutSessionId=session.WorkoutSessionId,
+                ExerciseCatalogItemId=exercise.ExerciseCatalogItemId,ExerciseNameSnapshot=exercise.Name};
+            for(short i=1;i<=4;i++)row.Sets.Add(new(){DetailedWorkoutSetId=Guid.NewGuid(),DetailedWorkoutExerciseId=row.DetailedWorkoutExerciseId,SetOrder=i,Rpe=8,Reps=10});
+            db.DetailedWorkoutExercises.Add(row);await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["chest"],Effort="hard"},default);
+            Assert.All(result.Choices.SelectMany(x=>x.Exercises),e=>{Assert.True(e.Sets<=2);Assert.True(e.Rpe<=6);});
+            Assert.Equal("Reduce / reassess",result.Readiness.Single(x=>x.Region=="chest").Status);
+        }
+    }
+    [Fact] public async Task RecentHardCategoryOnlyLogStillReducesLoadingAndDeclaresUncertainty()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var today=AppUserContextService.GetClientToday(context.Client!);
+            db.WorkoutSessions.Add(new(){WorkoutSessionId=Guid.NewGuid(),ClientId=context.Client!.ClientId,ProgramId=context.Program!.ProgramId,
+                WorkoutDate=today.AddDays(-1),WorkoutTypeCode="MAJOR_PUSH",SessionRpe=8,DurationMin=45,CompletedFlag=true});await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["chest"],Effort="hard"},default);
+            Assert.NotEmpty(result.Choices);Assert.Contains(result.Notices,n=>n.Contains("no exercise detail"));
+            Assert.All(result.Choices,c=>{Assert.True(c.Rpe<=6);Assert.All(c.Exercises,e=>Assert.True(e.Sets<=2));});
+        }
+    }
+    [Fact] public async Task DashboardDefaultsFollowPlannedActivityEffortAndDurationWithoutWriting()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var today=AppUserContextService.GetClientToday(context.Client!);
+            db.PlannedWorkouts.Add(new(){PlannedWorkoutId=Guid.NewGuid(),ClientId=context.Client!.ClientId,ProgramId=context.Program!.ProgramId,
+                PlannedDate=today,WorkoutTypeCode="MAJOR_PUSH",PlannedDurationMin=30,PlannedRpe=8});await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildDashboardAsync(context,default);
+            Assert.Equal("hard",result.Effort);Assert.Equal(30,result.Minutes);Assert.NotEmpty(result.Choices);
+            Assert.All(result.Choices,c=>Assert.True(c.Minutes<=30));Assert.Empty(await db.WorkoutSessions.ToListAsync());
+            Assert.Equal("MAJOR_PUSH",(await db.PlannedWorkouts.SingleAsync()).WorkoutTypeCode);
+        }
+    }
+    [Fact] public async Task FullBodyWithPostureRanksCompleteMatchesAheadOfPartialAlternatives()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="fullbody",Effort="hard",Minutes=45,Additions=["posture"]},default);
+            var first=result.Choices.First();
+            Assert.DoesNotContain("partial body",first.Name);
+            Assert.Contains(first.Exercises,e=>e.IsAddon);
+            Assert.Contains(first.Exercises,e=>!e.IsAddon && e.Regions.Contains("quads"));
+            Assert.Contains(first.Exercises,e=>!e.IsAddon && e.Regions.Contains("chest"));
+        }
+    }
+    [Fact] public async Task DashboardIgnoresZeroDurationAndUsesOwnedTemplateDefault()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var today=AppUserContextService.GetClientToday(context.Client!);var templateId=Guid.NewGuid();
+            db.WorkoutTemplates.Add(new(){WorkoutTemplateId=templateId,ClientId=context.Client!.ClientId,TemplateName="Saved session",WorkoutTypeCode="MAJOR_PUSH",DefaultDurationMin=60});
+            db.PlannedWorkouts.Add(new(){PlannedWorkoutId=Guid.NewGuid(),ClientId=context.Client.ClientId,ProgramId=context.Program!.ProgramId,
+                PlannedDate=today,WorkoutTypeCode="MAJOR_PUSH",WorkoutTemplateId=templateId,PlannedDurationMin=0,PlannedRpe=8});await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildDashboardAsync(context,default);
+            Assert.Equal(60,result.Minutes);Assert.All(result.Choices,c=>Assert.True(c.Minutes<=60));
+        }
+    }
+    [Fact] public async Task EligiblePlannedTemplateIsPreferredAndPendingDraftRemainsVisible()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var today=AppUserContextService.GetClientToday(context.Client!);
+            var exercise=await db.ExerciseCatalogItems.FirstAsync(e=>e.Name.Contains("Chest Press"));
+            var template=new WorkoutTemplateRecord{WorkoutTemplateId=Guid.NewGuid(),ClientId=context.Client!.ClientId,TemplateName="My planned chest workout",WorkoutTypeCode="MAJOR_PUSH"};
+            template.Exercises.Add(new(){WorkoutTemplateExerciseId=Guid.NewGuid(),WorkoutTemplateId=template.WorkoutTemplateId,ExerciseCatalogItemId=exercise.ExerciseCatalogItemId,ExerciseNameSnapshot=exercise.Name,Sets=3,Reps=10});
+            db.WorkoutTemplates.Add(template);
+            db.PlannedWorkouts.Add(new(){PlannedWorkoutId=Guid.NewGuid(),ClientId=context.Client.ClientId,ProgramId=context.Program!.ProgramId,PlannedDate=today,WorkoutTypeCode="MAJOR_PUSH",WorkoutTemplateId=template.WorkoutTemplateId});
+            var draft=new WorkoutSession{WorkoutSessionId=Guid.NewGuid(),ClientId=context.Client.ClientId,ProgramId=context.Program.ProgramId,WorkoutDate=today,WorkoutTypeCode="MAJOR_PUSH",SourceRecordId="TARGET:test",CompletedFlag=false};db.WorkoutSessions.Add(draft);
+            await db.SaveChangesAsync();
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="targeted",Targets=["chest"],Effort="hard"},default);
+            Assert.Equal(template.WorkoutTemplateId,result.Choices.First().TemplateId);
+            Assert.Equal(template.TemplateName,result.PlanName);Assert.Equal(draft.WorkoutSessionId,result.ActiveWorkoutSessionId);
+            Assert.False(result.HasCompletedWorkout);Assert.Single(await db.WorkoutSessions.ToListAsync());
+        }
+    }
+    [Fact] public async Task PersistedSorenessRemovesSecondaryMuscleExercisesAndExplainsExclusion()
+    {
+        var (db,context)=await SetupAsync(new RegionFeeling(){Region="shoulders",Mark=1,Soreness=1});using(db)
+        {
+            var result=await new WorkoutTargetService(db,new(db),null!).BuildAsync(context,new(){Activity="fullbody",Effort="hard",Minutes=25},default);
+            Assert.NotEmpty(result.Choices);
+            Assert.DoesNotContain(result.Choices.SelectMany(c=>c.Exercises),e=>e.Name.Contains("Chest Press"));
+            Assert.All(result.Choices,c=>Assert.Contains(c.Reasons,r=>r.StartsWith("Excluded for soreness or pain:")));
+            Assert.All(result.Choices,c=>Assert.True(c.Minutes<=25));
+        }
+    }
+    [Fact] public async Task DailyTotalsSaveDoesNotClearScaleOrRegionalCheckin()
+    {
+        var (db,context)=await SetupAsync(new RegionFeeling(){Region="shoulders",Pain=2});using(db)
+        {
+            var date=AppUserContextService.GetClientToday(context.Client!);
+            db.Measurements.Add(new(){MeasurementId=Guid.NewGuid(),ClientId=context.Client!.ClientId,ProgramId=context.Program!.ProgramId,
+                LocalMeasurementDate=date,WeightLb=210,MeasurementSourceCode="MANUAL"});await db.SaveChangesAsync();
+            var before=(await db.DailyCheckins.SingleAsync()).Notes;
+            var http=new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            http.User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new("sub","synthetic")],"test"));
+            http.Request.Headers["X-Requested-With"]="XMLHttpRequest";
+            var users=new AppUserContextService(db,new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+            var controller=new WebRecomp.Web.Controllers.DailyEntryController(db,users,new(db),new(db),null!);
+            controller.ControllerContext=new(){HttpContext=http};
+            await controller.Index(new(){Date=date,Calories=2100,ProteinG=180},false,default);
+            Assert.Equal(before,(await db.DailyCheckins.SingleAsync()).Notes);
+            Assert.Equal(210m,(await db.Measurements.SingleAsync()).WeightLb);
+            Assert.Equal(2100m,(await db.NutritionDays.SingleAsync()).ActualCalories);
+        }
+    }
+    [Fact] public async Task QuickScaleEntryPreservesRecoveryAndPainData()
+    {
+        var (db,context)=await SetupAsync(new RegionFeeling(){Region="biceps",Mark=2,Pain=4});using(db)
+        {
+            var date=AppUserContextService.GetClientToday(context.Client!);
+            var checkin=await db.DailyCheckins.SingleAsync();checkin.SleepHours=7;checkin.RestingHr=55;checkin.EnergyScore=8;checkin.PainFlag=true;
+            await db.SaveChangesAsync();var before=checkin.Notes;
+            var http=new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            http.User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new("sub","synthetic")],"test"));
+            http.Request.Headers["X-Requested-With"]="XMLHttpRequest";
+            var users=new AppUserContextService(db,new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+            var controller=new WebRecomp.Web.Controllers.DailyEntryController(db,users,new(db),new(db),null!);
+            controller.ControllerContext=new(){HttpContext=http};
+            Assert.IsType<Microsoft.AspNetCore.Mvc.JsonResult>(await controller.Scale(new(){Date=date,WeightLb=205},default));
+            var stored=await db.DailyCheckins.SingleAsync();
+            Assert.Equal(before,stored.Notes);Assert.Equal(7m,stored.SleepHours);Assert.Equal((short?)55,stored.RestingHr);Assert.Equal((byte?)8,stored.EnergyScore);Assert.True(stored.PainFlag);
+            Assert.Equal(205m,(await db.Measurements.SingleAsync()).WeightLb);
+        }
+    }
+    [Fact] public async Task CheckinSaveAppliesSharedRatingsAndDailyEntriesShowsSavedScale()
+    {
+        var (db,context)=await SetupAsync(); using(db)
+        {
+            var date=AppUserContextService.GetClientToday(context.Client!);
+            var http=new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            http.User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new("sub","synthetic")],"test"));
+            var users=new AppUserContextService(db,new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+            var controller=new WebRecomp.Web.Controllers.DailyEntryController(db,users,new(db),new(db),null!);
+            controller.ControllerContext=new(){HttpContext=http};
+            controller.TempData=new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(http,new TestTempDataProvider());
+            await controller.CheckIn(new WebRecomp.Web.ViewModels.DailyEntryViewModel(){Date=date,WeightLb=205,BodyChecked=true,SorenessRating=2,PainRating=5,KeepPain=true,
+                RegionFeelings=[new(){Region="quads",Mark=1,Soreness=10},new(){Region="chest",Mark=1},new(){Region="lowerback",Mark=2,Pain=1}]},default);
+            var stored=BodyCheckinCodec.Read((await db.DailyCheckins.SingleAsync()).Notes);
+            Assert.All(stored.Regions.Where(x=>x.Mark==1),x=>Assert.Equal(2,x.Soreness));
+            Assert.Equal(5,stored.Regions.Single(x=>x.Mark==2).Pain); Assert.True(stored.KeepPain);
+            var result=Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(await controller.Index(date,default));
+            Assert.Equal("Index",result.ViewName);
+            var model=Assert.IsType<WebRecomp.Web.ViewModels.DailyEntryViewModel>(result.Model);
+            Assert.Equal(205m,model.WeightLb); Assert.Equal((byte?)2,model.SorenessScore);
+        }
+    }
+    [Fact] public async Task CheckinAutosaveReturnsJsonAndUpdatesOneSharedRecord()
+    {
+        var (db,context)=await SetupAsync(); using(db)
+        {
+            var date=AppUserContextService.GetClientToday(context.Client!);
+            var http=new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            http.User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new("sub","synthetic")],"test"));
+            http.Request.Headers["X-Requested-With"]="XMLHttpRequest";
+            var users=new AppUserContextService(db,new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+            var controller=new WebRecomp.Web.Controllers.DailyEntryController(db,users,new(db),new(db),null!);
+            controller.ControllerContext=new(){HttpContext=http};
+            var input=new WebRecomp.Web.ViewModels.DailyEntryViewModel(){Date=date,WeightLb=205,BodyChecked=true,PainRating=6,
+                RegionFeelings=[new(){Region="shoulders",Mark=2}]};
+            var result=Assert.IsType<Microsoft.AspNetCore.Mvc.JsonResult>(await controller.CheckIn(input,default));
+            var json=System.Text.Json.JsonSerializer.SerializeToElement(result.Value);
+            Assert.True(json.GetProperty("success").GetBoolean());
+            Assert.Equal((await db.Measurements.SingleAsync()).MeasurementId,json.GetProperty("renderedMeasurementId").GetGuid());
+            input.WeightLb=204; input.PainRating=5;
+            Assert.IsType<Microsoft.AspNetCore.Mvc.JsonResult>(await controller.CheckIn(input,default));
+            Assert.Single(await db.Measurements.ToListAsync()); Assert.Single(await db.DailyCheckins.ToListAsync());
+            Assert.Equal(204m,(await db.Measurements.SingleAsync()).WeightLb);
+            Assert.Equal(5,BodyCheckinCodec.Read((await db.DailyCheckins.SingleAsync()).Notes).Regions.Single().Pain);
+            Assert.Empty(await db.NutritionDays.ToListAsync()); Assert.Empty(await db.WorkoutSessions.ToListAsync());
+        }
+    }
+    private sealed class TestTempDataProvider : Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider
+    {
+        public IDictionary<string,object> LoadTempData(Microsoft.AspNetCore.Http.HttpContext context)=>new Dictionary<string,object>();
+        public void SaveTempData(Microsoft.AspNetCore.Http.HttpContext context,IDictionary<string,object> values){}
+    }
+    [Fact] public async Task PastDailyEntryCannotOverwriteCompletedWorkout()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var date=AppUserContextService.GetClientToday(context.Client!).AddDays(-1);
+            var session=new WorkoutSession{WorkoutSessionId=Guid.NewGuid(),ClientId=context.Client!.ClientId,ProgramId=context.Program!.ProgramId,
+                WorkoutDate=date,WorkoutTypeCode="MAJOR_PUSH",DurationMin=45,SessionRpe=8,CompletedFlag=true};db.WorkoutSessions.Add(session);await db.SaveChangesAsync();
+            var http=new Microsoft.AspNetCore.Http.DefaultHttpContext();http.User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new("sub","synthetic")],"test"));
+            http.Request.Headers["X-Requested-With"]="XMLHttpRequest";
+            var users=new AppUserContextService(db,new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+            var controller=new WebRecomp.Web.Controllers.DailyEntryController(db,users,new(db),new(db),null!);controller.ControllerContext=new(){HttpContext=http};
+            await controller.Index(new(){Date=date,Calories=2000,Workouts=[new(){WorkoutSessionId=session.WorkoutSessionId,WorkoutTypeCode="MAJOR_LEGS",DurationMin=90}]},false,default);
+            Assert.Equal("MAJOR_PUSH",(await db.WorkoutSessions.SingleAsync()).WorkoutTypeCode);Assert.Equal(45m,session.DurationMin);
+            await controller.Index(new(){Date=date.AddDays(1),Workouts=[new(){WorkoutSessionId=session.WorkoutSessionId,WorkoutTypeCode="MAJOR_LEGS",DurationMin=90}]},false,default);
+            Assert.Equal(date,session.WorkoutDate);Assert.Equal("MAJOR_PUSH",session.WorkoutTypeCode);
+        }
+    }
+    [Fact] public async Task PlannerSaveCannotRewritePastDayEvenWithForgedPost()
+    {
+        var (db,context)=await SetupAsync();using(db)
+        {
+            var date=AppUserContextService.GetClientToday(context.Client!).AddDays(-1);
+            var plan=new PlannedWorkout{PlannedWorkoutId=Guid.NewGuid(),ClientId=context.Client!.ClientId,ProgramId=context.Program!.ProgramId,
+                PlannedDate=date,WorkoutTypeCode="MAJOR_PUSH"};db.PlannedWorkouts.Add(plan);await db.SaveChangesAsync();
+            var http=new Microsoft.AspNetCore.Http.DefaultHttpContext();http.User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new("sub","synthetic")],"test"));
+            http.Request.Headers["X-Requested-With"]="XMLHttpRequest";
+            var users=new AppUserContextService(db,new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+            var controller=new WebRecomp.Web.Controllers.ScheduleController(db,users,null!,null!,null!,new(db),null!);controller.ControllerContext=new(){HttpContext=http};
+            await controller.Save(new(){WeekStart=PlanningWeek.Start(date),Days=[new(){Date=date,WorkoutTypeCode="MAJOR_LEGS"}]},default);
+            Assert.Equal("MAJOR_PUSH",(await db.PlannedWorkouts.SingleAsync()).WorkoutTypeCode);
+        }
+    }
+}

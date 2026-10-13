@@ -1,0 +1,71 @@
+.scale-feel-page{max-width:1280px;margin:0 auto}.scale-feel-editor{margin:1rem 0 1.5rem}.sf-save-bar{display:flex;align-items:center;gap:1rem;margin:.75rem 0;color:#a5c3d4;font-size:.9rem}.sf-save-bar [data-state="error"]{color:#ff8d8d}.sf-save-bar [data-state="saved"]{color:#a9d66d}.sf-save-bar button[hidden]{display:none!important}
+.scale-feel-editor fieldset{border:0;padding:0}.scale-feel-editor .daily-entry-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem}.scale-feel-editor label{display:flex;flex-direction:column;gap:.4rem}.scale-feel-editor input:not([type="checkbox"]):not([type="hidden"]),.scale-feel-editor select{width:100%;max-width:180px}.scale-feel-editor input[type="checkbox"]{width:18px!important;height:18px!important;min-height:18px!important;display:inline-block!important;margin:0 .5rem 0 0!important;vertical-align:middle;flex:none}.scale-feel-editor label:has(input[type="checkbox"]){display:block!important}.scale-feel-editor .daily-entry-activity-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.scale-feel-editor .tw-controls{margin:1rem 0}.scale-feel-editor .daily-entry-section{margin-bottom:1rem;padding:1.25rem;border-radius:12px}.scale-feel-editor .daily-entry-section-heading h2{font-size:1.5rem}.scale-feel-editor .daily-entry-info{padding:.8rem;margin:1rem 0;font-size:.9rem}.scale-feel-editor .daily-entry-section-heading p{max-width:45rem}.scale-feel-editor .daily-scale-actions{display:flex;align-items:center;flex-wrap:wrap;gap:.6rem}.scale-feel-editor .daily-scale-actions p{flex-basis:100%;margin:.3rem 0}.sf-body-section{padding:1.25rem}.sf-body-section h2{margin-top:0}.sf-legend{display:flex;align-items:center;gap:1.5rem}.sf-soreness{color:#e3ba3b}.sf-pain{color:#ff6262;font-weight:700}
+.scale-feel-editor .tw-body-map{width:260px;max-width:46%}.scale-feel-editor .tw-person-figure{aspect-ratio:656/1199;overflow:visible;border-radius:8px;background:#102033}.tw-person-image{display:block!important;position:absolute!important;top:0!important;width:200%!important;max-width:none!important;height:100%!important;object-fit:fill!important}.tw-person-front{left:0}.tw-person-back{left:-100%}.tw-person-figure{clip-path:inset(0 round 8px)}
+#scale-feel-form [data-body-check] .tw-body-spot.is-pain{width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;font-size:30px!important;background:#fff0f0!important;border:2px solid #d21c1c!important;font-weight:900!important;z-index:2}
+@media(max-width:760px){.scale-feel-editor .daily-entry-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.scale-feel-editor .daily-entry-activity-grid{grid-template-columns:1fr 1fr}.scale-feel-editor .tw-body-maps{gap:10px}.scale-feel-editor .daily-entry-section,.sf-body-section{padding:1rem}.scale-feel-editor .tw-body-map .small{font-size:.75rem}}
+/* Keep both faces visible in the wide header photo. */
+.scale-feel-page .nutrition-header-photo img{object-position:center top!important}
+body.test-live-preview .scale-feel-page > .app-page-head h1{font-size:2rem!important;line-height:1.15!important}
+
+/* Allow shared form content to shrink instead of widening the phone viewport. */
+.scale-feel-page,
+.scale-feel-page > *,
+.scale-feel-page .app-page-head > *,
+.scale-feel-editor,
+.scale-feel-editor fieldset,
+.scale-feel-editor .daily-entry-section-heading > div,
+.scale-feel-editor label,
+.scale-feel-editor .tw-body-map {
+    min-width:0;
+    min-inline-size:0;
+    max-width:100%;
+    box-sizing:border-box;
+}
+.scale-feel-page .app-date-picker,
+.scale-feel-page .app-date-picker input,
+.scale-feel-editor input:not([type="checkbox"]):not([type="hidden"]),
+.scale-feel-editor select,
+.scale-feel-editor textarea {
+    min-width:0;
+    max-width:100%;
+    box-sizing:border-box;
+}
+.scale-feel-editor .daily-entry-section-heading,
+.scale-feel-editor .daily-entry-info,
+.scale-feel-editor label,
+.scale-feel-editor .daily-scale-actions p {
+    overflow-wrap:anywhere;
+}
+/* Each person is one half of a two-person image; contain the other half. */
+.scale-feel-editor .tw-person-figure { overflow:hidden; }
+.sf-legend,
+.sf-save-bar { flex-wrap:wrap; }
+
+@media (max-width:900px) {
+    .scale-feel-page > .app-page-head { grid-template-columns:minmax(0,1fr); }
+    .scale-feel-page .app-date-picker { min-width:0; width:100%; }
+    .scale-feel-page .app-date-picker label { display:grid; gap:.4rem; min-width:0; }
+    .scale-feel-page .app-date-picker input { width:100%; }
+    .scale-feel-page .app-adjacent-days { display:flex; flex-wrap:wrap; gap:.5rem; }
+    .scale-feel-page .app-day-nav-button { flex:1 1 120px; min-width:0; white-space:normal; text-align:center; }
+}
+@media (max-width:520px) {
+    .scale-feel-editor .daily-entry-section,
+    .scale-feel-editor .sf-body-section { padding:.8rem; }
+    .scale-feel-editor .daily-entry-activity-grid { grid-template-columns:minmax(0,1fr); }
+    .scale-feel-editor .tw-controls { display:grid; grid-template-columns:minmax(0,1fr); gap:.75rem; }
+    .scale-feel-editor .tw-body-maps { flex-direction:column; align-items:center; gap:3rem; }
+    .scale-feel-editor .tw-body-map { width:260px; max-width:100%; }
+    .scale-feel-editor .daily-scale-button { max-width:100%; white-space:normal; }
+    .sf-legend { gap:.75rem; }
+}
+@media (max-width:360px) {
+    .scale-feel-editor .daily-entry-grid { grid-template-columns:minmax(0,1fr); }
+}
+
+/* Entry pages keep routine autosave silent; errors and Retry remain visible. */
+.sf-save-bar { display:none; }
+.sf-save-bar:has([data-state="error"]) { display:flex; }
+.scale-feel-page { gap:.75rem; }
+.scale-feel-page > .app-page-head { margin-bottom:0; }
+.scale-feel-page .scale-feel-editor { margin-top:0; }

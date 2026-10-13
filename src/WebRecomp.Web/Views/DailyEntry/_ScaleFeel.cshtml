@@ -1,0 +1,190 @@
+@model WebRecomp.Web.ViewModels.DailyEntryViewModel
+@{ var scaleOnly = ViewData["ScaleOnly"] is true; }
+        <section class="daily-entry-section" id="body-recovery">
+
+            @if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled)
+            {
+                <div class="daily-scale-actions">
+                    <button class="daily-scale-button daily-scale-pull" type="button" id="pull-scale-readings" data-url="@Url.Action("PullReadings", "ExternalConnections")">Pull scale readings</button>
+                    <a class="daily-scale-button daily-scale-manage" asp-controller="ExternalConnections" asp-action="Index">Manage connection</a>
+                    <p id="scale-pull-status" class="small" role="status" aria-live="polite"></p>
+                </div>
+            }
+            <div class="daily-entry-section-heading"><h2>Scale measurements</h2></div>
+            @if (!string.IsNullOrWhiteSpace(Model.MeasurementSourceLabel))
+            {
+                <p class="small">Source: @Model.MeasurementSourceLabel</p>
+            }
+
+            <div class="daily-entry-grid daily-entry-grid-body">
+
+                <label>
+                    Weight (lb)
+                    <input asp-for="WeightLb"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <span asp-validation-for="WeightLb"></span>
+                </label>
+
+                <label>
+                    Body fat (%)
+                    <input asp-for="BodyFatPercent"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="BodyFatPercent"></span>
+                </label>
+
+                <label>
+                    Skeletal muscle (lb)
+                    <input asp-for="SkeletalMuscleMassLb"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Preferred muscle metric</small>
+                    <span asp-validation-for="SkeletalMuscleMassLb"></span>
+                </label>
+
+                <label>
+                    Subcutaneous fat (%)
+                    <input asp-for="SubcutaneousFatPercent"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="SubcutaneousFatPercent"></span>
+                </label>
+
+                <label>
+                    Visceral fat rating
+                    <input asp-for="VisceralFatRating"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="VisceralFatRating"></span>
+                </label>
+
+                <label>
+                    Body water (lb)
+                    <input asp-for="BodyWaterLb"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional</small>
+                    <span asp-validation-for="BodyWaterLb"></span>
+                </label>
+
+                <label>
+                    Waist (in)
+                    <input asp-for="WaistIn"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional secondary metric</small>
+                    <span asp-validation-for="WaistIn"></span>
+                </label>
+
+                <label>
+                    Hips (in)
+                    <input asp-for="HipsIn"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <small>Optional secondary metric</small>
+                    <span asp-validation-for="HipsIn"></span>
+                </label>
+
+            </div>
+
+            @if (!scaleOnly) {
+            <div class="daily-entry-subheading">
+                <h3>Recovery signals</h3>
+                <p>
+                    Sleep, resting heart rate, energy, soreness, pain, and
+                    illness give the analytical engine context when evaluating
+                    the workout on your Weekly Plan.
+                </p>
+            </div>
+
+            <div class="daily-entry-grid">
+
+                <label>
+                    Sleep (hours)
+                    <input asp-for="SleepHours"
+                           inputmode="decimal"
+                           step="0.1" />
+                    <span asp-validation-for="SleepHours"></span>
+                </label>
+
+                <label>
+                    Resting HR
+                    <input asp-for="RestingHr"
+                           inputmode="numeric" />
+                    <span asp-validation-for="RestingHr"></span>
+                </label>
+
+
+
+                <label>
+                    Energy (1-10)
+                    <input asp-for="EnergyScore"
+                           inputmode="numeric"
+                           min="1"
+                           max="10" />
+                    <span asp-validation-for="EnergyScore"></span>
+                </label>
+
+
+
+            </div>
+
+            <div class="daily-entry-checks">
+                <label>
+                    <input asp-for="PainFlag" />
+                    Pain not yet located on the body map
+                </label>
+
+                <label>
+                    <input asp-for="IllnessFlag" />
+                    Illness today
+                </label>
+            </div>
+
+            <h3>Non-workout activity</h3>
+                            <div class="daily-entry-activity-grid">
+                                <label>
+                                    Daily activity (hours)
+                                    <input asp-for="DailyActivityHours"
+                                           type="number"
+                                           inputmode="decimal"
+                                           min="0"
+                                           max="24"
+                                           step="0.1" />
+                                    <small>
+                                        Non-workout activity for the day: walking,
+                                        yardwork, housework, vehicle cleaning,
+                                        moving, construction, and similar activity.
+                                    </small>
+                                    <span asp-validation-for="DailyActivityHours"></span>
+                                </label>
+
+                                <label>
+                                    Activity effort
+                                    <select asp-for="DailyActivityEffortCode">
+                                        <option value="">Not specified</option>
+                                        <option value="LIGHT">Light</option>
+                                        <option value="MODERATE">Moderate</option>
+                                        <option value="HARD">Hard</option>
+                                    </select>
+                                    <small>
+                                        Overall effort of your non-workout activity
+                                        for the day.
+                                    </small>
+                                    <span asp-validation-for="DailyActivityEffortCode"></span>
+                                </label>
+                            </div>
+            <label class="daily-entry-notes">
+                Recovery notes
+                <textarea asp-for="RecoveryNotes" rows="2"></textarea>
+                <small>Optional</small>
+                <span asp-validation-for="RecoveryNotes"></span>
+            </label>
+
+            }
+        </section>
+

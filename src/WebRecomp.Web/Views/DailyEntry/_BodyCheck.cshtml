@@ -1,0 +1,33 @@
+@model WebRecomp.Web.ViewModels.DailyEntryViewModel
+@using WebRecomp.Web.Services.WorkoutTargeting
+@{ var regions = BodyRegions.All; }
+<div data-body-check>
+<div class="tw-body-maps">
+@foreach (var view in new[] { "front", "back" }) {
+<div class="tw-body-map"><h3>@(view == "front" ? "Front" : "Back")</h3>
+<div class="tw-body-figure tw-person-figure"><img src="~/images/scale-feel-body-person.webp" asp-append-version="true" alt="@(view == "front" ? "Front view of a person" : "Back view of a person")" class="tw-person-image tw-person-@view" />
+@{ var spots = view == "front" ? new[] { ("shoulders",73,22), ("biceps",75,32), ("chest",55,28), ("core",56,37), ("hips",69,46), ("quads",68,59) } : new[] { ("upperback",44,24), ("lowerback",44,37), ("triceps",67,31), ("glutes",54,47), ("hamstrings",54,61), ("calves",56,77) }; }
+@foreach (var spot in spots) {
+var region = regions.First(r => r.Code == spot.Item1);
+<button type="button" class="tw-body-spot" style="left:@(spot.Item2)%;top:@(spot.Item3)%" data-body-region="@region.Code" data-region-name="@region.Name" title="@region.Name" aria-label="@region.Name: clear" aria-pressed="false"></button>
+}
+</div>
+<p class="small">@string.Join(" · ", regions.Where(r => r.View == view).Select(r => r.Name))</p>
+</div>}
+</div>
+@for (var i = 0; i < regions.Length; i++) {
+var feeling = Model.RegionFeelings.FirstOrDefault(x => x.Region == regions[i].Code);
+var mark = feeling?.Mark > 0 ? feeling.Mark : feeling?.Pain > 0 || feeling?.MovementLimited == true || feeling?.SharpOrWorsening == true ? 2 : feeling?.Soreness > 0 ? 1 : 0;
+<input type="hidden" name="RegionFeelings[@i].Region" value="@regions[i].Code" />
+<input type="hidden" name="RegionFeelings[@i].Mark" value="@mark" data-region-mark="@regions[i].Code" />
+}
+<div class="tw-controls">
+<label>Soreness rating (1–10)<input asp-for="SorenessRating" type="number" min="1" max="10" /><span asp-validation-for="SorenessRating"></span></label>
+<label>Pain / injury rating (1–10)<input asp-for="PainRating" type="number" min="1" max="10" /><span asp-validation-for="PainRating"></span></label>
+</div>
+<p><label><input asp-for="KeepPain" /> Keep pain/injury marks and rating on following days until turned off.</label></p>
+<p data-mark-summary aria-live="polite"></p>
+<p><button type="button" data-body-clear>Clear all marks</button></p>
+<label><input asp-for="BodyChecked" /> I have checked my body for this date.</label>
+<p class="small">All marked regions are excluded from recommended exercises, regardless of rating.</p>
+</div>

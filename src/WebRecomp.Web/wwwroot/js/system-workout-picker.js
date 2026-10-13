@@ -113,6 +113,7 @@
         const selected = select.options[select.selectedIndex];
         const toggle = shell.querySelector(".cwp-toggle");
         if (toggle) {
+            toggle.disabled = select.matches(":disabled");
             toggle.textContent = selected?.value
                 ? optionText(selected)
                 : select.dataset.collapsiblePlaceholder || optionText(select.options[0]);
@@ -133,6 +134,7 @@
         button.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
+            if (select.matches(":disabled")) return;
             select.value = option.value;
             closePicker(shell);
             select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -188,7 +190,7 @@
     }
 
     function enhance(select) {
-        if (!select || select.hasAttribute(ready)) return;
+        if (!select || select.hasAttribute(ready) || select.matches(":disabled")) return;
         select.setAttribute(ready, "true");
         ensureStyles();
 

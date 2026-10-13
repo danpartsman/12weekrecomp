@@ -61,6 +61,28 @@ public sealed class DetailedWorkoutEditorViewModel
     public Guid? PlannedWorkoutTemplateId { get; set; }
     public string? PlannedSystemWorkoutCode { get; set; }
 
+    public WorkoutTemplateDetailViewModel? PlannedTemplatePreview { get; set; }
+    public SystemWorkoutPreviewViewModel? PlannedSystemPreview { get; set; }
+    public WebRecomp.Web.Services.WorkoutTargeting.TodayWorkoutViewModel? StartRecommendations { get; set; }
+    public string? RecommendationNotice { get; set; }
+
+    // Only the top match is a recommendation; lower-ranked alternatives do not
+    // need another automatically opened card when the engine says to keep the plan.
+    public WebRecomp.Web.Services.WorkoutTargeting.WorkoutTargetChoice? DifferentRecommendedWorkout
+    {
+        get
+        {
+            var choice = StartRecommendations?.Choices.FirstOrDefault();
+            if (choice is null) return null;
+            if (choice.Adapted) return choice;
+            var samePlan = PlannedWorkoutTemplateId.HasValue
+                ? choice.TemplateId == PlannedWorkoutTemplateId
+                : !string.IsNullOrWhiteSpace(PlannedSystemWorkoutCode)
+                    && string.Equals(choice.SystemCode, PlannedSystemWorkoutCode, StringComparison.OrdinalIgnoreCase);
+            return samePlan ? null : choice;
+        }
+    }
+
     public bool ModifySelection { get; set; }
     public string? DraftWorkoutTypeCode { get; set; }
 
