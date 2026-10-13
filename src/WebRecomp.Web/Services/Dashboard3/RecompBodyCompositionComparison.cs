@@ -2,7 +2,10 @@ using WebRecomp.Web.Models;
 
 namespace WebRecomp.Web.Services.Dashboard3;
 
-public sealed record RecompCompositionWindow(DateOnly Start, DateOnly End, int Count, decimal? AverageLb);
+public sealed record RecompCompositionWindow(DateOnly Start, DateOnly End, int Count, decimal? AverageLb)
+{
+    public int AveragingDays => End.DayNumber - Start.DayNumber + 1;
+}
 
 public sealed record RecompCompositionChange(string Key, string Label, RecompCompositionWindow Latest,
     RecompCompositionWindow Previous, bool GainIsFavorable)
@@ -16,15 +19,17 @@ public sealed record RecompCompositionChange(string Key, string Label, RecompCom
         : (change > 0m) == GainIsFavorable ? "green" : "red";
     public string Status => DisplayChangeLb is not decimal change ? "Comparison unavailable"
         : Math.Abs(change) <= .2m ? "Little change" : change > 0m ? "Gain" : "Loss";
+    private string PeriodLabel => Latest.AveragingDays == 7 ? "seven-day" : "three-day";
     public string? MissingNotice => Latest.Count == 0 && Previous.Count == 0
-        ? $"No {Label.ToLowerInvariant()} readings in either three-day period."
-        : Latest.Count == 0 ? $"No {Label.ToLowerInvariant()} readings in the latest three-day period."
-        : Previous.Count == 0 ? $"No {Label.ToLowerInvariant()} readings in the earlier three-day period." : null;
+        ? $"No {Label.ToLowerInvariant()} readings in either {PeriodLabel} period."
+        : Latest.Count == 0 ? $"No {Label.ToLowerInvariant()} readings in the latest {PeriodLabel} period."
+        : Previous.Count == 0 ? $"No {Label.ToLowerInvariant()} readings in the earlier {PeriodLabel} period." : null;
 }
 
 public sealed record RecompBodyCompositionComparison(RecompCompositionChange Fat, RecompCompositionChange Muscle,
     int ComparisonDays = 7)
 {
+    public int AveragingDays => Fat.Latest.AveragingDays;
     public decimal MinimumScaleLb { get; init; } = 1m;
     public decimal ScaleLb => Math.Max(MinimumScaleLb, Math.Ceiling(Math.Max(Math.Abs(Fat.ChangeLb ?? 0m),
         Math.Abs(Muscle.ChangeLb ?? 0m)) * 2m) / 2m);
@@ -34,9 +39,10 @@ public sealed record RecompBodyCompositionComparison(RecompCompositionChange Fat
         int comparisonDays = 7)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(comparisonDays, 3);
-        var latestStart = date.AddDays(-2);
+        var averagingDays = comparisonDays == 30 ? 7 : 3;
+        var latestStart = date.AddDays(1 - averagingDays);
         var previousEnd = date.AddDays(-comparisonDays);
-        var previousStart = previousEnd.AddDays(-2);
+        var previousStart = previousEnd.AddDays(1 - averagingDays);
         // One canonical reading per local date, like Daily Entry / Progress. Repeated
         // imports or extra weigh-ins must not give one day disproportionate weight.
         var daily = readings.Where(x => !x.IsDeleted && x.LocalMeasurementDate <= date

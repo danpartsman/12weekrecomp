@@ -281,7 +281,8 @@ public sealed class RecompCockpitService(RecompDbContext db,
     private async Task<RecompBodyCompositionTrends> BuildBodyCompositionAsync(AppClientContext context,
         DateOnly date, CancellationToken ct)
     {
-        var from = date.AddDays(-32);
+        // The 30-day comparison needs the seven-day baseline ending 30 days ago.
+        var from = date.AddDays(-36);
         var rows = await db.Measurements.AsNoTracking().Where(x => x.ClientId == context.Client!.ClientId
             && x.ProgramId == context.Program!.ProgramId && !x.IsDeleted
             && x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= date).ToListAsync(ct);

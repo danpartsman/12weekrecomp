@@ -38,7 +38,7 @@
         }
     }
     <details class="d3-composition-details"><summary>Dates, averages and calculation</summary>
-        <p>Latest three-day average minus the three-day average ending @Model.ComparisonDays days earlier. One or two available readings are enough; missing values are excluded, never treated as zero.</p>
+        <p>Latest @(Model.AveragingDays == 7 ? "seven-day" : "three-day") average minus the @(Model.AveragingDays == 7 ? "seven-day" : "three-day") average ending @Model.ComparisonDays days earlier. Averages use available daily readings; missing values are excluded, never treated as zero.</p>
         <p>Both lines use the same scale: −@Model.ScaleLb.ToString("0.#") lb on the left, zero in the center, and +@Model.ScaleLb.ToString("0.#") lb on the right. The marker shows the change; left is loss and right is gain.</p>
         <div class="d2-table-wrap"><table><thead><tr><th>Measure</th><th>Latest period</th><th>Earlier period</th></tr></thead><tbody>
         @foreach (var metric in new[] { Model.Fat, Model.Muscle })

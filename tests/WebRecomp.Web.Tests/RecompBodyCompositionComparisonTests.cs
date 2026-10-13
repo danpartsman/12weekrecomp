@@ -20,6 +20,7 @@ public sealed class RecompBodyCompositionComparisonTests
         var result = RecompBodyCompositionComparison.Build(Today,
             [Reading(-9), Reading(-8), Reading(-7), Reading(-2, 180, .3m, 81),
                 Reading(-1, 200, .2m, 82), Reading(0, 220, .1m, 83), Reading(-6, 400), Reading(1, 400)]);
+        Assert.Equal(3, result.AveragingDays);
         Assert.Equal(new DateOnly(2026, 10, 9), result.Fat.Latest.Start);
         Assert.Equal(new DateOnly(2026, 10, 2), result.Fat.Previous.Start);
         Assert.Equal(new DateOnly(2026, 10, 4), result.Fat.Previous.End);
@@ -125,18 +126,22 @@ public sealed class RecompBodyCompositionComparisonTests
     }
 
     [Fact]
-    public void ThirtyDayComparisonUsesOnlyItsTwoThreeDayWindows()
+    public void ThirtyDayComparisonUsesOnlyItsTwoSevenDayWindows()
     {
-        var result = RecompBodyCompositionComparison.Build(Today,
-            [Reading(-33, 400), Reading(-32, 200, muscle: 80), Reading(-31, 204, muscle: 81),
-                Reading(-30, 208, muscle: 82), Reading(-29, 400), Reading(-7, 400),
-                Reading(-2, 196, muscle: 83), Reading(-1, 200, muscle: 84),
-                Reading(0, 204, muscle: 85), Reading(1, 400)], 30);
+        var readings = Enumerable.Range(0, 7).Select(i => Reading(-36 + i, 200 + 4 * i, muscle: 80 + i))
+            .Concat(Enumerable.Range(0, 7).Select(i => Reading(-6 + i, 196 + 4 * i, muscle: 83 + i)))
+            .Concat([Reading(-37, 400), Reading(-29, 400), Reading(-7, 400), Reading(1, 400)]);
+        var result = RecompBodyCompositionComparison.Build(Today, readings, 30);
         Assert.Equal(30, result.ComparisonDays);
-        Assert.Equal(Today.AddDays(-32), result.Fat.Previous.Start);
+        Assert.Equal(7, result.AveragingDays);
+        Assert.Equal(Today.AddDays(-36), result.Fat.Previous.Start);
         Assert.Equal(Today.AddDays(-30), result.Fat.Previous.End);
-        Assert.Equal(3, result.Fat.Previous.Count);
-        Assert.Equal(3, result.Fat.Latest.Count);
+        Assert.Equal(Today.AddDays(-6), result.Fat.Latest.Start);
+        Assert.Equal(Today, result.Fat.Latest.End);
+        Assert.Equal(7, result.Fat.Previous.Count);
+        Assert.Equal(7, result.Fat.Latest.Count);
+        Assert.Equal(53m, result.Fat.Previous.AverageLb);
+        Assert.Equal(52m, result.Fat.Latest.AverageLb);
         Assert.Equal(-1m, result.Fat.ChangeLb);
         Assert.Equal(3m, result.Muscle.ChangeLb);
     }
@@ -163,7 +168,7 @@ public sealed class RecompBodyCompositionComparisonTests
         Assert.Equal(1m, result.SevenDay.Muscle.ChangeLb);
         Assert.Null(result.ThirtyDay.Fat.ChangeLb);
         Assert.Null(result.ThirtyDay.Muscle.ChangeLb);
-        Assert.Contains("earlier three-day period", result.ThirtyDay.Fat.MissingNotice);
+        Assert.Contains("earlier seven-day period", result.ThirtyDay.Fat.MissingNotice);
         Assert.Equal(1, result.ThirtyDay.Fat.Latest.Count);
     }
 
