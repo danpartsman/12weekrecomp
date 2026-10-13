@@ -41,7 +41,7 @@ public sealed class WorkoutTargetService(RecompDbContext db, Engine30WorkoutUiCa
         var feelings = body.Regions;
         if (checkin?.Notes?.StartsWith("12WR_BODY_V1:", StringComparison.Ordinal) != true)
             feelings = (await BodyCheckinCodec.PersistentPainAsync(db, program.ProgramId, today, ct)).Regions;
-        if (!body.Checked) input.Notices.Add("Body readiness is incomplete. Complete today’s Scale & Feel body check before starting a recommendation.");
+        if (!body.Checked) input.Notices.Add("Body readiness is incomplete. Complete today’s Recomp Tracking body check before starting a recommendation.");
         if (feelings.Any(x => x.SharpOrWorsening)) input.Notices.Add("Sharp or worsening pain needs assessment. Recommendations exclude the affected region; stop movements that provoke it.");
         if (checkin?.IllnessFlag == true || body.UnlocatedPain || (checkin?.PainFlag == true && !feelings.Any(x => x.Pain > 0 || x.MovementLimited || x.SharpOrWorsening)))
         {

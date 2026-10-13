@@ -108,23 +108,23 @@
         <div class="daily-entry-progress"
              aria-label="Daily entry progress">
 
-            <span data-completion="body" class="@CompletionClass(Model.BodyRecoveryComplete)">
+            <a asp-controller="DailyEntry" asp-action="CheckIn" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")" data-completion="body" class="@CompletionClass(Model.BodyRecoveryComplete)">
                 <b>1</b>
-                Scale
+                Recomp Tracking
                 <em>@CompletionText(Model.BodyRecoveryComplete)</em>
-            </span>
+            </a>
 
-            <span data-completion="workout" class="@CompletionClass(Model.WorkoutComplete)">
+            <a asp-controller="DetailedWorkout" asp-action="Index" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")" data-completion="workout" class="@CompletionClass(Model.WorkoutComplete)">
                 <b>2</b>
                 Training
                 <em>@CompletionText(Model.WorkoutComplete)</em>
-            </span>
+            </a>
 
-            <span data-completion="nutrition" class="@CompletionClass(Model.NutritionComplete)">
+            <a asp-controller="Nutrition" asp-action="Index" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")" data-completion="nutrition" class="@CompletionClass(Model.NutritionComplete)">
                 <b>3</b>
                 Nutrition
                 <em>@CompletionText(Model.NutritionComplete)</em>
-            </span>
+            </a>
         </div>
     </section>
 

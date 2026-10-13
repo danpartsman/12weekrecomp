@@ -3,7 +3,7 @@
 @{ ViewData["Title"]="Today’s Workout"; }
 <link rel="stylesheet" href="~/css/today-workout.css" asp-append-version="true" />
 <div class="tw-page"><header class="tw-header"><p class="tw-eyebrow">12WR · Train with a purpose</p><h1>Today’s Workout</h1><p>@Model.Date.ToString("dddd, MMMM d") · Choose what you want to do; we’ll match it to your recent training and body check.</p>
-<nav class="tw-links"><a asp-controller="DailyEntry" asp-action="CheckIn">Scale &amp; Feel</a><a asp-controller="DailyEntry" asp-action="Index">Daily Entries</a><a asp-controller="Schedule" asp-action="Index">Weekly Plan</a></nav></header>
+<nav class="tw-links"><a asp-controller="DailyEntry" asp-action="CheckIn">Recomp Tracking</a><a asp-controller="DailyEntry" asp-action="Index">Daily Entries</a><a asp-controller="Schedule" asp-action="Index">Weekly Plan</a></nav></header>
 <div asp-validation-summary="All" class="validation"></div>
 @foreach(var notice in Model.Notices) {<p class="tw-warning">@notice</p>}
 <section class="card"><h2>Today’s starting point</h2><p>Planned: @(Model.PlanName ?? "No workout planned")</p><p>@Model.FuelSummary</p>

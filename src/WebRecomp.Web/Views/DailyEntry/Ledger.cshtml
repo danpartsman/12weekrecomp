@@ -2,7 +2,7 @@
 @{ ViewData["Title"] = "Daily Entries"; }
 <link rel="stylesheet" href="~/css/today-workout.css" asp-append-version="true" />
 <div class="tw-page"><header class="tw-header"><p class="tw-eyebrow">12WR · Your daily record</p><h1>Daily Entries</h1><p>Food and completed workouts flow here automatically. Open corrections when you need them.</p>
-<nav class="tw-links"><a asp-action="CheckIn" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Scale &amp; Feel</a><a asp-controller="TodayWorkout" asp-action="Index">Today’s Workout</a><a asp-controller="Schedule" asp-action="Index">Weekly Plan</a></nav></header>
+<nav class="tw-links"><a asp-action="CheckIn" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Recomp Tracking</a><a asp-controller="TodayWorkout" asp-action="Index">Today’s Workout</a><a asp-controller="Schedule" asp-action="Index">Weekly Plan</a></nav></header>
 @if (TempData["StatusMessage"] is string message) { <p role="status">@message</p> }
 <form method="get" class="app-date-picker"><a asp-route-date="@Model.Date.AddDays(-1).ToString("yyyy-MM-dd")">← Previous</a><label>Date <input type="date" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" /></label><button>Open</button><a asp-route-date="@Model.Date.AddDays(1).ToString("yyyy-MM-dd")">Next →</a></form>
 <div class="tw-columns"><section class="card"><h2>Training</h2><p>Originally planned: <strong>@Model.PlannedWorkoutName</strong></p>
@@ -14,6 +14,6 @@
 <a asp-controller="Workouts" asp-action="New" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Open Workouts</a></section>
 <section class="card"><h2>Nutrition</h2><p>@Model.NutritionSourceLabel</p><dl class="tw-facts"><dt>Calories</dt><dd>@(Model.Calories?.ToString("0") ?? "—")</dd><dt>Protein</dt><dd>@(Model.ProteinG?.ToString("0") ?? "—") g</dd><dt>Carbs</dt><dd>@(Model.CarbsG?.ToString("0") ?? "—") g</dd><dt>Fat</dt><dd>@(Model.FatG?.ToString("0") ?? "—") g</dd></dl>
 <a asp-controller="Nutrition" asp-action="Index" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Open Food Log</a><p><a asp-action="Index" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")" asp-route-edit="true">Correct daily totals / entries</a></p></section></div>
-<section class="card"><h2>Scale &amp; Feel summary</h2><p>Weight: @(Model.WeightLb?.ToString("0.#") ?? "—") lb · Sleep: @(Model.SleepHours?.ToString("0.#") ?? "—") h · Energy: @(Model.EnergyScore?.ToString() ?? "—")/10</p>
+<section class="card"><h2>Recomp Tracking summary</h2><p>Weight: @(Model.WeightLb?.ToString("0.#") ?? "—") lb · Sleep: @(Model.SleepHours?.ToString("0.#") ?? "—") h · Energy: @(Model.EnergyScore?.ToString() ?? "—")/10</p>
 @foreach (var feeling in Model.RegionFeelings) { <p>@WebRecomp.Web.Services.WorkoutTargeting.BodyRegions.All.FirstOrDefault(r => r.Code == feeling.Region)?.Name (@feeling.Side): soreness @feeling.Soreness/10 · pain @feeling.Pain/10</p> }
-<a asp-action="CheckIn" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Open Scale &amp; Feel</a></section></div>
+<a asp-action="CheckIn" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Open Recomp Tracking</a></section></div>

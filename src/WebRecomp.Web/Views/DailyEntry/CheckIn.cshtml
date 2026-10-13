@@ -1,12 +1,12 @@
 @model WebRecomp.Web.ViewModels.DailyEntryViewModel
-@{ ViewData["Title"] = "Scale & Feel"; ViewData["BodyClass"] = "scale-feel-view"; }
+@{ ViewData["Title"] = "Recomp Tracking"; ViewData["BodyClass"] = "scale-feel-view"; }
 <link rel="stylesheet" href="~/css/daily-entry.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/nutrition-intelligence.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/today-workout.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/scale-feel.css" asp-append-version="true" />
 <div class="app-page app-page-nutrition scale-feel-page">
 <header class="app-page-head">
-<div><div class="app-kicker">DAILY | RECOVERY</div><h1>Scale &amp; Feel</h1><p class="lede app-date-heading">@Model.Date.ToString("dddd, MMMM d")</p><p class="small">Check your progress and how your body feels.</p></div>
+<div><div class="app-kicker">DAILY | RECOVERY</div><h1>Recomp Tracking</h1><p class="lede app-date-heading">@Model.Date.ToString("dddd, MMMM d")</p><p class="small">Check your progress and how your body feels.</p></div>
 <figure class="nutrition-header-photo"><img src="~/images/daily-entry-trainer-client.jpg" asp-append-version="true" alt="Fitness coach supporting a daily progress check-in" /></figure>
 <div class="nutrition-intel-header-actions"><form asp-action="CheckIn" method="get" class="app-date-picker"><label>Date <input name="date" type="date" value="@Model.Date.ToString("yyyy-MM-dd")" onchange="this.form.submit()" /></label><div class="app-adjacent-days"><a asp-action="CheckIn" asp-route-date="@Model.Date.AddDays(-1).ToString("yyyy-MM-dd")" class="button app-day-nav-button" aria-label="Previous day">← Previous day</a><a asp-action="CheckIn" asp-route-date="@Model.Date.AddDays(1).ToString("yyyy-MM-dd")" class="button app-day-nav-button" aria-label="Next day">Next day →</a></div></form></div>
 </header>

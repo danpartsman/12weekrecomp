@@ -2,7 +2,7 @@
 @using WebRecomp.Web.Services.WorkoutTargeting
 <link rel="stylesheet" href="~/css/workout-recommendations.css" asp-append-version="true" />
 <section class="wr-dashboard" aria-labelledby="wr-title" data-workout-recommendations>
-<div class="wr-heading"><div><p class="wr-eyebrow">TRAINING · SCALE &amp; FEEL</p><h2 id="wr-title">Your workout recommendations</h2><p>Planned: @(Model.PlanName ?? "No workout planned")</p></div><a class="button" asp-controller="DailyEntry" asp-action="CheckIn">Update Scale &amp; Feel</a></div>
+<div class="wr-heading"><div><p class="wr-eyebrow">TRAINING · RECOMP TRACKING</p><h2 id="wr-title">Your workout recommendations</h2><p>Planned: @(Model.PlanName ?? "No workout planned")</p></div><a class="button" asp-controller="DailyEntry" asp-action="CheckIn">Update Recomp Tracking</a></div>
 @if(Model.HasCompletedWorkout) { <p class="wr-notice">You have recorded training today. These choices are optional additional sessions.</p> }
 @if(Model.ActiveWorkoutSessionId.HasValue) { <p class="wr-notice">Your selected workout is ready. <a asp-controller="DetailedWorkout" asp-action="Index" asp-route-workoutSessionId="@Model.ActiveWorkoutSessionId" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")">Continue your selected workout →</a></p> }
 @{ var excluded = Model.Readiness.Where(r=>r.Status=="Avoid loading").Select(r=>r.Name).ToList(); }

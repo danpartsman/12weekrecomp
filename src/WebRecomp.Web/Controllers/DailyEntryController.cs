@@ -273,7 +273,7 @@ public sealed class DailyEntryController(
 
         await db.SaveChangesAsync(cancellationToken);
         if (isAjax) return Json(new { success = true, message = "Saved automatically.", renderedMeasurementId = measurement?.MeasurementId });
-        TempData["StatusMessage"] = "Scale & Feel saved. Your workout recommendations use this check-in.";
+        TempData["StatusMessage"] = "Recomp Tracking saved. Your workout recommendations use this check-in.";
         return RedirectToAction(scaleOnly ? "Index" : "CheckIn", new { date = model.Date.ToString("yyyy-MM-dd") });
         }
 

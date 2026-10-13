@@ -41,7 +41,7 @@ public sealed class TodayWorkoutController(RecompDbContext db, AppUserContextSer
         // Recompute from owned records; posted exercise IDs, effort caps and eligibility are never trusted.
         var result=await targets.BuildAsync(context,model,cancellationToken);
         var choice=result.Choices.SingleOrDefault(x=>x.Key==choiceKey);
-        if(!result.CanStart || choice is null) { ModelState.AddModelError("","Update Scale & Feel and review a current recommendation first."); return View("Index",result); }
+        if(!result.CanStart || choice is null) { ModelState.AddModelError("","Update Recomp Tracking and review a current recommendation first."); return View("Index",result); }
         if(choice.Revision!=choiceRevision) {ModelState.AddModelError("","Your recommendation changed since the preview. Review the updated exercises before using it.");return View("Index",result);}
         var today=AppUserContextService.GetClientToday(context.Client);
         var now=DateTime.UtcNow;

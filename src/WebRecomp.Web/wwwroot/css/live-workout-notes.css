@@ -61,3 +61,20 @@
         max-height: 44px !important;
     }
 }
+
+.wi-notes-input-row { display:flex; align-items:center; gap:.35rem; min-width:0; }
+.wi-notes-input-row textarea { flex:1 1 0; }
+.workout-intelligence-page .wi-history-toggle {
+    flex:0 0 36px; width:36px!important; min-width:36px!important; height:44px!important;
+    min-height:44px!important; padding:0!important; margin:0!important; font-size:22px!important;
+    transform:none!important; border-radius:.5rem; cursor:pointer;
+}
+.wi-exercise-history { grid-column:1 / -1!important; min-width:0; padding:.75rem; border:1px solid #315a84; border-radius:.7rem; }
+.wi-exercise-history[hidden] { display:none!important; }
+.wi-history-entry + .wi-history-entry { margin-top:.75rem; padding-top:.75rem; border-top:1px solid #315a84; }
+.wi-history-entry p { margin:.35rem 0; }
+.wi-history-table-scroll { overflow-x:auto; }
+.wi-history-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+.wi-history-table th,.wi-history-table td { text-align:left; padding:.4rem; border-bottom:1px solid #315a84; }
+.wi-history-table td:last-child { overflow-wrap:anywhere; white-space:pre-wrap; }
+.wi-history-notes { white-space:pre-wrap; overflow-wrap:anywhere; }
