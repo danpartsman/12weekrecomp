@@ -35,6 +35,8 @@ public sealed class RecompCockpit
     public int? Change { get; init; }
     public int? TodayFlexibleItems { get; init; }
     public int? DetectedTreatItems { get; init; }
+    public Dictionary<DateOnly, string> DetectedTreatFoods { get; init; } = [];
+    public HashSet<DateOnly> TreatCountOverrides { get; init; } = [];
     public string? StorageNotice { get; set; }
     public string? DataNotice { get; init; }
     public string? HistoryNotice { get; init; }
@@ -107,9 +109,10 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 mealPlan.PredictionNotice = "Meal history is temporarily unavailable.";
             }
         }
-        var detected = logs.Where(RecompTreatClassifier.Complete).Where(x => x.Items.Count > 0)
-            .Where(x => nutrition.SingleOrDefault(n => n.NutritionDate == x.LogDate)?.EntrySourceCode is null or "FOOD_LOG" or "MANUAL")
-            .ToDictionary(x => x.LogDate, RecompTreatClassifier.Count);
+        var eligibleLogs = logs.Where(RecompTreatClassifier.Complete).Where(x => x.Items.Count > 0)
+            .Where(x => nutrition.SingleOrDefault(n => n.NutritionDate == x.LogDate)?.EntrySourceCode is null or "FOOD_LOG" or "MANUAL").ToArray();
+        var detected = eligibleLogs.ToDictionary(x => x.LogDate, RecompTreatClassifier.Count);
+        var detectedFoods = eligibleLogs.ToDictionary(x => x.LogDate, RecompTreatClassifier.FoodNames);
         int? Flex(DateOnly date) => flex.GetValueOrDefault(date) ?? (detected.TryGetValue(date, out var count) ? count : null);
         var days = new List<RecompDayEvidence>();
         for (var date = activeStart; date <= end; date = date.AddDays(1))
@@ -215,6 +218,9 @@ public sealed class RecompCockpitService(RecompDbContext db,
             Change = !score.HasEvidence || previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
             TodayFlexibleItems = Flex(today),
             DetectedTreatItems = detected.TryGetValue(today, out var detectedCount) ? detectedCount : null,
+            DetectedTreatFoods = detectedFoods,
+            TreatCountOverrides = flex.Where(x => x.Value.HasValue && (!detected.TryGetValue(x.Key, out var n) || n != x.Value.Value))
+                .Select(x => x.Key).ToHashSet(),
             HistoryNotice = !historical ? null : capture is not null
                 ? $"Saved score · {today:MMM d} · {capture.Version}. Daily cards show the saved entries."
                 : "Reconstructed rolling score from saved entries and the available plan. No score was captured on this day; browsing does not create history.",

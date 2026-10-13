@@ -27,6 +27,10 @@ public static class RecompTreatClassifier
     public static bool Complete(NutritionDailyLogReadModel log) => log.Totals?.CompletenessCode == NutritionCompletenessCodes.Complete
         && log.Items.All(x => x.EnergyKcal.HasValue && x.ProteinG.HasValue && x.CarbohydrateG.HasValue && x.FatG.HasValue);
 
+    public static string FoodNames(NutritionDailyLogReadModel log) => string.Join(", ", log.Items
+        .Where(IsTreat).Select(x => x.DescriptionSnapshot.Trim()).Where(x => x.Length > 0)
+        .Distinct(StringComparer.OrdinalIgnoreCase));
+
     public static int Count(NutritionDailyLogReadModel log) => log.Items.Sum(x => IsTreat(x)
         ? Math.Max(1, x.QuantityUnitCode is "SERVING" or "PORTION" or "PIECE" or "ITEM"
             ? (int)Math.Ceiling(x.Quantity) : 1) : 0);

@@ -88,5 +88,8 @@ public sealed class CommandCenterPenaltyAndPredictionTests
         Assert.False(RecompTreatClassifier.IsTreat(Item("DINNER",300,"Rice with olive oil",3,35,15)));
         Assert.False(RecompTreatClassifier.IsTreat(Item("SNACK",300,"Protein cake",35,20,8)));
         Assert.Equal(2,RecompTreatClassifier.Count(Log(0,Item("SNACK",300,"Donut",3,35,15,quantity:2))));
+        Assert.Equal("Donut, Ice cream", RecompTreatClassifier.FoodNames(Log(0,
+            Item("SNACK",300,"Donut",3,35,15), Item("SNACK",300,"Ice cream",3,35,15),
+            Item("SNACK",300,"donut",3,35,15), Item("DINNER",300,"Rice with olive oil",3,35,15))));
     }
 }
