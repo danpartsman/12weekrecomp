@@ -5,6 +5,9 @@ namespace WebRecomp.Web.Services.Dashboard2;
 
 public sealed record MacroBand(string Key, string Name, string Color, decimal Target, decimal Low, decimal High, decimal? Eaten)
 {
+    public decimal YellowLow => Key == "protein" ? Low : Target * .85m;
+    public decimal Quality => !Eaten.HasValue || Target <= 0 ? 0m : Eaten >= Low && Eaten <= High ? 1m
+        : Key != "protein" && Eaten >= YellowLow && Eaten < Low ? .5m : 0m;
     public decimal Remaining => Math.Max(0, Low - (Eaten ?? 0));
     public string Status => !Eaten.HasValue ? "Not logged" : Eaten > High ? "Above planned range" : Eaten >= Low ? "Within range" : "Still to plan";
 }
@@ -20,6 +23,8 @@ public sealed class MacroDayPlan
     public List<MealAllocation> Suggestions { get; init; } = [];
     public decimal? EnergyEaten { get; init; }
     public decimal EnergyTarget { get; init; }
+    public decimal? PredictedEnergy { get; set; }
+    public string PredictionNotice { get; set; } = "";
     public decimal EnergyRemaining => Math.Max(0, EnergyTarget - (EnergyEaten ?? 0));
     public decimal UnallocatedProtein { get; set; }
     public decimal UnallocatedCarbs { get; set; }
@@ -43,9 +48,9 @@ public static class MacroDayPlanner
     public static List<MacroBand> Bands(decimal protein, decimal carbs, decimal fat,
         decimal? actualProtein = null, decimal? actualCarbs = null, decimal? actualFat = null) =>
     [
-        new("protein", "Protein", "#168CFF", protein, Math.Floor(protein * .95m), Math.Ceiling(protein * 1.25m), actualProtein),
-        new("carbs", "Carbs", "#FFD400", carbs, Math.Floor(carbs * .90m), Math.Ceiling(carbs * 1.10m), actualCarbs),
-        new("fat", "Fat", "#24D96B", fat, Math.Floor(fat * .90m), Math.Ceiling(fat * 1.10m), actualFat)
+        new("protein", "Protein", "#168CFF", protein, protein * .95m, protein * 1.15m, actualProtein),
+        new("carbs", "Carbs", "#FFD400", carbs, carbs * .95m, carbs * 1.05m, actualCarbs),
+        new("fat", "Fat", "#24D96B", fat, fat * .95m, fat * 1.05m, actualFat)
     ];
 
     public static MacroDayPlan Build(DashboardViewModel day, NutritionDailyLogReadModel? log,

@@ -55,7 +55,7 @@ public class MacroDayPlannerTests
     }
     [Fact] public void InBudgetBandsDoNotOverrideCombinedEnergyCheck()
     {
-        var result = MacroDayPlanner.Build(Day(220, 275, 66), null, false, 14);
+        var result = MacroDayPlanner.Build(Day(230, 262.5m, 63), null, false, 14);
         Assert.All(result.Bands, x => Assert.Equal("Within range", x.Status));
         Assert.True(result.OverEnergy); Assert.Empty(result.Suggestions);
     }

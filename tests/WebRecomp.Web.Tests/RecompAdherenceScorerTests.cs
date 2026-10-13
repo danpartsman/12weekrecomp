@@ -47,14 +47,14 @@ public sealed class RecompAdherenceScorerTests
     }
     [Fact] public void ProteinAllowsMoreOverageThanFat()
     {
-        var bands = MacroDayPlanner.Bands(200, 250, 60, 240, 250, 72);
+        var bands = MacroDayPlanner.Bands(200, 250, 60, 220, 250, 72);
         Assert.Equal(1m, RecompAdherenceScorer.Quality(bands[0].Eaten, bands[0].Low, bands[0].High, false));
         Assert.Equal(0m, RecompAdherenceScorer.Quality(bands[2].Eaten, bands[2].Low, bands[2].High, false));
     }
     [Fact] public void ScheduledFutureTrainingDoesNotEarnCreditForPastMisses()
     {
         var result = RecompAdherenceScorer.Score(Monday.AddDays(3), Week(), Training(0, 2));
-        Assert.Equal(0, result.WorkoutScore);
+        Assert.Equal(50, result.WorkoutScore);
         Assert.False(result.Components.Single(x => x.Label == "Recovery").Included);
     }
     [Fact] public void CatchingUpWorkRestoresCreditWithoutErasingNutritionMiss()
@@ -67,9 +67,9 @@ public sealed class RecompAdherenceScorerTests
     [Fact] public void ModeledWorkUsesDueWorkAndExtraBurnCannotReplaceResistance()
     {
         var result = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), Training(0, 0), new(1000, 400, 0));
-        Assert.Equal(0, result.WorkoutScore);
+        Assert.Equal(50, result.WorkoutScore);
         var partial = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), Training(3, 0), new(100, 400, 0));
-        Assert.Equal(25, partial.WorkoutScore);
+        Assert.Equal(50, partial.WorkoutScore);
     }
     [Fact] public void UnconfirmedFlexibilityIsExcluded()
     {
@@ -81,7 +81,7 @@ public sealed class RecompAdherenceScorerTests
         var days = Week(); days[0] = days[0] with { FlexibleItems = count };
         Assert.Equal(expected, RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training()).FlexibleBand);
     }
-    [Theory] [InlineData("RECOMP_SCORE_V1")] [InlineData("RECOMP_SCORE_V2")] [InlineData("RECOMP_SCORE_V3")]
+    [Theory] [InlineData("RECOMP_SCORE_V1")] [InlineData("RECOMP_SCORE_V2")] [InlineData("RECOMP_SCORE_V3")] [InlineData("RECOMP_SCORE_V4")]
     public void HistoricalCaptureKeepsOriginalScoreComponents(string version)
     {
         var parts = new List<RecompScoreComponent> { new("Protein",25,12.5m,"saved"),new("Carbs",20,10,"saved"),new("Fat",10,5,"saved"),new("Training",25,12.5m,"saved"),new("Flex",5,2.5m,"saved") };

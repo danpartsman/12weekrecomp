@@ -22,13 +22,14 @@
                 var left = Math.Min(50m, position).ToString("0.###", CultureInfo.InvariantCulture);
                 var width = Math.Abs(position - 50m).ToString("0.###", CultureInfo.InvariantCulture);
                 <div class="d3-energy-track d3-composition-track" role="img" aria-label="@metric.Label: @change.ToString("+0.0;-0.0;0.0") pounds, @metric.Status. Left is loss; right is gain.">
+                    <span class="d3-composition-zero" aria-hidden="true"><span>0</span></span>
                     <span class="d3-composition-fill" style="left:@(left)%;width:@(width)%" aria-hidden="true"></span>
                     <span class="d3-energy-needle" style="left:@(position.ToString("0.###", CultureInfo.InvariantCulture))%" aria-hidden="true"></span>
                 </div>
             }
             else
             {
-                <div class="d3-energy-track d3-composition-track" aria-hidden="true"></div>
+                <div class="d3-energy-track d3-composition-track" aria-hidden="true"><span class="d3-composition-zero"><span>0</span></span></div>
             }
         </div>
         @if (metric.Key == "fat")

@@ -21,15 +21,24 @@
     [['score', data.Score.DisplayScore, 'Recomp Plan Score'], ['nutrition', data.Score.NutritionScore, 'Nutrition'], ['workout', data.Score.WorkoutScore, 'Workout']].forEach(([key, value, label]) => draw(key, value, 100, [[0, .6, 'red'], [.6, .8, 'yellow'], [.8, 1, 'green']], `${label}: ${value} out of 100, completed-evidence adherence`));
     data.Bands.forEach(b => {
         const maximum = Math.max(1, b.High * 1.3, (b.Eaten || 0) * 1.07);
-        draw(b.Key, b.Eaten, maximum, [[0, b.Low / maximum, 'yellow'], [b.Low / maximum, b.High / maximum, 'green'], [b.High / maximum, 1, 'red']], `${b.Name}: ${b.Eaten == null ? 'not logged' : b.Eaten + ' grams'}, target ${b.Low} to ${b.High} grams`, ' g');
+        const zones = b.Key === 'protein'
+            ? [[0, b.Low / maximum, 'red'], [b.Low / maximum, b.High / maximum, 'green'], [b.High / maximum, 1, 'red']]
+            : [[0, b.YellowLow / maximum, 'red'], [b.YellowLow / maximum, b.Low / maximum, 'yellow'], [b.Low / maximum, b.High / maximum, 'green'], [b.High / maximum, 1, 'red']];
+        draw(b.Key, b.Eaten, maximum, zones, `${b.Name}: ${b.Eaten == null ? 'not logged' : b.Eaten + ' grams'}, target ${b.Low} to ${b.High} grams`, ' g');
     });
     const needle = root.querySelector('[data-energy-needle]');
-    if (needle && data.EnergyEaten != null && data.EnergyTarget > 0) {
-        const max = Math.max(data.EnergyTarget * 1.25, data.EnergyEaten * 1.07);
+    if (needle && data.EnergyTarget > 0) {
+        const max = Math.max(data.EnergyTarget * 1.25, (data.EnergyEaten || 0) * 1.07, (data.PredictedEnergy || 0) * 1.07);
         root.style.setProperty('--d3-energy-low', `${data.EnergyTarget * .95 / max * 100}%`);
         root.style.setProperty('--d3-energy-good', `${data.EnergyTarget * .10 / max * 100}%`);
         needle.style.left = `${Math.min(99, data.EnergyEaten / max * 100)}%`;
-        needle.hidden = false;
+        needle.hidden = data.EnergyEaten == null;
+        const predicted = root.querySelector('[data-energy-predicted]');
+        if (predicted && data.PredictedEnergy != null) {
+            predicted.style.left = `${Math.min(99, data.PredictedEnergy / max * 100)}%`;
+            predicted.hidden = false;
+            predicted.setAttribute('title', `Predicted: ${Math.round(data.PredictedEnergy)} kcal`);
+        }
     }
     const dialog = root.querySelector('[data-coach-dialog]');
     root.querySelectorAll('[data-open-coach]').forEach(button => button.addEventListener('click', () => {

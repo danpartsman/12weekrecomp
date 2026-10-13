@@ -15,7 +15,13 @@ public sealed record RecompTrainingGauge(
         : ProjectedFraction < 1m ? "Behind plan · recoverable" : "Still on schedule";
 }
 
-public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, decimal RemainingPlannedG)
+public sealed record RecompGlycogenDay(DateOnly Date, decimal ActualG, decimal TargetG, bool Rest, bool HasWorkout)
+{
+    public decimal Quality => Rest ? 1m : !HasWorkout || ActualG < Math.Max(1m, TargetG * .10m) ? 0m
+        : ActualG < TargetG ? .5m : 1m;
+}
+public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, decimal RemainingPlannedG,
+    IReadOnlyList<RecompGlycogenDay>? Days = null)
 {
     public decimal ProjectedFraction => TargetG <= 0 ? 1m
         : Math.Clamp((CompletedG + RemainingPlannedG) / TargetG, 0m, 1m);
@@ -24,7 +30,7 @@ public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, dec
 public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation, bool Included = true);
 public sealed class RecompScoreResult
 {
-    public const string Version = "RECOMP_SCORE_V4";
+    public const string Version = "RECOMP_SCORE_V5";
     public int Score { get; init; }
     public string Band => !HasEvidence ? "gray" : Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
     public string Status => !HasEvidence ? "Awaiting completed evidence" : Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";
@@ -45,7 +51,7 @@ public sealed class RecompScoreResult
     public int? FlexibleItems { get; init; }
     public int FlexibleConfirmedDays { get; init; }
     public bool FlexibleDayOverMacros { get; init; }
-    public string FlexibleBand => !FlexibleItems.HasValue ? "gray" : FlexibleDayOverMacros || FlexibleItems >= 5 ? "red"
+    public string FlexibleBand => !FlexibleItems.HasValue ? "gray" : FlexibleItems >= 5 ? "red"
         : FlexibleItems >= 3 ? "yellow" : "green";
 }
 
@@ -67,41 +73,53 @@ public static class RecompAdherenceScorer
                 MacroDayPlanner.Bands(d.ProteinTarget, d.CarbsTarget, d.FatTarget,
                     d.Protein, d.Carbs, d.Fat).Single(x => x.Key == key))
                 .Where(b => b.Eaten.HasValue && b.Target > 0m).ToArray();
-            var hits = bands.Count(b => Quality(b.Eaten, b.Low, b.High, false) == 1m);
+            var hits = bands.Count(b => b.Quality == 1m);
+            var half = bands.Count(b => b.Quality == .5m);
             var included = bands.Length > 0;
-            var fraction = included ? (decimal)hits / bands.Length : 0m;
+            var fraction = included ? bands.Sum(b => b.Quality) / bands.Length : 0m;
             components.Add(new(label, weight, weight * fraction,
-                included ? $"{hits}/{bands.Length} completed, known days within range. Each out-of-range day is a full miss for this category."
+                included ? $"{hits}/{bands.Length} green days; {half} yellow days. Green: no penalty; yellow: half penalty; red: full penalty."
                     : "Pending: unfinished and unknown days are excluded from the score.", included));
         }
         foreach (var gauge in training)
         {
             var due = Math.Max(gauge.Completed, Math.Max(0, gauge.Target - gauge.RemainingPlanned));
             var included = due > 0;
-            var fraction = included ? Math.Min(1m, (decimal)gauge.Completed / due) : 0m;
+            var missed = Math.Max(0, due - gauge.Completed);
+            var fraction = included ? Math.Max(0m, 1m - .5m * missed / due) : 0m;
             var label = gauge.Label;
             var explanation = included
-                ? $"{gauge.Completed}/{due} sessions completed against commitments due so far. Future sessions earn no points."
+                ? $"{gauge.Completed}/{due} prescribed category days completed. Each missing day adds half a daily penalty. Future sessions earn no points."
                 : "Pending: no completed or due sessions in this category yet; excluded from the score.";
             if (gauge.Key == "resistance" && glycogen is not null)
             {
                 var dueWork = Math.Max(glycogen.CompletedG, Math.Max(0m, glycogen.TargetG - glycogen.RemainingPlannedG));
-                if (included && dueWork > 0m) fraction = Math.Min(fraction, glycogen.CompletedG / dueWork);
+                var workDays = glycogen.Days?.Where(x => x.Date < today && !x.Rest).ToArray();
+                if (workDays?.Length > 0)
+                {
+                    included = true;
+                    fraction = Math.Max(0m, workDays.Average(x => x.Quality) - (due > 0 ? .5m * missed / due : 0m));
+                }
+                else if (included && dueWork > 0m)
+                {
+                    var workQuality = glycogen.CompletedG < Math.Max(1m, dueWork * .10m) ? 0m
+                        : glycogen.CompletedG < dueWork ? .5m : 1m;
+                    fraction = Math.Max(0m, workQuality - .5m * missed / due);
+                }
                 label = "Glycogen work + resistance";
-                explanation += $" Modeled work: {glycogen.CompletedG:0} g completed, {dueWork:0} g due so far. Extra burn cannot replace missed resistance.";
+                explanation += $" Modeled work: {glycogen.CompletedG:0} g completed, {dueWork:0} g due so far. No workout or burn below 10% of prescription: full daily penalty. Other below-prescription workouts: half. Rest days are exempt. Category shortfalls add half a daily penalty each.";
             }
             components.Add(new(label, gauge.Weight, gauge.Weight * fraction, explanation, included));
         }
 
         var knownFlex = days.Where(x => x.Date < today && x.FlexibleItems.HasValue).ToArray();
         int? flex = knownFlex.Length == 0 ? null : knownFlex.Sum(x => x.FlexibleItems!.Value);
-        var flexOver = knownFlex.Any(x => x.FlexibleItems > 0 && MacroDayPlanner.Bands(
-            x.ProteinTarget, x.CarbsTarget, x.FatTarget, x.Protein, x.Carbs, x.Fat).Any(b => b.Eaten > b.High));
-        var flexQuality = flex is null || flexOver || flex >= 5 ? 0m : flex >= 3 ? .6m : 1m;
-        components.Add(new("Planned flexibility", 5m, 5m * flexQuality,
+        var flexOver = false;
+        var flexPenalty = flex.HasValue ? FlexiblePenalty(flex.Value) : 0m;
+        var flexEarned = Math.Max(0m, 5m - flexPenalty);
+        components.Add(new("Planned flexibility", 5m, flexEarned,
             flex is null ? "Pending: not confirmed on a completed day; excluded from the score."
-            : flexOver ? "A day with flexible items is over a macro range. Review the combined intake."
-            : $"{flex} reported items across completed days. 0–2 green; 3–4 yellow; 5+ red.", flex.HasValue));
+            : $"{flex} treat portions in the completed scoring period. First 2 free; portions 3–4 each cost 0.5 point; each additional portion costs 1 point. {flexPenalty:0.#} penalty points (5-point component floors at zero). Macro penalties are separate.", flex.HasValue));
         return new()
         {
             Score = RecompScoreResult.ComponentScore(components) ?? 0,
@@ -111,6 +129,8 @@ public static class RecompAdherenceScorer
             KnownNutritionDays = days.Count(x => x.Date < today && x.Protein.HasValue && x.Carbs.HasValue && x.Fat.HasValue)
         };
     }
+
+    public static decimal FlexiblePenalty(int count) => Math.Min(2, Math.Max(0, count - 2)) * .5m + Math.Max(0, count - 4);
 
     public static decimal Quality(decimal? actual, decimal low, decimal high, bool unfinished)
     {

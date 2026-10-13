@@ -71,3 +71,10 @@ body.test-live-preview.app-shell.command-center-page .d3 .d3-instrument,body.tes
 .d3-composition-details table{width:100%;font-size:.74rem;text-align:left;border-collapse:collapse}.d3-composition-details th,.d3-composition-details td{padding:8px;border-bottom:1px solid #30445d;vertical-align:top}
 @media(max-width:760px){.d3-composition-grid{grid-template-columns:1fr;gap:0}}
 @media(max-width:620px){.d3-composition{padding:8px 10px}.d3-composition-label strong,.d3 .d3-composition-label h3{font-size:.74rem}.d3-composition-missing{font-size:.69rem}.d3-composition-details th,.d3-composition-details td{padding:6px;min-width:100px}}
+
+/* Markers stay within the existing compact card layout. */
+.d3-energy-track>.d3-energy-predicted{position:absolute;top:-4px;width:3px;height:17px;border-radius:0;background:transparent;border-left:3px dashed #88d3ff;z-index:4;transform:translateX(-50%)}
+.d3-energy-track>.d3-energy-predicted[hidden]{display:none}
+.d3-energy-track>.d3-energy-needle{width:5px;z-index:3}
+.d3-energy-track>.d3-composition-zero{position:absolute;left:50%;top:-3px;width:2px;height:15px;background:var(--d3-yellow);transform:translateX(-50%);z-index:2;border-radius:0}
+.d3-composition-zero>span{position:absolute;left:3px;top:-4px;font-size:8px;line-height:10px;color:var(--d3-yellow);background:#10151c}
