@@ -122,11 +122,51 @@
         panel.id = 'exercise-history-' + crypto.randomUUID();
         toggle.setAttribute('aria-controls', panel.id);
         row.appendChild(toggle); field.after(panel);
-        let nextOffset = 0, loading = false, loaded = false;
+        let nextOffset = 0, loading = false, loaded = false, entries = [];
         const addText = (parent, tag, text, className) => {
             const node = document.createElement(tag); node.textContent = text;
             if (className) node.className = className;
             parent.appendChild(node); return node;
+        };
+        const renderHistory = () => {
+            panel.querySelector('.wi-history-table-scroll')?.remove();
+            if (!entries.length) return;
+            const dates = new Map();
+            for (const entry of entries) {
+                if (!dates.has(entry.date)) dates.set(entry.date, []);
+                dates.get(entry.date).push(entry);
+            }
+            const rows = Array.from(dates, ([date, sessions]) => ({date, sessions, sets: sessions.flatMap(session=>session.sets)}));
+            const columns = Math.max(4, ...rows.map(row=>row.sets.length));
+            const table = document.createElement('table'); table.className='wi-history-table';
+            const thead = document.createElement('thead'), head = document.createElement('tr');
+            for (const text of ['Date', ...Array.from({length:columns},(_,i)=>'Reps '+(i+1)), 'Weight', 'Notes']) {
+                const th=addText(head,'th',text); th.scope='col';
+            }
+            thead.appendChild(head); table.appendChild(thead);
+            const tbody=document.createElement('tbody');
+            for (const row of rows) {
+                const tr=document.createElement('tr');
+                const date=new Date(row.date+'T00:00:00').toLocaleDateString(undefined,{month:'2-digit',day:'2-digit',year:'2-digit'});
+                const day=addText(tr,'td',date);day.title=row.sessions.map(session=>session.workout).join(' | ');
+                for(let i=0;i<columns;i++) {
+                    const set=row.sets[i];
+                    const text=!set?'':set.durationSeconds!=null?set.durationSeconds+'s':set.reps==null?'—':String(set.reps);
+                    const cell=addText(tr,'td',text+(set?.warmup?' W':''));
+                    if(set?.warmup) cell.title='Warm-up set';
+                }
+                const recorded=row.sessions.filter(session=>session.recordedMaxWeight!=null);
+                const perSet=row.sets.filter(set=>set.weight!=null).map(set=>set.weight+' '+set.unit.toLowerCase());
+                const weights=recorded.length?recorded.map(session=>session.recordedMaxWeight+' '+session.unit.toLowerCase()):perSet;
+                const weight=addText(tr,'td',Array.from(new Set(weights)).join(' / ')||'—');
+                weight.title=(recorded.length?'Recorded heaviest weight. ':'')+(perSet.length?'Set weights: '+perSet.join(', '):'Individual set weights were not recorded.');
+                const notes=Array.from(new Set(row.sessions.map(session=>session.notes).filter(Boolean)));
+                row.sets.forEach((set,i)=>{if(set.notes)notes.push('Set '+(i+1)+': '+set.notes);});
+                const note=addText(tr,'td',notes.join(' | ')||'—','wi-history-note-cell');note.title=notes.join('\n');
+                tbody.appendChild(tr);
+            }
+            table.appendChild(tbody);
+            const wrap=document.createElement('div');wrap.className='wi-history-table-scroll';wrap.appendChild(table);panel.appendChild(wrap);
         };
         const load = async () => {
             if (loading) return;
@@ -142,28 +182,8 @@
                 if (!card.isConnected) return;
                 status.remove();
                 if (!loaded && data.entries.length === 0) addText(panel, 'p', 'No completed workouts recorded for this exercise yet.');
-                for (const entry of data.entries) {
-                    const block = addText(panel, 'article', '', 'wi-history-entry');
-                    const date = new Date(entry.date + 'T00:00:00').toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});
-                    addText(block, 'strong', date + ' · ' + entry.workout);
-                    addText(block, 'p', entry.sets.length + ' recorded sets' + (entry.recordedMaxWeight != null ? ' · recorded max: ' + entry.recordedMaxWeight + ' ' + entry.unit.toLowerCase() : ''));
-                    if (entry.sets.length) {
-                        const table = document.createElement('table'); table.className = 'wi-history-table';
-                        const head = document.createElement('tr');
-                        for (const text of ['Set','Reps / time','Weight','Notes']) { const th = addText(head,'th',text); th.scope='col'; }
-                        const thead=document.createElement('thead'); thead.appendChild(head); table.appendChild(thead);
-                        const tbody=document.createElement('tbody');
-                        for (const set of entry.sets) {
-                            const tr=document.createElement('tr');
-                            addText(tr,'td',String(set.number) + (set.warmup?' · warm-up':''));
-                            addText(tr,'td',set.durationSeconds != null ? set.durationSeconds + ' s' : set.reps == null ? '—' : String(set.reps));
-                            addText(tr,'td',set.weight == null ? '—' : set.weight + ' ' + set.unit.toLowerCase());
-                            addText(tr,'td',set.notes || '—'); tbody.appendChild(tr);
-                        }
-                        table.appendChild(tbody); const scroll=document.createElement('div'); scroll.className='wi-history-table-scroll'; scroll.appendChild(table); block.appendChild(scroll);
-                    } else addText(block,'p','No individual set details were recorded.');
-                    if (entry.notes) addText(block,'p',entry.notes,'wi-history-notes');
-                }
+                entries.push(...data.entries);
+                renderHistory();
                 loaded = true; nextOffset = data.nextOffset;
                 if (nextOffset != null) {
                     const more = addText(panel,'button','Earlier sessions'); more.type='button';
@@ -181,7 +201,7 @@
             toggle.setAttribute('aria-expanded',String(!panel.hidden));
             toggle.setAttribute('aria-label',panel.hidden?'Show exercise history':'Hide exercise history');
             const id = card.dataset.exerciseId || card.querySelector('[data-field="ExerciseId"]')?.value;
-            if (panel.dataset.exerciseId !== id && !loading) { panel.replaceChildren(); panel.dataset.exerciseId=id; nextOffset=0; loaded=false; }
+            if (panel.dataset.exerciseId !== id && !loading) { panel.replaceChildren(); panel.dataset.exerciseId=id; nextOffset=0; loaded=false; entries=[]; }
             if (!panel.hidden && !loaded && !loading) void load();
         });
     }

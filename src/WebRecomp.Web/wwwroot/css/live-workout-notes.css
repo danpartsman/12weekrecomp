@@ -78,3 +78,49 @@
 .wi-history-table th,.wi-history-table td { text-align:left; padding:.4rem; border-bottom:1px solid #315a84; }
 .wi-history-table td:last-child { overflow-wrap:anywhere; white-space:pre-wrap; }
 .wi-history-notes { white-space:pre-wrap; overflow-wrap:anywhere; }
+
+/* Keep the editor on two rows: sets/reps, then weight/notes/history. */
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-workout-exercise {
+    grid-template-columns:minmax(0,5.5rem) minmax(0,1fr)!important;
+    gap:.55rem .65rem!important;
+    align-items:end!important;
+}
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-workout-exercise-name {
+    grid-column:1 / -1!important; grid-row:1!important;
+}
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-sets-field {
+    grid-column:1!important; grid-row:2!important;
+}
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-set-reps-group {
+    grid-column:2!important; grid-row:2!important;
+    display:flex!important; flex-wrap:nowrap!important; gap:.35rem!important;
+    width:100%!important; min-width:0!important; padding-bottom:0!important;
+    scrollbar-gutter:auto!important;
+}
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-set-rep-field {
+    flex:1 1 0!important; width:auto!important; min-width:2.5rem!important; max-width:6rem!important;
+}
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-heaviest-field {
+    grid-column:1!important; grid-row:3!important;
+}
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-sets-field,
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-heaviest-field {
+    width:100%!important; min-width:0!important; max-width:none!important;
+}
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-notes-field {
+    grid-column:2!important; grid-row:3!important; min-width:0!important; max-width:none!important;
+}
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-exercise-action-stack {
+    grid-column:1 / -1!important; grid-row:auto!important;
+}
+body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-exercise-history {
+    grid-column:1 / -1!important; grid-row:auto!important;
+}
+.wi-history-table th,.wi-history-table td { white-space:nowrap; }
+.wi-history-table .wi-history-note-cell { white-space:nowrap; max-width:18rem; overflow:hidden; text-overflow:ellipsis; }
+@media(max-width:520px) {
+    body.app-shell .workout-intelligence-page.wi-live-page-minimal .wi-workout-exercise {
+        grid-template-columns:minmax(0,4rem) minmax(0,1fr)!important;
+        column-gap:.4rem!important;
+    }
+}
