@@ -110,7 +110,7 @@
 
             <span data-completion="body" class="@CompletionClass(Model.BodyRecoveryComplete)">
                 <b>1</b>
-                Body &amp; Recovery
+                Scale
                 <em>@CompletionText(Model.BodyRecoveryComplete)</em>
             </span>
 
@@ -128,7 +128,8 @@
         </div>
     </section>
 
-    <partial name="_CheckInForm" model="Model" />
+    @{ var scaleEntryViewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["ScaleOnly"] = true }; }
+    <partial name="_CheckInForm" model="Model" view-data="scaleEntryViewData" />
 
     <form asp-action="Index"
           method="post"

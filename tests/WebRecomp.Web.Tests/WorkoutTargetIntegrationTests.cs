@@ -234,6 +234,25 @@ public sealed class WorkoutTargetIntegrationTests
             Assert.Equal(2100m,(await db.NutritionDays.SingleAsync()).ActualCalories);
         }
     }
+    [Fact] public async Task QuickScaleEntryPreservesRecoveryAndPainData()
+    {
+        var (db,context)=await SetupAsync(new RegionFeeling(){Region="biceps",Mark=2,Pain=4});using(db)
+        {
+            var date=AppUserContextService.GetClientToday(context.Client!);
+            var checkin=await db.DailyCheckins.SingleAsync();checkin.SleepHours=7;checkin.RestingHr=55;checkin.EnergyScore=8;checkin.PainFlag=true;
+            await db.SaveChangesAsync();var before=checkin.Notes;
+            var http=new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            http.User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new("sub","synthetic")],"test"));
+            http.Request.Headers["X-Requested-With"]="XMLHttpRequest";
+            var users=new AppUserContextService(db,new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+            var controller=new WebRecomp.Web.Controllers.DailyEntryController(db,users,new(db),new(db),null!);
+            controller.ControllerContext=new(){HttpContext=http};
+            Assert.IsType<Microsoft.AspNetCore.Mvc.JsonResult>(await controller.Scale(new(){Date=date,WeightLb=205},default));
+            var stored=await db.DailyCheckins.SingleAsync();
+            Assert.Equal(before,stored.Notes);Assert.Equal(7m,stored.SleepHours);Assert.Equal((short?)55,stored.RestingHr);Assert.Equal((byte?)8,stored.EnergyScore);Assert.True(stored.PainFlag);
+            Assert.Equal(205m,(await db.Measurements.SingleAsync()).WeightLb);
+        }
+    }
     [Fact] public async Task CheckinSaveAppliesSharedRatingsAndDailyEntriesShowsSavedScale()
     {
         var (db,context)=await SetupAsync(); using(db)

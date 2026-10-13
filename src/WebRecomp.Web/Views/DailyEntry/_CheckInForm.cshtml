@@ -1,10 +1,13 @@
 @model WebRecomp.Web.ViewModels.DailyEntryViewModel
-<form asp-controller="DailyEntry" asp-action="CheckIn" method="post" id="scale-feel-form" class="scale-feel-editor">
+@{ var scaleOnly = ViewData["ScaleOnly"] is true; }
+<form asp-controller="DailyEntry" asp-action="@(scaleOnly ? "Scale" : "CheckIn")" method="post" id="scale-feel-form" class="scale-feel-editor">
 @Html.AntiForgeryToken()
 <input asp-for="Date" id="scale-feel-date" type="hidden" /><input asp-for="RenderedMeasurementId" id="scale-feel-measurement-id" type="hidden" />
-<div class="sf-save-bar"><span id="scale-feel-save-status" role="status" aria-live="polite">Changes save automatically.</span><button type="button" data-scale-retry hidden>Retry</button></div>
+<div class="sf-save-bar"><span id="scale-feel-save-status" role="status" aria-live="polite"></span><button type="button" data-scale-retry hidden>Retry</button></div>
 <div asp-validation-summary="All" class="validation"></div>
 <partial name="_ScaleFeel" model="Model" />
+@if (!scaleOnly) {
 <section class="card sf-body-section"><h2>Where do you feel it?</h2><p class="small">Click once for soreness, twice for pain/injury, and a third time to clear.</p><p class="sf-legend"><span class="sf-soreness">× Soreness</span><span class="sf-pain">✕ Pain / injury</span></p><partial name="_BodyCheck" model="Model" /></section>
+}
 <noscript><p>Enable JavaScript to save your check-in automatically.</p></noscript>
 </form>

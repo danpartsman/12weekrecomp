@@ -62,3 +62,10 @@ body.test-live-preview .scale-feel-page > .app-page-head h1{font-size:2rem!impor
 @media (max-width:360px) {
     .scale-feel-editor .daily-entry-grid { grid-template-columns:minmax(0,1fr); }
 }
+
+/* Entry pages keep routine autosave silent; errors and Retry remain visible. */
+.sf-save-bar { display:none; }
+.sf-save-bar:has([data-state="error"]) { display:flex; }
+.scale-feel-page { gap:.75rem; }
+.scale-feel-page > .app-page-head { margin-bottom:0; }
+.scale-feel-page .scale-feel-editor { margin-top:0; }

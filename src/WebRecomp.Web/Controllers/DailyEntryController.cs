@@ -69,10 +69,15 @@ public sealed class DailyEntryController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public Task<IActionResult> Scale(DailyEntryViewModel model, CancellationToken cancellationToken)
+        => SaveAsync(model, false, true, cancellationToken, scaleOnly: true);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public Task<IActionResult> Index(DailyEntryViewModel model, bool nutritionManualOverride, CancellationToken cancellationToken)
         => SaveAsync(model, nutritionManualOverride, false, cancellationToken);
 
-    private async Task<IActionResult> SaveAsync(DailyEntryViewModel model, bool nutritionManualOverride, bool checkInOnly, CancellationToken cancellationToken)
+    private async Task<IActionResult> SaveAsync(DailyEntryViewModel model, bool nutritionManualOverride, bool checkInOnly, CancellationToken cancellationToken, bool scaleOnly = false)
     {
         var context =
             await userContext.GetAsync(HttpContext, cancellationToken);
@@ -84,7 +89,7 @@ public sealed class DailyEntryController(
 
         if (checkInOnly || model.Date < AppUserContextService.GetClientToday(context.Client))
             model.Workouts.Clear(); // Past workout corrections belong to Workouts, not this ledger.
-        if (checkInOnly)
+        if (checkInOnly && !scaleOnly)
         {
             foreach (var feeling in model.RegionFeelings)
             {
@@ -121,7 +126,7 @@ public sealed class DailyEntryController(
                 model,
                 cancellationToken);
 
-            return View(checkInOnly ? "CheckIn" : "Index", model);
+            return View(checkInOnly && !scaleOnly ? "CheckIn" : "Index", model);
         }
 
         var client = context.Client;
@@ -129,6 +134,8 @@ public sealed class DailyEntryController(
         var now = DateTime.UtcNow;
 
         if (checkInOnly)
+        {
+        if (!scaleOnly)
         {
         var checkin = await db.DailyCheckins
             .SingleOrDefaultAsync(
@@ -164,6 +171,7 @@ public sealed class DailyEntryController(
         checkin.IntendedWorkoutTypeCode = null;
         checkin.Notes = BodyCheckinCodec.Write(Clean(model.RecoveryNotes), model.BodyChecked, model.RegionFeelings, model.PainFlag, model.KeepPain, model.SorenessRating, model.PainRating);
         checkin.UpdatedAtUtc = now;
+        }
 
         var bodyDataEntered =
             model.WeightLb.HasValue
@@ -266,7 +274,7 @@ public sealed class DailyEntryController(
         await db.SaveChangesAsync(cancellationToken);
         if (isAjax) return Json(new { success = true, message = "Saved automatically.", renderedMeasurementId = measurement?.MeasurementId });
         TempData["StatusMessage"] = "Scale & Feel saved. Your workout recommendations use this check-in.";
-        return RedirectToAction("CheckIn", new { date = model.Date.ToString("yyyy-MM-dd") });
+        return RedirectToAction(scaleOnly ? "Index" : "CheckIn", new { date = model.Date.ToString("yyyy-MM-dd") });
         }
 
         var nutritionEntered =
@@ -655,7 +663,7 @@ public sealed class DailyEntryController(
                 model,
                 cancellationToken);
 
-            return View(checkInOnly ? "CheckIn" : "Index", model);
+            return View(checkInOnly && !scaleOnly ? "CheckIn" : "Index", model);
         }
 
         await db.SaveChangesAsync(cancellationToken);

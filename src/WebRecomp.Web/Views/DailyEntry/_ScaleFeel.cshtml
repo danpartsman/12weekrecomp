@@ -1,4 +1,5 @@
 @model WebRecomp.Web.ViewModels.DailyEntryViewModel
+@{ var scaleOnly = ViewData["ScaleOnly"] is true; }
         <section class="daily-entry-section" id="body-recovery">
 
             @if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled)
@@ -9,32 +10,11 @@
                     <p id="scale-pull-status" class="small" role="status" aria-live="polite"></p>
                 </div>
             }
-            <div class="daily-entry-section-heading">
-                <div class="daily-entry-section-number">1</div>
-                <div>
-                    <h2>Body &amp; Recovery</h2>
-                    <p>
-                        Track the body-composition signals that matter most to
-                        recomposition, plus the recovery signals that help shape
-                        today's recommendation.
-                    </p>
-                </div>
-            </div>
-
-            <div class="daily-entry-info">
-                <strong>Recomposition means fat down, skeletal muscle protected or up</strong>
-                <span>
-                    Body weight is useful, but it cannot tell that story by
-                    itself. If your scale provides skeletal muscle,
-                    subcutaneous fat, or visceral fat estimates, enter them
-                    here and judge them by trend rather than a single reading.
-                </span>
-
-                @if (!string.IsNullOrWhiteSpace(Model.MeasurementSourceLabel))
-                {
-                    <small>Source: @Model.MeasurementSourceLabel</small>
-                }
-            </div>
+            <div class="daily-entry-section-heading"><h2>Scale measurements</h2></div>
+            @if (!string.IsNullOrWhiteSpace(Model.MeasurementSourceLabel))
+            {
+                <p class="small">Source: @Model.MeasurementSourceLabel</p>
+            }
 
             <div class="daily-entry-grid daily-entry-grid-body">
 
@@ -111,6 +91,7 @@
 
             </div>
 
+            @if (!scaleOnly) {
             <div class="daily-entry-subheading">
                 <h3>Recovery signals</h3>
                 <p>
@@ -204,5 +185,6 @@
                 <span asp-validation-for="RecoveryNotes"></span>
             </label>
 
+            }
         </section>
 
