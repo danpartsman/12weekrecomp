@@ -5,9 +5,10 @@ namespace WebRecomp.Web.Services.Dashboard2;
 
 public sealed record MacroBand(string Key, string Name, string Color, decimal Target, decimal Low, decimal High, decimal? Eaten)
 {
-    public decimal YellowLow => Key == "protein" ? Low : Target * .85m;
+    public decimal YellowLow => Target * (Key == "protein" ? .90m : .75m);
+    public decimal YellowHigh => Target * (Key == "protein" ? 1.20m : 1.10m);
     public decimal Quality => !Eaten.HasValue || Target <= 0 ? 0m : Eaten >= Low && Eaten <= High ? 1m
-        : Key != "protein" && Eaten >= YellowLow && Eaten < Low ? .5m : 0m;
+        : Eaten >= YellowLow && Eaten <= YellowHigh ? .5m : 0m;
     public decimal Remaining => Math.Max(0, Low - (Eaten ?? 0));
     public string Status => !Eaten.HasValue ? "Not logged" : Eaten > High ? "Above planned range" : Eaten >= Low ? "Within range" : "Still to plan";
 }

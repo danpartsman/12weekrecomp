@@ -30,7 +30,7 @@ public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, dec
 public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation, bool Included = true);
 public sealed class RecompScoreResult
 {
-    public const string Version = "RECOMP_SCORE_V5";
+    public const string Version = "RECOMP_SCORE_V6";
     public int Score { get; init; }
     public string Band => !HasEvidence ? "gray" : Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
     public string Status => !HasEvidence ? "Awaiting completed evidence" : Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";

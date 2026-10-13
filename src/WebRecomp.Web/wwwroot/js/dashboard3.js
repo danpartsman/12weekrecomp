@@ -21,9 +21,11 @@
     [['score', data.Score.DisplayScore, 'Recomp Plan Score'], ['nutrition', data.Score.NutritionScore, 'Nutrition'], ['workout', data.Score.WorkoutScore, 'Workout']].forEach(([key, value, label]) => draw(key, value, 100, [[0, .6, 'red'], [.6, .8, 'yellow'], [.8, 1, 'green']], `${label}: ${value} out of 100, completed-evidence adherence`));
     data.Bands.forEach(b => {
         const maximum = Math.max(1, b.High * 1.3, (b.Eaten || 0) * 1.07);
-        const zones = b.Key === 'protein'
-            ? [[0, b.Low / maximum, 'red'], [b.Low / maximum, b.High / maximum, 'green'], [b.High / maximum, 1, 'red']]
-            : [[0, b.YellowLow / maximum, 'red'], [b.YellowLow / maximum, b.Low / maximum, 'yellow'], [b.Low / maximum, b.High / maximum, 'green'], [b.High / maximum, 1, 'red']];
+        const zones = [[0, b.YellowLow / maximum, 'red'],
+            [b.YellowLow / maximum, b.Low / maximum, 'yellow'],
+            [b.Low / maximum, b.High / maximum, 'green'],
+            [b.High / maximum, b.YellowHigh / maximum, 'yellow'],
+            [b.YellowHigh / maximum, 1, 'red']];
         draw(b.Key, b.Eaten, maximum, zones, `${b.Name}: ${b.Eaten == null ? 'not logged' : b.Eaten + ' grams'}, target ${b.Low} to ${b.High} grams`, ' g');
     });
     const needle = root.querySelector('[data-energy-needle]');
