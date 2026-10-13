@@ -56,6 +56,7 @@
         }
         </div>
         @if (cockpit.BodyComposition is not null) { @await Html.PartialAsync("_RecompBodyCompositionTrends", cockpit.BodyComposition) }
+        @if (cockpit.WeeklyTrend is not null) { @await Html.PartialAsync("_RecompWeeklyTrend", cockpit.WeeklyTrend) }
         <div class="d3-row-heading d3-daily-heading"><h2>Daily Nutrition</h2><span>@Model.ActionDate.ToString("ddd, MMM d")</span></div>
         <div class="d3-macro-grid">@foreach (var band in plan.Bands) {
             <button type="button" class="d3-instrument d3-macro d3-gauge-button" style="--macro:@band.Color" data-open-coach="@band.Key" aria-haspopup="dialog" aria-label="@band.Name gauge. Open trainer explanation"><h3><span class="d3-macro-dot" aria-hidden="true"></span>@band.Name</h3><div class="d3-dial" data-dial="@band.Key"></div><span class="d3-gauge-caption">@band.Target.ToString("0") g target · @band.Low.ToString("0")–@band.High.ToString("0") green ↗</span></button>

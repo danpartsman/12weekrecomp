@@ -26,6 +26,7 @@ public sealed class RecompCockpit
     public bool RollingScore { get; init; } = true;
     public List<RecompDayEvidence> EditableDays { get; init; } = [];
     public RecompBodyCompositionTrends? BodyComposition { get; init; }
+    public RecompWeeklyTrend? WeeklyTrend { get; init; }
     public RecompScoreResult Score { get; init; } = new();
     public RecompGlycogenWork? Glycogen { get; init; }
     public List<RecompUpcomingWorkout> UpcomingWorkouts { get; init; } = [];
@@ -214,6 +215,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 mealPlan.EnergyTarget, mealPlan.Bands[0].Eaten, mealPlan.Bands[1].Eaten, mealPlan.Bands[2].Eaten,
                 mealPlan.EnergyEaten, Flex(today), "Current engine prescription")).ToList(),
             BodyComposition = await BuildBodyCompositionAsync(context, today, ct),
+            WeeklyTrend = await BuildWeeklyTrendAsync(context, today, ct),
             Score = score, Training = training, Glycogen = glycogen, Days = days, History = history, UpcomingWorkouts = upcoming,
             Change = !score.HasEvidence || previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
             TodayFlexibleItems = Flex(today),
@@ -293,6 +295,35 @@ public sealed class RecompCockpitService(RecompDbContext db,
             && x.ProgramId == context.Program!.ProgramId && !x.IsDeleted
             && x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= date).ToListAsync(ct);
         return RecompBodyCompositionTrends.Build(date, rows);
+    }
+
+    private async Task<RecompWeeklyTrend> BuildWeeklyTrendAsync(AppClientContext context, DateOnly date, CancellationToken ct)
+    {
+        var clientId = context.Client!.ClientId; var programId = context.Program!.ProgramId;
+        var from = date.AddDays(-50); var end = date.AddDays(-1);
+        var measurements = await db.Measurements.AsNoTracking().Where(x => x.ClientId == clientId
+            && x.ProgramId == programId && !x.IsDeleted && x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= date).ToListAsync(ct);
+        var foods = await db.NutritionDays.AsNoTracking().Where(x => x.ClientId == clientId && x.ProgramId == programId
+            && x.NutritionDate >= from && x.NutritionDate <= end).ToListAsync(ct);
+        var workouts = await db.WorkoutSessions.AsNoTracking().Where(x => x.ClientId == clientId && x.ProgramId == programId
+            && x.CompletedFlag && x.WorkoutDate >= from && x.WorkoutDate <= end).ToListAsync(ct);
+        workouts = (await DetailedWorkoutEngine30Adapter.CanonicalCompletedSessionsAsync(db, workouts, ct)).ToList();
+        var plans = await db.PlannedWorkouts.AsNoTracking().Where(x => x.ClientId == clientId && x.ProgramId == programId
+            && x.PlannedDate >= from && x.PlannedDate <= end).ToListAsync(ct);
+        var records = await db.AnalysisRuns.AsNoTracking().Where(x => x.ClientId == clientId && x.ProgramId == programId
+            && x.ActionDate >= from && x.ActionDate <= date && (x.EngineVersion.StartsWith("RECOMP_SCORE_") || x.EngineVersion == FlexVersion))
+            .OrderByDescending(x => x.StartedAtUtc).ThenByDescending(x => x.AnalysisRunId).ToListAsync(ct);
+        var snapshots = records.Where(x => x.EngineVersion.StartsWith("RECOMP_SCORE_"))
+            .Select(x => (Run: x, Snapshot: Read<RecompScoreSnapshot>(x.DiagnosticJson))).Where(x => x.Snapshot is not null).ToArray();
+        // Only original same-day captures are used as prescriptions, never reconstructed historical targets.
+        var targets = snapshots.Where(x => x.Snapshot!.TargetCapture is not null)
+            .OrderBy(x => x.Run.StartedAtUtc).ThenBy(x => x.Run.AnalysisRunId)
+            .Select(x => x.Snapshot!.TargetCapture!).GroupBy(x => x.Date).ToDictionary(x => x.Key, x => x.First());
+        var treats = snapshots.SelectMany(x => x.Snapshot!.Days).Where(x => x.FlexibleItems.HasValue)
+            .GroupBy(x => x.Date).ToDictionary(x => x.Key, x => x.First().FlexibleItems);
+        foreach (var group in records.Where(x => x.EngineVersion == FlexVersion).GroupBy(x => x.ActionDate))
+            if (Read<FlexibleItemEntry>(group.First().DiagnosticJson) is { } flex) treats[group.Key] = flex.Count;
+        return RecompWeeklyTrend.Build(date, context.Program.StartDate, measurements, foods, workouts, plans, targets, treats);
     }
 
     private static AnalysisRun NewRun(AppClientContext context, DateOnly date, string version, string json, string confidence) => new()

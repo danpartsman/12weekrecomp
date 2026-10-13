@@ -78,3 +78,14 @@ body.test-live-preview.app-shell.command-center-page .d3 .d3-instrument,body.tes
 .d3-energy-track>.d3-energy-needle{width:5px;z-index:3}
 .d3-energy-track>.d3-composition-zero{position:absolute;left:50%;top:-3px;width:2px;height:15px;background:var(--d3-yellow);transform:translateX(-50%);z-index:2;border-radius:0}
 .d3-composition-zero>span{position:absolute;left:3px;top:-4px;font-size:8px;line-height:10px;color:var(--d3-yellow);background:#10151c}
+
+/* Rolling weekly outcomes and two-date slider comparison. */
+.d3-week-trend{margin:10px 0 16px;padding:12px;border:1px solid #30445d;border-radius:12px;background:#10151c}
+.d3-week-trend>details>summary{cursor:pointer;color:#88d3ff;font-weight:750;min-height:28px;line-height:28px}
+.d3-trend-legend,.d3-trend-actions{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:10px 0;font-size:.8rem}
+.d3-trend-fat{color:#ff6685}.d3-trend-muscle{color:#4bff26}.d3-trend-plot svg{display:block;width:100%;min-height:135px}.d3-trend-plot text{font:12px system-ui,sans-serif}
+.d3-trend-sliders,.d3-trend-result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.d3-trend-sliders label{display:block;font-weight:750;font-size:.85rem}.d3-trend-sliders output{float:right;color:#88d3ff}.d3-trend-sliders input{width:100%;min-height:36px;accent-color:#88d3ff;cursor:pointer}
+.d3-trend-result-grid article{padding:10px;background:#171f2a;border-radius:8px}.d3 .d3-trend-result-grid h3{font-size:.9rem;margin:0 0 6px}.d3-trend-result-grid p{font-size:.8rem;line-height:1.45}
+.d3-trend-table{width:100%;border-collapse:collapse;font-size:.8rem}.d3-trend-table th,.d3-trend-table td{text-align:left;padding:9px 8px;border-bottom:1px solid #30445d;vertical-align:top}.d3-trend-table th{width:40%}.d3-trend-table td{width:30%}
+@media(max-width:620px){.d3-week-trend{padding:10px}.d3-trend-sliders{grid-template-columns:1fr;gap:8px}.d3-trend-result-grid{gap:7px}.d3 .d3-trend-result-grid h3{font-size:.77rem}.d3-trend-result-grid p,.d3-trend-table{font-size:.72rem}.d3-trend-table th,.d3-trend-table td{padding:8px 5px}.d3-trend-actions .button{font-size:.75rem;padding:7px 10px}}
