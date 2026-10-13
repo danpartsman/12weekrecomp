@@ -4355,3 +4355,5 @@ body.test-live-preview
     .workout-intelligence-page .wi-start-preview .wi-preview-exercise { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .workout-intelligence-page .wi-start-preview .wi-preview-exercise strong { grid-column: 1 / -1; }
 }
+
+.workout-intelligence-page .wi-start-preview .wi-preview-exercise span { white-space: normal; min-width: 0; }
