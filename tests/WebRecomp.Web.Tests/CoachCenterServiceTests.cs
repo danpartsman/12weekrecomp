@@ -1,4 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using System.Security.Claims;
+using WebRecomp.Web.Controllers;
+using WebRecomp.Web.Services;
+using WebRecomp.Web.ViewModels;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services.Coaching;
@@ -7,6 +14,34 @@ namespace WebRecomp.Web.Tests;
 public sealed class CoachCenterServiceTests
 {
     private static RecompDbContext Database() => new(new DbContextOptionsBuilder<RecompDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+    [Fact]
+    public async Task NonOwnerCannotConnectAClientEvenWithAnOtherwiseValidCode()
+    {
+        using var db = Database(); var service = new CoachCenterService(db);
+        var user = new UserAccount { UserId = Guid.NewGuid(), ExternalSubject = "non-owner" };
+        var client = new Client { ClientId = Guid.NewGuid(), ClientName = "Managed client" };
+        db.AddRange(user, client, new UserClientAccess { UserClientAccessId = Guid.NewGuid(), UserId = user.UserId,
+            ClientId = client.ClientId, AccessRoleCode = "COACH" });
+        await db.SaveChangesAsync();
+        var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("oid", "non-owner") }, "test")) };
+        var controller = new MyCoachController(db, new AppUserContextService(db, new ConfigurationBuilder().Build()), service)
+            { ControllerContext = new ControllerContext { HttpContext = context } };
+        var code = await service.InviteAsync(Guid.NewGuid(), default);
+        Assert.IsType<ForbidResult>(await controller.Connect(new CoachConnectInput { Code = code }, default));
+        Assert.False(await db.CoachClientRelationships.AnyAsync(x => x.StatusCode == "ACTIVE"));
+    }
+
+    [Fact]
+    public async Task CoachClientEndpointRejectsAnUnassignedClientBeforeReadingTheirRecords()
+    {
+        using var db = Database(); var service = new CoachCenterService(db);
+        var user = new UserAccount { UserId = Guid.NewGuid(), ExternalSubject = "unassigned-coach" };
+        db.Add(user); await db.SaveChangesAsync();
+        var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim("oid", "unassigned-coach") }, "test")) };
+        var controller = new CoachController(db, new AppUserContextService(db, new ConfigurationBuilder().Build()), service)
+            { ControllerContext = new ControllerContext { HttpContext = context } };
+        Assert.IsType<NotFoundResult>(await controller.Client(Guid.NewGuid(), default));
+    }
     [Fact]
     public async Task InviteIsHashedSingleUseAndOnlyGrantsTheInvitingCoachAccess()
     {
