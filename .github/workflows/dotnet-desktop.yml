@@ -146,12 +146,13 @@ jobs:
           if ($null -eq $pub -or [string]::IsNullOrWhiteSpace($pub.publishingPassword)) { throw "TEST deployment credentials unavailable." }
           Write-Output "::add-mask::$($pub.publishingUserName)"
           Write-Output "::add-mask::$($pub.publishingPassword)"
-          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($pub.publishingUserName):$($pub.publishingPassword)"))
+          $auth = az account get-access-token --resource https://management.azure.com/ --query accessToken --output tsv
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($auth)) { throw "TEST deployment access token unavailable." }
           Write-Output "::add-mask::$auth"
           if ([string]::IsNullOrWhiteSpace($pub.scmUri)) { throw "TEST deployment endpoint unavailable." }
           $scm = "https://$(([Uri]$pub.scmUri).Host)"
           Invoke-WebRequest -Uri "$scm/api/vfs/data/coach-migration-${{ github.sha }}.zip" -Method Put `
-              -Headers @{ Authorization = "Basic $auth"; "If-Match" = "*" } -InFile ./coach-migration.zip -ContentType "application/zip" -UseBasicParsing | Out-Null
+              -Headers @{ Authorization = "Bearer $auth"; "If-Match" = "*" } -InFile ./coach-migration.zip -ContentType "application/zip" -UseBasicParsing | Out-Null
           $script = @'
           $ErrorActionPreference = "Stop"
           $dir = "D:\home\data\coach-migration-${{ github.sha }}"
@@ -172,7 +173,7 @@ jobs:
           '@
           $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
           $body = @{ command = "powershell.exe -NoProfile -EncodedCommand $encoded"; dir = "D:\home" } | ConvertTo-Json
-          $result = Invoke-RestMethod -Uri "$scm/api/command" -Method Post -Headers @{ Authorization = "Basic $auth" } -ContentType "application/json" -Body $body
+          $result = Invoke-RestMethod -Uri "$scm/api/command" -Method Post -Headers @{ Authorization = "Bearer $auth" } -ContentType "application/json" -Body $body
           if ($result.Output) { Write-Host $result.Output }
           if ($result.ExitCode -ne 0) { throw "Coach Center migration failed; existing TEST app has not been replaced." }
 
