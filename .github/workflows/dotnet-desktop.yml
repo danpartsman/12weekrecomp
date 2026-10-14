@@ -148,7 +148,8 @@ jobs:
           Write-Output "::add-mask::$($pub.publishingPassword)"
           $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($pub.publishingUserName):$($pub.publishingPassword)"))
           Write-Output "::add-mask::$auth"
-          $scm = "https://recomp-test.scm.azurewebsites.net"
+          if ([string]::IsNullOrWhiteSpace($pub.scmUri)) { throw "TEST deployment endpoint unavailable." }
+          $scm = "https://$(([Uri]$pub.scmUri).Host)"
           Invoke-WebRequest -Uri "$scm/api/vfs/data/coach-migration-${{ github.sha }}.zip" -Method Put `
               -Headers @{ Authorization = "Basic $auth"; "If-Match" = "*" } -InFile ./coach-migration.zip -ContentType "application/zip" -UseBasicParsing | Out-Null
           $script = @'
