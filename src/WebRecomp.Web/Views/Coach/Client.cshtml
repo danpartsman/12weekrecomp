@@ -1,6 +1,7 @@
 @model CoachClientDetailViewModel
 @{ Layout = "_CoachLayout"; ViewData["Title"] = Model.Client.ClientName; }
 <p><a asp-action="Index">← Coach Center</a></p><h1>@Model.Client.ClientName</h1>
+<p><a asp-controller="CoachPrescription" asp-action="Index" asp-route-clientId="@Model.Client.ClientId">Prescription rules →</a></p>
 <section class="card"><h2>Client overview</h2><p>Goal: @(Model.Program?.GoalCode ?? "No active program")</p>
 @if (Model.Measurement is { } reading) { <p>Latest reading · @reading.LocalMeasurementDate.ToString("MMM d, yyyy")</p><p>Weight: @(reading.WeightLb?.ToString("0.0") ?? "—") lb · Body fat: @(reading.BodyFatPct?.ToString("0.0") ?? "—")% · Muscle: @(reading.MuscleMassLb?.ToString("0.0") ?? "—") lb</p> }
 else { <p>No body measurements recorded.</p> }</section>

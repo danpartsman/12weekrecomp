@@ -452,6 +452,7 @@ public sealed class DashboardService(
             Engine30WorkoutProfileSourceCode = engine30Projection.Today.WorkoutProfileSourceCode,
             Engine30WorkoutCategoryCode = engine30Projection.Today.WorkoutCategoryCode,
             Engine30WorkoutTypeCode = engine30Projection.Today.WorkoutTypeCode,
+            CoachPrescriptionNotice = engine30Projection.Today.CoachPrescriptionNotice,
             Engine30CarbGoverningRuleCode = engine30Projection.Today.CarbGoverningRuleCode,
             Engine30BaseLivingKcal = engine30Projection.Today.BaseLivingEnergyKcal,
             Engine30HabitualActivityKcal = engine30Projection.Today.HabitualActivityEnergyKcal,

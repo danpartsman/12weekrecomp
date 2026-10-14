@@ -102,7 +102,10 @@ var migrationSql = learningMigration
     ? await File.ReadAllTextAsync(Path.Combine("database", "043_v1015c_learning_coach_foundation.sql"))
     : localAuthMigrationSql;
 if (learningMigration)
+{
     migrationSql += "\n" + await File.ReadAllTextAsync(Path.Combine("database", "044_coach_center_foundation.sql"));
+    migrationSql += "\n" + await File.ReadAllTextAsync(Path.Combine("database", "045_coach_prescription_rules.sql"));
+}
 
 Console.WriteLine("Starting 12WR database migration.");
 try

@@ -139,6 +139,7 @@ jobs:
           New-Item -ItemType Directory -Path ./coach-migration/database -Force | Out-Null
           Copy-Item database/043_v1015c_learning_coach_foundation.sql ./coach-migration/database/
           Copy-Item database/044_coach_center_foundation.sql ./coach-migration/database/
+          Copy-Item database/045_coach_prescription_rules.sql ./coach-migration/database/
           Compress-Archive -Path ./coach-migration/* -DestinationPath ./coach-migration.zip -Force
           $group = az webapp list --query "[?name=='recomp-test'].resourceGroup | [0]" -o tsv
           if ([string]::IsNullOrWhiteSpace($group)) { throw "Could not resolve TEST resource group." }

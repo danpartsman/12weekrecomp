@@ -1710,6 +1710,7 @@ public sealed class NutritionController(
                     manual.Date,
                     cancellationToken);
 
+            page.PlanTargetWarning = planProjection.Today.CoachPrescriptionNotice;
             page.PlanTargets =
                 new NutritionPlanTargetsViewModel
                 {

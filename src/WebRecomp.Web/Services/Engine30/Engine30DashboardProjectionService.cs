@@ -35,7 +35,11 @@ public sealed record Engine30DashboardDayProjection(
     string EngineVersionCode,
     string ConfigVersionCode,
     string? WorkoutProfileVersionCode,
-    string? WorkoutProfileSourceCode);
+    string? WorkoutProfileSourceCode)
+{
+    public string? CoachPrescriptionNotice { get; init; }
+    public Guid? CoachPrescriptionVersionId { get; init; }
+}
 
 public sealed record Engine30DashboardActualWorkoutProjection(
     bool HasActualWorkout,
@@ -235,7 +239,8 @@ public sealed class Engine30DashboardProjectionService(
             AppClientContext context,
             DateOnly weekStart,
             string planCode,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            bool includeCoachRules = true)
     {
         if (context.Client is null || context.Program is null)
             throw new InvalidOperationException("Active client/program required.");
@@ -270,7 +275,7 @@ public sealed class Engine30DashboardProjectionService(
                 planCode,
                 definitions,
                 measurements,
-                cancellationToken);
+                cancellationToken, includeCoachRules);
 
         return week.Days;
     }
@@ -981,7 +986,7 @@ public sealed class Engine30DashboardProjectionService(
         string planCode,
         IReadOnlyDictionary<string, WorkoutTypeDefinition> definitions,
         IReadOnlyList<Measurement> measurements,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, bool includeCoachRules = true)
     {
         var weekEnd = weekStart.AddDays(6);
 
@@ -1308,7 +1313,7 @@ public sealed class Engine30DashboardProjectionService(
         return new Engine30DashboardWeekProjection(
             PlanCode: planCode,
             WeekStart: weekStart,
-            Days: result,
+            Days: includeCoachRules ? await new WebRecomp.Web.Services.Coaching.CoachPrescriptionRuleStore(db).ApplyAsync(client.ClientId, program.ProgramId, weekStart, result, cancellationToken) : result,
             EnergyCarryover: carryover);
     }
 

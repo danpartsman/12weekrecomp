@@ -1,0 +1,31 @@
+@model CoachPrescriptionPage
+@{ Layout="_CoachLayout"; ViewData["Title"]="Prescription rules"; }
+<p><a asp-controller="Coach" asp-action="Client" asp-route-clientId="@Model.ClientId">← @Model.ClientName</a></p>
+<h1>Prescription rules</h1><p>Set limits for @Model.ClientName. Calories come from the assigned macros. The engine continues to calculate workload and recovery.</p>
+@if(TempData["CoachStatus"] is string status){<div class="app-message success">@status</div>}
+<form asp-action="Preview" asp-route-clientId="@Model.ClientId" method="post" class="card">
+<div asp-validation-summary="All" class="app-message"></div>
+<input type="hidden" name="ExpectedVersionId" value="@Model.Rules.ExpectedVersionId" />
+<input type="hidden" name="PreviewToken" value="@Model.PreviewToken" />
+<label for="EffectiveWeek">Effective week · Monday–Sunday</label><input id="EffectiveWeek" name="EffectiveWeek" type="date" value="@Model.Rules.EffectiveWeek.ToString("yyyy-MM-dd")" required />
+<p>Rules start in an upcoming week. Previous prescriptions and scores are preserved. Leave a limit blank to retain the engine's value.</p>
+<div style="overflow-x:auto"><table><thead><tr><th>Target</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>
+@foreach(var row in new[]{("Protein (g)","Protein",Model.Rules.ProteinMin,Model.Rules.ProteinMax),("Carbs (g)","Carbs",Model.Rules.CarbsMin,Model.Rules.CarbsMax),("Fat (g)","Fat",Model.Rules.FatMin,Model.Rules.FatMax),("Daily calories","DailyCalories",Model.Rules.DailyCaloriesMin,Model.Rules.DailyCaloriesMax),("Weekly calories","WeeklyCalories",Model.Rules.WeeklyCaloriesMin,Model.Rules.WeeklyCaloriesMax)}){
+<tr><th>@row.Item1</th><td><input aria-label="@row.Item1 minimum" name="@(row.Item2)Min" type="number" min="0" step="0.01" value="@row.Item3?.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></td><td><input aria-label="@row.Item1 maximum" name="@(row.Item2)Max" type="number" min="0" step="0.01" value="@row.Item4?.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></td></tr>}
+</tbody></table></div>
+<label><input type="checkbox" name="AdjustCarbsThenFat" value="true" checked="@Model.Rules.AdjustCarbsThenFat" /> Allow carbs, then fat, to adjust within these limits to meet calorie limits.</label><input type="hidden" name="AdjustCarbsThenFat" value="false" />
+<p>Protein is preserved after applying its limits. Without this permission, calorie conflicts must be resolved by changing the rules.</p>
+<label><input type="checkbox" name="Enabled" value="true" checked="@Model.Rules.Enabled" /> Apply coach rules</label><input type="hidden" name="Enabled" value="false" />
+<label for="Reason">Reason for this version</label><textarea id="Reason" name="Reason" rows="3" maxlength="1000" required>@Model.Rules.Reason</textarea>
+<button type="submit">Preview week</button>
+@if(Model.Preview is {Errors.Count:0}){<button type="submit" formaction="@Url.Action("Save",new {clientId=Model.ClientId})">Activate reviewed rules</button>}
+@if(Model.Preview is {} preview){<h2>Engine → coach preview</h2><p>Week: @Model.EngineDays.Sum(x=>x.PrescribedEnergyKcal).ToString("0") → @preview.WeeklyCalories.ToString("0") calories</p>
+<div style="overflow-x:auto"><table><thead><tr><th>Day</th><th>Protein (g)</th><th>Carbs (g)</th><th>Fat (g)</th><th>Calories</th></tr></thead><tbody>
+@foreach(var before in Model.EngineDays){var after=preview.Days.Single(x=>x.Date==before.Date);<tr><td>@before.Date.ToString("ddd, MMM d")</td><td>@before.ProteinG.ToString("0.##") → @after.ProteinG.ToString("0.##")</td><td>@before.RecommendedCarbsG.ToString("0.##") → @after.RecommendedCarbsG.ToString("0.##")</td><td>@before.FatG.ToString("0.##") → @after.FatG.ToString("0.##")</td><td>@before.PrescribedEnergyKcal.ToString("0.##") → @after.PrescribedEnergyKcal.ToString("0.##")</td></tr>}
+</tbody></table></div>}
+</form>
+<section class="card"><h2>Version history</h2><p>Each saved version keeps its author, explanation and reviewed prescription. Disconnecting the author removes their rules from active use.</p>
+@foreach(var version in Model.History){var saved=System.Text.Json.JsonSerializer.Deserialize<CoachPrescriptionRules>(version.RulesJson)!;
+<details><summary>@version.CreatedAtUtc.ToString("MMM d, yyyy HH:mm") UTC · From @version.EffectiveWeek.ToString("MMM d") · @(version.IsEnabled?"Coach rules":"Engine rules")</summary><p>By @Model.Authors.GetValueOrDefault(version.CoachUserId,"Trainer") · @version.Reason</p>
+<ul>@foreach(var bound in new[]{("Protein (g)",saved.ProteinMin,saved.ProteinMax),("Carbs (g)",saved.CarbsMin,saved.CarbsMax),("Fat (g)",saved.FatMin,saved.FatMax),("Daily calories",saved.DailyCaloriesMin,saved.DailyCaloriesMax),("Weekly calories",saved.WeeklyCaloriesMin,saved.WeeklyCaloriesMax)}){<li>@bound.Item1: minimum @(bound.Item2?.ToString("0.##") ?? "Engine") · maximum @(bound.Item3?.ToString("0.##") ?? "Engine")</li>}</ul><p>@(saved.AdjustCarbsThenFat?"Calorie adjustment: carbs, then fat, within limits.":"Calorie adjustment: conflicts require review.")</p></details>}
+</section>

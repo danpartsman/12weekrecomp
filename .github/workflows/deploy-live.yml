@@ -103,6 +103,7 @@ jobs:
           New-Item -ItemType Directory -Path ./learning-migration/database -Force | Out-Null
           Copy-Item database/043_v1015c_learning_coach_foundation.sql ./learning-migration/database/
           Copy-Item database/044_coach_center_foundation.sql ./learning-migration/database/
+          Copy-Item database/045_coach_prescription_rules.sql ./learning-migration/database/
           Compress-Archive -Path ./learning-migration/* -DestinationPath ./learning-migration.zip -Force
 
           $pub = az webapp deployment list-publishing-credentials `

@@ -273,6 +273,7 @@ public sealed class DashboardViewModel
     public string PreferredCoachCode { get; set; } = "MARISOL";
     public string? Engine30WorkoutTypeCode { get; set; }
     public string? TomorrowEngine30WorkoutTypeCode { get; set; }
+    public string? CoachPrescriptionNotice { get; set; }
     public string Engine30CarbGoverningRuleCode { get; set; } = "";
     public decimal Engine30BaseLivingKcal { get; set; }
     public decimal Engine30HabitualActivityKcal { get; set; }
