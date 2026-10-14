@@ -30,6 +30,7 @@ public sealed class DetailedWorkoutController(
     {
         var context = await userContext.GetAsync(HttpContext, cancellationToken);
         if (context.Client is null) return RedirectToAction("Index", "Intake");
+        TempData["ExerciseNotesStatus"] = true;
         var count = await ExerciseNotesCleanup.ClearAsync(db, context.Client.ClientId, environment, cancellationToken);
         TempData["StatusMessage"] = $"Cleared notes from {count} exercises in your saved workouts and workout history.";
         return RedirectToAction(nameof(Index));
@@ -41,6 +42,7 @@ public sealed class DetailedWorkoutController(
     {
         var context = await userContext.GetAsync(HttpContext, cancellationToken);
         if (context.Client is null) return RedirectToAction("Index", "Intake");
+        TempData["ExerciseNotesStatus"] = true;
         var count = await ExerciseNotesCleanup.RestoreAsync(db, context.Client.ClientId, environment, cancellationToken);
         TempData["StatusMessage"] = $"Restored {count} exercise notes. Notes you entered since clearing were kept.";
         return RedirectToAction(nameof(Index));

@@ -322,14 +322,14 @@
 
     @if (TempData["StatusMessage"] is string statusMessage)
     {
-        <div class="app-message success">@statusMessage</div>
+        <div class="app-message @(TempData["ExerciseNotesStatus"] is true ? "" : "success")">@statusMessage</div>
     }
     @if (TempData["WorkoutImportError"] is string workoutImportError)
     {
         <div class="app-message error">@workoutImportError</div>
     }
 
-    @if (isHome)
+    @if (isHome || isStart || (isSaved && Model.SelectedTemplate is null))
     {
         <details class="card">
             <summary>Exercise notes</summary>
