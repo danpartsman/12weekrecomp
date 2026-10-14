@@ -104,6 +104,7 @@ var migrationSql = learningMigration
 if (learningMigration)
     migrationSql += "\n" + await File.ReadAllTextAsync(Path.Combine("database", "044_coach_center_foundation.sql"));
 
+Console.WriteLine("Starting 12WR database migration.");
 try
 {
     // The optional path reuses the existing configured database identity. It
