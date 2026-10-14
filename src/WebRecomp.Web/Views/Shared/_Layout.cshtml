@@ -405,11 +405,12 @@
                     Settings
                 </a>
 
-                @if (User.IsInRole("Coach"))
+                <a asp-controller="MyCoach" asp-action="Index">My Trainer</a>
+                @if (User.IsInRole("Coach") || User.IsInRole("Administrator"))
                 {
                     <a asp-controller="Coach"
                        asp-action="Index">
-                        Coach Workspace
+                        Coach Center
                     </a>
                 }
 

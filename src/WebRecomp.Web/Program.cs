@@ -26,6 +26,7 @@ using WebRecomp.NutritionIntelligence.Providers.FatSecret;
 using WebRecomp.NutritionIntelligence.Providers.Usda;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachCenterService>();
 
 var connectionString = builder.Configuration.GetConnectionString("RecompDatabase")
     ?? throw new InvalidOperationException(

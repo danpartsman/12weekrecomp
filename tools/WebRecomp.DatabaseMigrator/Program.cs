@@ -101,6 +101,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::nutrition TO web_recomp_app;
 var migrationSql = learningMigration
     ? await File.ReadAllTextAsync(Path.Combine("database", "043_v1015c_learning_coach_foundation.sql"))
     : localAuthMigrationSql;
+if (learningMigration)
+    migrationSql += "\n" + await File.ReadAllTextAsync(Path.Combine("database", "044_coach_center_foundation.sql"));
 
 try
 {

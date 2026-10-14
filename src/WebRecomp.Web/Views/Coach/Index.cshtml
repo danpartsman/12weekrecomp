@@ -1,22 +1,20 @@
-﻿@{
-    Layout = "_CoachLayout";
-    ViewData["Title"] = "Coach";
-}
-
-<section class="page-header">
-    <p class="eyebrow">COACH</p>
-    <h1>Coach Workspace</h1>
-    <p>
-        Your 12 Week Recomp coaching workspace is ready.
-    </p>
+@model CoachCenterViewModel
+@{ Layout = "_CoachLayout"; ViewData["Title"] = "Coach Center"; }
+<section class="page-header"><p class="eyebrow">12 WEEK RECOMP · COACH CENTER</p><h1>Your coaching workspace</h1><p>Connect your clients and review their progress in one place.</p></section>
+@if (TempData["CoachStatus"] is string status) { <div class="app-message success">@status</div> }
+<section class="card"><h2>Clients · @Model.Clients.Count</h2>
+@if (Model.Clients.Count == 0) { <p>No clients connected yet. Create a connection code below; your client accepts it from My Trainer.</p> }
+else { <div style="overflow-x:auto"><table><thead><tr><th>Client</th><th>Goal</th><th>Last completed workout</th></tr></thead><tbody>
+@foreach (var client in Model.Clients) { <tr><td><a asp-action="Client" asp-route-clientId="@client.ClientId">@client.Name</a></td><td>@client.Goal</td><td>@(client.LastWorkout?.ToString("MMM d, yyyy") ?? "No completed workouts")</td></tr> }
+</tbody></table></div> }
+<p>@Model.PendingInvites pending connection codes. Codes expire after 14 days and work once.</p>
+<form asp-action="Invite" method="post"><button type="submit">Create client connection code</button></form>
+@if (TempData["CoachInviteCode"] is string code) { <p>Give this code to your client. They enter it under My Trainer and choose to connect.</p><textarea readonly aria-label="Client connection code" rows="2" style="width:100%;overflow-wrap:anywhere">@code</textarea> }
 </section>
-
-<section class="card">
-    <h2>Coach access is active</h2>
-
-    <p>
-        This v1006 page establishes the protected Coach area and verifies
-        role-based access. Client coaching tools will be added in a later
-        application version.
-    </p>
-</section>
+<section class="card"><h2>Coach profile</h2><form asp-action="Profile" method="post"><div asp-validation-summary="All"></div>
+<label for="DisplayName">Trainer name</label><input id="DisplayName" name="DisplayName" value="@Model.Profile.DisplayName" maxlength="100" required />
+<label for="Specialties">Specialties</label><input id="Specialties" name="Specialties" value="@Model.Profile.Specialties" maxlength="500" />
+<label for="Bio">About you</label><textarea id="Bio" name="Bio" maxlength="2000" rows="3">@Model.Profile.Bio</textarea>
+<button type="submit">Save profile</button></form></section>
+<section class="card"><h2>Next steps</h2><p>The client connection and access foundation is ready. These tools will be added in the next stages:</p>
+<ul><li>Prescription rules: client macro limits, daily and weekly calorie limits, and a preview of coach adjustments.</li><li>Workout routines: reusable coach routines with an optional system-sharing setting.</li><li>Weekly schedules: assigned routines and planned versus completed training.</li><li>Messages: private coach–client conversations.</li><li>Trainer photo: show the client's personal trainer alongside their plan.</li></ul></section>

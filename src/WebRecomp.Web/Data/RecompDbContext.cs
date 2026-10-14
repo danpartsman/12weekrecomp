@@ -5,6 +5,8 @@ namespace WebRecomp.Web.Data;
 
 public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) : DbContext(options)
 {
+    public DbSet<CoachProfile> CoachProfiles => Set<CoachProfile>();
+    public DbSet<CoachClientRelationship> CoachClientRelationships => Set<CoachClientRelationship>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
     public DbSet<LearningCoachPreference> LearningCoachPreferences => Set<LearningCoachPreference>();
     public DbSet<LearningSeriesProgress> LearningSeriesProgress => Set<LearningSeriesProgress>();
@@ -82,6 +84,13 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
         Map<ProgramRecord>(modelBuilder, "Programs", "app", nameof(ProgramRecord.ProgramId));
         Map<ProgramPlanChange>(modelBuilder, "ProgramPlanChanges", "app", nameof(ProgramPlanChange.ProgramPlanChangeId));
         Map<ProgramGoal>(modelBuilder, "ProgramGoals", "app", nameof(ProgramGoal.ProgramGoalId));
+        Map<CoachProfile>(modelBuilder, "CoachProfiles", "app", nameof(CoachProfile.UserId));
+        Map<CoachClientRelationship>(modelBuilder, "CoachClientRelationships", "app", nameof(CoachClientRelationship.CoachClientRelationshipId));
+        modelBuilder.Entity<CoachProfile>().Property(x => x.DisplayName).HasMaxLength(100);
+        modelBuilder.Entity<CoachProfile>().Property(x => x.Bio).HasMaxLength(2000);
+        modelBuilder.Entity<CoachProfile>().Property(x => x.Specialties).HasMaxLength(500);
+        modelBuilder.Entity<CoachClientRelationship>().Property(x => x.InviteTokenHash).HasMaxLength(64);
+        modelBuilder.Entity<CoachClientRelationship>().Property(x => x.StatusCode).HasMaxLength(20);
         Map<Measurement>(modelBuilder, "Measurements", "app", nameof(Measurement.MeasurementId));
         Map<DailyCheckin>(modelBuilder, "DailyCheckins", "app", nameof(DailyCheckin.CheckinId));
         Map<PlannedWorkout>(modelBuilder, "PlannedWorkouts", "app", nameof(PlannedWorkout.PlannedWorkoutId));
