@@ -329,6 +329,20 @@
         <div class="app-message error">@workoutImportError</div>
     }
 
+    @if (isHome)
+    {
+        <details class="card">
+            <summary>Exercise notes</summary>
+            <p>Clear notes from all exercises in your saved workouts and workout history. You can undo the most recent clear here.</p>
+            <form asp-action="ClearExerciseNotes" method="post">
+                <button type="submit" class="button secondary">Clear all exercise notes</button>
+            </form>
+            <form asp-action="RestoreExerciseNotes" method="post">
+                <button type="submit" class="button secondary">Undo last notes clear</button>
+            </form>
+        </details>
+    }
+
     @if (!Model.FeatureEnabled)
     {
         <section class="card wi-workspace">

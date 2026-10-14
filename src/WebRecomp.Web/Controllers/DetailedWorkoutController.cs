@@ -24,6 +24,28 @@ public sealed class DetailedWorkoutController(
     WorkoutTargetService workoutTargets,
     Microsoft.Extensions.Logging.ILogger<DetailedWorkoutController> logger) : Controller
 {
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClearExerciseNotes([FromServices] IWebHostEnvironment environment, CancellationToken cancellationToken)
+    {
+        var context = await userContext.GetAsync(HttpContext, cancellationToken);
+        if (context.Client is null) return RedirectToAction("Index", "Intake");
+        var count = await ExerciseNotesCleanup.ClearAsync(db, context.Client.ClientId, environment, cancellationToken);
+        TempData["StatusMessage"] = $"Cleared notes from {count} exercises in your saved workouts and workout history.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RestoreExerciseNotes([FromServices] IWebHostEnvironment environment, CancellationToken cancellationToken)
+    {
+        var context = await userContext.GetAsync(HttpContext, cancellationToken);
+        if (context.Client is null) return RedirectToAction("Index", "Intake");
+        var count = await ExerciseNotesCleanup.RestoreAsync(db, context.Client.ClientId, environment, cancellationToken);
+        TempData["StatusMessage"] = $"Restored {count} exercise notes. Notes you entered since clearing were kept.";
+        return RedirectToAction(nameof(Index));
+    }
+
     // B2.35.1 WORKOUT UX SEPARATION
     // Builder/template management and live workout sessions are distinct modes.
     private const string SystemWorkoutConfigVersionCode = "CFG-3000.0";
@@ -5443,8 +5465,7 @@ public sealed class DetailedWorkoutController(
                                 item.Exercise.Name,
                             Mechanics =
                                 item.Exercise.Mechanics,
-                            Notes =
-                                item.Slot.Notes,
+                            Notes = null, // Personal notes stay blank for system recipes.
                             BlockName =
                                 item.Slot.BlockName,
                             BlockType =

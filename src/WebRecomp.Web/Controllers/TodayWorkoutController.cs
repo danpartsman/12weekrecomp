@@ -65,7 +65,7 @@ public sealed class TodayWorkoutController(RecompDbContext db, AppUserContextSer
         {
             var row=new DetailedWorkoutExerciseRecord { DetailedWorkoutExerciseId=Guid.NewGuid(),WorkoutSessionId=session.WorkoutSessionId,
                 ExerciseCatalogItemId=exercise.ExerciseId,ExerciseOrder=++order,ExerciseNameSnapshot=exercise.Name,MechanicsSnapshot=exercise.Mechanics,
-                Notes=exercise.Note,CreatedAtUtc=now,UpdatedAtUtc=now };
+                Notes=null,CreatedAtUtc=now,UpdatedAtUtc=now };
             for(short set=1;set<=exercise.Sets;set++) row.Sets.Add(new DetailedWorkoutSetRecord { DetailedWorkoutSetId=Guid.NewGuid(),
                 DetailedWorkoutExerciseId=row.DetailedWorkoutExerciseId,SetOrder=set,Reps=exercise.DurationSeconds.HasValue?null:(short)exercise.Reps,
                 Rpe=exercise.Rpe,RestSeconds=(short)exercise.RestSeconds,DurationSeconds=exercise.DurationSeconds,CreatedAtUtc=now,UpdatedAtUtc=now });
