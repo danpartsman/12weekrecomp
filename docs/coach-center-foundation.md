@@ -4,7 +4,7 @@ Routes: `/coach` (Coach or Administrator), `/coach/clients/{clientId}` (active r
 
 Coach profiles and coaching relationships are separate from client ownership and built-in learning coaches. Admin Users already provisions Coach roles. No role is granted by visiting the portal. All mutation routes require anti-forgery tokens. Client connections use 256-bit single-use codes, stored only as SHA-256 hashes, expiring after 14 days. Clients explicitly consent before any record is visible and may revoke access. Existing personal dashboards keep their owner context; no global client switching is introduced.
 
-Migration 044 is additive and idempotent. Deployment runs it with the existing App Service configured database identity before replacing the application. No runtime DDL or new identity/permission grants are introduced.
+Migration 044 is additive and idempotent. Deployment runs it with the existing App Service configured database identity before replacing the application. TEST resolves the migration host from Azure publishing metadata because its generated hostname differs from its app name. No runtime DDL or new identity/permission grants are introduced.
 
 Delivered: coach profile editing (name, bio, specialties), connection code creation/acceptance, client roster, latest measurement and recent completed workout overview, client/coach disconnection, portal navigation.
 
