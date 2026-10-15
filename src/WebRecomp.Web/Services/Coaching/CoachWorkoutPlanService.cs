@@ -64,6 +64,18 @@ public sealed class CoachWorkoutPlanService(RecompDbContext db, Engine30WorkoutU
             Rpe=(sameSelection?existing?.PlannedRpe:null) ?? source.PlannedRpe ?? 5,Exercises=resolved.Exercises.Select(x=>new CoachWorkoutExerciseInput {ExerciseId=x.ExerciseId,Name=x.Name,Sets=x.Sets,Reps=x.Reps,WeightLb=x.WeightLb}).ToList()};
         return new() {ClientId=client.ClientId,ClientName=client.ClientName,Input=input,Options=options,Catalog=exercises,CanCustomize=canCustomize,SourceName=resolved.Name};
     }
+    public async Task<string> AvailableRoutineNameAsync(Guid clientId,string requested,CancellationToken ct)
+    {
+        var name=requested.Trim();
+        if(!await db.WorkoutTemplates.AsNoTracking().AnyAsync(x=>x.ClientId==clientId && x.TemplateName.ToUpper()==name.ToUpper(),ct)) return name;
+        var baseName=System.Text.RegularExpressions.Regex.Replace(name,@" \(trainer [0-9]+\)$","");
+        for(var version=2;version<=10000;version++)
+        {
+            var suffix=$" (trainer {version})";var candidate=baseName[..Math.Min(baseName.Length,150-suffix.Length)]+suffix;
+            if(!await db.WorkoutTemplates.AsNoTracking().AnyAsync(x=>x.ClientId==clientId && x.TemplateName.ToUpper()==candidate.ToUpper(),ct)) return candidate;
+        }
+        throw new ArgumentException("Choose a new routine name.");
+    }
     public async Task<(CoachWorkoutPage Page,PlannedWorkout Candidate,string Fingerprint)> PreviewAsync(AppClientContext context,CoachWorkoutInput input,CancellationToken ct)
     {
         var client=context.Client!;var program=context.Program!;var today=AppUserContextService.GetClientToday(client);
@@ -82,6 +94,7 @@ public sealed class CoachWorkoutPlanService(RecompDbContext db, Engine30WorkoutU
             var valid=await db.ExerciseCatalogItems.AsNoTracking().Where(x=>ids.Contains(x.ExerciseCatalogItemId) && x.IsActive && (x.SourceCode!="12WR_CSV_UNMAPPED" || x.SourceExternalId.StartsWith(client.ClientId.ToString("N")+":"))).Select(x=>x.ExerciseCatalogItemId).ToListAsync(ct);
             if(ids.Length!=valid.Count) throw new ArgumentException("An exercise is unavailable or belongs to another client.");
             foreach(var exercise in input.Exercises) ParseReps(exercise.Reps,exercise.Sets);
+            input.Name=await AvailableRoutineNameAsync(client.ClientId,input.Name,ct);
         }
         candidate.PlannedDurationMin=input.Minutes;candidate.PlannedRpe=input.Rpe;candidate.SourceCode="COACH";
         var week=Engine30DashboardProjectionService.WeekStart(input.Date);
@@ -115,6 +128,7 @@ public sealed class CoachWorkoutPlanService(RecompDbContext db, Engine30WorkoutU
             var previous=rows.SingleOrDefault(x=>x.PlannedDate==input.Date);var now=DateTime.UtcNow;
             if(input.Customize)
             {
+                if(await db.WorkoutTemplates.AnyAsync(x=>x.ClientId==client.ClientId && x.TemplateName.ToUpper()==input.Name.Trim().ToUpper(),ct)) return false;
                 var ids=input.Exercises.Select(x=>x.ExerciseId).Distinct().ToArray();
                 var exercises=await db.ExerciseCatalogItems.AsNoTracking().Where(x=>ids.Contains(x.ExerciseCatalogItemId) && x.IsActive && (x.SourceCode!="12WR_CSV_UNMAPPED" || x.SourceExternalId.StartsWith(client.ClientId.ToString("N")+":"))).ToDictionaryAsync(x=>x.ExerciseCatalogItemId,ct);
                 if(exercises.Count!=ids.Length) return false;

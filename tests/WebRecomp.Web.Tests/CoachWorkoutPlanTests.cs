@@ -98,4 +98,15 @@ public sealed class CoachWorkoutPlanTests
         Assert.True(CoachWorkoutPlanService.Editable(today.AddDays(1),today,today,false));
     }
 
+    [Fact]
+    public async Task EditingAnExistingRoutineGetsAUniqueReviewedVersionName()
+    {
+        using var db=Database();var c=Context(db);
+        db.WorkoutTemplates.Add(new() {WorkoutTemplateId=Guid.NewGuid(),ClientId=c.Client!.ClientId,TemplateName="Upper body",WorkoutTypeCode="FULL_BODY_STRENGTH"});
+        db.WorkoutTemplates.Add(new() {WorkoutTemplateId=Guid.NewGuid(),ClientId=c.Client.ClientId,TemplateName="Upper body (trainer 2)",WorkoutTypeCode="FULL_BODY_STRENGTH"});await db.SaveChangesAsync();
+        Assert.Equal("Upper body (trainer 3)",await Service(db).AvailableRoutineNameAsync(c.Client.ClientId,"Upper body",default));
+        Assert.Equal("Upper body (trainer 3)",await Service(db).AvailableRoutineNameAsync(c.Client.ClientId,"Upper body (trainer 2)",default));
+        Assert.Equal("Upper body",await Service(db).AvailableRoutineNameAsync(Guid.NewGuid(),"Upper body",default));
+    }
+
 }
