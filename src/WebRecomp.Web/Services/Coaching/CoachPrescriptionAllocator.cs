@@ -40,6 +40,8 @@ public static class CoachPrescriptionAllocator
             if(fixedIndices.Length==0) {foreach(var i in pending) values[i]=proposed[i];break;}
             foreach(var i in fixedIndices) {remaining-=upper-values[i];values[i]=upper;pending.Remove(i);}
         }
+        // Bound intermediate precision before reconciling the exact weekly total.
+        for(var i=0;i<7;i++) values[i]=Clamp(decimal.Round(values[i],6),lower,upper);
         // Remove decimal division residue without changing the seven-day goal.
         var residue=total-values.Sum();
         foreach(var i in Enumerable.Range(0,7)) {var next=Clamp(values[i]+residue,lower,upper);residue-=next-values[i];values[i]=next;if(residue==0) break;}
