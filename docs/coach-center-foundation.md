@@ -16,3 +16,6 @@ Next: trainer photo uploads; per-client prescription policies with macro and dai
 2. Re-run the failed TEST deployment job for the current test branch commit. Build and all 640 tests passed; replacement was blocked before deployment by SQL 262.
 3. Verify Coach Center with a Coach or Administrator account and My Trainer with a client owner. Do not assign real clients for verification without their consent.
 4. Apply the same schema prerequisites to LIVE using a database administrator, then promote the validated test commit. LIVE remains on its previous release until this prerequisite is complete.
+
+## Connection-code update
+New invitations use a four-letter word plus two digits (for example PINE42), expire after 24 hours, and remain hashed and single-use. Existing 64-character invitations remain valid until their original expiry. Invite generation and acceptance are rate-limited. Expired invitations are marked revoked while retaining history. SQL Server transactions run inside its execution strategy, with tracked state reset for retries. Prescription activation uses the same retry-safe pattern.

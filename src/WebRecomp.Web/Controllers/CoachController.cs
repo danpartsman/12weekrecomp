@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
@@ -33,7 +34,7 @@ public sealed class CoachController(RecompDbContext db, AppUserContextService us
         return RedirectToAction(nameof(Index));
     }
 
-    [HttpPost("invite"), ValidateAntiForgeryToken]
+    [HttpPost("invite"), ValidateAntiForgeryToken, EnableRateLimiting("access-code")]
     public async Task<IActionResult> Invite(CancellationToken ct)
     {
         TempData["CoachInviteCode"] = await coaches.InviteAsync((await users.GetAsync(HttpContext, ct)).User.UserId, ct);

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Services;
@@ -35,7 +36,7 @@ public sealed class MyCoachController(RecompDbContext db, AppUserContextService 
         var id = await OwnedClientAsync(ct);
         return id.HasValue ? View(await BuildAsync(id.Value, new(), ct)) : RedirectToAction("Index", "Intake");
     }
-    [HttpPost("connect"), ValidateAntiForgeryToken]
+    [HttpPost("connect"), ValidateAntiForgeryToken, EnableRateLimiting("access-code")]
     public async Task<IActionResult> Connect(CoachConnectInput input, CancellationToken ct)
     {
         var id = await OwnedClientAsync(ct);

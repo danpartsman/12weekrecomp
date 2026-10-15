@@ -7,14 +7,14 @@
 else { <div style="overflow-x:auto"><table><thead><tr><th>Client</th><th>Goal</th><th>Last completed workout</th></tr></thead><tbody>
 @foreach (var client in Model.Clients) { <tr><td><a asp-action="Client" asp-route-clientId="@client.ClientId">@client.Name</a></td><td>@client.Goal</td><td>@(client.LastWorkout?.ToString("MMM d, yyyy") ?? "No completed workouts")</td></tr> }
 </tbody></table></div> }
-<p>@Model.PendingInvites pending connection codes. Codes expire after 14 days and work once.</p>
+<p>@Model.PendingInvites pending connection codes. New codes expire after 24 hours and work once.</p>
 <form asp-action="Invite" method="post"><button type="submit">Create client connection code</button></form>
-@if (TempData["CoachInviteCode"] is string code) { <p>Give this code to your client. They enter it under My Trainer and choose to connect.</p><textarea readonly aria-label="Client connection code" rows="2" style="width:100%;overflow-wrap:anywhere">@code</textarea> }
+@if (TempData["CoachInviteCode"] is string code) { <p>Give this code to your client. They enter it under My Trainer and choose to connect.</p><textarea readonly aria-label="Client connection code" rows="1" style="width:10em;font-size:1.5rem;letter-spacing:0.12em">@code</textarea> }
 </section>
 <section class="card"><h2>Coach profile</h2><form asp-action="Profile" method="post"><div asp-validation-summary="All"></div>
 <label for="DisplayName">Trainer name</label><input id="DisplayName" name="DisplayName" value="@Model.Profile.DisplayName" maxlength="100" required />
 <label for="Specialties">Specialties</label><input id="Specialties" name="Specialties" value="@Model.Profile.Specialties" maxlength="500" />
 <label for="Bio">About you</label><textarea id="Bio" name="Bio" maxlength="2000" rows="3">@Model.Profile.Bio</textarea>
 <button type="submit">Save profile</button></form></section>
-<section class="card"><h2>Next steps</h2><p>The client connection and access foundation is ready. These tools will be added in the next stages:</p>
+<section class="card"><h2>Next steps</h2><p>Prescription rules are available now. More coaching tools will follow:</p>
 <ul><li>Prescription rules are available from each connected client’s overview, with macro and calorie limits and a weekly preview.</li><li>Workout routines: reusable coach routines with an optional system-sharing setting.</li><li>Weekly schedules: assigned routines and planned versus completed training.</li><li>Messages: private coach–client conversations.</li><li>Trainer photo: show the client's personal trainer alongside their plan.</li></ul></section>

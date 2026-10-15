@@ -58,6 +58,7 @@ public sealed class CoachCenterServiceTests
         Assert.False(await service.CanAccessAsync(coach, otherClient));
         Assert.False(await service.AcceptAsync(otherClient, code, default));
         Assert.Empty(await db.UserClientAccess.ToListAsync()); // Existing client ownership/access is never repurposed.
+        invite = await db.CoachClientRelationships.SingleAsync();
         invite.StatusCode = "REVOKED"; invite.RevokedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync();
         Assert.False(await service.CanAccessAsync(coach, client));
@@ -91,4 +92,29 @@ public sealed class CoachCenterServiceTests
         var roster = (await service.BuildAsync(coach, default)).Clients;
         Assert.Equal(mine.ClientId, Assert.Single(roster).ClientId);
     }
+    [Fact]
+    public async Task NewInvitesUseWordAndTwoDigitsExpireInOneDayAndAreDistinct()
+    {
+        using var db = Database(); var service = new CoachCenterService(db);
+        var first = await service.InviteAsync(Guid.NewGuid(), default);
+        var second = await service.InviteAsync(Guid.NewGuid(), default);
+        Assert.Matches("^[A-Z]{4}[0-9]{2}$", first);
+        Assert.NotEqual(first, second);
+        Assert.All(await db.CoachClientRelationships.ToListAsync(), x => Assert.InRange((x.InviteExpiresAtUtc - x.CreatedAtUtc).TotalHours, 23.99, 24.01));
+    }
+    [Fact]
+    public async Task ExpiredCodesAreReleasedWithoutRemovingHistoryAndLegacyCodesStillWork()
+    {
+        using var db = Database(); var service = new CoachCenterService(db);
+        var oldCode = new string('A', 64);
+        var legacy = new CoachClientRelationship {CoachClientRelationshipId=Guid.NewGuid(),CoachUserId=Guid.NewGuid(),InviteTokenHash=CoachCenterService.HashCode(oldCode),InviteExpiresAtUtc=DateTime.UtcNow.AddHours(1)};
+        var expired = new CoachClientRelationship {CoachClientRelationshipId=Guid.NewGuid(),CoachUserId=Guid.NewGuid(),InviteTokenHash=CoachCenterService.HashCode(new string('B',64)),InviteExpiresAtUtc=DateTime.UtcNow.AddDays(-1)};
+        db.AddRange(legacy,expired); await db.SaveChangesAsync();
+        await service.InviteAsync(Guid.NewGuid(), default);
+        var history = await db.CoachClientRelationships.SingleAsync(x=>x.CoachClientRelationshipId==expired.CoachClientRelationshipId);
+        Assert.Equal("REVOKED",history.StatusCode); Assert.Null(history.InviteTokenHash); Assert.NotNull(history.RevokedAtUtc);
+        Assert.False(await service.AcceptAsync(Guid.NewGuid(),new string('B',64),default));
+        Assert.True(await service.AcceptAsync(Guid.NewGuid(),oldCode,default));
+    }
+
 }

@@ -85,16 +85,23 @@ public sealed class CoachPrescriptionController(RecompDbContext db, AppUserConte
         foreach(var error in preview.Errors) ModelState.AddModelError("",error);
         if(!save || !ModelState.IsValid) return View("Index",page);
         if(input.PreviewToken!=page.PreviewToken) {ModelState.AddModelError("","The rules or engine prescription changed. Review this updated preview before activating.");return View("Index",page);}
+        var versionId=Guid.NewGuid();
+        var strategy=db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync<IActionResult>(async () =>
+        {
+        db.ChangeTracker.Clear();
+        if(await db.CoachPrescriptionRuleVersions.AnyAsync(x=>x.CoachPrescriptionRuleVersionId==versionId,ct)) return RedirectToAction(nameof(Index),new {clientId});
         await using var transaction=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
         if(!await coaches.CanAccessAsync(owned.User.UserId,clientId,ct)) return NotFound();
         var current=await db.CoachPrescriptionRuleVersions.Where(x=>x.ClientId==clientId && x.ProgramId==context.Program.ProgramId)
             .OrderByDescending(x=>x.CreatedAtUtc).ThenByDescending(x=>x.CoachPrescriptionRuleVersionId).Select(x=>(Guid?)x.CoachPrescriptionRuleVersionId).FirstOrDefaultAsync(ct);
         if(current!=input.ExpectedVersionId) {ModelState.AddModelError("","Another trainer changed this client's rules. Reload and review the latest version.");return View("Index",page);}
-        db.CoachPrescriptionRuleVersions.Add(new() {CoachPrescriptionRuleVersionId=Guid.NewGuid(),ClientId=clientId,ProgramId=context.Program.ProgramId,
+        db.CoachPrescriptionRuleVersions.Add(new() {CoachPrescriptionRuleVersionId=versionId,ClientId=clientId,ProgramId=context.Program.ProgramId,
             CoachUserId=owned.User.UserId,EffectiveWeek=input.EffectiveWeek,IsEnabled=input.Enabled,RulesJson=JsonSerializer.Serialize(input),Reason=input.Reason.Trim(),
             PreviewJson=JsonSerializer.Serialize(new { Engine=page.EngineDays, Adjusted=preview.Days, preview.WeeklyCalories }),CreatedAtUtc=DateTime.UtcNow});
         await db.SaveChangesAsync(ct);await transaction.CommitAsync(ct);
         TempData["CoachStatus"]="Prescription rules saved for the selected week.";
         return RedirectToAction(nameof(Index),new {clientId});
+        });
     }
 }
