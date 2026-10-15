@@ -1,0 +1,8 @@
+@using WebRecomp.Web.Services.Engine30
+@using WebRecomp.Web.Services.Coaching
+@model IReadOnlyList<Engine30DashboardDayProjection>
+<details class="coach-maintenance"><summary>Maintenance macro reference · daily and weekly</summary>
+<p class="muted">Estimated maintenance energy comes from living, occupation/lifestyle and exercise. This illustrative split keeps the engine's protein and fat, then calculates carbs from remaining maintenance calories. It is a reference, not an assigned target.</p>
+<div class="coach-table-scroll" tabindex="0" role="region" aria-label="Maintenance macro reference"><table class="coach-week-table"><thead><tr><th>Maintenance</th>@foreach(var d in Model){<th>@d.Date.ToString("ddd")</th>}<th>Weekly total</th></tr></thead><tbody>
+@foreach(var row in new[]{("Protein (g)",Model.Select(x=>(decimal?)x.ProteinG).ToArray()),("Carbs (g)",Model.Select(CoachWeekService.MaintenanceCarbs).ToArray()),("Fat (g)",Model.Select(x=>(decimal?)x.FatG).ToArray()),("Calories",Model.Select(x=>(decimal?)x.MaintenanceEnergyKcal).ToArray())}){<tr><th>@row.Item1</th>@foreach(var value in row.Item2){<td>@(value?.ToString("0.#") ?? "—")</td>}<td>@(row.Item2.Any(x=>!x.HasValue)?"—":row.Item2.Sum().Value.ToString("0.#"))</td></tr>}
+</tbody></table></div></details>

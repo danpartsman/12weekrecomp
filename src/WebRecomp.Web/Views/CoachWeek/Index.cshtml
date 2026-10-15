@@ -1,0 +1,29 @@
+@using WebRecomp.Web.Services.Coaching
+@using System.Globalization
+@model CoachWeekPage
+@{Layout="_CoachLayout";ViewData["Title"]="Weekly coaching worksheet";var r=Model.Input.Rules;var groups=new[]{"Hard strength","Accessory","Conditioning","Cardio","Recovery","Rest"};}
+<p><a asp-controller="Coach" asp-action="Client" asp-route-clientId="@Model.ClientId">← @Model.ClientName’s plan</a></p>
+<div class="page-head"><div><p class="eyebrow">COACH CENTER · NUTRITION & TRAINING</p><h1>Weekly coaching worksheet</h1><p class="lede">@Model.ClientName · @r.EffectiveWeek.ToString("MMM d")–@r.EffectiveWeek.AddDays(6).ToString("MMM d")</p></div></div>
+<section class="card"><h2>Engine recommendation for the saved schedule</h2><p>Daily protein · <strong>@Model.Engine.FirstOrDefault()?.ProteinG.ToString("0.#") g</strong>. The engine recommendation reflects the saved workouts before your adjustments.</p>
+@await Html.PartialAsync("~/Views/Shared/_CoachMacroWeek.cshtml",Model.Engine)
+@await Html.PartialAsync("~/Views/Shared/_CoachMaintenance.cshtml",Model.Engine)</section>
+<form asp-action="Preview" asp-route-clientId="@Model.ClientId" method="post" id="coach-week-form" class="card">
+<div asp-validation-summary="All" class="app-message"></div>
+<input type="hidden" name="Rules.ExpectedVersionId" value="@r.ExpectedVersionId" /><input type="hidden" name="PreviewToken" value="@Model.PreviewToken" /><input type="hidden" name="Rules.Enabled" value="true" />
+<h2>Coach assignment</h2>
+<label for="week-start">Effective Monday</label><input type="date" id="week-start" name="Rules.EffectiveWeek" value="@r.EffectiveWeek.ToString("yyyy-MM-dd")" required />
+<p class="muted">Starts in an upcoming full week. Macro rules continue until replaced or disabled; this workout schedule is saved for the selected week. Saved routines are preserved when their workout category stays the same.</p>
+<div class="coach-targets">
+<label>Daily protein (g)<input name="Rules.DailyProteinTarget" type="number" min="1" max="1000" step="0.01" value="@r.DailyProteinTarget?.ToString(CultureInfo.InvariantCulture)" required /></label>
+<label>Weekly carbs (g)<input name="Rules.WeeklyCarbsTarget" type="number" min="0" max="14000" step="0.01" value="@r.WeeklyCarbsTarget?.ToString(CultureInfo.InvariantCulture)" required /></label>
+<label>Weekly fat (g)<input name="Rules.WeeklyFatTarget" type="number" min="0" max="3500" step="0.01" value="@r.WeeklyFatTarget?.ToString(CultureInfo.InvariantCulture)" required /></label>
+</div><p id="coach-goal-total" aria-live="polite"></p>
+<p>Protein is held steady each day. Carbs follow the engine's training and recovery proportions within your limits; fat is shared evenly. Calories equal protein × 4 + carbs × 4 + fat × 9.</p>
+<h3>Sessions per week</h3><div class="coach-counts">@foreach(var group in groups){<label>@group<input type="number" min="0" max="7" step="1" data-week-count="@group" value="@Model.Input.Workouts.Count(code=>Model.Options.FirstOrDefault(x=>x.Code==code)?.Group==group)" /></label>}</div>
+<button type="button" id="coach-distribute">Place this session mix</button><p id="coach-mix-notice" role="status">Adjust counts to total seven days, place the mix, then choose the specific workout for each day.</p>
+<div class="coach-table-scroll" tabindex="0" role="region" aria-label="Edit weekly workout schedule"><table class="coach-week-table"><thead><tr><th>Day</th>@for(var i=0;i<7;i++){<th>@r.EffectiveWeek.AddDays(i).ToString("ddd")</th>}</tr></thead><tbody><tr><th>Workout</th>@for(var i=0;i<7;i++){<td><select name="Workouts[@i]" aria-label="@r.EffectiveWeek.AddDays(i).ToString("dddd") workout" class="coach-week-workout">@foreach(var group in groups){<optgroup label="@group">@foreach(var option in Model.Options.Where(x=>x.Group==group)){<option value="@option.Code" data-group="@group" selected="@(Model.Input.Workouts.ElementAtOrDefault(i)==option.Code)">@option.Name</option>}</optgroup>}</select></td>}</tr></tbody></table></div>
+<details><summary>Macro and calorie limits</summary><p>Conflicts are flagged in the preview. Calories never raise macros automatically in this worksheet.</p><div class="coach-table-scroll"><table><thead><tr><th>Limit</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>@foreach(var row in new[]{("Protein (g)","Protein",r.ProteinMin,r.ProteinMax),("Carbs (g)","Carbs",r.CarbsMin,r.CarbsMax),("Fat (g)","Fat",r.FatMin,r.FatMax),("Daily calories","DailyCalories",r.DailyCaloriesMin,r.DailyCaloriesMax),("Weekly calories","WeeklyCalories",r.WeeklyCaloriesMin,r.WeeklyCaloriesMax)}){<tr><th>@row.Item1</th><td><input name="Rules.@(row.Item2)Min" aria-label="@row.Item1 minimum" type="number" min="0" step="0.01" value="@row.Item3?.ToString(CultureInfo.InvariantCulture)" /></td><td><input name="Rules.@(row.Item2)Max" aria-label="@row.Item1 maximum" type="number" min="0" step="0.01" value="@row.Item4?.ToString(CultureInfo.InvariantCulture)" /></td></tr>}</tbody></table></div></details>
+<label for="coach-week-reason">Reason for this assignment</label><textarea id="coach-week-reason" name="Rules.Reason" maxlength="1000" rows="2" required>@r.Reason</textarea>
+<div class="coach-actions"><button type="submit">Preview assignment</button>@if(Model.Preview is not null && Model.Errors.Count==0 && ViewData.ModelState.IsValid){<button type="submit" formaction="@Url.Action("Save",new {clientId=Model.ClientId})">Save reviewed week</button>}</div>
+@if(Model.Preview is {} preview){<h2>Reviewed assignment · @r.EffectiveWeek.ToString("MMM d")</h2><p>Weekly calories: currently assigned @Model.Assigned.Sum(x=>x.PrescribedEnergyKcal).ToString("0") → proposed <strong>@preview.Sum(x=>x.PrescribedEnergyKcal).ToString("0")</strong>. Maintenance and workout rows below reflect your proposed schedule.</p>@await Html.PartialAsync("~/Views/Shared/_CoachMacroWeek.cshtml",preview)}
+</form><script src="~/js/coach-week.js" asp-append-version="true" defer></script>

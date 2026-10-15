@@ -64,6 +64,6 @@ public sealed class CoachClientPlanService(RecompDbContext db, Engine30Dashboard
             .OrderByDescending(x=>x.CreatedAtUtc).Take(20).ToListAsync(ct);
         var ids=history.Select(x=>x.CoachUserId).Distinct().ToArray();
         var authors=await db.UserAccounts.Where(x=>ids.Contains(x.UserId)).ToDictionaryAsync(x=>x.UserId,x=>x.PreferredDisplayName ?? x.DisplayName ?? "Trainer",ct);
-        return new() {Today=today,WeekStart=week,Days=days,Progress=progress,History=history,Authors=authors,RecommendedWorkout=day.RecommendedWorkout,RecommendationReason=day.WorkoutRecommendationRationale};
+        return new() {Activity=await new Engine30ClientActivityProfileService(db).GetCurrentProfileAsync(client.ClientId,today,client.LifestyleActivityCode,ct),Today=today,WeekStart=week,Days=days,Progress=progress,History=history,Authors=authors,RecommendedWorkout=day.RecommendedWorkout,RecommendationReason=day.WorkoutRecommendationRationale};
     }
 }

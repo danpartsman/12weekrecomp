@@ -5,6 +5,9 @@ using WebRecomp.Web.Services.Engine30;
 namespace WebRecomp.Web.ViewModels;
 public sealed class CoachPrescriptionRules
 {
+    [Range(1,1000)] public decimal? DailyProteinTarget { get; set; }
+    [Range(0,14000)] public decimal? WeeklyCarbsTarget { get; set; }
+    [Range(0,3500)] public decimal? WeeklyFatTarget { get; set; }
     [Range(0,1000)] public decimal? ProteinMin { get; set; }
     [Range(0,1000)] public decimal? ProteinMax { get; set; }
     [Range(0,2000)] public decimal? CarbsMin { get; set; }

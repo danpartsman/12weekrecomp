@@ -1,0 +1,7 @@
+@using WebRecomp.Web.Services.Engine30
+@model IReadOnlyList<Engine30DashboardDayProjection>
+<div class="coach-table-scroll" tabindex="0" role="region" aria-label="Weekly macro targets"><table class="coach-week-table"><thead><tr><th>Day</th>@foreach(var d in Model){<th>@d.Date.ToString("ddd")<small>@d.Date.ToString("MMM d")</small></th>}<th>Weekly total</th></tr></thead><tbody>
+<tr class="coach-reference"><th>Maintenance calories</th>@foreach(var d in Model){<td>@d.MaintenanceEnergyKcal.ToString("0")</td>}<td>@Model.Sum(x=>x.MaintenanceEnergyKcal).ToString("0")</td></tr>
+<tr><th>Workout</th>@foreach(var d in Model){<td class="coach-workout-name">@d.WorkoutDisplayName</td>}<td>@Model.Count(x=>x.WorkoutTypeCode is not null && x.WorkoutTypeCode!="REST") sessions</td></tr>
+@foreach(var row in new[]{("Protein (g)",Model.Select(x=>x.ProteinG).ToArray()),("Carbs (g)",Model.Select(x=>x.RecommendedCarbsG).ToArray()),("Fat (g)",Model.Select(x=>x.FatG).ToArray()),("Total calories",Model.Select(x=>x.PrescribedEnergyKcal).ToArray())}){<tr><th>@row.Item1</th>@foreach(var value in row.Item2){<td>@value.ToString("0.#")</td>}<td><strong>@row.Item2.Sum().ToString("0.#")</strong></td></tr>}
+</tbody></table></div>

@@ -10,6 +10,7 @@ public sealed record CoachPlanDay(DateOnly Date, Engine30DashboardDayProjection 
     IReadOnlyList<CoachActualWorkout> Actual, bool CanEdit);
 public sealed class CoachClientPlan
 {
+    public Engine30ClientHabitualActivityProfile? Activity { get; init; }
     public DateOnly Today { get; init; }
     public DateOnly WeekStart { get; init; }
     public IReadOnlyList<CoachPlanDay> Days { get; init; } = [];
