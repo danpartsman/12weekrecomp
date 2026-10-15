@@ -29,7 +29,7 @@ public sealed class CoachWeekService(RecompDbContext db, Engine30DashboardProjec
         IReadOnlyList<string>? suggested=null;
         if(rows.Count==0)
         {
-            suggested=WeeklyPlanService.BuildRecommendedTemplate(program.SelectedPlanCode,program.AvailableTrainingDaysWeek,client.TrainingExperienceCode);
+            suggested=new WeeklyPlanService(db,catalog).BuildRecommendedTemplate(program.SelectedPlanCode,program.AvailableTrainingDaysWeek,client.TrainingExperienceCode);
             var proposed=suggested.Select((code,i)=>new PlannedWorkout {PlannedWorkoutId=Guid.NewGuid(),ClientId=client.ClientId,ProgramId=program.ProgramId,PlannedDate=week.AddDays(i),WorkoutTypeCode=code}).ToArray();
             baseline=await engine.BuildPlanningWeekAsync(context,week,planCode,ct,includeCoachRules:false,plannedWorkoutOverrides:proposed);
         }
