@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
+using WebRecomp.Web.Services.Engine30;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.ViewModels;
 using WebRecomp.WorkoutIntelligence;

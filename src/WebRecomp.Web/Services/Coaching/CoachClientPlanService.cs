@@ -48,10 +48,12 @@ public sealed class CoachClientPlanService(RecompDbContext db, Engine30Dashboard
         var sessionIds=canonical.Select(x=>x.WorkoutSessionId).ToArray();
         var details=await db.DetailedWorkoutExercises.AsNoTracking().Include(x=>x.Sets).Where(x=>sessionIds.Contains(x.WorkoutSessionId)).ToListAsync(ct);
         var days=new List<CoachPlanDay>();
+        var resolvedWorkouts=new Dictionary<string,(string Name,IReadOnlyList<CoachPlanExercise> Exercises)>();
         foreach(var date in baseline.Keys.OrderBy(x=>x))
         {
             scheduled.TryGetValue(date,out var plan);intake.TryGetValue(date,out var actual);
-            var resolved=await ResolveAsync(client.ClientId,program.ConfigVersionId,plan,baseline[date].WorkoutDisplayName,ct);
+            var key=plan is null?"none:"+date:plan.WorkoutTemplateId?.ToString() ?? plan.SystemWorkoutCode ?? plan.WorkoutTypeCode;
+            if(!resolvedWorkouts.TryGetValue(key,out var resolved)) {resolved=await ResolveAsync(client.ClientId,program.ConfigVersionId,plan,baseline[date].WorkoutDisplayName,ct);resolvedWorkouts[key]=resolved;}
             var completed=canonical.Where(x=>x.WorkoutDate==date).Select(x=>new CoachActualWorkout(x,details.Where(e=>e.WorkoutSessionId==x.WorkoutSessionId).OrderBy(e=>e.ExerciseOrder).ToArray())).ToArray();
             days.Add(new(date,baseline[date],assigned[date],actual,plan,resolved.Name,resolved.Exercises,completed,
                 date>=today && date<=today.AddDays(84) && !sessions.Any(x=>x.WorkoutDate==date)));
