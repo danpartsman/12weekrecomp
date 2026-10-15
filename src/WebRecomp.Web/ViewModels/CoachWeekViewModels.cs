@@ -11,6 +11,7 @@ public sealed class CoachWeekInput
 public sealed record CoachWeekWorkoutOption(string Code,string Name,string Group);
 public sealed class CoachWeekPage
 {
+    public bool SuggestedSchedule { get; init; }
     public Guid ClientId { get; init; }
     public string ClientName { get; init; } = "";
     public CoachWeekInput Input { get; init; } = new();

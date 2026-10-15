@@ -26,6 +26,14 @@ public sealed class CoachWeekService(RecompDbContext db, Engine30DashboardProjec
         var planCode=await plans.GetPlanCodeForDateAsync(program,week,ct);
         var baseline=await engine.BuildPlanningWeekAsync(context,week,planCode,ct,includeCoachRules:false);
         var assigned=await new CoachPrescriptionRuleStore(db).ApplyAsync(client.ClientId,program.ProgramId,week,baseline,ct);
+        IReadOnlyList<string>? suggested=null;
+        if(rows.Count==0)
+        {
+            suggested=WeeklyPlanService.BuildRecommendedTemplate(program.SelectedPlanCode,program.AvailableTrainingDaysWeek,client.TrainingExperienceCode);
+            var proposed=suggested.Select((code,i)=>new PlannedWorkout {PlannedWorkoutId=Guid.NewGuid(),ClientId=client.ClientId,ProgramId=program.ProgramId,PlannedDate=week.AddDays(i),WorkoutTypeCode=code}).ToArray();
+            baseline=await engine.BuildPlanningWeekAsync(context,week,planCode,ct,includeCoachRules:false,plannedWorkoutOverrides:proposed);
+        }
+        var defaultGoals=suggested is not null?await new CoachPrescriptionRuleStore(db).ApplyAsync(client.ClientId,program.ProgramId,week,baseline,ct):assigned;
         var latest=await db.CoachPrescriptionRuleVersions.AsNoTracking().Where(x=>x.ClientId==client.ClientId && x.ProgramId==program.ProgramId).OrderByDescending(x=>x.CreatedAtUtc).ThenByDescending(x=>x.CoachPrescriptionRuleVersionId).FirstOrDefaultAsync(ct);
         if(input is null)
         {
@@ -35,13 +43,13 @@ public sealed class CoachWeekService(RecompDbContext db, Engine30DashboardProjec
             var rules=effective is {IsEnabled:true}?JsonSerializer.Deserialize<CoachPrescriptionRules>(effective.RulesJson)!:new();
             rules.EffectiveWeek=week;rules.ExpectedVersionId=latest?.CoachPrescriptionRuleVersionId;rules.Reason="";rules.PreviewToken=null;
             // Defaults are explicit coach-editable goals, never a calorie top-up.
-            rules.DailyProteinTarget ??=assigned.Values.First().ProteinG;
-            rules.WeeklyCarbsTarget ??=assigned.Values.Sum(x=>x.RecommendedCarbsG);
-            rules.WeeklyFatTarget ??=assigned.Values.Sum(x=>x.FatG);
+            rules.DailyProteinTarget ??=defaultGoals.Values.First().ProteinG;
+            rules.WeeklyCarbsTarget ??=defaultGoals.Values.Sum(x=>x.RecommendedCarbsG);
+            rules.WeeklyFatTarget ??=defaultGoals.Values.Sum(x=>x.FatG);
             rules.AdjustCarbsThenFat=false;rules.Enabled=true;
-            input=new() {Rules=rules,Workouts=Enumerable.Range(0,7).Select(i=>rows.SingleOrDefault(x=>x.PlannedDate==week.AddDays(i))?.WorkoutTypeCode ?? "REST").ToList()};
+            input=new() {Rules=rules,Workouts=Enumerable.Range(0,7).Select(i=>rows.SingleOrDefault(x=>x.PlannedDate==week.AddDays(i))?.WorkoutTypeCode ?? suggested?[i] ?? "REST").ToList()};
         }
-        var page=new CoachWeekPage {ClientId=client.ClientId,ClientName=client.ClientName,Input=input,Options=options,
+        var page=new CoachWeekPage {SuggestedSchedule=suggested is not null,ClientId=client.ClientId,ClientName=client.ClientName,Input=input,Options=options,
             Engine=baseline.Values.OrderBy(x=>x.Date).ToArray(),Assigned=assigned.Values.OrderBy(x=>x.Date).ToArray(),Fingerprint=CoachWorkoutPlanService.Fingerprint(rows)};
         return page;
     }

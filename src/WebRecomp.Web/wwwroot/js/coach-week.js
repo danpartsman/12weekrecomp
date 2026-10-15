@@ -35,6 +35,10 @@
     });
     recount();notice.textContent = 'Session mix placed. Review exercise choices and recovery spacing before previewing.';
   });
+  form.addEventListener('submit', event => {
+    const mismatch = counts.some(count => Number(count.value) !== days.filter(day => selectedGroup(day) === count.dataset.weekCount).length);
+    if (mismatch) {event.preventDefault();notice.textContent = 'Place your requested session mix before previewing, or restore the counts to match the daily choices.';notice.scrollIntoView({block:'center'});}
+  });
   // Saving always validates a server-generated preview token; local changes require another preview.
   sum();
 })();

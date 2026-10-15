@@ -31,14 +31,14 @@ public static class CoachPrescriptionAllocator
     {
         var lower=min ?? 0;var upper=max ?? decimal.MaxValue/100;
         if(weights.Count!=7 || total<lower*7 || total>upper*7) throw new ArgumentException("Weekly macro goal cannot fit the daily macro limits.");
-        var values=new decimal[7];var pending=Enumerable.Range(0,7).ToList();var remaining=total;
+        var values=Enumerable.Repeat(lower,7).ToArray();var pending=Enumerable.Range(0,7).ToList();var remaining=total-lower*7;
         while(pending.Count>0)
         {
             var sum=pending.Sum(i=>Math.Max(0,weights[i]));
-            var proposed=pending.ToDictionary(i=>i,i=>remaining*(sum>0?Math.Max(0,weights[i])/sum:1m/pending.Count));
-            var fixedIndices=pending.Where(i=>proposed[i]<lower || proposed[i]>upper).ToArray();
+            var proposed=pending.ToDictionary(i=>i,i=>values[i]+(sum>0?remaining*Math.Max(0,weights[i])/sum:remaining/pending.Count));
+            var fixedIndices=pending.Where(i=>proposed[i]>upper).ToArray();
             if(fixedIndices.Length==0) {foreach(var i in pending) values[i]=proposed[i];break;}
-            foreach(var i in fixedIndices) {values[i]=Clamp(proposed[i],lower,upper);remaining-=values[i];pending.Remove(i);}
+            foreach(var i in fixedIndices) {remaining-=upper-values[i];values[i]=upper;pending.Remove(i);}
         }
         // Remove decimal division residue without changing the seven-day goal.
         var residue=total-values.Sum();
