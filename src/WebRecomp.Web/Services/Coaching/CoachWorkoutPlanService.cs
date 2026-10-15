@@ -58,8 +58,10 @@ public sealed class CoachWorkoutPlanService(RecompDbContext db, Engine30WorkoutU
         var canCustomize=source.WorkoutTemplateId.HasValue || source.SystemWorkoutCode is string code && SystemWorkoutRecipeCatalog.TryGet(code,out var recipe) && recipe is not null && recipe.Slots.Count>0 && recipe.Slots.All(x=>x.DurationSeconds is null && x.DistanceMeters is null && x.BlockType is null);
         var exercises=await db.ExerciseCatalogItems.AsNoTracking().Where(x=>x.IsActive && x.SourceCode!="12WR_CSV_UNMAPPED").OrderBy(x=>x.Name)
             .Select(x=>new CoachWorkoutOption(x.ExerciseCatalogItemId.ToString(),x.Name)).ToListAsync(ct);
-        input ??=new() {Date=date,Choice=choice,Name=resolved.Name,Minutes=existing is not null && choice==(existing.WorkoutTemplateId is Guid t ? "TPL:"+t : existing.SystemWorkoutCode is string c ? "SYS:"+c : "TYPE:"+existing.WorkoutTypeCode)?existing.PlannedDurationMin ?? source.PlannedDurationMin ?? 0:source.PlannedDurationMin ?? 0,
-            Rpe=existing?.PlannedRpe ?? source.PlannedRpe ?? 5,Exercises=resolved.Exercises.Select(x=>new CoachWorkoutExerciseInput {ExerciseId=x.ExerciseId,Name=x.Name,Sets=x.Sets,Reps=x.Reps,WeightLb=x.WeightLb}).ToList()};
+        var existingChoice=existing?.WorkoutTemplateId is Guid currentTemplate ? "TPL:"+currentTemplate : existing?.SystemWorkoutCode is string currentSystem ? "SYS:"+currentSystem : "TYPE:"+(existing?.WorkoutTypeCode ?? "REST");
+        var sameSelection=existing is not null && choice==existingChoice;
+        input ??=new() {Date=date,Choice=choice,Name=resolved.Name,Minutes=sameSelection?existing.PlannedDurationMin ?? source.PlannedDurationMin ?? 0:source.PlannedDurationMin ?? 0,
+            Rpe=(sameSelection?existing?.PlannedRpe:null) ?? source.PlannedRpe ?? 5,Exercises=resolved.Exercises.Select(x=>new CoachWorkoutExerciseInput {ExerciseId=x.ExerciseId,Name=x.Name,Sets=x.Sets,Reps=x.Reps,WeightLb=x.WeightLb}).ToList()};
         return new() {ClientId=client.ClientId,ClientName=client.ClientName,Input=input,Options=options,Catalog=exercises,CanCustomize=canCustomize,SourceName=resolved.Name};
     }
     public async Task<(CoachWorkoutPage Page,PlannedWorkout Candidate,string Fingerprint)> PreviewAsync(AppClientContext context,CoachWorkoutInput input,CancellationToken ct)

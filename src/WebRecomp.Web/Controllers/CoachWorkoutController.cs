@@ -50,6 +50,11 @@ public sealed class CoachWorkoutController(RecompDbContext db,AppUserContextServ
             }
             return View("Index",page);
         }
+        catch(InvalidOperationException)
+        {
+            ModelState.AddModelError("","Complete the client's profile, active program and scale setup before previewing calculated targets.");
+            page=await workouts.PageAsync(context,input.Date,input.Choice,input,ct);return View("Index",page);
+        }
         catch(ArgumentException ex)
         {
             ModelState.AddModelError("",ex.Message);

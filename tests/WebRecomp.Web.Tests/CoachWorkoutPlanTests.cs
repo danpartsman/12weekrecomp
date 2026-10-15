@@ -65,7 +65,7 @@ public sealed class CoachWorkoutPlanTests
     public async Task ClientScopedTemplateCannotBeSelectedByAnotherClient()
     {
         using var db=Database();var c=Context(db);var config=Guid.NewGuid();db.ConfigVersions.Add(new() {ConfigVersionId=config,VersionCode="CFG-3000.0",StatusCode="PUBLISHED"});
-        db.WorkoutTypeDefinitions.Add(new() {WorkoutTypeDefinitionId=Guid.NewGuid(),ConfigVersionId=config,WorkoutTypeCode="REST",DisplayName="Rest",WorkoutCategoryCode="REST",IsActive=true});
+        db.WorkoutTypeDefinitions.Add(new() {WorkoutTypeDefinitionId=Guid.NewGuid(),ConfigVersionId=config,WorkoutTypeCode="REST",DisplayName="Rest",WorkoutCategoryCode="REST",WeeklyRoleCode="OTHER_LOAD",FuelPriorityCode="LOW",SchedulePrincipleCode="FLEX",IsActive=true});
         var id=Guid.NewGuid();db.WorkoutTemplates.Add(new() {WorkoutTemplateId=id,ClientId=Guid.NewGuid(),TemplateName="Private routine",WorkoutTypeCode="REST"});await db.SaveChangesAsync();
         await Assert.ThrowsAsync<ArgumentException>(()=>Service(db).SourceAsync(c,AppUserContextService.GetClientToday(c.Client!),"TPL:"+id,default));
     }

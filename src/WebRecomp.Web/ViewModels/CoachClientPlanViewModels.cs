@@ -17,6 +17,8 @@ public sealed class CoachClientPlan
     public IReadOnlyList<CoachWorkoutPlanRevision> History { get; init; } = [];
     public IReadOnlyDictionary<Guid,string> Authors { get; init; } = new Dictionary<Guid,string>();
     public string? Notice { get; init; }
+    public string RecommendedWorkout { get; init; } = "";
+    public string RecommendationReason { get; init; } = "";
 }
 public sealed class CoachWorkoutExerciseInput
 {
