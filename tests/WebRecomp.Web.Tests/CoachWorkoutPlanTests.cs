@@ -109,4 +109,16 @@ public sealed class CoachWorkoutPlanTests
         Assert.Equal("Upper body",await Service(db).AvailableRoutineNameAsync(Guid.NewGuid(),"Upper body",default));
     }
 
+    [Fact]
+    public async Task CategoryWorkoutUsesRuntimeMinutesAndSupportsExerciseEditing()
+    {
+        using var db=Database();var c=Context(db);var cfg=Guid.NewGuid();
+        db.ConfigVersions.Add(new() {ConfigVersionId=cfg,VersionCode="CFG-3000.0",StatusCode="PUBLISHED"});
+        db.WorkoutTypeDefinitions.Add(new() {WorkoutTypeDefinitionId=Guid.NewGuid(),ConfigVersionId=cfg,WorkoutTypeCode="MAJOR_PUSH",DisplayName="Major Push",WorkoutCategoryCode="RESISTANCE",
+            WeeklyRoleCode="MAJOR_PUSH",FuelPriorityCode="HIGH",SchedulePrincipleCode="HARD",DefaultMinutes=0,IsActive=true,IsSelectable=true});await db.SaveChangesAsync();
+        var source=await Service(db).SourceAsync(c,AppUserContextService.GetClientToday(c.Client!),"TYPE:MAJOR_PUSH",default);
+        Assert.Equal(60m,source.PlannedDurationMin);Assert.True(CoachWorkoutPlanService.SupportsExerciseEditing(source));
+        Assert.False(CoachWorkoutPlanService.SupportsExerciseEditing(Plan(c,AppUserContextService.GetClientToday(c.Client!))));
+    }
+
 }

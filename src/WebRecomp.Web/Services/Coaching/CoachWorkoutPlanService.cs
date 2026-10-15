@@ -40,7 +40,21 @@ public sealed class CoachWorkoutPlanService(RecompDbContext db, Engine30WorkoutU
         {result.WorkoutTypeCode=categoryType.WorkoutTypeCode;result.PlannedDurationMin=categoryType.DefaultMinutes;result.PlannedRpe=new Engine30WorkoutTypeCatalog().TryGet(categoryType.WorkoutTypeCode,out var definition) && definition is not null ? definition.DefaultRpe : 5;}
         else throw new ArgumentException("Choose an available workout.");
         if(!types.ContainsKey(result.WorkoutTypeCode)) throw new ArgumentException("The workout's training category is unavailable.");
+        var runtime=(await new Engine30WorkoutRuntimeProfileProvider(db,new Engine30WorkoutProfileService(db)).ResolveAsync(result.WorkoutTypeCode,ct)).Profile;
+        if(result.WorkoutTypeCode=="REST") result.PlannedDurationMin=0;
+        else if(result.SystemWorkoutCode is string systemCode && SystemWorkoutRecipeCatalog.TryGet(systemCode,out var selectedRecipe) && selectedRecipe is not null)
+            result.PlannedDurationMin=SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(selectedRecipe,runtime.DefaultDurationMinutes);
+        else if(!result.WorkoutTemplateId.HasValue || result.PlannedDurationMin is null or <=0)
+            result.PlannedDurationMin=runtime.DefaultDurationMinutes;
+        result.PlannedRpe=result.SystemWorkoutCode is string recipeCode && SystemWorkoutRecipeCatalog.TryGet(recipeCode,out var selected) && selected is not null
+            ? SystemWorkoutRecipeCatalog.ResolveDefaultRpe(selected,runtime.DefaultRpe) : runtime.DefaultRpe;
         return result;
+    }
+    public static bool SupportsExerciseEditing(PlannedWorkout source)
+    {
+        if(source.WorkoutTemplateId.HasValue) return true;
+        var recipe=source.SystemWorkoutCode is string code && SystemWorkoutRecipeCatalog.TryGet(code,out var selected)?selected:SystemWorkoutRecipeCatalog.GetDefaultPresentationForEngine(source.WorkoutTypeCode);
+        return recipe is not null && recipe.Slots.Count>0 && recipe.Slots.All(x=>x.DurationSeconds is null && x.DistanceMeters is null && x.BlockType is null);
     }
     public async Task<CoachWorkoutPage> PageAsync(AppClientContext context,DateOnly date,string? choice,CoachWorkoutInput? input,CancellationToken ct)
     {
@@ -55,12 +69,12 @@ public sealed class CoachWorkoutPlanService(RecompDbContext db, Engine30WorkoutU
             .Concat(types.Where(x=>x.IsSelectable).Select(x=>new CoachWorkoutOption("TYPE:"+x.WorkoutTypeCode,"Category · "+x.DisplayName))).ToList();
         if(!options.Any(x=>x.Value==choice)) options.Add(new(choice,"Current workout"));
         var resolved=await clientPlans.ResolveAsync(client.ClientId,program.ConfigVersionId,source,types.First(x=>x.WorkoutTypeCode==source.WorkoutTypeCode).DisplayName,ct);
-        var canCustomize=source.WorkoutTemplateId.HasValue || source.SystemWorkoutCode is string code && SystemWorkoutRecipeCatalog.TryGet(code,out var recipe) && recipe is not null && recipe.Slots.Count>0 && recipe.Slots.All(x=>x.DurationSeconds is null && x.DistanceMeters is null && x.BlockType is null);
+        var canCustomize=SupportsExerciseEditing(source);
         var exercises=await db.ExerciseCatalogItems.AsNoTracking().Where(x=>x.IsActive && x.SourceCode!="12WR_CSV_UNMAPPED").OrderBy(x=>x.Name)
             .Select(x=>new CoachWorkoutOption(x.ExerciseCatalogItemId.ToString(),x.Name)).ToListAsync(ct);
         var existingChoice=existing?.WorkoutTemplateId is Guid currentTemplate ? "TPL:"+currentTemplate : existing?.SystemWorkoutCode is string currentSystem ? "SYS:"+currentSystem : "TYPE:"+(existing?.WorkoutTypeCode ?? "REST");
         var sameSelection=existing is not null && choice==existingChoice;
-        input ??=new() {Date=date,Choice=choice,Name=resolved.Name,Minutes=sameSelection?existing.PlannedDurationMin ?? source.PlannedDurationMin ?? 0:source.PlannedDurationMin ?? 0,
+        input ??=new() {Date=date,Choice=choice,Name=resolved.Name,Minutes=sameSelection && existing?.PlannedDurationMin is >0m?existing.PlannedDurationMin.Value:source.PlannedDurationMin ?? 0,
             Rpe=(sameSelection?existing?.PlannedRpe:null) ?? source.PlannedRpe ?? 5,Exercises=resolved.Exercises.Select(x=>new CoachWorkoutExerciseInput {ExerciseId=x.ExerciseId,Name=x.Name,Sets=x.Sets,Reps=x.Reps,WeightLb=x.WeightLb}).ToList()};
         return new() {ClientId=client.ClientId,ClientName=client.ClientName,Input=input,Options=options,Catalog=exercises,CanCustomize=canCustomize,SourceName=resolved.Name};
     }
