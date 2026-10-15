@@ -297,6 +297,7 @@ public sealed class ScheduleController(
             var day = new PlannedDayViewModel
             {
                 CanEditPlan = WorkoutPlanPolicy.CanEdit(date, today, actuals?.Count > 0),
+                CoachAdjusted = planned?.SourceCode == "COACH",
                 HasActualWorkout = actuals?.Count > 0,
                 ActualWorkoutSummary = actuals is null ? null : string.Join(" + ", actuals.Select(x => x.WorkoutName ?? x.WorkoutTypeCode)),
                 ActualWorkoutTypeCode = actuals?.OrderByDescending(x => x.SessionRpe).ThenByDescending(x => x.DurationMin).FirstOrDefault()?.WorkoutTypeCode,

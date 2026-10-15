@@ -12,7 +12,7 @@ namespace WebRecomp.Web.Controllers;
 [Authorize(Roles = "Coach,Administrator")]
 [Route("coach")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class CoachController(RecompDbContext db, AppUserContextService users, CoachCenterService coaches) : Controller
+public sealed class CoachController(RecompDbContext db, AppUserContextService users, CoachCenterService coaches, CoachClientPlanService? clientPlans = null) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct) => View(await coaches.BuildAsync((await users.GetAsync(HttpContext, ct)).User, ct));
@@ -42,7 +42,7 @@ public sealed class CoachController(RecompDbContext db, AppUserContextService us
     }
 
     [HttpGet("clients/{clientId:guid}")]
-    public async Task<IActionResult> Client(Guid clientId, CancellationToken ct)
+    public async Task<IActionResult> Client(Guid clientId, CancellationToken ct, DateOnly? week = null)
     {
         var user = (await users.GetAsync(HttpContext, ct)).User;
         if (!await coaches.CanAccessAsync(user.UserId, clientId, ct)) return NotFound();
@@ -51,7 +51,16 @@ public sealed class CoachController(RecompDbContext db, AppUserContextService us
         var program = await db.Programs.AsNoTracking().Where(x => x.ClientId == clientId && x.ProgramStatusCode == "ACTIVE").OrderByDescending(x => x.StartDate).FirstOrDefaultAsync(ct);
         var measurement = await db.Measurements.AsNoTracking().Where(x => x.ClientId == clientId && !x.IsDeleted).OrderByDescending(x => x.MeasurementAtUtc).FirstOrDefaultAsync(ct);
         var workouts = await db.WorkoutSessions.AsNoTracking().Where(x => x.ClientId == clientId && x.CompletedFlag).OrderByDescending(x => x.WorkoutDate).Take(7).ToListAsync(ct);
-        return View(new CoachClientDetailViewModel(client, program, measurement, workouts));
+        if (!ModelState.IsValid) return BadRequest("Choose a valid week.");
+        var today=AppUserContextService.GetClientToday(client);
+        if(week.HasValue && (week<today.AddDays(-84) || week>today.AddDays(84))) return BadRequest("Choose a week within 12 weeks of today.");
+        CoachClientPlan? plan=null;
+        if(program is not null)
+        {
+            try { plan=await clientPlans!.BuildAsync(new(user,client,program),week,ct); }
+            catch(InvalidOperationException) { plan=new() {Today=today,WeekStart=WebRecomp.Web.Services.Engine30.Engine30DashboardProjectionService.WeekStart(week ?? today),Notice="Complete the client's profile, active program and scale setup before reviewing their calculated plan."}; }
+        }
+        return View(new CoachClientDetailViewModel(client, program, measurement, workouts) {Plan=plan});
     }
 
     [HttpPost("clients/{clientId:guid}/disconnect"), ValidateAntiForgeryToken]

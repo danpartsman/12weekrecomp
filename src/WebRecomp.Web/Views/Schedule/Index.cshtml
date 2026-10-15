@@ -501,6 +501,7 @@
                         <div class="plan-day-date">
                             <strong>@day.DayName</strong>
                             <span>@day.Date.ToString("MMM d")</span>
+                            @if(day.CoachAdjusted){<strong>Adjusted by your trainer</strong>}
                         </div>
                         <span class="plan-category-badge" data-category-label>@CategoryLabel(category)</span>
                     </div>

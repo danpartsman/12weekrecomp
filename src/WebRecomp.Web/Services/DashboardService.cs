@@ -453,6 +453,7 @@ public sealed class DashboardService(
             Engine30WorkoutCategoryCode = engine30Projection.Today.WorkoutCategoryCode,
             Engine30WorkoutTypeCode = engine30Projection.Today.WorkoutTypeCode,
             CoachPrescriptionNotice = engine30Projection.Today.CoachPrescriptionNotice,
+            CoachAdjustedWorkout = await db.PlannedWorkouts.AsNoTracking().AnyAsync(x => x.ClientId == client.ClientId && x.ProgramId == program.ProgramId && x.PlannedDate == actionDate && x.SourceCode == "COACH", cancellationToken),
             Engine30CarbGoverningRuleCode = engine30Projection.Today.CarbGoverningRuleCode,
             Engine30BaseLivingKcal = engine30Projection.Today.BaseLivingEnergyKcal,
             Engine30HabitualActivityKcal = engine30Projection.Today.HabitualActivityEnergyKcal,

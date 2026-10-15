@@ -5,6 +5,7 @@ namespace WebRecomp.Web.Data;
 
 public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) : DbContext(options)
 {
+    public DbSet<CoachWorkoutPlanRevision> CoachWorkoutPlanRevisions => Set<CoachWorkoutPlanRevision>();
     public DbSet<CoachPrescriptionRuleVersion> CoachPrescriptionRuleVersions => Set<CoachPrescriptionRuleVersion>();
     public DbSet<CoachProfile> CoachProfiles => Set<CoachProfile>();
     public DbSet<CoachClientRelationship> CoachClientRelationships => Set<CoachClientRelationship>();
@@ -85,6 +86,8 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
         Map<ProgramRecord>(modelBuilder, "Programs", "app", nameof(ProgramRecord.ProgramId));
         Map<ProgramPlanChange>(modelBuilder, "ProgramPlanChanges", "app", nameof(ProgramPlanChange.ProgramPlanChangeId));
         Map<ProgramGoal>(modelBuilder, "ProgramGoals", "app", nameof(ProgramGoal.ProgramGoalId));
+        Map<CoachWorkoutPlanRevision>(modelBuilder, "CoachWorkoutPlanRevisions", "app", nameof(CoachWorkoutPlanRevision.CoachWorkoutPlanRevisionId));
+        modelBuilder.Entity<CoachWorkoutPlanRevision>().Property(x => x.Reason).HasMaxLength(1000);
         Map<CoachPrescriptionRuleVersion>(modelBuilder, "CoachPrescriptionRuleVersions", "app", nameof(CoachPrescriptionRuleVersion.CoachPrescriptionRuleVersionId));
         modelBuilder.Entity<CoachPrescriptionRuleVersion>().Property(x => x.Reason).HasMaxLength(1000);
         Map<CoachProfile>(modelBuilder, "CoachProfiles", "app", nameof(CoachProfile.UserId));

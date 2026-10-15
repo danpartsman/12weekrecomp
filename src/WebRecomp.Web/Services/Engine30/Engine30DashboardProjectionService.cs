@@ -240,7 +240,7 @@ public sealed class Engine30DashboardProjectionService(
             DateOnly weekStart,
             string planCode,
             CancellationToken cancellationToken = default,
-            bool includeCoachRules = true)
+            bool includeCoachRules = true, IReadOnlyList<PlannedWorkout>? plannedWorkoutOverrides = null)
     {
         if (context.Client is null || context.Program is null)
             throw new InvalidOperationException("Active client/program required.");
@@ -275,7 +275,7 @@ public sealed class Engine30DashboardProjectionService(
                 planCode,
                 definitions,
                 measurements,
-                cancellationToken, includeCoachRules);
+                cancellationToken, includeCoachRules, plannedWorkoutOverrides);
 
         return week.Days;
     }
@@ -986,7 +986,7 @@ public sealed class Engine30DashboardProjectionService(
         string planCode,
         IReadOnlyDictionary<string, WorkoutTypeDefinition> definitions,
         IReadOnlyList<Measurement> measurements,
-        CancellationToken cancellationToken, bool includeCoachRules = true)
+        CancellationToken cancellationToken, bool includeCoachRules = true, IReadOnlyList<PlannedWorkout>? plannedWorkoutOverrides = null)
     {
         var weekEnd = weekStart.AddDays(6);
 
@@ -998,6 +998,9 @@ public sealed class Engine30DashboardProjectionService(
                     && x.PlannedDate >= weekStart
                     && x.PlannedDate <= weekEnd)
                 .ToListAsync(cancellationToken);
+
+        if (plannedWorkoutOverrides is not null)
+            planned = plannedWorkoutOverrides.Where(x => x.ClientId == client.ClientId && x.ProgramId == program.ProgramId && x.PlannedDate >= weekStart && x.PlannedDate <= weekEnd).ToList();
 
         var plannedByDate =
             planned.ToDictionary(

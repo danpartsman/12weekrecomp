@@ -143,6 +143,7 @@ public sealed class NutritionViewModel
 
 public sealed class PlannedDayViewModel
 {
+    public bool CoachAdjusted { get; set; }
     public bool CanEditPlan { get; set; }
     public bool HasActualWorkout { get; set; }
     public string? ActualWorkoutSummary { get; set; }
@@ -273,6 +274,7 @@ public sealed class DashboardViewModel
     public string PreferredCoachCode { get; set; } = "MARISOL";
     public string? Engine30WorkoutTypeCode { get; set; }
     public string? TomorrowEngine30WorkoutTypeCode { get; set; }
+    public bool CoachAdjustedWorkout { get; set; }
     public string? CoachPrescriptionNotice { get; set; }
     public string Engine30CarbGoverningRuleCode { get; set; } = "";
     public decimal Engine30BaseLivingKcal { get; set; }

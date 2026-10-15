@@ -105,6 +105,7 @@ if (learningMigration)
 {
     migrationSql += "\n" + await File.ReadAllTextAsync(Path.Combine("database", "044_coach_center_foundation.sql"));
     migrationSql += "\n" + await File.ReadAllTextAsync(Path.Combine("database", "045_coach_prescription_rules.sql"));
+    migrationSql += "\n" + await File.ReadAllTextAsync(Path.Combine("database", "046_coach_workout_plan_revisions.sql"));
 }
 
 Console.WriteLine("Starting 12WR database migration.");

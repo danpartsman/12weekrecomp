@@ -51,7 +51,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
     private const string FlexVersion = "RECOMP_FLEX_V1";
 
     public async Task<RecompCockpit> BuildAsync(AppClientContext context, DashboardViewModel day,
-        MacroDayPlan mealPlan, CancellationToken ct)
+        MacroDayPlan mealPlan, CancellationToken ct, bool captureHistory = true)
     {
         var client = context.Client!;
         var program = context.Program!;
@@ -239,7 +239,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var snapshot = new RecompScoreSnapshot(RecompScoreResult.Version, start, score.Score,
             score.KnownNutritionDays, score.CompletedNutritionDays, days, training, score.Components, glycogen, commitments, result.EditableDays.Last());
         var json = JsonSerializer.Serialize(snapshot);
-        if (!historical && score.HasEvidence && snapshots.FirstOrDefault().Run?.DiagnosticJson != json)
+        if (captureHistory && !historical && score.HasEvidence && snapshots.FirstOrDefault().Run?.DiagnosticJson != json)
         {
             try
             {
@@ -254,7 +254,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 result.StorageNotice = "Your current score is shown, but its history could not be saved. Please try again later.";
             }
         }
-        if (!historical && score.HasEvidence)
+        if (captureHistory && !historical && score.HasEvidence)
         {
             result.History.RemoveAll(x => x.Date == today);
             result.History.Add(new(today, score.Score, DateTime.UtcNow, RecompScoreResult.Version));

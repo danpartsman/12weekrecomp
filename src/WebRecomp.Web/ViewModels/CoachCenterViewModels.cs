@@ -10,7 +10,10 @@ public sealed class CoachProfileInput
 }
 public sealed record CoachRosterClient(Guid ClientId, string Name, string? Goal, DateOnly? LastWorkout);
 public sealed record CoachCenterViewModel(CoachProfileInput Profile, IReadOnlyList<CoachRosterClient> Clients, int PendingInvites);
-public sealed record CoachClientDetailViewModel(Client Client, ProgramRecord? Program, Measurement? Measurement, IReadOnlyList<WorkoutSession> Workouts);
+public sealed record CoachClientDetailViewModel(Client Client, ProgramRecord? Program, Measurement? Measurement, IReadOnlyList<WorkoutSession> Workouts)
+{
+    public CoachClientPlan? Plan { get; init; }
+}
 public sealed class CoachConnectInput
 {
     [Required, StringLength(64, MinimumLength = 6)] public string Code { get; set; } = "";

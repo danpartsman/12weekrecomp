@@ -27,6 +27,9 @@ using WebRecomp.NutritionIntelligence.Providers.Usda;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachCenterService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachClientPlanService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachWorkoutPlanService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.WorkoutIntelligence.SystemWorkoutPreviewService>();
 
 var connectionString = builder.Configuration.GetConnectionString("RecompDatabase")
     ?? throw new InvalidOperationException(

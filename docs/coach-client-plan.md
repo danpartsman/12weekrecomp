@@ -1,0 +1,9 @@
+# Coach client plan
+
+The connected-client overview uses the same Engine 3.0 weekly projection, trainer-rule overlay, rolling adherence scorer, body-composition comparisons and trend slider as the client application. Coach browsing calls the scorer with history capture disabled. Missing nutrition remains unknown; future/completed evidence is labelled separately. Saved nutrition totals are shown alongside the engine and assigned macro targets.
+
+A coach can open an editable date, choose a system recipe or client-owned saved workout, change minutes/RPE, and optionally create a client-specific rep-based routine with exercises, sets, per-set reps and pounds. Timed/class recipes retain their original format. Source templates and completed workouts are never changed. New routines are private to that client; a cross-client coach library and system sharing remain separate future work.
+
+Preview passes proposed weekly planning rows to the shared engine in memory without persisting them, and shows seven days of current-to-adjusted nutrition. Trainer macro-rule conflicts block saving. Saving requires the reviewed fingerprint, rechecks the active client relationship, active program, the weekly plan and started/completed sessions inside a retry-safe serializable transaction, then atomically saves the plan, optional new template and immutable audit revision. Past dates, started workouts and dates more than 12 weeks ahead are locked. Only the connected client's templates and exercise identities are accepted.
+
+The client sees “Adjusted by your trainer” on Weekly Plan and Command Center. The existing client workout launcher consumes the same PlannedWorkouts row and private template. Audit revisions keep coach, date, reason, original/adjusted plans and seven-day macro previews. Apply additive migration 046 to TEST and LIVE before deployment; runtime permissions remain unchanged.
