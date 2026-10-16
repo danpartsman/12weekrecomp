@@ -617,6 +617,7 @@ public static class SystemWorkoutRecipeCatalog
         OrangetheoryDailyRecipeRegistration.Create20260930Strength50Recipe(),
         OrangetheoryDailyRecipeRegistration.Create20261002HellWeekStrengthRecipe(),
         OrangetheoryDailyRecipeRegistration.Create20261007Strength50Recipe(),
+        OrangetheoryDailyRecipeRegistration.Create20261016Recipe(),
         OrangetheoryDailyRecipeRegistration.Create20261006Recipe(),
         OrangetheoryDailyRecipeRegistration.Create20261006Strength50Recipe(),
         CoreRecipe("MIXED_GYM_SESSION") with { GroupName = "Standard", DisplayName = "Standard Mixed Gym Session" },
