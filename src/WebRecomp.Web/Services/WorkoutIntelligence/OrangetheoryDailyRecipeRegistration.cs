@@ -377,6 +377,52 @@ internal static class OrangetheoryDailyRecipeRegistration
             GroupName: "Orangetheory",
             PlannedMinutes: 50m);
 
+
+    internal static SystemWorkoutRecipe Create20261016Recipe()
+        => new SystemWorkoutRecipe(
+            "OTF_2G_2026_10_16",
+            "OTF 2G - 2026-10-16",
+            "ORANGETHEORY",
+            "Orangetheory 2G revenge template for October 16, 2026. Preserves the published hill-build and reverse-hill treadmill blocks, 3.5-minute tread finisher, timed floor circuits, 100 m all-out row repeats, and burpee finisher. Three rounds are estimates only for repeat-until-time floor work; the row circuit may reach 3-4 rounds.",
+            [
+                Slot("OTF_1016_T1_BASE_4", "Treadmill Base at 4%", 1, 1, "Maintain base pace; power walkers 6%+.", true, "Tread Block 1", "Tread", 120, null, 4m, null, false, "2 min base @ 4% (PW 6%+)"),
+                Slot("OTF_1016_T1_BASE_REC_1", "Treadmill Base", 1, 1, "45 sec base between hill efforts.", true, "Tread Block 1", "Tread", 45, null, null, null, false, "45 sec base"),
+                Slot("OTF_1016_T1_BASE_5", "Treadmill Base at 5%", 1, 1, "Maintain base pace; power walkers 7%+.", true, "Tread Block 1", "Tread", 90, null, 5m, null, false, "90 sec base @ 5% (PW 7%+)"),
+                Slot("OTF_1016_T1_BASE_REC_2", "Treadmill Base", 1, 1, "45 sec base between hill efforts.", true, "Tread Block 1", "Tread", 45, null, null, null, false, "45 sec base"),
+                Slot("OTF_1016_T1_BASE_6", "Treadmill Base at 6%", 1, 1, "Maintain base pace; power walkers 8%+.", true, "Tread Block 1", "Tread", 60, null, 6m, null, false, "1 min base @ 6% (PW 8%+)"),
+                Slot("OTF_1016_T1_BASE_REC_3", "Treadmill Base", 1, 1, "45 sec base between hill efforts.", true, "Tread Block 1", "Tread", 45, null, null, null, false, "45 sec base"),
+                Slot("OTF_1016_T1_BASE_7", "Treadmill Base at 7%", 1, 1, "Maintain base pace; power walkers 9%+.", true, "Tread Block 1", "Tread", 30, null, 7m, null, false, "30 sec base @ 7% (PW 9%+)"),
+                Slot("OTF_1016_T1_BASE_REC_4", "Treadmill Base", 1, 1, "45 sec base before all-out.", true, "Tread Block 1", "Tread", 45, null, null, null, false, "45 sec base"),
+                Slot("OTF_1016_T1_AO", "Treadmill All Out", 1, 1, "Power walkers 10%+.", true, "Tread Block 1", "Tread", 30, null, null, null, false, "30 sec AO (PW 10%+)"),
+                Slot("OTF_1016_T1_WR", "Walking Recovery", 1, 1, "Published 90 sec walking recovery; get to base when ready.", true, "Tread Recovery 1", "Recovery", 90, null, null, null, false, "90 sec WR; base when ready"),
+                Slot("OTF_1016_T2_BASE_7", "Treadmill Base at 7%", 1, 1, "Reverse hill sequence; maintain base pace; power walkers 9%+.", true, "Tread Block 2", "Tread", 30, null, 7m, null, false, "30 sec base @ 7% (PW 9%+)"),
+                Slot("OTF_1016_T2_BASE_REC_1", "Treadmill Base", 1, 1, "45 sec base between hill efforts.", true, "Tread Block 2", "Tread", 45, null, null, null, false, "45 sec base"),
+                Slot("OTF_1016_T2_BASE_6", "Treadmill Base at 6%", 1, 1, "Reverse hill sequence; power walkers 8%+.", true, "Tread Block 2", "Tread", 60, null, 6m, null, false, "1 min base @ 6% (PW 8%+)"),
+                Slot("OTF_1016_T2_BASE_REC_2", "Treadmill Base", 1, 1, "45 sec base between hill efforts.", true, "Tread Block 2", "Tread", 45, null, null, null, false, "45 sec base"),
+                Slot("OTF_1016_T2_BASE_5", "Treadmill Base at 5%", 1, 1, "Reverse hill sequence; power walkers 7%+.", true, "Tread Block 2", "Tread", 90, null, 5m, null, false, "90 sec base @ 5% (PW 7%+)"),
+                Slot("OTF_1016_T2_BASE_REC_3", "Treadmill Base", 1, 1, "45 sec base between hill efforts.", true, "Tread Block 2", "Tread", 45, null, null, null, false, "45 sec base"),
+                Slot("OTF_1016_T2_BASE_4", "Treadmill Base at 4%", 1, 1, "Reverse hill sequence; power walkers 6%+.", true, "Tread Block 2", "Tread", 120, null, 4m, null, false, "2 min base @ 4% (PW 6%+)"),
+                Slot("OTF_1016_T2_BASE_REC_4", "Treadmill Base", 1, 1, "45 sec base before all-out.", true, "Tread Block 2", "Tread", 45, null, null, null, false, "45 sec base"),
+                Slot("OTF_1016_T2_AO", "Treadmill All Out", 1, 1, "Power walkers 10%+.", true, "Tread Block 2", "Tread", 30, null, null, null, false, "30 sec AO (PW 10%+)"),
+                Slot("OTF_1016_T2_WR", "Walking Recovery", 1, 1, "Published 90 sec walking recovery; get to base when ready.", true, "Tread Recovery 2", "Recovery", 90, null, null, null, false, "90 sec WR; base when ready"),
+                Slot("OTF_1016_T3_PUSH", "Treadmill Push", 1, 1, "30 sec push; power walkers 8%+.", true, "Tread Block 3", "Tread", 30, null, null, null, false, "30 sec push (PW 8%+)"),
+                Slot("OTF_1016_T3_PUSH_AO", "Treadmill Push to All Out", 1, 1, "30 sec push to all out; power walkers 8-10%.", true, "Tread Block 3", "Tread", 30, null, null, null, false, "30 sec push to AO (PW 8-10%)"),
+                Slot("OTF_1016_T3_AO", "Treadmill All Out", 1, 1, "30 sec all out; power walkers 10%+.", true, "Tread Block 3", "Tread", 30, null, null, null, false, "30 sec AO (PW 10%+)"),
+                Slot("OTF_1016_T3_WR", "Walking Recovery", 1, 1, "30 sec walking recovery.", true, "Tread Block 3", "Recovery", 30, null, null, null, false, "30 sec WR"),
+                Slot("OTF_1016_T3_PUSH_AO_90", "Treadmill Push to All Out", 1, 1, "90 sec push to all out; coach may cue all out if able; power walkers 8-10%.", true, "Tread Block 3", "Tread", 90, null, null, null, false, "90 sec push to AO (PW 8-10%)"),
+                Slot("OTF_1016_SITUP_STAND", "Dumbbell Bench Sit-Up to Stand", 3, 12, "Floor Block 1 - 12.25 minutes. Rest after each movement; repeat the sequence until time is called. Three rounds are an estimate for logging.", false, "Floor Block 1", "Circuit", 735, null, null, 3, true, "12 reps x ~3 rounds"),
+                Slot("OTF_1016_ALT_ROW_DEADLIFT", "Alternating Low Row to Deadlift", 3, 12, "Floor Block 1 - 12.25 minutes. Rest after each movement; repeat the sequence until time is called. Three rounds are an estimate for logging.", false, "Floor Block 1", "Circuit", 735, null, null, 3, true, "12 reps x ~3 rounds"),
+                Slot("OTF_1016_SPLIT_SQUAT_CURL", "Split Squat Hold with Bicep Curl", 3, 6, "6 each side; rear foot on bench. Floor Block 1 - 12.25 minutes; rest and repeat until time is called. Three rounds are an estimate for logging.", false, "Floor Block 1", "Circuit", 735, null, null, 3, true, "6/side x ~3 rounds"),
+                Slot("OTF_1016_CLEAN_FRONT_SQUAT", "Dumbbell Single Arm Clean to Front Squat", 4, 6, "4-8 reps each side; repeat back-to-back with 100 m all-out row, then rest until time is called. 3-4 rounds were reported as typical; four rounds is an upper-end estimate.", false, "Rower Block 1", "Circuit", 330, null, null, 4, true, "4-8 each x ~3-4 rounds"),
+                Slot("OTF_1016_ROW_100_AO", "Row", 4, 1, "100 m all-out row; check and remember average watts; rest. Repeat with clean-to-front-squat until time is called. 3-4 rounds were reported as typical.", true, "Rower Block 1", "Row", 330, 100m, null, 4, true, "100 m AO row x ~3-4 rounds"),
+                Slot("OTF_1016_BURPEE", "Bodyweight Burpee", 1, 1, "Finisher construct: 30 sec bodyweight burpees, then 30 sec push-ups, then 30 sec high plank jack to plank pop; rest 30 sec; then 90 sec bodyweight full burpees with high plank. Finish with member-choice collapse.", false, "Floor Block 2", "Finisher", 210, null, null, null, false, "30 + 30 + 30 sec; rest 30 sec; 90 sec full burpees"),
+                Slot("OTF_1016_PUSHUP", "Push-Up", 1, 1, "First 30 sec of back-to-back finisher construct.", false, "Floor Block 2", "Finisher", 30, null, null, null, false, "30 sec"),
+                Slot("OTF_1016_PLANK_JACK_POP", "High Plank Jack to Plank Pop", 1, 1, "30 sec of high plank jack to plank pop in back-to-back finisher construct.", false, "Floor Block 2", "Finisher", 30, null, null, null, false, "30 sec"),
+                Slot("OTF_1016_FULL_BURPEE", "Bodyweight Full Burpee with High Plank", 1, 1, "90 sec after 30 sec rest; member-choice collapse at end.", false, "Floor Block 2", "Finisher", 90, null, null, null, false, "90 sec")
+            ],
+            GroupName: "Orangetheory",
+            PlannedMinutes: 60m);
+
     private static SystemWorkoutExerciseSlot Slot(
         string slotCode,
         string exerciseName,
