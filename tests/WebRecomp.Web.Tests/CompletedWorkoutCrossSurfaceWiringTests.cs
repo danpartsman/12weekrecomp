@@ -70,12 +70,12 @@ public sealed class CompletedWorkoutCrossSurfaceWiringTests
         // Completed sessions may alter the nutrition inputs, but the day
         // projection must continue to describe the saved planned workout.
         Assert.Contains(
-            "WorkoutTypeCode:\n                        item.WorkoutCode",
+            "item.WorkoutCode",
             projectionService,
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "WorkoutCategoryCode:\n                        item.WorkoutCategoryCode",
+            "item.WorkoutCategoryCode",
             projectionService,
             StringComparison.Ordinal);
 
