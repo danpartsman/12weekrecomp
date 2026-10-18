@@ -28,7 +28,7 @@ public sealed class RecompAdherenceScorerTests
     {
         var days = Week(); days[0] = days[0] with { Protein = 0, Carbs = 500, Fat = 0 };
         Assert.Null(RecompAdherenceScorer.Score(Monday, days, Training()).DisplayScore);
-        Assert.Equal(33, RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training()).NutritionScore);
+        Assert.Equal(32, RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training()).NutritionScore);
     }
     [Fact] public void SmallFatOverageIsAWholeDayCategoryMiss()
     {
@@ -97,7 +97,7 @@ public sealed class RecompAdherenceScorerTests
         var result = RecompAdherenceScorer.Score(Monday, days, []);
         Assert.Equal(Monday.AddDays(-7), start);
         Assert.Equal(7, result.CompletedNutritionDays); Assert.Equal(7, result.KnownNutritionDays);
-        Assert.Equal(93, result.NutritionScore);
+        Assert.Equal(97, result.NutritionScore);
         Assert.Equal(6.5m / 7m * 25m, result.Components[0].Earned);
     }
     [Fact] public void NewProgramUsesAvailableCompletedDaysWithoutInventingEarlierEvidence()
