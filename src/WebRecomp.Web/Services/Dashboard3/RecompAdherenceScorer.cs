@@ -78,7 +78,7 @@ public static class RecompAdherenceScorer
             var included = bands.Length > 0;
             var fraction = included ? bands.Sum(b => b.Quality) / bands.Length : 0m;
             components.Add(new(label, weight, weight * fraction,
-                included ? $"{hits}/{bands.Length} green days; {half} yellow days. Green: no penalty; yellow: half penalty; red: full penalty."
+                included ? $"{hits}/{bands.Length} green days; {half} yellow days. Over-target: existing yellow/red penalties; under-target: yellow/red penalties are halved."
                     : "Pending: unfinished and unknown days are excluded from the score.", included));
         }
         foreach (var gauge in training)
