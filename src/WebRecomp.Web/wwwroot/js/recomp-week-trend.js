@@ -25,8 +25,8 @@
             d += (previous >= 0 && gap <= 3 ? 'L' : 'M') + x(i) + ',' + weightY(p.WeightLb) + ' ';
             previous = i;
         });
-        return '<path d="' + d + '" fill="none" stroke="#55c7ff" stroke-width="3.5"/>' +
-            points.map((p,i) => p.WeightLb == null ? '' : '<circle cx="' + x(i) + '" cy="' + weightY(p.WeightLb) + '" r="2.7" fill="#55c7ff"><title>' + esc(date(p.Date) + ': ' + num(p.WeightLb,1) + ' lb') + '</title></circle>').join('');
+        return '<path d="' + d + '" fill="none" stroke="#55c7ff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+            points.map((p,i) => p.WeightLb == null ? '' : '<circle cx="' + x(i) + '" cy="' + weightY(p.WeightLb) + '" r="3.4" fill="#55c7ff"><title>' + esc(date(p.Date) + ': ' + num(p.WeightLb,1) + ' lb') + '</title></circle>').join('');
     }
     function series(key, color) {
         let d = '', previous = -2, label = null;
