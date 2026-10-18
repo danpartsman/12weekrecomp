@@ -843,19 +843,19 @@ public sealed class Engine30DashboardProjectionService(
                 .Calculate(
                     glycogenSessions);
 
-        var distinctLabels =
+        // Preserve one label per completed session. Repeating the same workout type
+        // twice in a day is still two actual sessions and should remain visible.
+        var sessionLabels =
             labels
                 .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(
-                    StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
         var summary =
-            distinctLabels.Length switch
+            sessionLabels.Length switch
             {
                 0 => "Completed workout",
-                1 => distinctLabels[0],
-                _ => string.Join(" + ", distinctLabels)
+                1 => sessionLabels[0],
+                _ => string.Join(" + ", sessionLabels)
             };
 
         decimal? weightedRpe =
