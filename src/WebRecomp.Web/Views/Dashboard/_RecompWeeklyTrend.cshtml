@@ -4,11 +4,11 @@
 <section class="d3-week-trend" data-week-trend aria-labelledby="d3-week-trend-title">
     <details>
         <summary id="d3-week-trend-title">1-week results trend · Compare periods</summary>
-        <p class="d3-sub">Slide through up to six weeks of history. Each point is the same 7-day change shown in the cards above: latest three-day average versus three-day average seven days earlier. Fat and muscle are shown separately.</p>
+        <p class="d3-sub">Slide through up to six weeks of history. Each point is the same 7-day change shown in the cards above: latest three-day average versus three-day average seven days earlier. Fat, muscle and body weight are shown separately.</p>
         @if (Model.Points.Count == 0) {
             <p>Seven completed program days are needed to begin this comparison.</p>
         } else {
-            <div class="d3-trend-legend"><span class="d3-trend-fat">● Fat change</span><span class="d3-trend-muscle">● Muscle change</span><span>Yellow line = zero change</span></div>
+            <div class="d3-trend-legend"><span class="d3-trend-fat">● Fat change</span><span class="d3-trend-muscle">● Muscle change</span><span style="color:#ffe500">● Weight change</span><span>Gray line = zero change</span></div>
             <div class="d3-trend-plot" data-week-trend-plot></div>
             <div class="d3-trend-sliders">
                 <label for="d3-trend-a">Period A <output data-trend-date="a"></output><input id="d3-trend-a" data-trend-slider="a" type="range" min="0" max="@(Model.Points.Count - 1)" step="1" value="0" /></label>
