@@ -1253,20 +1253,21 @@ public sealed class Engine30DashboardProjectionService(
                 new Engine30DashboardDayProjection(
                     Date: item.Runtime.ActionDate,
                     HasPlannedWorkout: item.WorkoutCode is not null,
-                    WorkoutTypeCode: actualMetrics is not null && daySessions?.Count == 1
-                        ? Engine30WorkoutUiCatalogService.NormalizeCode(daySessions[0].WorkoutTypeCode) : item.WorkoutCode,
+                    // The day projection is the PLAN surface. Actual sessions may
+                    // actualize the nutrition prescription below, but must never
+                    // overwrite the saved planned workout identity or plan metadata.
+                    WorkoutTypeCode:
+                        item.WorkoutCode,
                     WorkoutDisplayName:
-                        actualMetrics?.WorkoutSummary
-                        ?? (plannedByDate.TryGetValue(item.Runtime.ActionDate, out var dayPlan) && dayPlan.SourceCode == "WORKOUT_TARGET" ? dayPlan.Notes : null)
+                        (plannedByDate.TryGetValue(item.Runtime.ActionDate, out var dayPlan) && dayPlan.SourceCode == "WORKOUT_TARGET" ? dayPlan.Notes : null)
                         ?? workout?.ProfileProvenance.WorkoutDisplayName
                         ?? "No workout planned",
                     WorkoutCategoryCode:
-                        actualInput?.WorkoutCategoryCode ?? item.WorkoutCategoryCode,
+                        item.WorkoutCategoryCode,
                     PlannedDurationMinutes:
-                        actualMetrics?.TotalDurationMinutes ?? workout?.ResolvedSession.AnalysisDuration.Minutes
-                        ?? 0m,
+                        workout?.ResolvedSession.AnalysisDuration.Minutes ?? 0m,
                     PlannedRpe:
-                        actualMetrics is not null ? actualMetrics.DurationWeightedRpe : workout?.ResolvedSession.PlannedRpe.Value,
+                        workout?.ResolvedSession.PlannedRpe.Value,
                     BaseLivingEnergyKcal:
                         item.Runtime.Energy.BaseLivingEnergyKcal,
                     HabitualActivityEnergyKcal:
