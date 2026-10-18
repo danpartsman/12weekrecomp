@@ -4,7 +4,7 @@ namespace WebRecomp.Web.Services.Dashboard3;
 
 public sealed record RecompWeeklyTrendPoint(
     DateOnly Date, DateOnly WeekStart, DateOnly WeekEnd,
-    decimal? FatChangeLb, decimal? MuscleChangeLb, string MuscleLabel,
+    decimal? FatChangeLb, decimal? MuscleChangeLb, decimal? WeightChangeLb, string MuscleLabel,
     string Status, string Band, int FatLatestReadings, int FatEarlierReadings,
     int MuscleLatestReadings, int MuscleEarlierReadings,
     int NutritionDays, decimal? Calories, decimal? Protein, decimal? Carbs, decimal? Fat,
@@ -44,7 +44,7 @@ public sealed record RecompWeeklyTrend(IReadOnlyList<RecompWeeklyTrendPoint> Poi
             var effort = completed.Where(x => x.SessionRpe.HasValue).ToArray();
             var flex = treats.Where(x => x.Key >= start && x.Key <= last && x.Value.HasValue).ToArray();
             var status = Outcome(composition.Fat.DisplayChangeLb, composition.Muscle.DisplayChangeLb);
-            points.Add(new(end, start, last, composition.Fat.DisplayChangeLb, composition.Muscle.DisplayChangeLb,
+            points.Add(new(end, start, last, composition.Fat.DisplayChangeLb, composition.Muscle.DisplayChangeLb, WeightChange(end, measurements),
                 composition.Muscle.Label, status, status == "Favorable" ? "green" : status == "Needs review" ? "red" : status == "Partial evidence" ? "gray" : "yellow",
                 composition.Fat.Latest.Count, composition.Fat.Previous.Count, composition.Muscle.Latest.Count, composition.Muscle.Previous.Count,
                 known.Length, Mean(known, x => x.ActualCalories!.Value), Mean(known, x => x.ActualProteinG!.Value),
@@ -57,5 +57,24 @@ public sealed record RecompWeeklyTrend(IReadOnlyList<RecompWeeklyTrendPoint> Poi
         }
         return new(points);
     }
+    private static decimal? WeightChange(DateOnly date, Measurement[] readings)
+    {
+        // Match the composition chart's three-day average versus the three-day average seven days earlier.
+        var latestStart = date.AddDays(-2);
+        var previousStart = date.AddDays(-9);
+        var previousEnd = date.AddDays(-7);
+        var daily = readings.Where(x => !x.IsDeleted && x.WeightLb is > 0m && x.LocalMeasurementDate <= date
+                && (x.LocalMeasurementDate >= latestStart
+                    || (x.LocalMeasurementDate >= previousStart && x.LocalMeasurementDate <= previousEnd)))
+            .GroupBy(x => x.LocalMeasurementDate)
+            .Select(g => g.OrderByDescending(x => x.MeasurementAtUtc).ThenByDescending(x => x.CreatedAtUtc)
+                .ThenByDescending(x => x.MeasurementId).First()).ToArray();
+        var latest = daily.Where(x => x.LocalMeasurementDate >= latestStart && x.LocalMeasurementDate <= date)
+            .Select(x => x.WeightLb!.Value).ToArray();
+        var previous = daily.Where(x => x.LocalMeasurementDate >= previousStart && x.LocalMeasurementDate <= previousEnd)
+            .Select(x => x.WeightLb!.Value).ToArray();
+        return latest.Length == 0 || previous.Length == 0 ? null : latest.Average() - previous.Average();
+    }
+
     private static decimal? Mean<T>(T[] rows, Func<T, decimal> value) => rows.Length == 0 ? null : rows.Average(value);
 }
