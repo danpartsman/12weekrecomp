@@ -66,6 +66,50 @@ public sealed class CompletedWorkoutCrossSurfaceWiringTests
             "CanonicalCompletedSessionsAsync",
             projectionService,
             StringComparison.Ordinal);
+
+        // Completed sessions may alter the nutrition inputs, but the day
+        // projection must continue to describe the saved planned workout.
+        Assert.Contains(
+            "item.WorkoutCode",
+            projectionService,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "item.WorkoutCategoryCode",
+            projectionService,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "WorkoutDisplayName:\n                        actualMetrics?.WorkoutSummary",
+            projectionService,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "WorkoutCategoryCode:\n                        actualInput?.WorkoutCategoryCode ?? item.WorkoutCategoryCode",
+            projectionService,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DashboardKeepsPlannedWorkoutSeparateFromCanonicalActual()
+    {
+        var root = FindRepoRoot();
+        var dashboardService = Read(root, "Services", "DashboardService.cs");
+
+        Assert.Contains(
+            "PlannedWorkout = engine30Projection.Today.HasPlannedWorkout ? engine30Projection.Today.WorkoutDisplayName : \"No workout planned\"",
+            dashboardService,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "WorkoutActual = engine30ActualWorkout.HasActualWorkout",
+            dashboardService,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "? engine30ActualWorkout.WorkoutSummary ?? workoutActual",
+            dashboardService,
+            StringComparison.Ordinal);
     }
 
     [Fact]

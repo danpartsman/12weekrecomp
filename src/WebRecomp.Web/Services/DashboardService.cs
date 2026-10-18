@@ -479,7 +479,9 @@ public sealed class DashboardService(
                 : BuildWorkoutDescription(recommendedType),
             WorkoutDurationMin = engine30Projection.Today.PlannedDurationMinutes,
             WorkoutEffort = engine30Projection.Today.PlannedRpe.HasValue ? $"RPE {engine30Projection.Today.PlannedRpe.Value:0.#}" : "Recovery / no planned effort",
-            WorkoutActual = engine30ActualWorkout.WorkoutSummary ?? workoutActual,
+            WorkoutActual = engine30ActualWorkout.HasActualWorkout
+                ? engine30ActualWorkout.WorkoutSummary ?? workoutActual
+                : null,
             PlannedWorkoutCaloriesKcal = engine30Projection.Today.HasPlannedWorkout
                 ? engine30Projection.Today.GrossWorkoutEnergyKcal
                 : null,

@@ -8,17 +8,17 @@ public sealed class CommandCenterPenaltyAndPredictionTests
 {
     private static readonly DateOnly Today = new(2026, 10, 13);
     [Theory]
-    [InlineData("protein", 94.99, .5)] [InlineData("protein", 95, 1)]
+    [InlineData("protein", 94.99, .75)] [InlineData("protein", 95, 1)]
     [InlineData("protein", 115, 1)] [InlineData("protein", 115.01, .5)]
-    [InlineData("carbs", 84.99, .5)] [InlineData("carbs", 85, .5)]
-    [InlineData("carbs", 94.99, .5)] [InlineData("carbs", 95, 1)]
+    [InlineData("carbs", 84.99, .75)] [InlineData("carbs", 85, .75)]
+    [InlineData("carbs", 94.99, .75)] [InlineData("carbs", 95, 1)]
     [InlineData("carbs", 105, 1)] [InlineData("carbs", 105.01, .5)]
-    [InlineData("fat", 85, .5)] [InlineData("fat", 95, 1)] [InlineData("fat", 106, .5)]
-    [InlineData("protein", 89.99, 0)] [InlineData("protein", 90, .5)]
+    [InlineData("fat", 85, .75)] [InlineData("fat", 95, 1)] [InlineData("fat", 106, .5)]
+    [InlineData("protein", 89.99, .5)] [InlineData("protein", 90, .75)]
     [InlineData("protein", 120, .5)] [InlineData("protein", 120.01, 0)]
-    [InlineData("carbs", 74.99, 0)] [InlineData("carbs", 75, .5)]
+    [InlineData("carbs", 74.99, .5)] [InlineData("carbs", 75, .75)]
     [InlineData("carbs", 110, .5)] [InlineData("carbs", 110.01, 0)]
-    [InlineData("fat", 74.99, 0)] [InlineData("fat", 75, .5)]
+    [InlineData("fat", 74.99, .5)] [InlineData("fat", 75, .75)]
     [InlineData("fat", 110, .5)] [InlineData("fat", 110.01, 0)]
     public void MacroBoundariesAndScoreUseExactPercentages(string key, double intake, double quality)
     {
