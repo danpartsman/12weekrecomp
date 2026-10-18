@@ -66,6 +66,28 @@ public sealed class CompletedWorkoutCrossSurfaceWiringTests
             "CanonicalCompletedSessionsAsync",
             projectionService,
             StringComparison.Ordinal);
+
+        // Completed sessions may alter the nutrition inputs, but the day
+        // projection must continue to describe the saved planned workout.
+        Assert.Contains(
+            "WorkoutTypeCode:\n                        item.WorkoutCode",
+            projectionService,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "WorkoutCategoryCode:\n                        item.WorkoutCategoryCode",
+            projectionService,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "WorkoutDisplayName:\n                        actualMetrics?.WorkoutSummary",
+            projectionService,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            "WorkoutCategoryCode:\n                        actualInput?.WorkoutCategoryCode ?? item.WorkoutCategoryCode",
+            projectionService,
+            StringComparison.Ordinal);
     }
 
     [Fact]
