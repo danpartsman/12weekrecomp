@@ -23,14 +23,15 @@ public sealed class ExternalConnectionsController(AppUserContextService users,De
     public async Task<IActionResult> SyncOnOpen(CancellationToken ct)
     {
         if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
-        var setting=await service.ProviderAsync(ct);
+        return Json(new {updated=false});
+        /*var setting=await service.ProviderAsync(ct);
         if(!setting.Enabled||!setting.AutomaticSyncEnabled)return Json(new {updated=false});
         var context=await users.GetAsync(HttpContext,ct);
         if(context.Client==null||context.Program==null||!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Json(new {updated=false});
         var c=await service.ConnectionAsync(context.User.UserId,context.Client.ClientId,ct);
         if(!DeviceSyncPolicy.ShouldCheckOnOpen(setting,c,DateTime.UtcNow))return Json(new {updated=false});
         await service.SyncAsync(c!.DeviceConnectionId,ct);
-        return Json(new {updated=service.LastImportedCount>0});
+        return Json(new {updated=service.LastImportedCount>0});*/
     }
     [HttpPost,ValidateAntiForgeryToken]
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("fitdays-preview")]
@@ -61,7 +62,7 @@ public sealed class ExternalConnectionsController(AppUserContextService users,De
         if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
         var context=await users.GetAsync(HttpContext,ct);if(context.Client==null)return RedirectToAction("Index","Intake");
         if(!await service.OwnsAsync(context.User.UserId,context.Client.ClientId,ct))return Forbid();
-        await connections.PreferenceAsync(context.User.UserId,context.Client.ClientId,automaticSync,ct);
+        await connections.PreferenceAsync(context.User.UserId,context.Client.ClientId,false,ct);
         TempData["DeviceMessage"]="Device integration preference saved.";return RedirectToAction(nameof(Index));
     }
     [HttpPost,ValidateAntiForgeryToken]
