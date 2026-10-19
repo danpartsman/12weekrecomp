@@ -82,9 +82,9 @@ public sealed class FitdaysController(AppUserContextService users, FitdaysClient
         if(preview==null||person==null||!persistConsent) {TempData["DeviceMessage"]="Select your profile and allow the encrypted sign-in to be saved. Reconnect if the preview expired.";return RedirectToAction(nameof(Index));}
         try
         {
-            var connection=await devices.SaveAsync(context,preview.Login,person,automaticSync,ct);
+            var connection=await devices.SaveAsync(context,preview.Login,person,false,ct);
             RemovePreview();Response.Cookies.Delete(Cookie,new CookieOptions {Secure=true,Path="/"});
-            TempData["DeviceMessage"]=await devices.SyncAsync(connection.DeviceConnectionId,ct);
+            TempData["DeviceMessage"]="Fitdays connected. Press Pull scale readings to import measurements.";
             return RedirectToAction("Index","ExternalConnections");
         }
         catch(FitdaysPreviewException ex) {TempData["DeviceMessage"]=ex.Message;return RedirectToAction(nameof(Index));}
