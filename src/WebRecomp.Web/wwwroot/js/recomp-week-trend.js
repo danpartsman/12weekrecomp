@@ -25,8 +25,8 @@
             d += (previous >= 0 && gap <= 3 ? 'L' : 'M') + x(i) + ',' + weightY(p.WeightLb) + ' ';
             previous = i;
         });
-        return '<path d="' + d + '" fill="none" stroke="#55c7ff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>' +
-            points.map((p,i) => p.WeightLb == null ? '' : '<circle cx="' + x(i) + '" cy="' + weightY(p.WeightLb) + '" r="3.4" fill="#55c7ff"><title>' + esc(date(p.Date) + ': ' + num(p.WeightLb,1) + ' lb') + '</title></circle>').join('');
+        return '<path d="' + d + '" fill="none" stroke="#55c7ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+            points.map((p,i) => p.WeightLb == null ? '' : '<circle cx="' + x(i) + '" cy="' + weightY(p.WeightLb) + '" r="2.2" fill="#55c7ff"><title>' + esc(date(p.Date) + ': ' + num(p.WeightLb,1) + ' lb') + '</title></circle>').join('');
     }
     function series(key, color) {
         let d = '', previous = -2, label = null;
@@ -38,7 +38,7 @@
             d += `${canBridge ? 'L' : 'M'}${x(i)},${y(p[key])} `;
             previous = i; label = p.MuscleLabel;
         });
-        return `<path d="${d}" fill="none" stroke="${color}" stroke-width="3"/>` + points.map((p,i) => p[key] == null ? '' : `<circle cx="${x(i)}" cy="${y(p[key])}" r="2.5" fill="${color}"/>`).join('');
+        return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2"/>` + points.map((p,i) => p[key] == null ? '' : `<circle cx="${x(i)}" cy="${y(p[key])}" r="2" fill="${color}"/>`).join('');
     }
     function chart() {
         const marks = [['A',Number(a.value)],['B',Number(b.value)]].map(([name,i]) => `<line x1="${x(i)}" y1="22" x2="${x(i)}" y2="184" stroke="${name === 'A' ? '#88d3ff' : '#ffffff'}" stroke-dasharray="5 4"/><text x="${x(i)}" y="15" text-anchor="middle" fill="#ffffff">${name}</text>`).join('');
