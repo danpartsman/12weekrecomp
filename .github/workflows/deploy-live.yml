@@ -324,7 +324,7 @@ jobs:
 
                   if ($health.StatusCode -eq 200 -and
                       $marker.StatusCode -eq 200 -and
-                      $marker.Content.Contains("${{ github.sha }}")) {
+                      $marker.Content -match "(?m)^source_sha=${{ github.sha }}\r?$") {
                       Write-Host "LIVE health check passed."
                       Write-Host $health.Content
                       Write-Host "LIVE release marker matches this deployment:"
@@ -352,17 +352,28 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $base = "https://12weekrecomp.com"
-          $svg = Invoke-WebRequest -Uri "$base/favicon.svg?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 30
-          $ico = Invoke-WebRequest -Uri "$base/favicon.ico?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 30
-          $page = Invoke-WebRequest -Uri "$base/Account/SignIn?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 30
-          $svgText = if ($svg.Content -is [byte[]]) { [Text.Encoding]::UTF8.GetString($svg.Content) } else { [string]$svg.Content }
-          if ($svg.StatusCode -ne 200 -or $svgText -notmatch 'viewBox="0 0 64 64"' -or
-              $ico.StatusCode -ne 200 -or $ico.RawContentLength -lt 100 -or
-              $page.Content -notmatch 'rel="icon"[^>]*favicon.svg') {
-              throw "LIVE favicon files or page links failed verification."
+          foreach ($base in @("https://recomp-live.azurewebsites.net", "https://12weekrecomp.com")) {
+              $ready = $false
+              for ($attempt = 1; $attempt -le 12; $attempt++) {
+                  try {
+                      $svg = Invoke-WebRequest -Uri "$base/favicon.svg?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 30
+                      $ico = Invoke-WebRequest -Uri "$base/favicon.ico?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 30
+                      $page = Invoke-WebRequest -Uri "$base/Account/SignIn?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 30
+                      $svgText = if ($svg.Content -is [byte[]]) { [Text.Encoding]::UTF8.GetString($svg.Content) } else { [string]$svg.Content }
+                      if ($svg.StatusCode -eq 200 -and $svgText -match 'viewBox="0 0 64 64"' -and
+                          $ico.StatusCode -eq 200 -and $ico.Headers["Content-Type"] -match 'image/' -and
+                          $page.Content -match 'rel="icon"[^>]*favicon.svg') {
+                          $ready = $true
+                          break
+                      }
+                      Write-Host "Favicon not ready at $base ($attempt/12): SVG type=$($svg.Headers['Content-Type']), ICO type=$($ico.Headers['Content-Type']), links=$($page.Content -match 'rel=\"icon\"[^>]*favicon.svg')"
+                  }
+                  catch { Write-Host "Favicon not ready at $base ($attempt/12): $($_.Exception.Message)" }
+                  Start-Sleep -Seconds 5
+              }
+              if (-not $ready) { throw "LIVE favicon files or page links failed verification at $base." }
+              Write-Host "LIVE SVG and ICO favicon files and page links passed at $base."
           }
-          Write-Host "LIVE SVG and ICO favicon files and page links passed."
 
       - name: Verify LIVE account creation and sign-in
         shell: pwsh
