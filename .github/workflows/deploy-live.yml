@@ -60,7 +60,7 @@ jobs:
               "source_sha=${{ github.sha }}"
               "deployment_run=${{ github.run_id }}"
               "built_at_utc=$([DateTime]::UtcNow.ToString('o'))"
-          ) | Set-Content -Path "./publish/release-version.txt" -Encoding utf8
+          ) | Set-Content -Path "./publish/wwwroot/release-version.txt" -Encoding utf8
 
       - name: Create deployment ZIP
         shell: pwsh
@@ -410,46 +410,4 @@ jobs:
           }
 
           Write-Host "LIVE account creation and sign-in pages are enabled and production-clean."
-
-
-  diagnose-live:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ env.AZURE_CLIENT_ID }}
-          tenant-id: ${{ env.AZURE_TENANT_ID }}
-          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-      - name: Diagnose LIVE package mounting
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          az webapp config show --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query "{virtualApplications:virtualApplications,alwaysOn:alwaysOn,use32BitWorkerProcess:use32BitWorkerProcess}" -o json
-          az webapp config appsettings list --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query "[?name=='WEBSITE_RUN_FROM_PACKAGE' || name=='WEBSITE_LOCAL_CACHE_OPTION' || name=='WEBSITE_RUN_FROM_ZIP']" -o json
-          $token = az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv
-          Write-Output "::add-mask::$token"
-          $script = @'
-          $ErrorActionPreference = "Continue"
-          $packages = "D:\home\data\SitePackages"
-          $active = (Get-Content (Join-Path $packages "packagename.txt") -Raw).Trim()
-          Write-Output ("Active package: " + $active)
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $zip = [IO.Compression.ZipFile]::OpenRead((Join-Path $packages $active))
-          $zip.Entries | Where-Object { $_.FullName -match 'WebRecomp.Web.dll|release-version.txt|favicon|web.config' } | Select-Object FullName,Length | Format-Table -AutoSize
-          $entry = $zip.GetEntry("release-version.txt")
-          if ($entry) { $reader = [IO.StreamReader]::new($entry.Open()); Write-Output $reader.ReadToEnd(); $reader.Dispose() }
-          $zip.Dispose()
-          foreach ($root in @("D:\home\site\wwwroot","C:\local\site\wwwroot")) {
-              Write-Output ("Mounted root: " + $root)
-              Get-ChildItem $root -File | Select-Object Name,Length,LastWriteTimeUtc | Format-Table -AutoSize
-              if (Test-Path "$root\release-version.txt") { Get-Content "$root\release-version.txt" }
-              if (Test-Path "$root\wwwroot\favicon.svg") { Get-Content "$root\wwwroot\favicon.svg" }
-          }
-          '@
-          $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
-          $body = @{ command = "powershell.exe -NoProfile -EncodedCommand $encoded"; dir = "D:\home" } | ConvertTo-Json
-          $result = Invoke-RestMethod -Uri "https://$($env:AZURE_WEBAPP_NAME).scm.azurewebsites.net/api/command" -Method Post -Headers @{ Authorization = "Bearer $token" } -ContentType "application/json" -Body $body
-          Write-Host $result.Output
-          Write-Host $result.Error
 
