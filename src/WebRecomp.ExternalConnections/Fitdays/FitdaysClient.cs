@@ -90,7 +90,7 @@ public sealed class FitdaysClient(HttpClient http)
             if (code is not (0 or 200))
             {
                 doc.Dispose();
-                throw new FitdaysPreviewException("Fitdays rejected the connection or the session expired. Check your email, password, and region, then reconnect.") { SessionRejected = true };
+                throw new FitdaysPreviewException($"Fitdays API rejected {path} (code {code?.ToString(CultureInfo.InvariantCulture) ?? "missing"}). No automatic re-login was attempted; check Fitdays account status and API response.") { SessionRejected = code is 401 or 403 or 1001 };
             }
             return doc;
         }
