@@ -37,6 +37,10 @@ public sealed record Engine30DashboardDayProjection(
     string? WorkoutProfileVersionCode,
     string? WorkoutProfileSourceCode)
 {
+    // Keep the saved plan's physiology separate from the effective daily workload,
+    // which switches to completed sessions for nutrition after a workout is logged.
+    public decimal PlannedGrossWorkoutEnergyKcal { get; init; }
+    public decimal PlannedGlycogenDemandG { get; init; }
     public string? CoachPrescriptionNotice { get; init; }
     public Guid? CoachPrescriptionVersionId { get; init; }
 }
@@ -1311,7 +1315,13 @@ public sealed class Engine30DashboardProjectionService(
                     WorkoutProfileVersionCode:
                         workout?.ProfileProvenance.ProfileVersionCode,
                     WorkoutProfileSourceCode:
-                        workout?.ProfileProvenance.SourceCode);
+                        workout?.ProfileProvenance.SourceCode)
+                {
+                    PlannedGrossWorkoutEnergyKcal =
+                        workout?.Energy.GrossWorkoutEnergyKcal ?? 0m,
+                    PlannedGlycogenDemandG =
+                        item.Runtime.Glycogen.EstimatedGlycogenDepletedG
+                };
         }
 
         return new Engine30DashboardWeekProjection(

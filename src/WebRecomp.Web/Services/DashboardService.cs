@@ -483,10 +483,10 @@ public sealed class DashboardService(
                 ? engine30ActualWorkout.WorkoutSummary ?? workoutActual
                 : null,
             PlannedWorkoutCaloriesKcal = engine30Projection.Today.HasPlannedWorkout
-                ? engine30Projection.Today.GrossWorkoutEnergyKcal
+                ? engine30Projection.Today.PlannedGrossWorkoutEnergyKcal
                 : null,
             PlannedWorkoutGlycogenG = engine30Projection.Today.HasPlannedWorkout
-                ? engine30Projection.Today.GlycogenDemandG
+                ? engine30Projection.Today.PlannedGlycogenDemandG
                 : null,
             ActualWorkoutCaloriesKcal = engine30ActualWorkout.HasActualWorkout
                 ? engine30ActualWorkout.GrossWorkoutEnergyKcal
