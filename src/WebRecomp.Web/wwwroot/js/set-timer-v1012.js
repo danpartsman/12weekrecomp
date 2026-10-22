@@ -15,9 +15,22 @@
     const key = `12wr:set-timer:v1:${workoutId}`;
 
     const parseSeconds = text => {
-        const match = String(text || "").trim().match(/^(\d{1,3}):(\d{2})$/);
-        if (!match || Number(match[2]) > 59) return null;
-        const seconds = Number(match[1]) * 60 + Number(match[2]);
+        const value = String(text || "").trim();
+        const match = value.match(/^(\d{1,3}):(\d{2})$/);
+        let seconds;
+        if (match) {
+            if (Number(match[2]) > 59) return null;
+            seconds = Number(match[1]) * 60 + Number(match[2]);
+        } else if (/^\d{1,5}$/.test(value)) {
+            // Numeric keyboards have no colon: 130 = 1:30, 200 = 2:00.
+            // One or two digits are seconds, so 90 also works as 1:30.
+            if (value.length <= 2) seconds = Number(value);
+            else {
+                const part = Number(value.slice(-2));
+                if (part > 59) return null;
+                seconds = Number(value.slice(0, -2)) * 60 + part;
+            }
+        } else return null;
         return seconds >= 1 && seconds <= 36000 ? seconds : null;
     };
     const format = seconds => {
@@ -70,27 +83,33 @@
         host.classList.toggle("is-running", endsAt !== null);
     };
 
-    durationInput.addEventListener("change", () => {
+    const applyDuration = () => {
         const seconds = parseSeconds(durationInput.value);
         if (seconds === null) {
-            durationInput.setCustomValidity("Enter minutes:seconds, for example 01:30.");
+            durationInput.setCustomValidity("Enter 130 for 1:30 or 200 for 2:00 (up to 600:00).");
             durationInput.reportValidity();
-            return;
+            return false;
         }
         durationInput.setCustomValidity("");
-        duration = seconds;
-        remaining = seconds;
-        if (endsAt !== null) endsAt = Date.now() + seconds * 1000;
+        if (duration !== seconds) {
+            duration = seconds;
+            remaining = seconds;
+            if (endsAt !== null) endsAt = Date.now() + seconds * 1000;
+        }
         durationInput.value = format(seconds);
         save();
         render();
-    });
+        return true;
+    };
+    durationInput.addEventListener("change", applyDuration);
+    durationInput.addEventListener("focus", () => durationInput.select());
     durationInput.addEventListener("input", () => durationInput.setCustomValidity(""));
     cycleInput.addEventListener("change", () => {
         cycling = cycleInput.checked;
         save();
     });
     toggle.addEventListener("click", () => {
+        if (endsAt === null && !applyDuration()) return;
         if (endsAt !== null) {
             remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
             endsAt = null;
@@ -112,3 +131,4 @@
     updateStickyDisplay();
     setInterval(render, 250);
 })();
+

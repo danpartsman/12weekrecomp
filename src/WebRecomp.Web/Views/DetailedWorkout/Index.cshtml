@@ -192,7 +192,8 @@
                         <div class="wi-set-timer__title">Set Timer</div>
                         <label class="wi-set-timer__entry">
                             <span class="sr-only">Set countdown time in minutes and seconds</span>
-                            <input data-set-timer-duration type="text" inputmode="numeric" value="02:00" aria-label="Set timer duration minutes colon seconds" />
+                            <input data-set-timer-duration type="text" inputmode="numeric" value="02:00" autocomplete="off" enterkeyhint="done" aria-label="Set timer duration. Enter 130 for 1 minute 30 seconds or 200 for 2 minutes." aria-describedby="wi-set-timer-help" />
+                            <small id="wi-set-timer-help">130 = 1:30 · 200 = 2:00</small>
                         </label>
                         <output data-set-timer-display aria-live="off">02:00</output>
                         <button class="button wi-set-timer__button" data-set-timer-toggle type="button">Start</button>
@@ -2325,4 +2326,5 @@
 <script src="~/js/live-workout-v1012.js" asp-append-version="true"></script>
 <script src="~/js/set-timer-v1012.js" asp-append-version="true"></script>
 <script src="~/js/draggable-panels-v1012.js" asp-append-version="true"></script>
+
 

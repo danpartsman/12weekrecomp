@@ -164,29 +164,71 @@
     // we reacquire whenever this page returns to the foreground.
     // ---------------------------------------------------------------------
     let wakeLockSentinel = null;
+    let wakeLockPending = false;
+    let wakePageActive = true;
+    let lastWakeAttempt = -Infinity;
+    let wakeStatus = null;
+    let wakeRetry = null;
 
-    const requestWakeLock = async () => {
+    const showWakeStatus = (text, canRetry = false) => {
+        if (!wakeStatus) {
+            const controls = document.createElement("div");
+            controls.style.cssText = "display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-top:.5rem;font-size:.8rem";
+            wakeStatus = document.createElement("span");
+            wakeStatus.setAttribute("role", "status");
+            wakeRetry = document.createElement("button");
+            wakeRetry.type = "button";
+            wakeRetry.className = "button";
+            wakeRetry.textContent = "Keep screen awake";
+            wakeRetry.addEventListener("click", () => void requestWakeLock(true));
+            controls.append(wakeStatus, wakeRetry);
+            timerHost.insertAdjacentElement("afterend", controls);
+        }
+        wakeStatus.textContent = text;
+        wakeRetry.hidden = !canRetry;
+    };
+
+    const requestWakeLock = async (fromGesture = false) => {
         if (editingCompleted
+            || !wakePageActive
             || document.visibilityState !== "visible"
-            || !("wakeLock" in navigator)
-            || wakeLockSentinel) {
+            || wakeLockPending
+            || (wakeLockSentinel && !wakeLockSentinel.released)) {
             return;
         }
 
+        if (!("wakeLock" in navigator)) {
+            showWakeStatus("Keep the screen on using your device settings.");
+            return;
+        }
+        // Retry transient releases without repeatedly hammering an OS denial.
+        if (!fromGesture && Date.now() - lastWakeAttempt < 15000) return;
+        lastWakeAttempt = Date.now();
+        wakeLockPending = true;
+        showWakeStatus("Keeping screen awake…");
         try {
-            wakeLockSentinel =
-                await navigator.wakeLock.request("screen");
+            const lock = await navigator.wakeLock.request("screen");
+            if (!wakePageActive || document.visibilityState !== "visible") {
+                await lock.release();
+                return;
+            }
+            wakeLockSentinel = lock;
+            showWakeStatus("Screen awake");
 
-            wakeLockSentinel.addEventListener(
+            lock.addEventListener(
                 "release",
                 () => {
+                    if (wakeLockSentinel !== lock) return;
                     wakeLockSentinel = null;
+                    showWakeStatus("Screen may sleep.", true);
                 },
                 { once: true });
         }
         catch {
-            // Wake Lock is an enhancement. The server clock and autosave still
-            // preserve the workout even when a browser or OS declines it.
+            showWakeStatus("Screen may sleep.", true);
+        }
+        finally {
+            wakeLockPending = false;
         }
     };
 
@@ -208,12 +250,25 @@
         void requestWakeLock();
 
         document.addEventListener("visibilitychange", () => {
-            if (!document.hidden) void requestWakeLock();
+            if (!document.hidden) {
+                lastWakeAttempt = -Infinity;
+                void requestWakeLock();
+            } else void releaseWakeLock();
         });
 
         window.addEventListener("focus", () => void requestWakeLock(), { passive: true });
-        window.addEventListener("pageshow", () => void requestWakeLock(), { passive: true });
-        window.addEventListener("pagehide", () => void releaseWakeLock(), { passive: true });
+        window.addEventListener("pageshow", () => {
+            wakePageActive = true;
+            lastWakeAttempt = -Infinity;
+            void requestWakeLock();
+        }, { passive: true });
+        window.addEventListener("pagehide", () => {
+            wakePageActive = false;
+            void releaseWakeLock();
+        }, { passive: true });
+        document.addEventListener("pointerdown", () => void requestWakeLock(true), { passive: true });
+        document.addEventListener("keydown", () => void requestWakeLock(true));
+        window.setInterval(() => void requestWakeLock(), 15000);
     }
 
     // ---------------------------------------------------------------------
@@ -696,3 +751,4 @@
         window.setTimeout(openMenu, 250);
     }
 })();
+

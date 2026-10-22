@@ -300,6 +300,23 @@ jobs:
           }
           Write-Host "Today workout assets and protected daily routes passed."
 
+      - name: Verify workout timer and screen-awake assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $base = "https://test.12weekrecomp.com"
+          $timer = Invoke-WebRequest -Uri "$base/js/set-timer-v1012.js?v=${{ github.sha }}" -TimeoutSec 30
+          $awake = Invoke-WebRequest -Uri "$base/js/rest-timer-v1012.js?v=1012rest3" -TimeoutSec 30
+          $loader = Invoke-WebRequest -Uri "$base/js/live-workout-v1012.js?v=${{ github.sha }}" -TimeoutSec 30
+          if ($timer.Content -notmatch 'const applyDuration' -or
+              $timer.Content -notmatch '130 = 1:30' -or
+              $awake.Content -notmatch 'wakeLockPending' -or
+              $awake.Content -notmatch 'Screen awake' -or
+              $loader.Content -notmatch '1012rest3') {
+              throw "Workout timer or screen-awake assets do not match this deployment."
+          }
+          Write-Host "Numeric timer entry and screen-awake assets verified."
+
       - name: Report optional learning schema readiness
         shell: pwsh
         run: |
