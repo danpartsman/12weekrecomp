@@ -1,0 +1,25 @@
+# Generated .NET and IDE output (at any depth)
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.binlog
+
+# Downloaded JavaScript dependencies
+node_modules/
+
+# Generated publishing, migration staging, and test output
+/.deploy/
+/publish/
+/publish.zip
+/learning-migration/
+/learning-migration.zip
+artifacts/
+TestResults/
+
+# Downloaded App Service deployment diagnostics
+/recomp-logs/
+/recomp-save-logs/
+/recomp-test-logs/
+/recomp-test-logs.zip
