@@ -4,8 +4,8 @@ using WebRecomp.Web.Services.Engine30;
 using WebRecomp.Web.ViewModels;
 namespace WebRecomp.Web.Services.Coaching;
 
-/// <summary>Read-only saved entries. Does not calculate or persist new prescriptions.</summary>
-public sealed class CoachWeeklySummaryService(RecompDbContext db, CoachCenterService coaches)
+/// <summary>Read-only saved entries and shared engine targets. Never persists prescriptions.</summary>
+public sealed class CoachWeeklySummaryService(RecompDbContext db, CoachCenterService coaches, ICoachSummaryPrescriptionSource? prescriptions = null)
 {
     public async Task<CoachWeeklySummaryViewModel?> BuildAsync(Guid coachUserId, Guid clientId,
         DateOnly? requestedWeek, CancellationToken ct = default)
@@ -16,11 +16,11 @@ public sealed class CoachWeeklySummaryService(RecompDbContext db, CoachCenterSer
             .SingleOrDefaultAsync(x => x.ClientId == clientId && x.ClientStatusCode == "ACTIVE", ct);
         if (client is null) return null;
         var today = AppUserContextService.GetClientToday(client);
-        var date = requestedWeek ?? today;
-        if (date < new DateOnly(1900, 1, 1) || date > today.AddDays(84))
-            throw new ArgumentOutOfRangeException(nameof(requestedWeek), "Choose a week from 1900 through the next 12 weeks.");
-        var monday = Engine30DashboardProjectionService.WeekStart(date);
-        var sunday = monday.AddDays(6);
+        var reference = requestedWeek ?? today;
+        if (reference < new DateOnly(1900, 1, 8) || reference > today)
+            throw new ArgumentOutOfRangeException(nameof(requestedWeek), "Choose a reference date from January 8, 1900 through today.");
+        var monday = reference.AddDays(-7);
+        var sunday = reference.AddDays(1);
         // Client-scoped dates include scale readings with no ProgramId and program transitions.
         var scales = await db.Measurements.AsNoTracking().Where(x => x.ClientId == clientId && !x.IsDeleted
             && x.LocalMeasurementDate >= monday && x.LocalMeasurementDate <= sunday).ToListAsync(ct);
@@ -38,11 +38,13 @@ public sealed class CoachWeeklySummaryService(RecompDbContext db, CoachCenterSer
         var templateIds = plans.Where(x => x.WorkoutTemplateId.HasValue).Select(x => x.WorkoutTemplateId!.Value).ToArray();
         var templates = await db.WorkoutTemplates.AsNoTracking().Where(x => x.ClientId == clientId
             && templateIds.Contains(x.WorkoutTemplateId)).ToDictionaryAsync(x => x.WorkoutTemplateId, x => x.TemplateName, ct);
-        var days = Enumerable.Range(0, 7).Select(offset =>
+        var targets = prescriptions is null ? new CoachSummaryTargets(new Dictionary<DateOnly, CoachSummaryPrescription>())
+            : await prescriptions.LoadAsync(coachUserId, client, reference, ct);
+        var days = Enumerable.Range(0, 9).Select(offset =>
         {
             var d = monday.AddDays(offset);
             var readings = scales.Where(x => x.LocalMeasurementDate == d)
-                .OrderByDescending(x => x.MeasurementAtUtc).ThenByDescending(x => x.CreatedAtUtc).ThenBy(x => x.MeasurementId).ToArray();
+                .OrderByDescending(x => x.MeasurementAtUtc).ThenByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.MeasurementId).ToArray();
             var plan = plans.Where(x => x.PlannedDate == d).OrderByDescending(x => x.UpdatedAtUtc).ThenBy(x => x.PlannedWorkoutId).FirstOrDefault();
             var planName = plan is null ? null : plan.WorkoutTemplateId is Guid id && templates.TryGetValue(id, out var name)
                 ? name : plan.SystemWorkoutCode ?? plan.WorkoutTypeCode;
@@ -50,8 +52,8 @@ public sealed class CoachWeeklySummaryService(RecompDbContext db, CoachCenterSer
                 checkins.Where(x => x.CheckinDate == d).OrderByDescending(x => x.UpdatedAtUtc).ThenBy(x => x.CheckinId).FirstOrDefault(),
                 nutrition.Where(x => x.NutritionDate == d).OrderByDescending(x => x.UpdatedAtUtc).ThenBy(x => x.NutritionDayId).FirstOrDefault(),
                 planName, sessions.Where(x => x.WorkoutDate == d).Select(x => new CoachSummaryWorkout(x,
-                    exercises.Where(e => e.WorkoutSessionId == x.WorkoutSessionId).OrderBy(e => e.ExerciseOrder).ToArray())).ToArray());
+                    exercises.Where(e => e.WorkoutSessionId == x.WorkoutSessionId).OrderBy(e => e.ExerciseOrder).ToArray())).ToArray()) { Prescription = targets.Days.GetValueOrDefault(d) };
         }).ToArray();
-        return new() { ClientId = clientId, ClientName = client.ClientName, Today = today, WeekStart = monday, Days = days };
+        return new() { ClientId = clientId, ClientName = client.ClientName, Today = today, ReferenceDate = reference, Days = days, PrescriptionNotice = targets.Notice };
     }
 }

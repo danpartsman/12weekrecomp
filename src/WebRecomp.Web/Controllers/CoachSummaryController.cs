@@ -10,15 +10,15 @@ namespace WebRecomp.Web.Controllers;
 public sealed class CoachSummaryController(AppUserContextService users, CoachWeeklySummaryService summaries) : Controller
 {
     [HttpGet("")]
-    public async Task<IActionResult> Index(Guid clientId, DateOnly? week, CancellationToken ct)
+    public async Task<IActionResult> Index(Guid clientId, DateOnly? date, CancellationToken ct, DateOnly? week = null)
     {
         if (!ModelState.IsValid) return BadRequest("Choose a valid week.");
         var user = (await users.GetAsync(HttpContext, ct)).User;
         try
         {
-            var summary = await summaries.BuildAsync(user.UserId, clientId, week, ct);
+            var summary = await summaries.BuildAsync(user.UserId, clientId, date ?? week, ct);
             return summary is null ? NotFound() : View(summary);
         }
-        catch (ArgumentOutOfRangeException) { return BadRequest("Choose a valid week, no more than 12 weeks ahead."); }
+        catch (ArgumentOutOfRangeException) { return BadRequest("Choose a valid reference date through today."); }
     }
 }
