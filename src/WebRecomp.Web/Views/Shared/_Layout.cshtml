@@ -407,7 +407,7 @@
                     Settings
                 </a>
 
-                <a asp-controller="MyCoach" asp-action="Index">My Trainer</a>
+                <a asp-controller="MyCoach" asp-action="Index">My Coach</a>
                 @if (User.IsInRole("Coach") || User.IsInRole("Administrator"))
                 {
                     <a asp-controller="Coach"
