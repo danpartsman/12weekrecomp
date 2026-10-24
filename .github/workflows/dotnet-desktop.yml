@@ -25,6 +25,13 @@ jobs:
       contents: read
 
     steps:
+      - name: Honor requested pause before any work
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[pause-test-work]')
+        shell: pwsh
+        run: |
+          Write-Host "TEST deployment and sample-data insert paused at the user's request."
+          exit 1
+
       - name: Checkout repository
         uses: actions/checkout@v7
 
