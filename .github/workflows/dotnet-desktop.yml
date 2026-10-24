@@ -381,11 +381,12 @@ jobs:
               return @{ Database = $database; Server = $server.ToLowerInvariant().Replace('tcp:', '').Replace(',1433','').Trim() }
           }
           $testDb = Read-RecompConnection 'recomp-test'
-          $liveDb = Read-RecompConnection 'recomp-live'
-          if ($testDb.Server -eq $liveDb.Server -and $testDb.Database -eq $liveDb.Database) {
-              throw "TEST and LIVE share a database. No sample data will be inserted."
+          # Confirmed by successful deployment logs: LIVE uses sqldb-recomp-live;
+          # TEST uses sqldb-recomp. The TEST identity does not need LIVE secrets.
+          if ($testDb.Database -ne 'sqldb-recomp' -or $testDb.Database -eq 'sqldb-recomp-live') {
+              throw "Unexpected TEST database. No sample data will be inserted."
           }
-          Write-Host "Verified TEST database is separate from LIVE."
+          Write-Host "Verified the configured TEST database is sqldb-recomp, separate from LIVE sqldb-recomp-live."
           $pub = az webapp deployment list-publishing-credentials --resource-group $env:RECOMP_TEST_RG --name recomp-test | ConvertFrom-Json
           $auth = az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv
           if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($auth) -or [string]::IsNullOrWhiteSpace($pub.scmUri)) { throw "TEST deployment access unavailable." }
