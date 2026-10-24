@@ -70,6 +70,9 @@
         <a class="button" asp-route-clientId="@Model.ClientId" asp-route-date="@(Model.ReferenceDate.AddDays(7) > Model.Today ? Model.Today.ToString("yyyy-MM-dd") : Model.ReferenceDate.AddDays(7).ToString("yyyy-MM-dd"))">Next 7 days →</a>
     }
 </nav>
+@await Html.PartialAsync("_AccountabilityPreview", new AccountabilityPreviewViewModel(Model.ClientId, Model.ClientName))
+@inject Microsoft.Extensions.Configuration.IConfiguration AccountabilityConfig
+@if (AccountabilityPreview.Enabled(AccountabilityConfig)) { <p><a class="button" asp-controller="Coach" asp-action="Accountability" asp-route-clientId="@(Model.ClientId)">Fines &amp; incentives · Preview</a></p> }
 <section aria-label="Seven completed days gauges">
     <h2>Last 7 completed days</h2>
     <p class="muted">@Model.CompletedWorkouts completed workouts · @Model.TrainingMinutes.ToString("0.#") minutes · @Model.NutritionDays / 7 days with nutrition. Today and tomorrow are excluded from all gauges and totals.</p>

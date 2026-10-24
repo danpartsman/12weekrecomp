@@ -1,0 +1,30 @@
+@model AccountabilityPreviewViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration PreviewConfiguration
+@if (AccountabilityPreview.Enabled(PreviewConfiguration))
+{
+<link rel="stylesheet" href="~/css/accountability-preview.css" asp-append-version="true" />
+<section class="accountability card" data-accountability data-client-id="@Model.ClientId" data-editable="@Model.Editable.ToString().ToLowerInvariant()" hidden="@(!Model.Editable)">
+    <div class="accountability-heading"><div><p class="accountability-tag">TEST PREVIEW</p><h2>Fines &amp; incentives</h2></div><span data-agreement-state>Not enabled</span></div>
+    <p>Browser-only sample. No charges, payments or earned balances. Settings stay on this browser and do not sync to another device or person.</p>
+    @if (Model.Editable)
+    {
+        <form data-accountability-form>
+            <label class="accountability-enable"><input type="checkbox" name="enabled" /> Enable fines &amp; incentives for this client preview</label>
+            <p>Choose rules, then set the dollar amount per daily, weekly or monthly assessment. Minimum and maximum apply to each rule’s accumulated total over the 12-week program. A minimum is a settlement threshold, never a minimum charge.</p>
+            <div class="accountability-scroll"><table><caption>Client accountability rules · USD</caption><thead><tr><th scope="col">Assign</th><th scope="col">Rule</th><th scope="col">Type</th><th scope="col">Amount</th><th scope="col">Assess</th><th scope="col">Minimum total ($)</th><th scope="col">Maximum total ($)</th></tr></thead><tbody data-rule-editor></tbody></table></div>
+            <p>Approved illness, injury, recovery and plan changes would need review before settlement. Missing logs would remain pending review. Extra exercise or eating below prescribed macros earns no extra reward.</p>
+            <div class="accountability-actions"><button type="submit">Save preview</button><button type="button" class="secondary" data-reset-preview>Reset preview</button></div>
+            <p data-preview-status role="status" aria-live="polite"></p>
+        </form>
+    }
+    <div data-assigned-preview hidden>
+        <h3>@(Model.Editable ? "Client Command Center preview" : "Your assigned arrangement")</h3>
+        <p data-assignment-summary></p>
+        <div class="accountability-assigned" data-assigned-rules></div>
+        <p><strong>Accumulated fines: — · Earned incentives: —</strong><br />Preview only. No adherence calculation or financial settlement is running.</p>
+    </div>
+    @if (!Model.Editable && (User.IsInRole("Coach") || User.IsInRole("Administrator")))
+    { <p><a asp-controller="Coach" asp-action="Accountability" asp-route-clientId="@Model.ClientId">Configure client preview →</a></p> }
+</section>
+<script src="~/js/accountability-preview.js" asp-append-version="true" defer></script>
+}

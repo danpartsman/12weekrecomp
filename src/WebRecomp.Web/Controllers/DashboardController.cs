@@ -121,6 +121,7 @@ public sealed class DashboardController(
             }
         }
 
+        ViewData["AccountabilityClientId"] = client.ClientId;
         ViewData["DashboardToday"] = today;
         ViewData["DashboardStart"] = program.StartDate;
         var vm = await dashboard.BuildAsync(context, selectedDate ?? today, cancellationToken);
