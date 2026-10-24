@@ -374,7 +374,7 @@ jobs:
               if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($value)) { throw "Database isolation could not be verified." }
               Write-Output "::add-mask::$value" | Out-Host
               $parsed = [System.Data.Common.DbConnectionStringBuilder]::new()
-              $parsed.ConnectionString = $value
+              $parsed.set_ConnectionString([string]($value -join "`n"))
               $database = if ($parsed.ContainsKey('Initial Catalog')) { [string]$parsed['Initial Catalog'] } else { [string]$parsed['Database'] }
               $server = if ($parsed.ContainsKey('Data Source')) { [string]$parsed['Data Source'] } else { [string]$parsed['Server'] }
               if ([string]::IsNullOrWhiteSpace($database) -or [string]::IsNullOrWhiteSpace($server)) { throw "Cannot resolve database identity." }
