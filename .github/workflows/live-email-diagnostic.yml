@@ -83,7 +83,7 @@ jobs:
           Console.WriteLine("ResetRequestHTTP="+(int)response.StatusCode);
           Console.WriteLine("ResetConfirmationReached="+(response.RequestMessage?.RequestUri?.AbsolutePath=="/Account/ForgotPasswordConfirmation"));
           return response.IsSuccessStatusCode?0:7;
-                    '@ | Set-Content ./email-diagnostic/Program.cs -Encoding utf8
+          '@ | Set-Content ./email-diagnostic/Program.cs -Encoding utf8
           dotnet publish ./email-diagnostic/EmailDiagnostic.csproj -c Release -r win-x86 --self-contained false -o ./email-diagnostic-publish
           if ($LASTEXITCODE -ne 0) { throw "Diagnostic build failed." }
           Compress-Archive ./email-diagnostic-publish/* ./email-diagnostic.zip -Force
