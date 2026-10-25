@@ -66,28 +66,21 @@ jobs:
               Console.WriteLine("CredentialHashWellFormed="+wellFormed);
               if (await reader.ReadAsync()) { Console.WriteLine("AccountMatches=Multiple"); return 5; }
           }
-          Console.WriteLine("ResetRequestStartedUtc="+DateTime.UtcNow.ToString("O"));
-          using var handler=new HttpClientHandler {CookieContainer=new CookieContainer(),AllowAutoRedirect=true};
-          using var client=new HttpClient(handler) {Timeout=TimeSpan.FromSeconds(60)};
-          const string url="https://12weekrecomp.com/Account/ForgotPassword";
-          using var page=await client.GetAsync(url);
-          Console.WriteLine("ResetFormHTTP="+(int)page.StatusCode);
-          page.EnsureSuccessStatusCode();
-          var html=await page.Content.ReadAsStringAsync();
-          var match=Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"");
-          if (!match.Success) {Console.WriteLine("ResetFormTokenFound=False");return 6;}
-          using var form=new FormUrlEncodedContent(new Dictionary<string,string> {
-              ["Email"]=email,["__RequestVerificationToken"]=WebUtility.HtmlDecode(match.Groups[1].Value)
-          });
-          using var response=await client.PostAsync(url,form);
-          Console.WriteLine("ResetRequestHTTP="+(int)response.StatusCode);
-          Console.WriteLine("ResetConfirmationReached="+(response.RequestMessage?.RequestUri?.AbsolutePath=="/Account/ForgotPasswordConfirmation"));
-          return response.IsSuccessStatusCode?0:7;
+          cmd.CommandText = """
+          SELECT account_status_code,COUNT(*) AS MatchingAccounts
+          FROM app.UserAccounts
+          WHERE CONVERT(varchar(64),HASHBYTES('SHA2_256',LOWER(CONVERT(varchar(320),email_normalized))),2)=@digest
+          GROUP BY account_status_code;
+          """;
+          await using (var r=await cmd.ExecuteReaderAsync()) {
+              while(await r.ReadAsync()) Console.WriteLine("LoginLookupStatus="+r.GetString(0)+";Matches="+r.GetInt32(1));
+          }
+          return 0;
           '@ | Set-Content ./email-diagnostic/Program.cs -Encoding utf8
           dotnet publish ./email-diagnostic/EmailDiagnostic.csproj -c Release -r win-x86 --self-contained false -o ./email-diagnostic-publish
           if ($LASTEXITCODE -ne 0) { throw "Diagnostic build failed." }
           Compress-Archive ./email-diagnostic-publish/* ./email-diagnostic.zip -Force
-      - name: Inspect login state and submit one authorized reset through the live site
+      - name: Inspect all account matches used by login without sending another email
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
