@@ -51,7 +51,7 @@ jobs:
                   Write-Output "NoRecipientProbe=UnexpectedAcceptance"
               } catch {
                   Write-Output ("NoRecipientHTTP=" + [int]$_.Exception.Response.StatusCode)
-                  try { $e = $_.ErrorDetails.Message | ConvertFrom-Json; Write-Output ("NoRecipientCode=" + $e.error.code) } catch {}
+                  try { $raw=$_.ErrorDetails.Message; if (!$raw -and $_.Exception.Response) { $reader=New-Object IO.StreamReader($_.Exception.Response.GetResponseStream()); $raw=$reader.ReadToEnd(); $reader.Close() }; $e=$raw|ConvertFrom-Json; Write-Output ("NoRecipientCode=" + $e.error.code) } catch {}
               }
           } catch { Write-Output ("IdentityDiagnostic=" + $_.Exception.GetType().Name) }
           try {
@@ -85,7 +85,7 @@ jobs:
               $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(email_normalized)=@email AND account_status_code='ACTIVE' AND (NULLIF(LTRIM(RTRIM(contact_email)),'') IS NULL OR LOWER(LTRIM(RTRIM(contact_email)))=@email)"
               Write-Output ("CassidyDestinationMatches=" + $cmd.ExecuteScalar())
               $cn.Close()
-          } catch { Write-Output ("AccountDiagnostic=" + $_.Exception.GetType().Name); if ($_.Exception.InnerException.Number) { Write-Output ("AccountSQLNumber=" + $_.Exception.InnerException.Number) } }
+          } catch { Write-Output ("AccountDiagnostic=" + $_.Exception.GetType().Name); $safeError=$_.Exception.GetBaseException().Message; if ($connection) { $safeError=$safeError.Replace($connection,"[connection redacted]") }; if ($generic -and $generic["Password"]) { $safeError=$safeError.Replace([string]$generic["Password"],"[redacted]") }; Write-Output ("AccountDiagnosticReason=" + $safeError); if ($_.Exception.InnerException.Number) { Write-Output ("AccountSQLNumber=" + $_.Exception.InnerException.Number) } }
           $iis = @(Get-ChildItem D:\home\LogFiles\http\RawLogs -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 3)
           foreach ($file in $iis) {
               $fieldsLine = Get-Content $file.FullName | Where-Object { $_ -like '#Fields:*' } | Select-Object -First 1
