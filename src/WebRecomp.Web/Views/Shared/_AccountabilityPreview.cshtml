@@ -3,9 +3,9 @@
 @if (AccountabilityPreview.Enabled(PreviewConfiguration))
 {
 <link rel="stylesheet" href="~/css/accountability-preview.css" asp-append-version="true" />
-<section class="accountability card" data-accountability data-client-id="@Model.ClientId" data-editable="@Model.Editable.ToString().ToLowerInvariant()" data-can-approve="@Model.CanApprove.ToString().ToLowerInvariant()" data-review-page="@Model.ReviewPage.ToString().ToLowerInvariant()" hidden="@(!Model.Editable && !Model.ReviewPage)">
+<section class="accountability card" data-accountability data-client-id="@Model.ClientId" data-editable="@Model.Editable.ToString().ToLowerInvariant()" data-can-approve="@Model.CanApprove.ToString().ToLowerInvariant()" data-review-page="@Model.ReviewPage.ToString().ToLowerInvariant()" data-can-assign-snap="@((Model.Editable || Model.CanAssignSnap).ToString().ToLowerInvariant())" hidden="@(!Model.Editable && !Model.ReviewPage)">
     @Html.AntiForgeryToken()
-    <div class="accountability-heading"><div><p class="accountability-tag">TEST PREVIEW</p><h2>Fines, incentives &amp; agreement</h2></div><span data-agreement-state>Not enabled</span></div>
+    <div class="accountability-heading"><div><p class="accountability-tag">TEST PREVIEW</p><h2>Fines, incentives &amp; Snap Workout</h2></div><span data-agreement-state>Not enabled</span></div>
     <p>Browser-only draft. No charges or payments. Terms, excused dates and approval receipts stay on this browser; they do not sync between people or devices. No permanent contract or financial ledger is stored.</p>
     @if (Model.Editable)
     {
@@ -33,15 +33,20 @@
             <p data-preview-status role="status" aria-live="polite"></p>
         </form>
     }
+    <section class="accountability-exceptions" data-exceptions-panel>
+        <div class="accountability-week-nav"><h3>Fee exceptions · Seven days</h3><label>Week containing<input type="date" data-preview-week /></label><button type="button" data-load-week>View week</button></div>
+        <p>Check Excused for illness or an approved inability to complete the program. Each checked date waives adherence and Snap Workout assessments for that date; contract payments and late-payment terms remain separate. Excuses apply to the displayed dates only.</p>
+        <p data-evidence-status role="status"></p>
+        <div class="accountability-excuses" data-excused-days></div>
+        @if (Model.Editable || Model.CanAssignSnap) { <button type="button" data-save-exceptions>Save fee exceptions</button> }
+        <p data-exceptions-status role="status" aria-live="polite"></p>
+    </section>
+    @await Html.PartialAsync("_SnapWorkout", Model)
     <div data-assigned-preview hidden>
         <h3>@(Model.Editable ? "Client agreement preview" : "Your assigned arrangement")</h3>
         <p data-assignment-summary></p><div class="accountability-assigned" data-assigned-rules></div>
         <h3>Contract payments</h3><p data-payment-summary></p>
         <p data-approval-state role="status" aria-live="polite">Awaiting client approval.</p>
-        <div class="accountability-week-nav"><h3>Excused dates &amp; assessment preview</h3><label>Week containing<input type="date" data-preview-week /></label><button type="button" data-load-week>View week</button></div>
-        <p>Only completed days are assessed. Missing logs or targets remain pending. Coach-checked Excused dates waive that day’s adherence fees and rewards. Save the preview after changing excuses or reviewed counts.</p>
-        <p data-evidence-status role="status"></p>
-        <div class="accountability-excuses" data-excused-days></div>
         <div class="accountability-scroll"><table><caption>Logged values against assigned daily targets</caption><thead><tr><th>Date</th><th>Calories</th><th>Protein</th><th>Carbs</th><th>Fat</th><th>Assessment</th></tr></thead><tbody data-macro-evidence></tbody></table></div>
         <details data-count-panel><summary>Reviewed counts for count-based rules</summary><p>Coach enters reviewed counts below. Blank means unknown. Counts are summed within the rule’s selected assessment period.</p><div class="accountability-scroll"><table><thead data-count-heading></thead><tbody data-count-evidence></tbody></table></div></details>
         @if (Model.Editable) { <p><button type="submit" form="accountability-settings-@Model.ClientId">Save excuses &amp; reviewed counts</button></p> }

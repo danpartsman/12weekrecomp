@@ -51,3 +51,56 @@ test('invalid criteria, late percentages and penny values are rejected; monthly 
     const s = defaults(); assert(valid(s)); s.rules[0].min = 0.29; assert(valid(s)); s.rules[0].lower = 10; assert(!valid(s)); s.rules[0].lower = -5; s.payment.lateBasis = 'percent'; s.payment.lateValue = 101; assert(!valid(s));
     const sampleData = sample(); sampleData.s.rules[1].frequency = 'monthly'; assert.equal(assess(sampleData.s, sampleData.evidence)[0].status, 'pending');
 });
+
+const { assessSnap } = require('../src/WebRecomp.Web/wwwroot/js/accountability-preview.js');
+function snapSample(basis = 'incomplete-reps') {
+    const s = defaults();
+    s.snapWorkouts = [{ id: 'workout-1', date: '2026-10-14', name: 'Quick legs', cap: 100, exercises: [{ id: 'exercise-1', catalogId: 'catalog-1', name: 'Leg extension', sets: 3, reps: 10, weight: 50, type: 'fine', basis, rate: .25 }] }];
+    s.snapResults = { 'workout-1': { finalized: true, sets: { 'exercise-1': [{ reps: 10, weight: 50 }, { reps: 8, weight: 50 }, { reps: 0, weight: 0 }] } } };
+    const evidence = { today: '2026-10-17', weekStart: '2026-10-12', days: Array.from({ length: 7 }, (_, i) => ({ date: `2026-10-${12 + i}`, completed: true })) };
+    return { s, evidence };
+}
+test('Snap completed and incomplete reps/sets use assigned targets and unit rates', () => {
+    const expected = { 'completed-reps': [18, 4.5], 'completed-sets': [1, .25], 'incomplete-reps': [12, 3], 'incomplete-sets': [2, .5] };
+    for (const [basis, [units, amount]] of Object.entries(expected)) {
+        const { s, evidence } = snapSample(basis); assert(valid(s)); const row = assessSnap(s, evidence)[0]; assert.equal(row.units, units); assert.equal(row.amount, amount);
+    }
+});
+test('Snap extra reps never increase units, and below-target weight does not qualify', () => {
+    const { s, evidence } = snapSample('completed-reps');
+    s.snapResults['workout-1'].sets['exercise-1'][0].reps = 100;
+    s.snapResults['workout-1'].sets['exercise-1'][1] = { reps: 10, weight: 49.9 };
+    const row = assessSnap(s, evidence)[0]; assert.equal(row.completedReps, 10); assert.equal(row.completedSets, 1); assert.equal(row.amount, 2.5);
+});
+test('Snap unknown or unfinished results stay pending, future work cannot accrue fees', () => {
+    const { s, evidence } = snapSample(); s.snapResults['workout-1'].finalized = false;
+    assert.equal(assessSnap(s, evidence)[0].status, 'pending');
+    s.snapResults['workout-1'].finalized = true; s.snapResults['workout-1'].sets['exercise-1'][1].weight = null;
+    assert(!valid(s)); assert.equal(assessSnap(s, evidence)[0].amount, 0);
+    s.snapResults['workout-1'].sets['exercise-1'][1].weight = 50; evidence.today = '2026-10-13'; assert.equal(assessSnap(s, evidence)[0].status, 'pending');
+});
+test('dated exceptions waive Snap fees, and weekly selection never double-counts another week', () => {
+    const { s, evidence } = snapSample(); s.excused['2026-10-14'] = true;
+    assert.equal(assessSnap(s, evidence)[0].status, 'excused'); assert.equal(assessSnap(s, evidence)[0].amount, 0);
+    delete s.excused['2026-10-14']; assert.equal(assessSnap(s, evidence)[0].amount, 3);
+    evidence.days = evidence.days.map(d => ({ ...d, date: d.date.replace('10-', '11-') })); assert.equal(assessSnap(s, evidence).length, 0);
+});
+test('Snap cap applies across exercises separately for fines and incentives', () => {
+    const { s, evidence } = snapSample(); const w = s.snapWorkouts[0]; w.cap = 4;
+    w.exercises.push({ ...w.exercises[0], id: 'exercise-2' }, { ...w.exercises[0], id: 'exercise-3', type: 'incentive', basis: 'completed-reps' });
+    s.snapResults['workout-1'].sets['exercise-2'] = structuredClone(s.snapResults['workout-1'].sets['exercise-1']);
+    s.snapResults['workout-1'].sets['exercise-3'] = structuredClone(s.snapResults['workout-1'].sets['exercise-1']);
+    assert(valid(s)); const rows = assessSnap(s, evidence); assert.deepEqual(rows.map(r => r.amount), [3, 1, 4]);
+});
+test('Snap assignment targets and rates require new approval; completion and exceptions do not', () => {
+    const s = defaults(), before = terms(s); const old = { ...s }; delete old.snapWorkouts; delete old.snapResults;
+    assert(valid(old)); assert.equal(terms(old), before);
+    const sample = snapSample(); const contract = terms(sample.s); sample.s.snapResults['workout-1'].sets['exercise-1'][0].reps = 9; sample.s.excused['2026-10-14'] = true; assert.equal(terms(sample.s), contract);
+    sample.s.snapWorkouts[0].exercises[0].rate = 1; assert.notEqual(terms(sample.s), contract);
+});
+test('Snap rejects zero sets, negative rates, invalid dates and duplicate assignment IDs', () => {
+    const { s } = snapSample(); s.snapWorkouts[0].exercises[0].sets = 0; assert(!valid(s)); s.snapWorkouts[0].exercises[0].sets = 3;
+    s.snapWorkouts[0].exercises[0].rate = -1; assert(!valid(s)); s.snapWorkouts[0].exercises[0].rate = .25;
+    s.snapWorkouts[0].date = '2026-02-30'; assert(!valid(s)); s.snapWorkouts[0].date = '2026-10-14';
+    s.snapWorkouts.push(structuredClone(s.snapWorkouts[0])); assert(!valid(s));
+});

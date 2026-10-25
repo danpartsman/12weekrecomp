@@ -42,6 +42,17 @@ public sealed class CoachAccountabilityPreviewService(RecompDbContext db, CoachC
     public async Task<bool> CanViewAsync(Guid userId, Guid clientId, bool coachRole, CancellationToken ct) =>
         await CanApproveAsync(userId, clientId, ct) || (coachRole && await coaches.CanAccessAsync(userId, clientId, ct));
     public Task<bool> IsOwnerAsync(Guid userId, Guid clientId, CancellationToken ct) => db.UserClientAccess.AnyAsync(x => x.UserId == userId && x.ClientId == clientId && x.AccessRoleCode == "OWNER" && x.RevokedAtUtc == null, ct);
+    public Task<bool> CanAssignSnapAsync(Guid userId, Guid clientId, CancellationToken ct) => coaches.CanAccessAsync(userId, clientId, ct);
+    public async Task<object> ExercisesAsync(Guid clientId, string? search, CancellationToken ct)
+    {
+        var query = (search ?? "").Trim();
+        var prefix = clientId.ToString("N") + ":";
+        return await db.ExerciseCatalogItems.AsNoTracking().Where(x => x.IsActive
+            && (x.SourceCode != "12WR_CSV_UNMAPPED" || x.SourceExternalId.StartsWith(prefix))
+            && (query == "" || x.Name.Contains(query))).OrderBy(x => x.Name).Take(40)
+            .Select(x => new { id = x.ExerciseCatalogItemId, name = x.Name }).ToArrayAsync(ct);
+    }
+    public Task<string?> ClientNameAsync(Guid clientId, CancellationToken ct) => db.Clients.AsNoTracking().Where(x => x.ClientId == clientId && x.ClientStatusCode == "ACTIVE").Select(x => x.ClientName).FirstOrDefaultAsync(ct);
     public async Task<object?> EvidenceAsync(UserAccount user, Guid clientId, DateOnly? selected, CancellationToken ct)
     {
         var client = await db.Clients.AsNoTracking().SingleOrDefaultAsync(x => x.ClientId == clientId && x.ClientStatusCode == "ACTIVE", ct);
@@ -51,7 +62,13 @@ public sealed class CoachAccountabilityPreviewService(RecompDbContext db, CoachC
         if (date < today.AddDays(-84) || date > today) throw new ArgumentOutOfRangeException(nameof(selected));
         var monday = date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
         // The prescription source returns reference-7 through reference+1.
-        var prescribed = await targets.LoadAsync(user.UserId, client, monday.AddDays(7), ct);
+        CoachSummaryTargets prescribed;
+        try { prescribed = await targets.LoadAsync(user.UserId, client, monday.AddDays(7), ct); }
+        catch (Exception e) when (e is InvalidOperationException or ArgumentException)
+        {
+            // Snap assignments and dated exceptions remain usable without a complete nutrition profile.
+            prescribed = new(new Dictionary<DateOnly, WebRecomp.Web.ViewModels.CoachSummaryPrescription>(), "Nutrition targets are unavailable; macro assessments stay pending. Snap Workouts and dated exceptions remain available.");
+        }
         var days = await db.NutritionDays.AsNoTracking().Where(x => x.ClientId == clientId && x.NutritionDate >= monday && x.NutritionDate <= monday.AddDays(6)).ToListAsync(ct);
         return new { today, weekStart = monday, notice = prescribed.Notice,
             days = Enumerable.Range(0, 7).Select(i => {

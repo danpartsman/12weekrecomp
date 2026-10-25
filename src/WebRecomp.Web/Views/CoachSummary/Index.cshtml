@@ -72,7 +72,7 @@
 </nav>
 @await Html.PartialAsync("_AccountabilityPreview", new AccountabilityPreviewViewModel(Model.ClientId, Model.ClientName))
 @inject Microsoft.Extensions.Configuration.IConfiguration AccountabilityConfig
-@if (AccountabilityPreview.Enabled(AccountabilityConfig)) { <p><a class="button" asp-controller="Coach" asp-action="Accountability" asp-route-clientId="@(Model.ClientId)">Fines &amp; incentives · Preview</a></p> }
+@if (AccountabilityPreview.Enabled(AccountabilityConfig)) { <p><a class="button" asp-controller="Coach" asp-action="Accountability" asp-route-clientId="@(Model.ClientId)">Fines &amp; incentives · Preview</a> <a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@(Model.ClientId)">Snap Workout · Client portal</a></p> }
 <section aria-label="Seven completed days gauges">
     <h2>Last 7 completed days</h2>
     <p class="muted">@Model.CompletedWorkouts completed workouts · @Model.TrainingMinutes.ToString("0.#") minutes · @Model.NutritionDays / 7 days with nutrition. Today and tomorrow are excluded from all gauges and totals.</p>

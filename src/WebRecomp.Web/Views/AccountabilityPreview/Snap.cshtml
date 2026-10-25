@@ -1,0 +1,5 @@
+@model AccountabilityPreviewViewModel
+@{ ViewData["Title"] = "Snap Workout"; }
+<h1>Snap Workout · @Model.ClientName</h1>
+<p>Quick exercise assignments with a weekly fee or incentive preview.</p>
+@await Html.PartialAsync("_AccountabilityPreview", Model)

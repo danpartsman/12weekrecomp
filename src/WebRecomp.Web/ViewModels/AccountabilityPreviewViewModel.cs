@@ -1,6 +1,6 @@
 namespace WebRecomp.Web.ViewModels;
 
-public sealed record AccountabilityPreviewViewModel(Guid ClientId, string ClientName, bool Editable = false, bool CanApprove = false, bool ReviewPage = false);
+public sealed record AccountabilityPreviewViewModel(Guid ClientId, string ClientName, bool Editable = false, bool CanApprove = false, bool ReviewPage = false, bool CanAssignSnap = false);
 
 public static class AccountabilityPreview
 {

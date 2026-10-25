@@ -23,6 +23,25 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
         if (!await preview.CanApproveAsync(context.User.UserId, clientId, ct)) return NotFound();
         return View(new AccountabilityPreviewViewModel(clientId, context.Client?.ClientName ?? "Client", CanApprove: true, ReviewPage: true));
     }
+    [HttpGet("snap")]
+    public async Task<IActionResult> Snap(Guid clientId, CancellationToken ct)
+    {
+        if (!Enabled) return NotFound();
+        var user = (await users.GetAsync(HttpContext, ct)).User;
+        if (!await preview.CanViewAsync(user.UserId, clientId, CoachRole, ct)) return NotFound();
+        var name = await preview.ClientNameAsync(clientId, ct); if (name is null) return NotFound();
+        return View(new AccountabilityPreviewViewModel(clientId, name, CanApprove: await preview.CanApproveAsync(user.UserId, clientId, ct),
+            ReviewPage: true, CanAssignSnap: CoachRole && await preview.CanAssignSnapAsync(user.UserId, clientId, ct)));
+    }
+    [HttpGet("exercises")]
+    public async Task<IActionResult> Exercises(Guid clientId, string? q, CancellationToken ct)
+    {
+        if (!Enabled) return NotFound();
+        if (q?.Length > 80) return BadRequest("Use up to 80 characters.");
+        var user = (await users.GetAsync(HttpContext, ct)).User;
+        if (!CoachRole || !await preview.CanAssignSnapAsync(user.UserId, clientId, ct)) return NotFound();
+        return Json(await preview.ExercisesAsync(clientId, q, ct));
+    }
     [HttpGet("evidence")]
     public async Task<IActionResult> Evidence(Guid clientId, DateOnly? date, CancellationToken ct)
     {
@@ -62,7 +81,8 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
     {
         if (string.IsNullOrWhiteSpace(terms) || terms.Length > 32768) return false;
         try { using var doc = JsonDocument.Parse(terms); return doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("version", out var version) && version.TryGetInt32(out var v) && v == 2
-            && doc.RootElement.TryGetProperty("enabled", out var enabled) && enabled.ValueKind == JsonValueKind.True; }
+            && ((doc.RootElement.TryGetProperty("enabled", out var enabled) && enabled.ValueKind == JsonValueKind.True)
+                || (doc.RootElement.TryGetProperty("snapWorkouts", out var snaps) && snaps.ValueKind == JsonValueKind.Array && snaps.GetArrayLength() > 0)); }
         catch (JsonException) { return false; }
     }
     public sealed class ApprovalInput

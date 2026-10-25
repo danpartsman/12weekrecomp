@@ -42,6 +42,23 @@ public sealed class AccountabilityPreviewTests
         Assert.False(await service.CanViewAsync(coach, client, true, default));
     }
     [Fact]
+    public async Task SnapExerciseChoicesExcludeOtherClientsPrivateAndInactiveExercises()
+    {
+        using var db = new RecompDbContext(new DbContextOptionsBuilder<RecompDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        var client = Guid.NewGuid(); var other = Guid.NewGuid();
+        ExerciseCatalogItemRecord Exercise(string name, string source, string external, bool active = true) => new() {
+            ExerciseCatalogItemId = Guid.NewGuid(), Name = name, SourceCode = source, SourceExternalId = external, IsActive = active, MeasurementType = "REPS" };
+        db.ExerciseCatalogItems.AddRange(Exercise("Global press", "GLOBAL", "global"),
+            Exercise("Own press", "12WR_CSV_UNMAPPED", client.ToString("N") + ":own"),
+            Exercise("Other private press", "12WR_CSV_UNMAPPED", other.ToString("N") + ":private"), Exercise("Inactive press", "GLOBAL", "inactive", false));
+        await db.SaveChangesAsync();
+        var service = new CoachAccountabilityPreviewService(db, new CoachCenterService(db), null!);
+        var choices = System.Text.Json.JsonSerializer.SerializeToElement(await service.ExercisesAsync(client, "press", default));
+        var names = choices.EnumerateArray().Select(x => x.GetProperty("name").GetString()).ToArray();
+        Assert.Equal(new[] { "Global press", "Own press" }, names);
+    }
+
+    [Fact]
     public void PreviewGateIsTestOnly()
     {
         var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["WEBSITE_SITE_NAME"] = "recomp-live" }).Build();
