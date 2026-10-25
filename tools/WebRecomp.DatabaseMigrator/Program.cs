@@ -9,12 +9,14 @@ var runtimeConnectionString = Environment.GetEnvironmentVariable(connectionStrin
 var accessToken = Environment.GetEnvironmentVariable(tokenVariable);
 var configuredAuthentication = args.Contains("--configured-auth", StringComparer.Ordinal);
 var sampleData = args.Contains("--test-sample-data", StringComparer.Ordinal);
+var accountability = args.Contains("--accountability", StringComparer.Ordinal);
 var learningMigration = args.Contains("--learning-coach", StringComparer.Ordinal);
-if (args.Any(x => x is not ("--learning-coach" or "--configured-auth" or "--test-sample-data"))
-    || (configuredAuthentication && !learningMigration && !sampleData)
-    || (sampleData && (!configuredAuthentication || learningMigration)))
+if (args.Any(x => x is not ("--learning-coach" or "--configured-auth" or "--test-sample-data" or "--accountability"))
+    || (configuredAuthentication && !learningMigration && !sampleData && !accountability)
+    || (sampleData && (!configuredAuthentication || learningMigration || accountability))
+    || (accountability && (!configuredAuthentication || learningMigration || sampleData)))
 {
-    Console.Error.WriteLine("Supported options: --learning-coach [--configured-auth], or --test-sample-data --configured-auth.");
+    Console.Error.WriteLine("Supported options: --learning-coach [--configured-auth], or --test-sample-data --configured-auth, or --accountability --configured-auth.");
     return 5;
 }
 
@@ -50,10 +52,10 @@ if (string.IsNullOrWhiteSpace(runtimeBuilder.DataSource) ||
     return 4;
 }
 
-if (sampleData && (!string.Equals(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"), "recomp-test", StringComparison.OrdinalIgnoreCase)
+if ((sampleData || accountability) && (!string.Equals(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"), "recomp-test", StringComparison.OrdinalIgnoreCase)
     || !string.Equals(runtimeBuilder.InitialCatalog, Environment.GetEnvironmentVariable("RECOMP_EXPECTED_TEST_DATABASE"), StringComparison.Ordinal)))
 {
-    Console.Error.WriteLine("Sample data requires the recomp-test App Service and its verified, isolated TEST database.");
+    Console.Error.WriteLine("This migration requires the recomp-test App Service and its verified, isolated TEST database.");
     return 6;
 }
 
@@ -107,7 +109,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::nutrition TO web_recomp_app;
 
 // The learning migration is additive and idempotent. Run it with the
 // deployment identity, never by granting DDL to the runtime web identity.
-var migrationSql = sampleData
+var migrationSql = accountability
+    ? await File.ReadAllTextAsync(Path.Combine("database", "047_coach_accountability.sql"))
+    : sampleData
     ? await File.ReadAllTextAsync(Path.Combine("database", "test_sample_month.sql"))
     : learningMigration
     ? await File.ReadAllTextAsync(Path.Combine("database", "043_v1015c_learning_coach_foundation.sql"))
@@ -134,16 +138,16 @@ try
     await using var command = connection.CreateCommand();
     command.CommandText = migrationSql;
     command.CommandTimeout = 60;
-    if (sampleData)
+    if (sampleData || accountability)
     {
         command.Parameters.AddWithValue("@ExpectedDatabase", runtimeBuilder.InitialCatalog);
         await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
+        do
         {
-            for (var i = 0; i < reader.FieldCount; i++)
-                Console.WriteLine($"{reader.GetName(i)}={reader.GetValue(i)}");
-        }
-        Console.WriteLine("TEST sample-data batch completed and verified. Existing entries were retained.");
+            while (await reader.ReadAsync())
+                for (var i = 0; i < reader.FieldCount; i++) Console.WriteLine($"{reader.GetName(i)}={reader.GetValue(i)}");
+        } while (await reader.NextResultAsync());
+        Console.WriteLine(accountability ? "TEST accountability schema completed and verified. Existing entries were retained." : "TEST sample-data batch completed and verified. Existing entries were retained.");
         return 0;
     }
     await command.ExecuteNonQueryAsync();

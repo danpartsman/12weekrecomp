@@ -11,7 +11,7 @@ namespace WebRecomp.Web.Controllers;
 [Authorize, Route("accountability-preview/clients/{clientId:guid}")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class AccountabilityPreviewController(AppUserContextService users, CoachAccountabilityPreviewService preview,
-    LocalAuthService auth, AccountabilityApprovalReceipt receipts, IConfiguration configuration) : Controller
+    LocalAuthService auth, AccountabilityApprovalReceipt receipts, IConfiguration configuration, CoachAccountabilityStore? store = null) : Controller
 {
     private bool Enabled => AccountabilityPreview.Enabled(configuration);
     private bool CoachRole => User.IsInRole("Coach") || User.IsInRole("Administrator");
@@ -62,20 +62,44 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
         if (!await preview.CanApproveAsync(user.UserId, clientId, ct)) return NotFound();
         if (!input.Agree || !await auth.VerifyCurrentPasswordReadOnlyAsync(user, input.Username, input.Password, ct))
             return BadRequest("Approval failed. Confirm agreement and use the signed-in client's username and password.");
-        var token = receipts.Issue(user.UserId, clientId, input.Terms, user.EmailNormalized ?? "Client");
-        var receipt = receipts.Read(token, clientId, input.Terms)!;
-        return Json(new { token, receipt.ApprovedAt, receipt.ExpiresAt, receipt.SignedBy, previewOnly = true });
+        try
+        {
+            var row = await store!.ApproveAsync(user.UserId, clientId, input.ExpectedRevision, input.Terms, user.EmailNormalized ?? "Client", ct);
+            return Json(await store.EnvelopeAsync(row, ct));
+        }
+        catch (UnauthorizedAccessException) { return NotFound(); }
+        catch (AccountabilityConflictException e) { return Conflict(new { error = e.Message }); }
+        catch (ArgumentException e) { return BadRequest(new { error = e.Message }); }
     }
-    [HttpPost("approval-status"), ValidateAntiForgeryToken, RequestSizeLimit(65536)]
-    public async Task<IActionResult> ApprovalStatus(Guid clientId, ReceiptInput input, CancellationToken ct)
+    [HttpGet("state")]
+    public async Task<IActionResult> State(Guid clientId, CancellationToken ct)
     {
         if (!Enabled) return NotFound();
-        if (!ModelState.IsValid || !ValidTerms(input.Terms)) return BadRequest();
         var user = (await users.GetAsync(HttpContext, ct)).User;
-        if (!await preview.CanViewAsync(user.UserId, clientId, CoachRole, ct)) return NotFound();
-        var receipt = receipts.Read(input.Token, clientId, input.Terms);
-        if (receipt is null || !await preview.IsOwnerAsync(receipt.UserId, clientId, ct)) return Json(new { approved = false });
-        return Json(new { approved = true, receipt.ApprovedAt, receipt.ExpiresAt, receipt.SignedBy, previewOnly = true });
+        try { return Json(await store!.EnvelopeAsync(await store.ReadAsync(user.UserId, clientId, CoachRole, ct), ct)); }
+        catch (UnauthorizedAccessException) { return NotFound(); }
+    }
+    [HttpPost("state/coach"), ValidateAntiForgeryToken, EnableRateLimiting("access-code"), RequestSizeLimit(4194304)]
+    public async Task<IActionResult> SaveCoach(Guid clientId, SaveStateInput input, CancellationToken ct)
+    {
+        if (!Enabled) return NotFound();
+        if (!ModelState.IsValid) return BadRequest(new { error = "Check agreement fields." });
+        var user = (await users.GetAsync(HttpContext, ct)).User;
+        try { var row = await store!.SaveCoachAsync(user.UserId, clientId, CoachRole, input.ExpectedRevision, input.StateJson, input.Terms, ct); return Json(await store.EnvelopeAsync(row, ct)); }
+        catch (UnauthorizedAccessException) { return NotFound(); }
+        catch (AccountabilityConflictException e) { return Conflict(new { error = e.Message }); }
+        catch (ArgumentException e) { return BadRequest(new { error = e.Message }); }
+    }
+    [HttpPost("state/result"), ValidateAntiForgeryToken, EnableRateLimiting("access-code"), RequestSizeLimit(131072)]
+    public async Task<IActionResult> SaveResult(Guid clientId, SaveResultInput input, CancellationToken ct)
+    {
+        if (!Enabled) return NotFound();
+        if (!ModelState.IsValid) return BadRequest(new { error = "Check workout results." });
+        var user = (await users.GetAsync(HttpContext, ct)).User;
+        try { var row = await store!.SaveResultAsync(user.UserId, clientId, CoachRole, input.ExpectedRevision, input.WorkoutId, input.ResultJson, ct); return Json(await store.EnvelopeAsync(row, ct)); }
+        catch (UnauthorizedAccessException) { return NotFound(); }
+        catch (AccountabilityConflictException e) { return Conflict(new { error = e.Message }); }
+        catch (ArgumentException e) { return BadRequest(new { error = e.Message }); }
     }
     private static bool ValidTerms(string terms)
     {
@@ -103,10 +127,18 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
         [Required, StringLength(1024), DataType(DataType.Password)] public string Password { get; set; } = "";
         [Required, StringLength(32768)] public string Terms { get; set; } = "";
         public bool Agree { get; set; }
+        [Range(1, int.MaxValue)] public int ExpectedRevision { get; set; }
     }
-    public sealed class ReceiptInput
+    public sealed class SaveStateInput
     {
-        [Required, StringLength(8192)] public string Token { get; set; } = "";
+        [Required, StringLength(1048576)] public string StateJson { get; set; } = "";
         [Required, StringLength(32768)] public string Terms { get; set; } = "";
+        [Range(0, int.MaxValue)] public int ExpectedRevision { get; set; }
+    }
+    public sealed class SaveResultInput
+    {
+        [Required, StringLength(64)] public string WorkoutId { get; set; } = "";
+        [Required, StringLength(65536)] public string ResultJson { get; set; } = "";
+        [Range(1, int.MaxValue)] public int ExpectedRevision { get; set; }
     }
 }

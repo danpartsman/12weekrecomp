@@ -173,17 +173,28 @@
         const editable = root.dataset.editable === 'true', reviewPage = root.dataset.reviewPage === 'true', canAssignSnap = editable || root.dataset.canAssignSnap === 'true', canRecordSnap = canAssignSnap || root.dataset.canApprove === 'true';
         const form = root.querySelector('[data-accountability-form]'), status = root.querySelector('[data-preview-status]');
         const query = s => root.querySelector(s), token = () => query('input[name="__RequestVerificationToken"]').value;
-        let state = defaults(), evidence = null, savedReceipt = null, requestVersion = 0, evidenceReceivedAt = 0;
+        let state = defaults(), evidence = null, requestVersion = 0, evidenceReceivedAt = 0, serverRevision = 0, serverTerms = null, serverApproval = null, loaded = false, saveBusy = false;
         function notice(text) { if (status) status.textContent = text; }
-        function load() {
-            state = defaults(); savedReceipt = null;
+        function acceptEnvelope(data) {
+            const incoming = data.state || defaults();
+            if (!valid(incoming)) throw new Error('The saved agreement could not be validated. Ask your coach to review it.');
+            state = incoming; serverRevision = data.revision; serverTerms = data.terms; serverApproval = data.approval;
+        }
+        async function load() {
+            loaded = false;
             try {
-                const raw = localStorage.getItem(key); if (raw) { const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed.rules)) parsed.rules = parsed.rules.map(r => r.id === 'cheat-foods' ? { ...r, type: 'fine', lower: 0, upper: 0, amount: r.assigned && r.amount === 0 ? 2 : r.amount } : r);
-                    parsed.agreement ??= { start: '', mode: 'open', weeks: 12, endedOn: null };
-                    if (valid(parsed)) state = { ...parsed, snapWorkouts: parsed.snapWorkouts || [], snapResults: parsed.snapResults || {} }; else notice('Stored settings were invalid. Review and save a new preview.'); }
-                const receipt = localStorage.getItem(receiptKey); if (receipt) { const parsed = JSON.parse(receipt); if (typeof parsed.token === 'string' && typeof parsed.terms === 'string') savedReceipt = parsed; }
-            } catch { notice('Browser storage is unavailable. Settings and approval cannot be retained.'); }
+                const response = await fetch(api + '/state', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
+                if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Could not load the saved coaching agreement. Confirm your coach connection and reload.');
+                acceptEnvelope(await response.json()); loaded = true;
+                const importButton = query('[data-import-browser-draft]');
+                if (importButton) { try { importButton.hidden = serverRevision > 0 || !localStorage.getItem(key); } catch { importButton.hidden = true; } }
+                return true;
+            } catch (error) { notice(error.message); query('[data-snap-status]').textContent = error.message; return false; }
+        }
+        async function boot() {
+            if (!await load()) return;
+            drawEditor(); drawAgreementEditor(true); render();
+            if (state.enabled || canAssignSnap || state.snapWorkouts.length) loadEvidence(query('[data-preview-week]').value);
         }
         function input(name, value, min, max, step, label) {
             const n = el('input'); Object.assign(n, { type: 'number', name, value, min, max, step, required: true }); n.setAttribute('aria-label', label); return n;
@@ -217,7 +228,7 @@
         function render() {
             const assigned = state.enabled ? state.rules.filter(r => r.assigned) : [];
             root.hidden = !editable && !reviewPage && !state.enabled && !state.snapWorkouts.length;
-            query('[data-agreement-state]').textContent = state.enabled ? 'Enabled · Preview only' : state.snapWorkouts.length ? 'Snap Workout · Preview only' : 'Not enabled';
+            query('[data-agreement-state]').textContent = state.enabled ? 'Enabled · Saved in TEST' : state.snapWorkouts.length ? 'Snap Workout · Saved in TEST' : 'Not enabled';
             query('[data-assigned-preview]').hidden = !state.enabled && !state.snapWorkouts.length;
             query('[data-exceptions-panel]').hidden = !canAssignSnap && !state.enabled && !state.snapWorkouts.length;
             query('[data-snap-workout]').hidden = !canAssignSnap && !state.snapWorkouts.length;
@@ -238,10 +249,10 @@
             if (!evidence) { query('[data-snap-weekly-total]').textContent = 'Weekly total pending: select a week to load its dates.'; query('[data-macro-evidence]').replaceChildren(); query('[data-assessment-total]').textContent = 'Awaiting evidence; no assessment can be calculated.'; return; }
             const rows = [...assess(state, evidence), ...assessSnap(state, evidence)];
             const fine = rows.filter(x => x.type === 'fine' && x.countedInWeek !== false).reduce((n, x) => n + x.amount, 0), incentive = rows.filter(x => x.type === 'incentive' && x.countedInWeek !== false).reduce((n, x) => n + x.amount, 0), pending = rows.filter(x => x.status === 'pending').length;
-            query('[data-assessment-total]').textContent = `Selected-week preview: fines ${money(fine)} · incentives ${money(incentive)} · ${pending} assessments pending. These are draft amounts, not a balance due.`;
+            query('[data-assessment-total]').textContent = `Selected-week preview: fines ${money(fine)} · incentives ${money(incentive)} · ${pending} assessments pending. Calculated amounts; no automatic payment collection.`;
             const snapRows = rows.filter(x => x.workoutId);
             const snapFine = snapRows.filter(x => x.type === 'fine').reduce((n, x) => n + x.amount, 0), snapIncentive = snapRows.filter(x => x.type === 'incentive').reduce((n, x) => n + x.amount, 0);
-            query('[data-snap-weekly-total]').textContent = `Week of ${dayLabel(evidence.weekStart)} · Snap fines ${money(snapFine)} · Snap incentives ${money(snapIncentive)} · Combined weekly fines ${money(fine)} · Combined weekly incentives ${money(incentive)}. Draft preview only.`;
+            query('[data-snap-weekly-total]').textContent = `Week of ${dayLabel(evidence.weekStart)} · Snap fines ${money(snapFine)} · Snap incentives ${money(snapIncentive)} · Combined weekly fines ${money(fine)} · Combined weekly incentives ${money(incentive)}. Calculated totals; no payment collected.`;
             rows.filter(x => x.amount > 0 || x.status === 'pending').forEach(x => ledger.append(el('li', `${x.title} · ${x.label || 'Selected week'} · ${x.status === 'pending' ? 'Pending: ' + x.reason : `${x.type === 'fine' ? 'Fine' : 'Incentive'} ${money(x.amount)}${x.settle ? '' : ' · below minimum settlement threshold'}${x.countedInWeek === false ? ' · counts in the week this period ends' : ''}`}`)));
             if (!rows.length) ledger.append(el('li', 'Assign rules to see assessments.'));
             const body = query('[data-macro-evidence]'); body.replaceChildren();
@@ -304,20 +315,18 @@
         async function post(path, fields) {
             const body = new URLSearchParams({ ...fields, __RequestVerificationToken: token() });
             const response = await fetch(api + path, { method: 'POST', credentials: 'same-origin', cache: 'no-store', body, headers: { Accept: 'application/json' } });
-            if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error(response.status === 429 ? 'Too many approval attempts. Try again in 15 minutes.' : 'Could not verify approval. Confirm agreement and use the signed-in client’s username and password.');
+            if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
+                let detail = '';
+                try { if (response.headers.get('content-type')?.includes('application/json')) detail = (await response.json()).error || ''; } catch {}
+                throw new Error(detail || (response.status === 409 ? 'This agreement changed on another device. Reload saved settings before saving.' : response.status === 429 ? 'Too many requests. Please wait before trying again.' : 'Could not save. Check your entries, credentials and coach connection.'));
+            }
             return response.json();
         }
-        let approvalRequest = 0;
-        async function checkApproval() {
-            const output = query('[data-approval-state]'), current = terms(state), revision = ++approvalRequest;
-            output.textContent = 'Awaiting client approval. No fees are payable from this preview.';
-            if (!savedReceipt || savedReceipt.terms !== current || (!state.enabled && !state.snapWorkouts.length)) return;
-            output.textContent = 'Verifying saved client approval…';
-            try {
-                const result = await post('/approval-status', { Token: savedReceipt.token, Terms: current });
-                if (revision !== approvalRequest) return;
-                output.textContent = result.approved ? `Preview approved by ${result.signedBy} · ${new Date(result.approvedAt).toLocaleString()}. Credentials verified; receipt expires ${new Date(result.expiresAt).toLocaleDateString()}. Browser-only record, no permanent contract.` : 'Saved approval is invalid or expired. Client must approve these terms again.';
-            } catch { if (revision === approvalRequest) output.textContent = 'Saved approval could not be verified. It is not treated as approved.'; }
+        function checkApproval() {
+            const output = query('[data-approval-state]');
+            output.textContent = serverApproval && loaded
+                ? `Approved by ${serverApproval.signedBy} · ${new Date(serverApproval.approvedAt).toLocaleString()} · Saved terms version ${serverApproval.termsVersion}.`
+                : 'Awaiting client approval of the current saved terms. Calculated amounts are not a payment demand.';
         }
         const agreementForm = query('[data-agreement-form]');
         const serverNow = () => evidence?.nowUtc ? Date.parse(evidence.nowUtc) + Math.max(0, Date.now() - evidenceReceivedAt) : Date.now();
@@ -346,21 +355,27 @@
         }
         if (agreementForm) {
             agreementForm.elements.agreementMode.addEventListener('change', () => drawAgreementEditor());
-            agreementForm.addEventListener('submit', event => { event.preventDefault(); if (!agreementForm.reportValidity()) return; const next = { ...state, agreement: readAgreementFields() }; if (persistSnap(next, 'Agreement dates saved.')) { drawAgreementEditor(true); query('[data-agreement-dates-status]').textContent = 'Saved. Changed agreement dates require fresh client approval.'; } });
-            query('[data-end-agreement]').addEventListener('click', () => { if (!evidence?.today || !state.agreement.start || evidence.today < state.agreement.start) { query('[data-agreement-dates-status]').textContent = 'The agreement has not started yet.'; return; } if (persistSnap({ ...state, agreement: { ...state.agreement, endedOn: evidence.today } }, 'Agreement ends after today.')) query('[data-agreement-dates-status]').textContent = 'Saved: no new assessments after today.'; });
+            agreementForm.addEventListener('submit', async event => { event.preventDefault(); if (!agreementForm.reportValidity()) return; const next = { ...state, agreement: readAgreementFields() }; if (await persistSnap(next, 'Agreement dates saved.')) { drawAgreementEditor(true); query('[data-agreement-dates-status]').textContent = 'Saved. Changed agreement dates require fresh client approval.'; } });
+            query('[data-end-agreement]').addEventListener('click', async () => { if (!evidence?.today || !state.agreement.start || evidence.today < state.agreement.start) { query('[data-agreement-dates-status]').textContent = 'The agreement has not started yet.'; return; } if (await persistSnap({ ...state, agreement: { ...state.agreement, endedOn: evidence.today } }, 'Agreement ends after today.')) query('[data-agreement-dates-status]').textContent = 'Saved: no new assessments after today.'; });
         }
         let snapDraft = [], exerciseOptions = [], catalogRequest = 0;
         const snapForm = query('[data-snap-assign]');
-        function persistSnap(next, message) {
-            if (!valid(next) || terms(next).length > 32768 || ((next.enabled || next.snapWorkouts.length) && !next.agreement.start)) { query('[data-snap-status]').textContent = 'Set a valid agreement start date and check workout targets, rates and completed-set entries. Too many assignments can exceed the preview agreement size limit.'; return false; }
-            const changed = terms(next) !== terms(state);
+        async function persistSnap(next, message, workoutId = null) {
+            if (!loaded) { query('[data-snap-status]').textContent = 'Load the saved agreement before saving changes.'; return false; }
+            if (saveBusy) { query('[data-snap-status]').textContent = 'A save is already in progress. Please wait.'; return false; }
+            if (!valid(next) || terms(next).length > 32768 || ((next.enabled || next.snapWorkouts.length) && !next.agreement.start)) { query('[data-snap-status]').textContent = 'Check agreement dates, targets, rates and completed-set entries.'; return false; }
+            if (workoutId === null && !canAssignSnap) { query('[data-snap-status]').textContent = 'Only the assigned coach can change the agreement.'; return false; }
+            saveBusy = true; const changed = terms(next) !== serverTerms;
             try {
-                localStorage.setItem(key, JSON.stringify(next));
-                if (changed) { localStorage.removeItem(receiptKey); savedReceipt = null; }
-                state = next; drawAgreementEditor(true); render(); drawWeek();
-                query('[data-snap-status]').textContent = message + (changed ? ' Assignment terms changed; new client approval is required.' : '') + ' Browser-only preview; no actual fee was charged.';
+                const fields = workoutId === null ? { ExpectedRevision: serverRevision, StateJson: JSON.stringify(next), Terms: terms(next) }
+                    : { ExpectedRevision: serverRevision, WorkoutId: workoutId, ResultJson: JSON.stringify(next.snapResults[workoutId]) };
+                const result = await post(workoutId === null ? '/state/coach' : '/state/result', fields);
+                acceptEnvelope(result); drawEditor(); drawAgreementEditor(true); render(); drawWeek();
+                query('[data-snap-status]').textContent = message + (changed ? ' Current terms require client approval.' : '') + ' Saved in TEST and available on other devices. No payment was collected.';
+                try { localStorage.setItem(key + ':server-change', String(Date.now())); } catch {}
                 return true;
-            } catch { query('[data-snap-status]').textContent = 'Could not save browser storage. No changes were retained.'; return false; }
+            } catch (error) { query('[data-snap-status]').textContent = error.message; notice(error.message); return false; }
+            finally { saveBusy = false; }
         }
         function readSnapDraft() {
             if (!snapForm) return;
@@ -451,7 +466,7 @@
                     const completionLabel = el('label', `Completion date and time (${zone})`), completionInput = el('input'); completionInput.type = 'datetime-local'; completionInput.name = 'completedAt'; completionInput.value = wallTime(previous?.completedAtUtc || serverNow(), zone); let editedTime = !!previous?.completedAtUtc; completionInput.addEventListener('input', () => { editedTime = true; }); completionLabel.append(completionInput);
                     resultForm.append(finalLabel, completionLabel, el('p', 'Enter reps and weight for every set before marking finished. Use 0 reps for an uncompleted set. Quick entry can include extra sets; individual rows can be adjusted.'));
                     const save = el('button', 'Save workout results'); save.type = 'submit'; resultForm.append(save);
-                    resultForm.addEventListener('submit', event => {
+                    resultForm.addEventListener('submit', async event => {
                         event.preventDefault(); if (!resultForm.reportValidity()) return;
                         const result = { finalized: finalized.checked, sets: {} };
                         if (result.finalized) {
@@ -462,12 +477,12 @@
                         }
                         for (const e of w.exercises) result.sets[e.id] = Array.from({ length: rowCounts[e.id] }, (_, i) => { const get = field => { const value = resultForm.elements[`${e.id}-${i}-${field}`].value; return value === '' ? null : Number(value); }; return { reps: get('reps'), weight: get('weight') }; });
                         if (result.finalized && Object.values(result.sets).some(sets => sets.some(set => set.reps === null || set.weight === null))) { query('[data-snap-status]').textContent = 'Final results need reps and weight for every set. Enter 0 reps for an uncompleted set, or save progress.'; return; }
-                        persistSnap({ ...state, snapResults: { ...state.snapResults, [w.id]: result } }, 'Workout results saved. Weekly penalties and rewards updated.');
+                        await persistSnap({ ...state, snapResults: { ...state.snapResults, [w.id]: result } }, 'Workout results saved. Weekly penalties and rewards updated.', w.id);
                     });
                 } else if (w.date > today) resultForm.append(el('p', 'Record results on or after the assignment date.'));
                 else if (previous?.completedAtUtc) resultForm.append(el('p', `Completed: ${wallTime(previous.completedAtUtc, zone).replace('T', ' ')} (${zone}).`));
                 article.append(resultForm);
-                if (canAssignSnap) { const remove = el('button', 'Remove assignment'); remove.type = 'button'; remove.className = 'secondary'; remove.addEventListener('click', () => { const results = { ...state.snapResults }; delete results[w.id]; persistSnap({ ...state, snapWorkouts: state.snapWorkouts.filter(x => x.id !== w.id), snapResults: results }, 'Snap Workout removed.'); }); article.append(remove); }
+                if (canAssignSnap) { const remove = el('button', 'Remove assignment'); remove.type = 'button'; remove.className = 'secondary'; remove.addEventListener('click', async () => { const results = { ...state.snapResults }; delete results[w.id]; await persistSnap({ ...state, snapWorkouts: state.snapWorkouts.filter(x => x.id !== w.id), snapResults: results }, 'Snap Workout removed.'); }); article.append(remove); }
                 container.append(article);
             });
         }
@@ -482,7 +497,7 @@
                 if (snapDraft.length >= 15) { query('[data-snap-catalog-status]').textContent = 'Use up to 15 exercises per Snap Workout.'; return; }
                 readSnapDraft(); snapDraft.push({ id: crypto.randomUUID(), catalogId: chosen.id, name: chosen.name, sets: 3, reps: 10, weight: 0, type: 'fine', basis: 'incomplete-reps', rate: .1, completionReward: 0, extraRepRate: 0 }); drawSnapDraft();
             });
-            snapForm.addEventListener('submit', event => {
+            snapForm.addEventListener('submit', async event => {
                 event.preventDefault(); if (!snapForm.reportValidity()) return;
                 if (!evidence?.today) { query('[data-snap-status]').textContent = 'Load a valid week before assigning a workout.'; return; }
                 readSnapDraft();
@@ -491,47 +506,62 @@
                 const deadline = autoDeadline != null ? new Date(autoDeadline).toISOString() : wallToUtc(snapForm.elements.snapDeadline.value, evidence.timeZone || 'UTC', serverNow());
                 if (!deadline || Date.parse(deadline) <= serverNow() || snapForm.elements.snapDeadline.value.slice(0, 10) < snapForm.elements.snapDate.value) { query('[data-snap-status]').textContent = 'Choose a future deadline on or after the assignment date.'; return; }
                 const workout = { id: crypto.randomUUID(), deadlineUtc: deadline, createdAtUtc: new Date(serverNow()).toISOString(), date: snapForm.elements.snapDate.value, name: snapForm.elements.snapName.value.trim(), cap: Number(snapForm.elements.snapCap.value), exercises: snapDraft.map(e => ({ ...e })) };
-                if (persistSnap({ ...state, agreement: readAgreementFields(), snapWorkouts: [...state.snapWorkouts, workout] }, 'Snap Workout assigned. Open the client portal on this browser to record results.')) { snapDraft = []; deadlineTouched = false; drawSnapDraft(); }
+                if (await persistSnap({ ...state, agreement: readAgreementFields(), snapWorkouts: [...state.snapWorkouts, workout] }, 'Snap Workout assigned. The client can open their portal on any device to record results.')) { snapDraft = []; deadlineTouched = false; drawSnapDraft(); }
             });
             drawSnapDraft(); searchExercises();
         }
         const saveExceptions = query('[data-save-exceptions]');
-        if (saveExceptions) saveExceptions.addEventListener('click', () => {
+        if (saveExceptions) saveExceptions.addEventListener('click', async () => {
             if (!canAssignSnap) return;
-            if (persistSnap(state, 'Fee exceptions saved.')) query('[data-exceptions-status]').textContent = 'Saved for these exact dates. Checked dates have no adherence or Snap Workout assessment.';
+            if (await persistSnap(state, 'Fee exceptions saved.')) query('[data-exceptions-status]').textContent = 'Saved for these exact dates. Checked dates have no adherence or Snap Workout assessment.';
         });
-        load(); drawEditor(); drawAgreementEditor(true); render(); if (state.enabled || canAssignSnap || state.snapWorkouts.length) loadEvidence();
+        query('[data-reload-agreement]').addEventListener('click', () => boot());
+        boot();
         query('[data-load-week]').addEventListener('click', () => { const date = query('[data-preview-week]'); if (date.value && date.reportValidity()) loadEvidence(date.value); });
         query('[data-unpaid]').addEventListener('input', renderLateFee); query('[data-overdue]').addEventListener('input', renderLateFee);
         if (form) {
             form.addEventListener('input', () => notice('Unsaved changes. Save to update the agreement and assessment preview.'));
-            form.addEventListener('submit', event => {
+            form.addEventListener('submit', async event => {
                 event.preventDefault(); if (!form.reportValidity() || [...root.querySelectorAll('[data-reviewed-count]')].some(n => !n.reportValidity())) return;
                 const next = { ...state, agreement: readAgreementFields(), enabled: form.elements.enabled.checked, rules: catalog.map(c => { const f = suffix => form.elements[c.id + '-' + suffix]; return { id: c.id, assigned: f('assigned').checked, type: f('type').value, amount: Number(f('amount').value), frequency: f('frequency').value, lower: Number(f('lower').value), upper: Number(f('upper').value), min: Number(f('min').value), max: Number(f('max').value) }; }), payment: {} };
                 Object.entries(paymentNames).forEach(([field, prop]) => { next.payment[prop] = ['amount', 'graceDays', 'lateValue', 'lateCap'].includes(prop) ? Number(form.elements[field].value) : form.elements[field].value; });
                 if (!valid(next) || (next.enabled && !next.agreement.start) || terms(next).length > 32768) { notice('Set a valid agreement start date and correct the criteria and totals: lower ≤ upper, minimum total ≤ maximum total, whole occurrence counts, and percentage late charges between 0% and 100%.'); return; }
-                const changed = terms(state) !== terms(next);
-                try { localStorage.setItem(key, JSON.stringify(next)); if (changed) { localStorage.removeItem(receiptKey); savedReceipt = null; } state = next; render(); drawWeek(); if (state.enabled || state.snapWorkouts.length) loadEvidence(query('[data-preview-week]').value); notice(`Preview saved in this browser.${changed ? ' Terms changed; client approval is required again.' : ' Excused dates and reviewed counts updated.'} No fees have been charged.`); }
-                catch { notice('Could not save browser settings. No changes were retained.'); }
+                if (await persistSnap(next, 'Agreement settings saved.')) {
+                    notice('Saved in TEST. Changed terms require fresh client approval.');
+                    if (state.enabled || state.snapWorkouts.length) loadEvidence(query('[data-preview-week]').value);
+                }
             });
-            query('[data-reset-preview]').addEventListener('click', () => { try { localStorage.removeItem(key); localStorage.removeItem(receiptKey); state = defaults(); savedReceipt = null; evidence = null; drawAgreementEditor(true); ++requestVersion; drawEditor(); render(); drawWeek(); notice('Preview reset. All rules are unassigned and the agreement is off.'); if (canAssignSnap) loadEvidence(); } catch { notice('Could not reset browser storage.'); } });
+            query('[data-reset-preview]').addEventListener('click', () => boot());
         }
+        const importButton = query('[data-import-browser-draft]');
+        if (importButton) importButton.addEventListener('click', () => {
+            if (!canAssignSnap || serverRevision !== 0) return;
+            try {
+                const draft = JSON.parse(localStorage.getItem(key));
+                draft.agreement ??= { start: '', mode: 'open', weeks: 12, endedOn: null };
+                draft.snapWorkouts ??= []; draft.snapResults ??= {};
+                draft.rules = draft.rules.map(r => r.id === 'cheat-foods' ? { ...r, type: 'fine', lower: 0, upper: 0, amount: r.assigned && r.amount === 0 ? 2 : r.amount } : r);
+                if (!valid(draft)) throw new Error();
+                state = draft; drawEditor(); drawAgreementEditor(true); render(); drawWeek();
+                query('[data-snap-status]').textContent = 'Old browser draft loaded for review. Save the reviewed agreement to store it in TEST. Previous browser approvals are not imported.';
+            } catch { query('[data-snap-status]').textContent = 'The old browser draft could not be imported.'; }
+        });
         const approvalForm = query('[data-approval-form]');
         if (approvalForm) approvalForm.addEventListener('submit', async event => {
             event.preventDefault(); if (!approvalForm.reportValidity()) return;
             if (!state.agreement.start) { query('[data-approval-status]').textContent = 'Your coach must save an agreement start date before approval.'; return; }
-            const current = terms(state), fields = { Username: approvalForm.elements.username.value, Password: approvalForm.elements.password.value, Agree: 'true', Terms: current }, button = approvalForm.querySelector('button');
+            const current = terms(state), fields = { Username: approvalForm.elements.username.value, Password: approvalForm.elements.password.value, Agree: 'true', Terms: current, ExpectedRevision: serverRevision }, button = approvalForm.querySelector('button');
             approvalForm.elements.password.value = ''; button.disabled = true; query('[data-approval-status]').textContent = 'Verifying your credentials securely…';
             try {
                 const result = await post('/approve', fields); fields.Password = '';
                 if (current !== terms(state)) throw new Error('Terms changed during approval. Review and approve the new terms.');
-                savedReceipt = { token: result.token, terms: current }; localStorage.setItem(receiptKey, JSON.stringify(savedReceipt));
-                query('[data-approval-status]').textContent = 'Credentials verified and preview approval saved in this browser. Your password was not stored.'; checkApproval();
+                acceptEnvelope(result); render();
+                query('[data-approval-status]').textContent = 'Credentials verified. Approval of these saved terms is recorded in TEST. Your password was not stored.';
             } catch (error) { query('[data-approval-status]').textContent = error.message || 'Approval could not be saved. No agreement was recorded.'; }
             finally { fields.Password = ''; button.disabled = false; }
         });
-        window.addEventListener('storage', event => { if ([key, receiptKey, null].includes(event.key)) { load(); drawEditor(); drawAgreementEditor(true); render(); drawWeek(); if (state.enabled || canAssignSnap || state.snapWorkouts.length) loadEvidence(query('[data-preview-week]').value); } });
-        window.addEventListener('pageshow', event => { if (event.persisted) { load(); drawEditor(); drawAgreementEditor(true); render(); if (state.enabled || canAssignSnap || state.snapWorkouts.length) loadEvidence(); } });
+        window.addEventListener('storage', event => { if (event.key === key + ':server-change') { notice('A newer agreement was saved in another tab. Reload saved agreement before saving.'); query('[data-snap-status]').textContent = 'A newer save is available. Reload saved agreement before making further changes.'; } });
+        window.addEventListener('pageshow', event => { if (event.persisted) boot(); });
     }
     document.querySelectorAll('[data-accountability]').forEach(initialize);
 })();

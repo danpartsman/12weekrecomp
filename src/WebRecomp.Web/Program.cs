@@ -28,6 +28,7 @@ using WebRecomp.NutritionIntelligence.Providers.Usda;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachCenterService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachAccountabilityPreviewService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachAccountabilityStore>();
 builder.Services.AddSingleton<WebRecomp.Web.Services.Coaching.AccountabilityApprovalReceipt>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachClientPlanService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachWeekService>();

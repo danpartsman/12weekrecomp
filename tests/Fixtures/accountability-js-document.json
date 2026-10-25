@@ -1,0 +1,165 @@
+{
+  "state": {
+    "version": 2,
+    "enabled": true,
+    "rules": [
+      {
+        "id": "calories",
+        "assigned": false,
+        "type": "fine",
+        "amount": 2,
+        "frequency": "daily",
+        "lower": -5,
+        "upper": 5,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "protein",
+        "assigned": false,
+        "type": "fine",
+        "amount": 2,
+        "frequency": "daily",
+        "lower": -5,
+        "upper": 5,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "carbs",
+        "assigned": false,
+        "type": "fine",
+        "amount": 2,
+        "frequency": "daily",
+        "lower": -5,
+        "upper": 5,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "fat",
+        "assigned": false,
+        "type": "fine",
+        "amount": 2,
+        "frequency": "daily",
+        "lower": -5,
+        "upper": 5,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "training",
+        "assigned": false,
+        "type": "incentive",
+        "amount": 10,
+        "frequency": "weekly",
+        "lower": 3,
+        "upper": 5,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "recovery",
+        "assigned": false,
+        "type": "incentive",
+        "amount": 5,
+        "frequency": "weekly",
+        "lower": 1,
+        "upper": 3,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "logging",
+        "assigned": false,
+        "type": "incentive",
+        "amount": 2,
+        "frequency": "daily",
+        "lower": 1,
+        "upper": 1,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "checkin",
+        "assigned": false,
+        "type": "incentive",
+        "amount": 5,
+        "frequency": "weekly",
+        "lower": 1,
+        "upper": 1,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "cheat-foods",
+        "assigned": true,
+        "type": "fine",
+        "amount": 2,
+        "frequency": "daily",
+        "lower": 0,
+        "upper": 0,
+        "min": 0,
+        "max": 100
+      },
+      {
+        "id": "missed-review",
+        "assigned": false,
+        "type": "fine",
+        "amount": 5,
+        "frequency": "weekly",
+        "lower": 0,
+        "upper": 0,
+        "min": 0,
+        "max": 100
+      }
+    ],
+    "payment": {
+      "method": "bank-transfer",
+      "frequency": "weekly",
+      "day": "Monday",
+      "amount": 0,
+      "graceDays": 3,
+      "lateBasis": "amount",
+      "lateValue": 0,
+      "lateFrequency": "weekly",
+      "lateCap": 100,
+      "instructions": ""
+    },
+    "agreement": {
+      "start": "2026-10-24",
+      "mode": "open",
+      "weeks": 12,
+      "endedOn": null
+    },
+    "excused": {},
+    "observations": {},
+    "snapWorkouts": [
+      {
+        "id": "workout-interop",
+        "date": "2026-10-24",
+        "name": "Cross-language workout",
+        "cap": 100,
+        "deadlineUtc": "2026-10-24T18:00:00.000Z",
+        "createdAtUtc": "2026-10-24T16:00:00.000Z",
+        "exercises": [
+          {
+            "id": "exercise-interop",
+            "catalogId": "11111111-1111-1111-1111-111111111111",
+            "name": "Curl",
+            "sets": 2,
+            "reps": 10,
+            "weight": 20,
+            "type": "fine",
+            "basis": "incomplete-reps",
+            "rate": 0.1,
+            "completionReward": 5,
+            "extraRepRate": 0.1
+          }
+        ]
+      }
+    ],
+    "snapResults": {}
+  },
+  "terms": "{\"version\":2,\"assessmentPolicy\":\"PER_PERIOD_ALL_CHEAT_OCCURRENCES_V3\",\"agreement\":{\"start\":\"2026-10-24\",\"mode\":\"open\",\"weeks\":12,\"endedOn\":null},\"enabled\":true,\"rules\":[{\"id\":\"calories\",\"assigned\":false,\"type\":\"fine\",\"amount\":2,\"frequency\":\"daily\",\"lower\":-5,\"upper\":5,\"min\":0,\"max\":100},{\"id\":\"protein\",\"assigned\":false,\"type\":\"fine\",\"amount\":2,\"frequency\":\"daily\",\"lower\":-5,\"upper\":5,\"min\":0,\"max\":100},{\"id\":\"carbs\",\"assigned\":false,\"type\":\"fine\",\"amount\":2,\"frequency\":\"daily\",\"lower\":-5,\"upper\":5,\"min\":0,\"max\":100},{\"id\":\"fat\",\"assigned\":false,\"type\":\"fine\",\"amount\":2,\"frequency\":\"daily\",\"lower\":-5,\"upper\":5,\"min\":0,\"max\":100},{\"id\":\"training\",\"assigned\":false,\"type\":\"incentive\",\"amount\":10,\"frequency\":\"weekly\",\"lower\":3,\"upper\":5,\"min\":0,\"max\":100},{\"id\":\"recovery\",\"assigned\":false,\"type\":\"incentive\",\"amount\":5,\"frequency\":\"weekly\",\"lower\":1,\"upper\":3,\"min\":0,\"max\":100},{\"id\":\"logging\",\"assigned\":false,\"type\":\"incentive\",\"amount\":2,\"frequency\":\"daily\",\"lower\":1,\"upper\":1,\"min\":0,\"max\":100},{\"id\":\"checkin\",\"assigned\":false,\"type\":\"incentive\",\"amount\":5,\"frequency\":\"weekly\",\"lower\":1,\"upper\":1,\"min\":0,\"max\":100},{\"id\":\"cheat-foods\",\"assigned\":true,\"type\":\"fine\",\"amount\":2,\"frequency\":\"daily\",\"lower\":0,\"upper\":0,\"min\":0,\"max\":100},{\"id\":\"missed-review\",\"assigned\":false,\"type\":\"fine\",\"amount\":5,\"frequency\":\"weekly\",\"lower\":0,\"upper\":0,\"min\":0,\"max\":100}],\"payment\":{\"method\":\"bank-transfer\",\"frequency\":\"weekly\",\"day\":\"Monday\",\"amount\":0,\"graceDays\":3,\"lateBasis\":\"amount\",\"lateValue\":0,\"lateFrequency\":\"weekly\",\"lateCap\":100,\"instructions\":\"\"},\"snapWorkouts\":[{\"id\":\"workout-interop\",\"date\":\"2026-10-24\",\"name\":\"Cross-language workout\",\"cap\":100,\"deadlineUtc\":\"2026-10-24T18:00:00.000Z\",\"createdAtUtc\":\"2026-10-24T16:00:00.000Z\",\"exercises\":[{\"id\":\"exercise-interop\",\"catalogId\":\"11111111-1111-1111-1111-111111111111\",\"name\":\"Curl\",\"sets\":2,\"reps\":10,\"weight\":20,\"type\":\"fine\",\"basis\":\"incomplete-reps\",\"rate\":0.1,\"completionReward\":5,\"extraRepRate\":0.1}]}],\"excusedPolicy\":\"Coach-approved dated excuses waive adherence assessments and incentives, but not contract payments. Missing evidence remains pending. No extra reward for under-eating. Explicit Snap completion and extra-rep rewards require assigned weight and on-time completion.\"}"
+}
