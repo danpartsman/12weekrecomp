@@ -14,7 +14,7 @@ var learningMigration = args.Contains("--learning-coach", StringComparer.Ordinal
 if (args.Any(x => x is not ("--learning-coach" or "--configured-auth" or "--test-sample-data" or "--accountability"))
     || (configuredAuthentication && !learningMigration && !sampleData && !accountability)
     || (sampleData && (!configuredAuthentication || learningMigration || accountability))
-    || (accountability && (!configuredAuthentication || learningMigration || sampleData)))
+    || (accountability && (learningMigration || sampleData)))
 {
     Console.Error.WriteLine("Supported options: --learning-coach [--configured-auth], or --test-sample-data --configured-auth, or --accountability --configured-auth.");
     return 5;
