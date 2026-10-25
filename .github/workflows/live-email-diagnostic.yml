@@ -59,15 +59,31 @@ jobs:
               if (!$connection) { $connection = $env:SQLCONNSTR_RecompDatabase }
               if (!$connection) { $connection = $env:CUSTOMCONNSTR_RecompDatabase }
               if (!$connection) { $connection = $env:ConnectionStrings__RecompDatabase }
-              $cb = New-Object System.Data.SqlClient.SqlConnectionStringBuilder($connection)
+              $generic = New-Object System.Data.Common.DbConnectionStringBuilder
+              $generic.ConnectionString = $connection
+              $mode = [string]$generic["Authentication"]
+              Write-Output ("SQLAuthenticationMode=" + $mode)
+              $identityAuth = $mode -like '*Active Directory*'
+              if ($identityAuth) { $generic.Remove("Authentication") | Out-Null; $generic.Remove("User ID") | Out-Null; $generic.Remove("Password") | Out-Null }
+              $generic["Encrypt"] = "True"
+              $cb = New-Object System.Data.SqlClient.SqlConnectionStringBuilder($generic.ConnectionString)
               if ($cb.InitialCatalog -ne 'sqldb-recomp-live') { throw "Wrong database" }
               $cn = New-Object System.Data.SqlClient.SqlConnection($cb.ConnectionString)
+              if ($identityAuth) {
+                  $sqlToken = Invoke-RestMethod -Uri ($env:IDENTITY_ENDPOINT + "?resource=https%3A%2F%2Fdatabase.windows.net&api-version=2019-08-01") -Headers @{"X-IDENTITY-HEADER"=$env:IDENTITY_HEADER}
+                  $cn.AccessToken = $sqlToken.access_token
+              }
               $cn.Open()
               $cmd = $cn.CreateCommand()
               $cmd.CommandText = "SELECT COUNT(*) FROM (SELECT email_normalized FROM app.UserAccounts WHERE account_status_code='ACTIVE' GROUP BY email_normalized HAVING COUNT(*)>1) d"
               Write-Output ("ActiveDuplicateEmails=" + $cmd.ExecuteScalar())
               $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE account_status_code='ACTIVE' AND contact_email IS NOT NULL AND LOWER(LTRIM(RTRIM(contact_email)))<>LOWER(email_normalized)"
               Write-Output ("Differentcontact_emails=" + $cmd.ExecuteScalar())
+              $cmd.Parameters.Add("@email",[System.Data.SqlDbType]::NVarChar,320).Value = "cassiew.williams9@gmail.com"
+              $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(email_normalized)=@email AND account_status_code='ACTIVE'"
+              Write-Output ("CassidyActiveMatchCount=" + $cmd.ExecuteScalar())
+              $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(email_normalized)=@email AND account_status_code='ACTIVE' AND (NULLIF(LTRIM(RTRIM(contact_email)),'') IS NULL OR LOWER(LTRIM(RTRIM(contact_email)))=@email)"
+              Write-Output ("CassidyDestinationMatches=" + $cmd.ExecuteScalar())
               $cn.Close()
           } catch { Write-Output ("AccountDiagnostic=" + $_.Exception.GetType().Name); if ($_.Exception.InnerException.Number) { Write-Output ("AccountSQLNumber=" + $_.Exception.InnerException.Number) } }
           $iis = @(Get-ChildItem D:\home\LogFiles\http\RawLogs -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 3)

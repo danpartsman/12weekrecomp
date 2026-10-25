@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '.github/workflows/live-email-diagnostic.yml'
   workflow_dispatch:
 
 concurrency:
