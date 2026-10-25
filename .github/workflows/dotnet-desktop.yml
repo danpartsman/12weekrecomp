@@ -140,8 +140,7 @@ jobs:
               Remove-Item Env:RECOMP_RUNTIME_CONNECTION_STRING -ErrorAction SilentlyContinue
           }
 
-      - name: Apply Coach Center foundation inside TEST App Service
-        if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[ui-preview-no-db]')
+      - name: Verify Coach Center foundation and required accountability schema inside TEST
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -181,6 +180,11 @@ jobs:
           Set-Location $dir
           & ".\WebRecomp.DatabaseMigrator.exe" --learning-coach --configured-auth 2>&1 | ForEach-Object { Write-Output $_ }
           $result = $LASTEXITCODE
+          if ($result -eq 0) {
+              $env:RECOMP_EXPECTED_TEST_DATABASE = 'sqldb-recomp'
+              & ".\WebRecomp.DatabaseMigrator.exe" --verify-accountability --configured-auth 2>&1 | ForEach-Object { Write-Output $_ }
+              $result = $LASTEXITCODE
+          }
           Write-Output ("Migration process exit code: " + $result)
           Set-Location "D:\home"
           Remove-Item $dir -Recurse -Force
@@ -194,32 +198,6 @@ jobs:
           if ($result.ExitCode -ne 0) {
               if ($result.Error) { Write-Host $result.Error }
               throw "Coach Center migration failed; existing TEST app has not been replaced."
-          }
-
-      - name: Apply persistent accountability schema with deployment identity
-        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[persist-coaching]')
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          if ("${{ github.ref }}" -ne "refs/heads/test") { throw "Accountability migration is restricted to TEST." }
-          $connection = az webapp config connection-string list --name recomp-test --resource-group $env:RECOMP_TEST_RG --query "[?name=='RecompDatabase'].value | [0]" -o tsv --only-show-errors
-          if ([string]::IsNullOrWhiteSpace(($connection -join ""))) {
-              $connection = az webapp config appsettings list --name recomp-test --resource-group $env:RECOMP_TEST_RG --query "[?name=='ConnectionStrings__RecompDatabase'].value | [0]" -o tsv --only-show-errors
-          }
-          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($connection -join ""))) { throw "TEST connection configuration is unavailable." }
-          $connection = [string]($connection -join "`n")
-          Write-Output "::add-mask::$connection"
-          $env:RECOMP_RUNTIME_CONNECTION_STRING = $connection
-          $env:RECOMP_EXPECTED_TEST_DATABASE = "sqldb-recomp"
-          $env:WEBSITE_SITE_NAME = "recomp-test"
-          try {
-              dotnet run --project tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj --configuration Release -- --accountability
-              if ($LASTEXITCODE -ne 0) { throw "The SQL-authorized deployment identity is required. Runtime permissions have not been expanded and the running app has not been replaced." }
-          }
-          finally {
-              Remove-Item Env:RECOMP_RUNTIME_CONNECTION_STRING -ErrorAction SilentlyContinue
-              Remove-Item Env:WEBSITE_SITE_NAME -ErrorAction SilentlyContinue
-              Remove-Item Env:RECOMP_EXPECTED_TEST_DATABASE -ErrorAction SilentlyContinue
           }
 
       - name: Deploy to Azure Web App

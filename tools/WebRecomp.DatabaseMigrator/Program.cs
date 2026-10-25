@@ -10,13 +10,15 @@ var accessToken = Environment.GetEnvironmentVariable(tokenVariable);
 var configuredAuthentication = args.Contains("--configured-auth", StringComparer.Ordinal);
 var sampleData = args.Contains("--test-sample-data", StringComparer.Ordinal);
 var accountability = args.Contains("--accountability", StringComparer.Ordinal);
+var verifyAccountability = args.Contains("--verify-accountability", StringComparer.Ordinal);
 var learningMigration = args.Contains("--learning-coach", StringComparer.Ordinal);
-if (args.Any(x => x is not ("--learning-coach" or "--configured-auth" or "--test-sample-data" or "--accountability"))
-    || (configuredAuthentication && !learningMigration && !sampleData && !accountability)
+if (args.Any(x => x is not ("--learning-coach" or "--configured-auth" or "--test-sample-data" or "--accountability" or "--verify-accountability"))
+    || (configuredAuthentication && !learningMigration && !sampleData && !accountability && !verifyAccountability)
     || (sampleData && (!configuredAuthentication || learningMigration || accountability))
-    || (accountability && (learningMigration || sampleData)))
+    || (accountability && (learningMigration || sampleData || verifyAccountability))
+    || (verifyAccountability && (!configuredAuthentication || learningMigration || sampleData)))
 {
-    Console.Error.WriteLine("Supported options: --learning-coach [--configured-auth], or --test-sample-data --configured-auth, or --accountability --configured-auth.");
+    Console.Error.WriteLine("Supported options: --learning-coach [--configured-auth], or --test-sample-data --configured-auth, or --accountability [--configured-auth], or --verify-accountability --configured-auth.");
     return 5;
 }
 
@@ -52,7 +54,7 @@ if (string.IsNullOrWhiteSpace(runtimeBuilder.DataSource) ||
     return 4;
 }
 
-if ((sampleData || accountability) && (!string.Equals(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"), "recomp-test", StringComparison.OrdinalIgnoreCase)
+if ((sampleData || accountability || verifyAccountability) && (!string.Equals(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"), "recomp-test", StringComparison.OrdinalIgnoreCase)
     || !string.Equals(runtimeBuilder.InitialCatalog, Environment.GetEnvironmentVariable("RECOMP_EXPECTED_TEST_DATABASE"), StringComparison.Ordinal)))
 {
     Console.Error.WriteLine("This migration requires the recomp-test App Service and its verified, isolated TEST database.");
@@ -109,7 +111,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::nutrition TO web_recomp_app;
 
 // The learning migration is additive and idempotent. Run it with the
 // deployment identity, never by granting DDL to the runtime web identity.
-var migrationSql = accountability
+var migrationSql = verifyAccountability
+    ? "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID(N'app') AND name IN (N'CoachAccountabilityAgreements', N'CoachAccountabilityApprovals', N'CoachAccountabilityEvents');"
+    : accountability
     ? await File.ReadAllTextAsync(Path.Combine("database", "047_coach_accountability.sql"))
     : sampleData
     ? await File.ReadAllTextAsync(Path.Combine("database", "test_sample_month.sql"))
@@ -138,6 +142,18 @@ try
     await using var command = connection.CreateCommand();
     command.CommandText = migrationSql;
     command.CommandTimeout = 60;
+    if (verifyAccountability)
+    {
+        var tables = Convert.ToInt32(await command.ExecuteScalarAsync());
+        Console.WriteLine($"Accountability tables present: {tables}/3.");
+        if (tables != 3)
+        {
+            Console.Error.WriteLine("A database administrator must apply database/047_coach_accountability.sql to TEST before deployment. Runtime permissions remain unchanged.");
+            return 7;
+        }
+        Console.WriteLine("ACCOUNTABILITY_SCHEMA_READY");
+        return 0;
+    }
     if (sampleData || accountability)
     {
         command.Parameters.AddWithValue("@ExpectedDatabase", runtimeBuilder.InitialCatalog);
