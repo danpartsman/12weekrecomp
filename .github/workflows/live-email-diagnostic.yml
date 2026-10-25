@@ -61,9 +61,9 @@ jobs:
               if (!$connection) { $connection = $env:ConnectionStrings__RecompDatabase }
               $generic = New-Object System.Data.Common.DbConnectionStringBuilder
               $generic.ConnectionString = $connection
-              $mode = [string]$generic["Authentication"]
+              $mode = [string]$generic.get_Item("Authentication")
               Write-Output ("SQLAuthenticationMode=" + $mode)
-              $identityAuth = $mode -like '*Active Directory*'
+              $identityAuth = $connection -match '(?i)authentication\s*=\s*[^;]*active\s*directory'
               if ($identityAuth) { $generic.Remove("Authentication") | Out-Null; $generic.Remove("User ID") | Out-Null; $generic.Remove("Password") | Out-Null }
               $generic["Encrypt"] = "True"
               $cb = New-Object System.Data.SqlClient.SqlConnectionStringBuilder($generic.ConnectionString)
@@ -84,6 +84,8 @@ jobs:
               Write-Output ("CassidyActiveMatchCount=" + $cmd.ExecuteScalar())
               $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(email_normalized)=@email AND account_status_code='ACTIVE' AND (NULLIF(LTRIM(RTRIM(contact_email)),'') IS NULL OR LOWER(LTRIM(RTRIM(contact_email)))=@email)"
               Write-Output ("CassidyDestinationMatches=" + $cmd.ExecuteScalar())
+              $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(LTRIM(RTRIM(contact_email)))=@email AND account_status_code='ACTIVE'"
+              Write-Output ("CassidyContactMatchCount=" + $cmd.ExecuteScalar())
               $cn.Close()
           } catch { Write-Output ("AccountDiagnostic=" + $_.Exception.GetType().Name); $safeError=$_.Exception.GetBaseException().Message; if ($connection) { $safeError=$safeError.Replace($connection,"[connection redacted]") }; if ($generic -and $generic["Password"]) { $safeError=$safeError.Replace([string]$generic["Password"],"[redacted]") }; Write-Output ("AccountDiagnosticReason=" + $safeError); if ($_.Exception.InnerException.Number) { Write-Output ("AccountSQLNumber=" + $_.Exception.InnerException.Number) } }
           $iis = @(Get-ChildItem D:\home\LogFiles\http\RawLogs -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 3)
