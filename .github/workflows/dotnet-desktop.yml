@@ -53,6 +53,9 @@ jobs:
       - name: Run automated tests
         run: dotnet test tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj --configuration Release --no-restore
 
+      - name: Verify accountability preview calculations
+        run: node --test tests/accountability-preview.test.cjs
+
       - name: Publish web project
         run: dotnet publish src/WebRecomp.Web/WebRecomp.Web.csproj --configuration Release --no-build --output ./publish
 

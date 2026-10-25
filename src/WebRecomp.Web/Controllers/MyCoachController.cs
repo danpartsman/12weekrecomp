@@ -28,7 +28,7 @@ public sealed class MyCoachController(RecompDbContext db, AppUserContextService 
             where link.ClientId == clientId && link.StatusCode == "ACTIVE" && link.RevokedAtUtc == null
             select new CoachConnection(link.CoachClientRelationshipId, profile == null ? (user.PreferredDisplayName ?? user.DisplayName ?? "Coach") : profile.DisplayName,
                 profile == null ? null : profile.Bio, profile == null ? null : profile.Specialties)).ToListAsync(ct);
-        return new(connections, input);
+        return new(connections, input) { ClientId = clientId };
     }
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)

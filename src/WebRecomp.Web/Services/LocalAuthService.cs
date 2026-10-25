@@ -216,6 +216,17 @@ public sealed class LocalAuthService(
                 : credential.GlobalRoleCode.Trim().ToUpperInvariant());
     }
 
+    // Reauthentication for the browser-only TEST agreement preview. This path is
+    // rate-limited by its controller and deliberately never updates credentials.
+    public async Task<bool> VerifyCurrentPasswordReadOnlyAsync(UserAccount user, string email, string password, CancellationToken ct)
+    {
+        if (!IsAvailable || user.AccountStatusCode != "ACTIVE" || password.Length is < 1 or > 1024
+            || !string.Equals(user.EmailNormalized, NormalizeEmail(email), StringComparison.OrdinalIgnoreCase)) return false;
+        var credential = await ReadCredentialAsync(user.UserId, ct);
+        if (credential is null || credential.LockoutEndUtc > DateTime.UtcNow) return false;
+        return passwordHasher.VerifyHashedPassword(user, credential.PasswordHash, password) != PasswordVerificationResult.Failed;
+    }
+
     private async Task<bool> CredentialExistsAsync(
         Guid userId,
         CancellationToken cancellationToken)

@@ -18,5 +18,5 @@ public sealed class CoachConnectInput
 {
     [Required, StringLength(64, MinimumLength = 6)] public string Code { get; set; } = "";
 }
-public sealed record MyCoachesViewModel(IReadOnlyList<CoachConnection> Coaches, CoachConnectInput Input);
+public sealed record MyCoachesViewModel(IReadOnlyList<CoachConnection> Coaches, CoachConnectInput Input) { public Guid? ClientId { get; init; } }
 public sealed record CoachConnection(Guid RelationshipId, string Name, string? Bio, string? Specialties);

@@ -3,26 +3,62 @@
 @if (AccountabilityPreview.Enabled(PreviewConfiguration))
 {
 <link rel="stylesheet" href="~/css/accountability-preview.css" asp-append-version="true" />
-<section class="accountability card" data-accountability data-client-id="@Model.ClientId" data-editable="@Model.Editable.ToString().ToLowerInvariant()" hidden="@(!Model.Editable)">
-    <div class="accountability-heading"><div><p class="accountability-tag">TEST PREVIEW</p><h2>Fines &amp; incentives</h2></div><span data-agreement-state>Not enabled</span></div>
-    <p>Browser-only sample. No charges, payments or earned balances. Settings stay on this browser and do not sync to another device or person.</p>
+<section class="accountability card" data-accountability data-client-id="@Model.ClientId" data-editable="@Model.Editable.ToString().ToLowerInvariant()" data-can-approve="@Model.CanApprove.ToString().ToLowerInvariant()" data-review-page="@Model.ReviewPage.ToString().ToLowerInvariant()" hidden="@(!Model.Editable && !Model.ReviewPage)">
+    @Html.AntiForgeryToken()
+    <div class="accountability-heading"><div><p class="accountability-tag">TEST PREVIEW</p><h2>Fines, incentives &amp; agreement</h2></div><span data-agreement-state>Not enabled</span></div>
+    <p>Browser-only draft. No charges or payments. Terms, excused dates and approval receipts stay on this browser; they do not sync between people or devices. No permanent contract or financial ledger is stored.</p>
     @if (Model.Editable)
     {
-        <form data-accountability-form>
+        <form id="accountability-settings-@Model.ClientId" data-accountability-form>
             <label class="accountability-enable"><input type="checkbox" name="enabled" /> Enable fines &amp; incentives for this client preview</label>
-            <p>Choose rules, then set the dollar amount per daily, weekly or monthly assessment. Minimum and maximum apply to each rule’s accumulated total over the 12-week program. A minimum is a settlement threshold, never a minimum charge.</p>
-            <div class="accountability-scroll"><table><caption>Client accountability rules · USD</caption><thead><tr><th scope="col">Assign</th><th scope="col">Rule</th><th scope="col">Type</th><th scope="col">Amount</th><th scope="col">Assess</th><th scope="col">Minimum total ($)</th><th scope="col">Maximum total ($)</th></tr></thead><tbody data-rule-editor></tbody></table></div>
-            <p>Approved illness, injury, recovery and plan changes would need review before settlement. Missing logs would remain pending review. Extra exercise or eating below prescribed macros earns no extra reward.</p>
+            <p>Macro criteria are percentage differences from each day’s prescription. For example, lower −5% and upper +5% includes both endpoints. A fine applies outside the range; an incentive applies within it. Count criteria use the allowed minimum and maximum per selected assessment period.</p>
+            <div class="accountability-scroll"><table><caption>Accountability criteria · USD</caption><thead><tr><th>Assign</th><th>Rule</th><th>Type</th><th>Amount</th><th>Assess</th><th>Lower criterion</th><th>Upper criterion</th><th>Minimum total ($)</th><th>Maximum total ($)</th></tr></thead><tbody data-rule-editor></tbody></table></div>
+            <p>Minimum total is a settlement threshold, never a minimum charge. Maximum total is the agreed per-rule cap for the 12-week program. This sample calculates the selected week only; prior program balances are not available.</p>
+            <fieldset class="accountability-payment"><legend>Contract payments &amp; late-payment terms</legend>
+                <div class="accountability-fields">
+                    <label>Payment method<select name="paymentMethod"><option value="bank-transfer">Bank transfer</option><option value="card-external">Card through external provider</option><option value="cash">Cash</option><option value="check">Check</option><option value="other">Other agreed method</option></select></label>
+                    <label>Payment frequency<select name="paymentFrequency"><option>daily</option><option>weekly</option><option>monthly</option></select></label>
+                    <label>Payment due day<select name="paymentDay"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></label>
+                    <label>Contract payment amount ($)<input name="paymentAmount" type="number" min="0" max="10000" step="0.01" required /></label>
+                    <label>Grace period (days)<input name="graceDays" type="number" min="0" max="30" step="1" required /></label>
+                    <label>Late charge basis<select name="lateBasis"><option value="amount">Dollar amount</option><option value="percent">Percentage of unpaid principal</option></select></label>
+                    <label>Late charge amount ($ or %)<input name="lateValue" type="number" min="0" max="10000" step="0.01" required /></label>
+                    <label>Late charge frequency<select name="lateFrequency"><option>daily</option><option selected>weekly</option><option>monthly</option></select></label>
+                    <label>Maximum accumulated late fees ($)<input name="lateCap" type="number" min="0" max="10000" step="0.01" required /></label>
+                    <label class="accountability-wide">Payment instructions<input name="paymentInstructions" maxlength="300" placeholder="External payment link or instructions; do not enter card or bank account numbers" /></label>
+                </div>
+                <p>Weekly payments use the selected weekday. Monthly payments use its first occurrence in each month. Daily payments are due each day. Late charges use unpaid principal without compounding, after the grace period, up to the stated cap. Excused days waive adherence assessments, not contract payments.</p>
+            </fieldset>
             <div class="accountability-actions"><button type="submit">Save preview</button><button type="button" class="secondary" data-reset-preview>Reset preview</button></div>
             <p data-preview-status role="status" aria-live="polite"></p>
         </form>
     }
     <div data-assigned-preview hidden>
-        <h3>@(Model.Editable ? "Client Command Center preview" : "Your assigned arrangement")</h3>
-        <p data-assignment-summary></p>
-        <div class="accountability-assigned" data-assigned-rules></div>
-        <p><strong>Accumulated fines: — · Earned incentives: —</strong><br />Preview only. No adherence calculation or financial settlement is running.</p>
+        <h3>@(Model.Editable ? "Client agreement preview" : "Your assigned arrangement")</h3>
+        <p data-assignment-summary></p><div class="accountability-assigned" data-assigned-rules></div>
+        <h3>Contract payments</h3><p data-payment-summary></p>
+        <p data-approval-state role="status" aria-live="polite">Awaiting client approval.</p>
+        <div class="accountability-week-nav"><h3>Excused dates &amp; assessment preview</h3><label>Week containing<input type="date" data-preview-week /></label><button type="button" data-load-week>View week</button></div>
+        <p>Only completed days are assessed. Missing logs or targets remain pending. Coach-checked Excused dates waive that day’s adherence fees and rewards. Save the preview after changing excuses or reviewed counts.</p>
+        <p data-evidence-status role="status"></p>
+        <div class="accountability-excuses" data-excused-days></div>
+        <div class="accountability-scroll"><table><caption>Logged values against assigned daily targets</caption><thead><tr><th>Date</th><th>Calories</th><th>Protein</th><th>Carbs</th><th>Fat</th><th>Assessment</th></tr></thead><tbody data-macro-evidence></tbody></table></div>
+        <details data-count-panel><summary>Reviewed counts for count-based rules</summary><p>Coach enters reviewed counts below. Blank means unknown. Counts are summed within the rule’s selected assessment period.</p><div class="accountability-scroll"><table><thead data-count-heading></thead><tbody data-count-evidence></tbody></table></div></details>
+        @if (Model.Editable) { <p><button type="submit" form="accountability-settings-@Model.ClientId">Save excuses &amp; reviewed counts</button></p> }
+        <p data-assessment-total></p><ul data-assessment-ledger></ul>
+        <p>These are hypothetical amounts for the selected week, subject to approval and review. Monthly assessments need a full month of evidence and remain pending in this weekly sample. No real fees or credits are created.</p>
+        <details><summary>Late-payment calculator · Preview</summary><div class="accountability-fields"><label>Unpaid principal ($)<input data-unpaid type="number" min="0" max="10000" step="0.01" value="0" /></label><label>Days past due<input data-overdue type="number" min="0" max="365" step="1" value="0" /></label></div><p data-late-result></p></details>
+        @if (Model.CanApprove)
+        {
+            <section class="accountability-approval"><h3>Client approval</h3><p>Review all rules, tolerances, amounts, payment instructions and late fees above. Changes to these terms require new approval. This is a TEST preview, not a permanent signed contract.</p>
+            <form data-approval-form autocomplete="off">
+                <label class="accountability-enable"><input type="checkbox" name="agree" required /> I have reviewed and agree to these preview accountability and contract payment terms.</label>
+                <div class="accountability-fields"><label>Username (account email)<input name="username" type="email" autocomplete="username" maxlength="320" required /></label><label>Password<input name="password" type="password" autocomplete="current-password" maxlength="1024" required /></label></div>
+                <button type="submit">Verify credentials &amp; approve preview</button><p data-approval-status role="status" aria-live="polite"></p>
+            </form></section>
+        }
     </div>
+    <p data-no-agreement hidden>No enabled draft is saved for this client in this browser. Ask your coach to configure the TEST preview on this same browser; sharing across devices requires the future database-backed version.</p>
     @if (!Model.Editable && (User.IsInRole("Coach") || User.IsInRole("Administrator")))
     { <p><a asp-controller="Coach" asp-action="Accountability" asp-route-clientId="@Model.ClientId">Configure client preview →</a></p> }
 </section>
