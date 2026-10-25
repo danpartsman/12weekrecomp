@@ -7,13 +7,19 @@
     @Html.AntiForgeryToken()
     <div class="accountability-heading"><div><p class="accountability-tag">TEST PREVIEW</p><h2>Fines, incentives &amp; Snap Workout</h2></div><span data-agreement-state>Not enabled</span></div>
     <p>Browser-only draft. No charges or payments. Terms, excused dates and approval receipts stay on this browser; they do not sync between people or devices. No permanent contract or financial ledger is stored.</p>
+    <section class="accountability-agreement-dates"><h3>Agreement dates</h3><p data-agreement-dates-summary></p>
+    @if (Model.Editable || Model.CanAssignSnap)
+    {
+        <form data-agreement-form><div class="accountability-fields"><label>Start date<input name="agreementStart" type="date" required /></label><label>Termination<select name="agreementMode"><option value="open">Until ended</option><option value="weeks">Number of weeks</option></select></label><label>Number of weeks<select name="agreementWeeks">@for (var week = 1; week <= 52; week++) { <option value="@week">@week @(week == 1 ? "week" : "weeks")</option> }</select></label></div><button type="submit">Save agreement dates</button> <button type="button" class="secondary" data-end-agreement>End after today</button></form>
+    }
+    <p data-agreement-dates-status role="status" aria-live="polite"></p></section>
     @if (Model.Editable)
     {
         <form id="accountability-settings-@Model.ClientId" data-accountability-form>
             <label class="accountability-enable"><input type="checkbox" name="enabled" /> Enable fines &amp; incentives for this client preview</label>
             <p>Macro criteria are percentage differences from each day’s prescription. For example, lower −5% and upper +5% includes both endpoints. A fine applies outside the range; an incentive applies within it. Count criteria use the allowed minimum and maximum per selected assessment period.</p>
-            <div class="accountability-scroll"><table><caption>Accountability criteria · USD</caption><thead><tr><th>Assign</th><th>Rule</th><th>Type</th><th>Amount</th><th>Assess</th><th>Lower criterion</th><th>Upper criterion</th><th>Minimum total ($)</th><th>Maximum total ($)</th></tr></thead><tbody data-rule-editor></tbody></table></div>
-            <p>Minimum total is a settlement threshold, never a minimum charge. Maximum total is the agreed per-rule cap for the 12-week program. This sample calculates the selected week only; prior program balances are not available.</p>
+            <div class="accountability-scroll"><table><caption>Accountability criteria · USD</caption><thead><tr><th>Assign</th><th>Rule</th><th>Type</th><th>Amount</th><th>Assess</th><th>Lower criterion</th><th>Upper criterion</th><th>Minimum per period ($)</th><th>Maximum per period ($)</th></tr></thead><tbody data-rule-editor></tbody></table></div>
+            <p>Minimum is a settlement threshold, never a minimum charge. Each rule’s maximum resets for its assigned daily, calendar-week or calendar-month period. Every reviewed cheat-food occurrence is charged from the first occurrence, up to that period’s cap. Fees apply only within the agreement dates.</p>
             <fieldset class="accountability-payment"><legend>Contract payments &amp; late-payment terms</legend>
                 <div class="accountability-fields">
                     <label>Payment method<select name="paymentMethod"><option value="bank-transfer">Bank transfer</option><option value="card-external">Card through external provider</option><option value="cash">Cash</option><option value="check">Check</option><option value="other">Other agreed method</option></select></label>
@@ -24,10 +30,10 @@
                     <label>Late charge basis<select name="lateBasis"><option value="amount">Dollar amount</option><option value="percent">Percentage of unpaid principal</option></select></label>
                     <label>Late charge amount ($ or %)<input name="lateValue" type="number" min="0" max="10000" step="0.01" required /></label>
                     <label>Late charge frequency<select name="lateFrequency"><option>daily</option><option selected>weekly</option><option>monthly</option></select></label>
-                    <label>Maximum accumulated late fees ($)<input name="lateCap" type="number" min="0" max="10000" step="0.01" required /></label>
+                    <label>Maximum late fee per period ($)<input name="lateCap" type="number" min="0" max="10000" step="0.01" required /></label>
                     <label class="accountability-wide">Payment instructions<input name="paymentInstructions" maxlength="300" placeholder="External payment link or instructions; do not enter card or bank account numbers" /></label>
                 </div>
-                <p>Weekly payments use the selected weekday. Monthly payments use its first occurrence in each month. Daily payments are due each day. Late charges use unpaid principal without compounding, after the grace period, up to the stated cap. Excused days waive adherence assessments, not contract payments.</p>
+                <p>Weekly payments use the selected weekday. Monthly payments use its first occurrence in each month. Daily payments are due each day. Late charges use unpaid principal without compounding, after the grace period, up to the stated cap per late period. Excused days waive adherence assessments, not contract payments.</p>
             </fieldset>
             <div class="accountability-actions"><button type="submit">Save preview</button><button type="button" class="secondary" data-reset-preview>Reset preview</button></div>
             <p data-preview-status role="status" aria-live="polite"></p>
@@ -51,7 +57,7 @@
         <details data-count-panel><summary>Reviewed counts for count-based rules</summary><p>Coach enters reviewed counts below. Blank means unknown. Counts are summed within the rule’s selected assessment period.</p><div class="accountability-scroll"><table><thead data-count-heading></thead><tbody data-count-evidence></tbody></table></div></details>
         @if (Model.Editable) { <p><button type="submit" form="accountability-settings-@Model.ClientId">Save excuses &amp; reviewed counts</button></p> }
         <p data-assessment-total></p><ul data-assessment-ledger></ul>
-        <p>These are hypothetical amounts for the selected week, subject to approval and review. Monthly assessments need a full month of evidence and remain pending in this weekly sample. No real fees or credits are created.</p>
+        <p>These are hypothetical amounts for the selected week, subject to approval and review. Monthly assessments use the full month, remain pending until the period closes and count toward the weekly total in the week the period ends. No real fees or credits are created.</p>
         <details><summary>Late-payment calculator · Preview</summary><div class="accountability-fields"><label>Unpaid principal ($)<input data-unpaid type="number" min="0" max="10000" step="0.01" value="0" /></label><label>Days past due<input data-overdue type="number" min="0" max="365" step="1" value="0" /></label></div><p data-late-result></p></details>
         @if (Model.CanApprove)
         {

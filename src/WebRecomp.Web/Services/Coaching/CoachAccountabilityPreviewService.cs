@@ -53,7 +53,7 @@ public sealed class CoachAccountabilityPreviewService(RecompDbContext db, CoachC
             .Select(x => new { id = x.ExerciseCatalogItemId, name = x.Name }).ToArrayAsync(ct);
     }
     public Task<string?> ClientNameAsync(Guid clientId, CancellationToken ct) => db.Clients.AsNoTracking().Where(x => x.ClientId == clientId && x.ClientStatusCode == "ACTIVE").Select(x => x.ClientName).FirstOrDefaultAsync(ct);
-    public async Task<object?> EvidenceAsync(UserAccount user, Guid clientId, DateOnly? selected, CancellationToken ct)
+    public async Task<object?> EvidenceAsync(UserAccount user, Guid clientId, DateOnly? selected, CancellationToken ct, bool includeMonth = false)
     {
         var client = await db.Clients.AsNoTracking().SingleOrDefaultAsync(x => x.ClientId == clientId && x.ClientStatusCode == "ACTIVE", ct);
         if (client is null) return null;
@@ -61,22 +61,32 @@ public sealed class CoachAccountabilityPreviewService(RecompDbContext db, CoachC
         var date = selected ?? today;
         if (date < today.AddDays(-84) || date > today) throw new ArgumentOutOfRangeException(nameof(selected));
         var monday = date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
-        // The prescription source returns reference-7 through reference+1.
-        CoachSummaryTargets prescribed;
-        try { prescribed = await targets.LoadAsync(user.UserId, client, monday.AddDays(7), ct); }
-        catch (Exception e) when (e is InvalidOperationException or ArgumentException)
+        var windowEnd = monday.AddDays(6);
+        var first = includeMonth ? new DateOnly(monday.Year, monday.Month, 1) : monday;
+        var last = includeMonth ? new DateOnly(windowEnd.Year, windowEnd.Month, DateTime.DaysInMonth(windowEnd.Year, windowEnd.Month)) : windowEnd;
+        var prescriptions = new Dictionary<DateOnly, WebRecomp.Web.ViewModels.CoachSummaryPrescription>();
+        var notices = new HashSet<string>();
+        for (var cursor = first; cursor <= last && cursor <= today; cursor = cursor.AddDays(7))
         {
-            // Snap assignments and dated exceptions remain usable without a complete nutrition profile.
-            prescribed = new(new Dictionary<DateOnly, WebRecomp.Web.ViewModels.CoachSummaryPrescription>(), "Nutrition targets are unavailable; macro assessments stay pending. Snap Workouts and dated exceptions remain available.");
+            try
+            {
+                var loaded = await targets.LoadAsync(user.UserId, client, cursor.AddDays(7), ct);
+                foreach (var pair in loaded.Days) prescriptions.TryAdd(pair.Key, pair.Value);
+                if (loaded.Notice is not null) notices.Add(loaded.Notice);
+            }
+            catch (Exception e) when (e is InvalidOperationException or ArgumentException)
+            { notices.Add("Nutrition targets are unavailable; macro assessments stay pending. Snap Workouts and dated exceptions remain available."); }
         }
-        var days = await db.NutritionDays.AsNoTracking().Where(x => x.ClientId == clientId && x.NutritionDate >= monday && x.NutritionDate <= monday.AddDays(6)).ToListAsync(ct);
-        return new { today, weekStart = monday, notice = prescribed.Notice,
-            days = Enumerable.Range(0, 7).Select(i => {
-                var d = monday.AddDays(i); var intake = days.Where(x => x.NutritionDate == d).OrderByDescending(x => x.UpdatedAtUtc).FirstOrDefault();
-                var p = prescribed.Days.GetValueOrDefault(d);
-                return new { date = d, completed = d < today,
-                    actual = new { calories = intake?.ActualCalories, protein = intake?.ActualProteinG, carbs = intake?.ActualCarbsG, fat = intake?.ActualFatG },
-                    target = p is null ? null : new { calories = p.Calories, protein = p.ProteinG, carbs = p.CarbsG, fat = p.FatG }, source = p?.Source };
-            }).ToArray() };
+        var nutrition = await db.NutritionDays.AsNoTracking().Where(x => x.ClientId == clientId && x.NutritionDate >= first && x.NutritionDate <= last).ToListAsync(ct);
+        var periodDays = Enumerable.Range(0, last.DayNumber - first.DayNumber + 1).Select(i => {
+            var d = first.AddDays(i); var intake = nutrition.Where(x => x.NutritionDate == d).OrderByDescending(x => x.UpdatedAtUtc).FirstOrDefault();
+            var p = prescriptions.GetValueOrDefault(d);
+            return new { date = d, completed = d < today,
+                actual = new { calories = intake?.ActualCalories, protein = intake?.ActualProteinG, carbs = intake?.ActualCarbsG, fat = intake?.ActualFatG },
+                target = p is null ? null : new { calories = p.Calories, protein = p.ProteinG, carbs = p.CarbsG, fat = p.FatG }, source = p?.Source };
+        }).ToArray();
+        var zone = TimeZoneInfo.TryConvertWindowsIdToIanaId(client.TimeZone, out var iana) ? iana : client.TimeZone;
+        return new { today, nowUtc = DateTimeOffset.UtcNow, timeZone = zone, weekStart = monday, notice = string.Join(" ", notices),
+            days = periodDays.Where(x => x.date >= monday && x.date <= windowEnd).ToArray(), periodDays };
     }
 }

@@ -59,6 +59,38 @@ public sealed class AccountabilityPreviewTests
     }
 
     [Fact]
+    public async Task MonthlyEvidenceIncludesFullCalendarMonthButKeepsSevenDisplayDays()
+    {
+        using var db = new RecompDbContext(new DbContextOptionsBuilder<RecompDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        var client = new Client { ClientId = Guid.NewGuid(), ClientName = "Monthly sample", TimeZone = "America/Los_Angeles" };
+        db.Clients.Add(client); await db.SaveChangesAsync();
+        var today = WebRecomp.Web.Services.AppUserContextService.GetClientToday(client);
+        var lastMonth = today.AddMonths(-1); var selected = new DateOnly(lastMonth.Year, lastMonth.Month, 15);
+        var service = new CoachAccountabilityPreviewService(db, new CoachCenterService(db), new PreviewTargets());
+        var data = System.Text.Json.JsonSerializer.SerializeToElement(await service.EvidenceAsync(new UserAccount { UserId = Guid.NewGuid(), ExternalSubject = "monthly-owner" }, client.ClientId, selected, default, true));
+        Assert.Equal(7, data.GetProperty("days").GetArrayLength());
+        Assert.Equal(DateTime.DaysInMonth(selected.Year, selected.Month), data.GetProperty("periodDays").GetArrayLength());
+        Assert.Equal("America/Los_Angeles", data.GetProperty("timeZone").GetString());
+        Assert.False(db.ChangeTracker.HasChanges());
+    }
+    [Theory]
+    [InlineData("{\"start\":\"2026-02-30\",\"mode\":\"open\"}")]
+    [InlineData("{\"start\":\"2026-10-01\",\"mode\":\"weeks\",\"weeks\":0}")]
+    [InlineData("{\"start\":\"2026-10-01\",\"mode\":\"open\",\"endedOn\":\"2026-09-01\"}")]
+    public async Task ApprovalRejectsInvalidAgreementDatesBeforeCredentialVerification(string agreement)
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["WEBSITE_SITE_NAME"] = "recomp-test" }).Build();
+        var controller = new WebRecomp.Web.Controllers.AccountabilityPreviewController(null!, null!, null!, null!, config);
+        var input = new WebRecomp.Web.Controllers.AccountabilityPreviewController.ApprovalInput { Terms = "{\"version\":2,\"enabled\":true,\"agreement\":" + agreement + "}", Agree = true };
+        Assert.IsType<Microsoft.AspNetCore.Mvc.BadRequestObjectResult>(await controller.Approve(Guid.NewGuid(), input, default));
+    }
+    private sealed class PreviewTargets : ICoachSummaryPrescriptionSource
+    {
+        public Task<CoachSummaryTargets> LoadAsync(Guid userId, Client client, DateOnly referenceDate, CancellationToken ct) => Task.FromResult(new CoachSummaryTargets(
+            Enumerable.Range(-7, 9).Select(i => referenceDate.AddDays(i)).ToDictionary(d => d, d => new CoachSummaryPrescription(d, 180, 150, 60, 1860, "Rest", 0, 0, "Test prescription"))));
+    }
+
+    [Fact]
     public void PreviewGateIsTestOnly()
     {
         var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["WEBSITE_SITE_NAME"] = "recomp-live" }).Build();

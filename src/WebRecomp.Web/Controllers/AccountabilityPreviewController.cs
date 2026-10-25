@@ -43,13 +43,13 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
         return Json(await preview.ExercisesAsync(clientId, q, ct));
     }
     [HttpGet("evidence")]
-    public async Task<IActionResult> Evidence(Guid clientId, DateOnly? date, CancellationToken ct)
+    public async Task<IActionResult> Evidence(Guid clientId, DateOnly? date, CancellationToken ct, bool monthly = false)
     {
         if (!Enabled) return NotFound();
         if (!ModelState.IsValid) return BadRequest("Choose a valid date.");
         var user = (await users.GetAsync(HttpContext, ct)).User;
         if (!await preview.CanViewAsync(user.UserId, clientId, CoachRole, ct)) return NotFound();
-        try { var data = await preview.EvidenceAsync(user, clientId, date, ct); return data is null ? NotFound() : Json(data); }
+        try { var data = await preview.EvidenceAsync(user, clientId, date, ct, monthly); return data is null ? NotFound() : Json(data); }
         catch (ArgumentOutOfRangeException) { return BadRequest("Choose a date within the last 12 weeks through today."); }
     }
     [HttpPost("approve"), ValidateAntiForgeryToken, EnableRateLimiting("accountability-approval")]
@@ -81,9 +81,21 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
     {
         if (string.IsNullOrWhiteSpace(terms) || terms.Length > 32768) return false;
         try { using var doc = JsonDocument.Parse(terms); return doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("version", out var version) && version.TryGetInt32(out var v) && v == 2
+            && ValidAgreement(doc.RootElement)
             && ((doc.RootElement.TryGetProperty("enabled", out var enabled) && enabled.ValueKind == JsonValueKind.True)
                 || (doc.RootElement.TryGetProperty("snapWorkouts", out var snaps) && snaps.ValueKind == JsonValueKind.Array && snaps.GetArrayLength() > 0)); }
         catch (JsonException) { return false; }
+    }
+    private static bool ValidAgreement(JsonElement root)
+    {
+        if (!root.TryGetProperty("agreement", out var agreement) || agreement.ValueKind != JsonValueKind.Object
+            || !agreement.TryGetProperty("start", out var start) || start.ValueKind != JsonValueKind.String
+            || !DateOnly.TryParseExact(start.GetString(), "yyyy-MM-dd", out var from)
+            || !agreement.TryGetProperty("mode", out var mode) || mode.ValueKind != JsonValueKind.String) return false;
+        if (mode.GetString() == "weeks") return agreement.TryGetProperty("weeks", out var weeks) && weeks.TryGetInt32(out var count) && count is >= 1 and <= 52;
+        if (mode.GetString() != "open") return false;
+        return !agreement.TryGetProperty("endedOn", out var end) || end.ValueKind == JsonValueKind.Null
+            || (end.ValueKind == JsonValueKind.String && DateOnly.TryParseExact(end.GetString(), "yyyy-MM-dd", out var until) && until >= from);
     }
     public sealed class ApprovalInput
     {
