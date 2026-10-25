@@ -564,40 +564,16 @@
                                     <span class="wi-start-card-kicker">
                                         CREATE WORKOUT
                                     </span>
-                                    <h2>Build today's workout as you train</h2>
+                                    <h2>Build your workout before starting</h2>
                                     <p>
-                                        Start with an empty live workout, then add
-                                        exercises and sets from your phone.
+                                        Choose exercises, sets, reps and weight. The workout starts only when you press Start Workout.
                                     </p>
                                 </div>
                             </div>
 
-                            <form asp-action="StartEmptyWorkout"
-                                  method="post"
-                                  class="wi-clickable-workout-form">
-                                @Html.AntiForgeryToken()
-
-                                <input type="hidden"
-                                       name="date"
-                                       value="@Model.Date.ToString("yyyy-MM-dd")" />
-
-                                <input type="hidden"
-                                       name="returnContext"
-                                       value="@Model.ReturnContext" />
-
-                                <button class="wi-clickable-workout-card wi-create-workout-card"
-                                        type="submit">
-                                    <span class="wi-start-card-kicker">
-                                        NEW LIVE WORKOUT
-                                    </span>
-                                    <strong>Create Workout</strong>
-                                    <span>
-                                        Opens the live gym screen immediately.
-                                        You can save the finished structure to
-                                        My Workouts separately.
-                                    </span>
-                                </button>
-                            </form>
+                            <a class="wi-clickable-workout-card wi-create-workout-card" asp-action="Index" asp-route-mode="new" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")" asp-route-returnContext="@Model.ReturnContext">
+                                <span class="wi-start-card-kicker">WORKOUT BUILDER</span><strong>Create Workout</strong><span>Choose exercises and a name. Start it unsaved or save it to My Workouts first.</span>
+                            </a>
                         }
                         else if (startCategory == "my")
                         {
@@ -1195,6 +1171,7 @@
                                         value="true">
                                     Save to My Workouts
                                 </button>
+                                <button class="primary" type="submit" name="startPrepared" value="true">Start Workout · Unsaved</button>
 
                                 <a class="button"
                                    asp-action="Index"

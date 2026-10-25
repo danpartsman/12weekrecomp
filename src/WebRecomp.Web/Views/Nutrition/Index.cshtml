@@ -537,14 +537,15 @@
 
                                                     <label>
                                                         <span>Amount</span>
-                                                        <span class="nutrition-food-edit-amount">
+                                                        <span class="nutrition-food-edit-amount" data-quantity-stepper>
                                                             <input type="number"
                                                                    name="quantity"
                                                                    min="0.01"
                                                                    max="1000"
-                                                                   step="0.01"
+                                                                   step="any"
                                                                    value="@item.Quantity.ToString("0.####", CultureInfo.InvariantCulture)"
                                                                    required />
+                                                            <span class="nutrition-quantity-arrows"><button type="button" data-quantity-direction="1" aria-label="Increase amount by 1">▲</button><button type="button" data-quantity-direction="-1" aria-label="Decrease amount by 1">▼</button></span>
                                                             <span>@item.QuantityUnitCode</span>
                                                         </span>
                                                     </label>
@@ -2537,3 +2538,6 @@
 })();
 </script>
 
+
+<script src="~/js/nutrition-quantity-stepper.js" asp-append-version="true" defer></script>
+<style>[data-quantity-stepper] input::-webkit-inner-spin-button,[data-quantity-stepper] input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}[data-quantity-stepper] input{appearance:textfield;-moz-appearance:textfield}.nutrition-quantity-arrows{display:inline-flex;flex-direction:column;gap:2px}.nutrition-quantity-arrows button{padding:0 .5rem;min-height:1.2rem;line-height:1;font-size:.75rem}</style>
