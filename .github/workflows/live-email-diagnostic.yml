@@ -11,12 +11,54 @@ jobs:
   diagnose:
     runs-on: windows-latest
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
       - uses: azure/login@v2
         with:
           client-id: a81057ec-568b-4cec-9a95-1d4d3ff549a0
           tenant-id: e5e2dff4-ed49-4038-95d0-63d75304d52e
           subscription-id: 14564a14-42f9-4d2e-8a0b-a7c844dfb5c0
-      - name: Read sanitized LIVE email configuration and failures
+      - name: Build read-only account diagnostic with the application SQL driver
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory ./email-diagnostic -Force | Out-Null
+          Copy-Item tools/WebRecomp.DatabaseMigrator/WebRecomp.DatabaseMigrator.csproj ./email-diagnostic/EmailDiagnostic.csproj
+          @'
+          using Microsoft.Data.SqlClient;
+          var connection = Environment.GetEnvironmentVariable("SQLAZURECONNSTR_RecompDatabase")
+              ?? Environment.GetEnvironmentVariable("SQLCONNSTR_RecompDatabase")
+              ?? Environment.GetEnvironmentVariable("CUSTOMCONNSTR_RecompDatabase")
+              ?? Environment.GetEnvironmentVariable("ConnectionStrings__RecompDatabase");
+          if (string.IsNullOrWhiteSpace(connection)) { Console.WriteLine("ConnectionPresent=False"); return 2; }
+          var builder = new SqlConnectionStringBuilder(connection);
+          Console.WriteLine("AuthenticationMode=" + builder.Authentication);
+          if (Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME") != "recomp-live"
+              || builder.InitialCatalog != "sqldb-recomp-live") return 3;
+          try {
+              await using var sql = new SqlConnection(connection);
+              await sql.OpenAsync();
+              await using var cmd = sql.CreateCommand();
+              cmd.Parameters.AddWithValue("@email", "cassiew.williams9@gmail.com");
+              cmd.CommandText = """
+              SELECT
+               (SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(email_normalized)=@email AND account_status_code='ACTIVE') AS ActiveMatches,
+               (SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(LTRIM(RTRIM(contact_email)))=@email AND account_status_code='ACTIVE') AS ContactMatches,
+               (SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(email_normalized)=@email AND account_status_code='ACTIVE' AND (NULLIF(LTRIM(RTRIM(contact_email)),'') IS NULL OR LOWER(LTRIM(RTRIM(contact_email)))=@email)) AS SameDestinationMatches,
+               (SELECT COUNT(*) FROM app.LocalAuthCredentials c JOIN app.UserAccounts u ON c.UserId=u.user_id WHERE LOWER(u.email_normalized)=@email AND u.account_status_code='ACTIVE') AS Credentials,
+               (SELECT COUNT(*) FROM (SELECT email_normalized FROM app.UserAccounts WHERE account_status_code='ACTIVE' GROUP BY email_normalized HAVING COUNT(*)>1) d) AS DuplicateEmailGroups;
+              """;
+              await using var reader = await cmd.ExecuteReaderAsync();
+              await reader.ReadAsync();
+              for (int i=0;i<reader.FieldCount;i++) Console.WriteLine(reader.GetName(i) + "=" + reader.GetValue(i));
+              return 0;
+          } catch (SqlException ex) { Console.WriteLine("SQLFailureNumber=" + ex.Number); return 4; }
+          '@ | Set-Content ./email-diagnostic/Program.cs -Encoding utf8
+          dotnet publish ./email-diagnostic/EmailDiagnostic.csproj -c Release -r win-x86 --self-contained false -o ./email-diagnostic-publish
+          if ($LASTEXITCODE -ne 0) { throw "Diagnostic build failed." }
+          Compress-Archive ./email-diagnostic-publish/* ./email-diagnostic.zip -Force
+      - name: Read Cassidy account routing without changing accounts or sending mail
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -24,100 +66,21 @@ jobs:
           Write-Output "::add-mask::$($pub.publishingPassword)"
           $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($pub.publishingUserName):$($pub.publishingPassword)"))
           Write-Output "::add-mask::$auth"
+          $base = "https://recomp-live.scm.azurewebsites.net"
+          $headers = @{Authorization="Basic $auth";"If-Match"="*"}
+          Invoke-RestMethod -Uri "$base/api/vfs/data/email-diagnostic.zip" -Method Put -Headers $headers -InFile ./email-diagnostic.zip -ContentType "application/zip" | Out-Null
           $script = @'
-          $ErrorActionPreference = "Stop"
-          Write-Output ("Site=" + $env:WEBSITE_SITE_NAME)
-          $settings = Get-Content D:\home\site\wwwroot\appsettings.json -Raw | ConvertFrom-Json
-          $sender = $env:Email__SenderAddress
-          if (!$sender) { $sender = $env:APPSETTING_Email__SenderAddress }
-          if (!$sender) { $sender = $settings.Email.SenderAddress }
-          Write-Output ("Sender=" + $sender)
-          try {
-              if ($env:IDENTITY_ENDPOINT) {
-                  $uri = $env:IDENTITY_ENDPOINT + "?resource=https%3A%2F%2Fgraph.microsoft.com&api-version=2019-08-01"
-                  $token = Invoke-RestMethod -Uri $uri -Headers @{"X-IDENTITY-HEADER"=$env:IDENTITY_HEADER}
-              } elseif ($env:MSI_ENDPOINT) {
-                  $uri = $env:MSI_ENDPOINT + "?resource=https%3A%2F%2Fgraph.microsoft.com&api-version=2017-09-01"
-                  $token = Invoke-RestMethod -Uri $uri -Headers @{Secret=$env:MSI_SECRET}
-              } else { throw "Managed identity endpoint unavailable in SCM." }
-              $part = $token.access_token.Split('.')[1].Replace('-','+').Replace('_','/')
-              $part = $part.PadRight($part.Length + ((4 - $part.Length % 4) % 4), '=')
-              $claims = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($part)) | ConvertFrom-Json
-              Write-Output ("GraphRoles=" + ($claims.roles -join ','))
-              Write-Output ("GraphMailSend=" + (@($claims.roles) -contains 'Mail.Send'))
-              try {
-                  $probe = @{message=@{subject="12WR validation without recipients";body=@{contentType="Text";content="No recipients supplied."}};saveToSentItems=$false} | ConvertTo-Json -Depth 5
-                  Invoke-RestMethod -Method Post -Uri ("https://graph.microsoft.com/v1.0/users/" + [Uri]::EscapeDataString($sender) + "/sendMail") -Headers @{Authorization=("Bearer " + $token.access_token)} -ContentType "application/json" -Body $probe | Out-Null
-                  Write-Output "NoRecipientProbe=UnexpectedAcceptance"
-              } catch {
-                  Write-Output ("NoRecipientHTTP=" + [int]$_.Exception.Response.StatusCode)
-                  try { $raw=$_.ErrorDetails.Message; if (!$raw -and $_.Exception.Response) { $reader=New-Object IO.StreamReader($_.Exception.Response.GetResponseStream()); $raw=$reader.ReadToEnd(); $reader.Close() }; $e=$raw|ConvertFrom-Json; Write-Output ("NoRecipientCode=" + $e.error.code) } catch {}
-              }
-          } catch { Write-Output ("IdentityDiagnostic=" + $_.Exception.GetType().Name) }
-          try {
-              $connection = $env:SQLAZURECONNSTR_RecompDatabase
-              if (!$connection) { $connection = $env:SQLCONNSTR_RecompDatabase }
-              if (!$connection) { $connection = $env:CUSTOMCONNSTR_RecompDatabase }
-              if (!$connection) { $connection = $env:ConnectionStrings__RecompDatabase }
-              $generic = New-Object System.Data.Common.DbConnectionStringBuilder
-              $generic.ConnectionString = $connection
-              $mode = [string]$generic.get_Item("Authentication")
-              Write-Output ("SQLAuthenticationMode=" + $mode)
-              $identityAuth = $connection -match '(?i)authentication\s*=\s*[^;]*active\s*directory'
-              if ($identityAuth) { $generic.Remove("Authentication") | Out-Null; $generic.Remove("User ID") | Out-Null; $generic.Remove("Password") | Out-Null }
-              $generic["Encrypt"] = "True"
-              $cb = New-Object System.Data.SqlClient.SqlConnectionStringBuilder($generic.ConnectionString)
-              if ($cb.InitialCatalog -ne 'sqldb-recomp-live') { throw "Wrong database" }
-              $cn = New-Object System.Data.SqlClient.SqlConnection($cb.ConnectionString)
-              if ($identityAuth) {
-                  $sqlToken = Invoke-RestMethod -Uri ($env:IDENTITY_ENDPOINT + "?resource=https%3A%2F%2Fdatabase.windows.net&api-version=2019-08-01") -Headers @{"X-IDENTITY-HEADER"=$env:IDENTITY_HEADER}
-                  $cn.AccessToken = $sqlToken.access_token
-              }
-              $cn.Open()
-              $cmd = $cn.CreateCommand()
-              $cmd.CommandText = "SELECT COUNT(*) FROM (SELECT email_normalized FROM app.UserAccounts WHERE account_status_code='ACTIVE' GROUP BY email_normalized HAVING COUNT(*)>1) d"
-              Write-Output ("ActiveDuplicateEmails=" + $cmd.ExecuteScalar())
-              $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE account_status_code='ACTIVE' AND contact_email IS NOT NULL AND LOWER(LTRIM(RTRIM(contact_email)))<>LOWER(email_normalized)"
-              Write-Output ("Differentcontact_emails=" + $cmd.ExecuteScalar())
-              $cmd.Parameters.Add("@email",[System.Data.SqlDbType]::NVarChar,320).Value = "cassiew.williams9@gmail.com"
-              $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(email_normalized)=@email AND account_status_code='ACTIVE'"
-              Write-Output ("CassidyActiveMatchCount=" + $cmd.ExecuteScalar())
-              $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(email_normalized)=@email AND account_status_code='ACTIVE' AND (NULLIF(LTRIM(RTRIM(contact_email)),'') IS NULL OR LOWER(LTRIM(RTRIM(contact_email)))=@email)"
-              Write-Output ("CassidyDestinationMatches=" + $cmd.ExecuteScalar())
-              $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE LOWER(LTRIM(RTRIM(contact_email)))=@email AND account_status_code='ACTIVE'"
-              Write-Output ("CassidyContactMatchCount=" + $cmd.ExecuteScalar())
-              $cn.Close()
-          } catch { Write-Output ("AccountDiagnostic=" + $_.Exception.GetType().Name); $safeError=$_.Exception.GetBaseException().Message; if ($connection) { $safeError=$safeError.Replace($connection,"[connection redacted]") }; if ($generic -and $generic["Password"]) { $safeError=$safeError.Replace([string]$generic["Password"],"[redacted]") }; Write-Output ("AccountDiagnosticReason=" + $safeError); if ($_.Exception.InnerException.Number) { Write-Output ("AccountSQLNumber=" + $_.Exception.InnerException.Number) } }
-          $iis = @(Get-ChildItem D:\home\LogFiles\http\RawLogs -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 3)
-          foreach ($file in $iis) {
-              $fieldsLine = Get-Content $file.FullName | Where-Object { $_ -like '#Fields:*' } | Select-Object -First 1
-              if (!$fieldsLine) { continue }
-              $fields = $fieldsLine.Substring(9).Split(' ')
-              $hostIndex = [Array]::IndexOf($fields,'cs-host')
-              $statusIndex = [Array]::IndexOf($fields,'sc-status')
-              foreach ($line in (Get-Content $file.FullName | Where-Object { $_ -match '/Account/ForgotPassword ' } | Select-Object -Last 8)) {
-                  $parts=$line.Split(' ')
-                  if ($hostIndex -ge 0) { Write-Output ("ForgotRequestHost=" + $parts[$hostIndex]) }
-                  if ($statusIndex -ge 0) { Write-Output ("ForgotRequestHTTP=" + $parts[$statusIndex]) }
-              }
-          }
-          $files = @(Get-ChildItem D:\home\LogFiles -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.txt','.log' -and $_.LastWriteTime -gt (Get-Date).AddDays(-2) } | Sort-Object LastWriteTime -Descending | Select-Object -First 30)
-          $patterns = @('password-reset email transport','Microsoft Graph email send failed','Email:SenderAddress is not configured','ErrorAccessDenied','InvalidAuthenticationToken','Authorization_RequestDenied','ErrorSendAsDenied','AADSTS[0-9]+','ForgotPassword','duplicate')
-          foreach ($pattern in $patterns) {
-              $hits = @($files | Select-String -Pattern $pattern -ErrorAction SilentlyContinue)
-              Write-Output ("LogPattern=" + $pattern + ";Matches=" + $hits.Count)
-              if ($pattern -eq 'Microsoft Graph email send failed') {
-                  foreach ($h in ($hits | Select-Object -Last 5)) {
-                      if ($h.Line -match 'Status\s+([0-9]{3})') { Write-Output ("GraphFailureHTTP=" + $Matches[1]) }
-                      if ($h.Line -match '"code"\s*:\s*"([A-Za-z0-9_]+)"') { Write-Output ("GraphFailureCode=" + $Matches[1]) }
-                  }
-              }
-          }
+          $ErrorActionPreference="Stop"
+          $dir="D:\home\data\email-diagnostic"
+          Expand-Archive D:\home\data\email-diagnostic.zip $dir -Force
+          & "$dir\EmailDiagnostic.exe"
+          $code=$LASTEXITCODE
+          Remove-Item $dir -Recurse -Force
+          Remove-Item D:\home\data\email-diagnostic.zip -Force
+          exit $code
           '@
-          $stage = "https://recomp-live.scm.azurewebsites.net/api/vfs/data/email-diagnostic.ps1"
-          Invoke-RestMethod -Uri $stage -Method Put -Headers @{Authorization="Basic $auth";"If-Match"="*"} -ContentType "text/plain" -Body $script | Out-Null
-          $body = @{command="powershell.exe -NoProfile -File D:\home\data\email-diagnostic.ps1";dir="D:\home"} | ConvertTo-Json
-          $result = Invoke-RestMethod -Uri "https://recomp-live.scm.azurewebsites.net/api/command" -Method Post -Headers @{Authorization="Basic $auth"} -ContentType "application/json" -Body $body
+          $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
+          $body=@{command="powershell.exe -NoProfile -EncodedCommand $encoded";dir="D:\home"}|ConvertTo-Json
+          $result=Invoke-RestMethod -Uri "$base/api/command" -Method Post -Headers $headers -ContentType "application/json" -Body $body
           Write-Host $result.Output
-          Invoke-RestMethod -Uri $stage -Method Delete -Headers @{Authorization="Basic $auth";"If-Match"="*"} | Out-Null
-          if ($result.ExitCode -ne 0) { throw "Diagnostic command failed." }
+          if ($result.ExitCode -ne 0) { throw "Account diagnostic failed; see sanitized result." }
