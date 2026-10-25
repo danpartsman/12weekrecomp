@@ -2,7 +2,7 @@
 @using System.Globalization
 @model CoachWeekPage
 @{Layout="_CoachLayout";ViewData["Title"]="Weekly coaching worksheet";var r=Model.Input.Rules;var groups=new[]{"Hard strength","Accessory","Conditioning","Cardio","Recovery","Rest"};}
-<p><a asp-controller="Coach" asp-action="Client" asp-route-clientId="@Model.ClientId">← @Model.ClientName’s plan</a></p>
+<p><a class="button" asp-controller="Coach" asp-action="Client" asp-route-clientId="@Model.ClientId">← @Model.ClientName’s plan</a></p>
 <div class="page-head"><div><p class="eyebrow">COACH CENTER · NUTRITION & TRAINING</p><h1>Weekly coaching worksheet</h1><p class="lede">@Model.ClientName · @r.EffectiveWeek.ToString("MMM d")–@r.EffectiveWeek.AddDays(6).ToString("MMM d")</p></div></div>
 <section class="card"><h2>Engine recommendation for goal</h2><p>Daily protein · <strong>@Model.Engine.FirstOrDefault()?.ProteinG.ToString("0.#") g</strong>. @(Model.SuggestedSchedule?"This week is blank, so the engine previews the program’s recommended session mix. Nothing is saved yet.":"The engine recommendation reflects the saved workouts before your adjustments.")</p>
 @await Html.PartialAsync("~/Views/Shared/_CoachMacroWeek.cshtml",Model.Engine)

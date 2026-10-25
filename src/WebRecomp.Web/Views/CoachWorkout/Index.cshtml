@@ -1,6 +1,6 @@
 @model CoachWorkoutPage
 @{ Layout="_CoachLayout";ViewData["Title"]="Adjust client workout"; }
-<p><a asp-controller="Coach" asp-action="Client" asp-route-clientId="@Model.ClientId">← @Model.ClientName’s plan</a></p>
+<p><a class="button" asp-controller="Coach" asp-action="Client" asp-route-clientId="@Model.ClientId">← @Model.ClientName’s plan</a></p>
 <h1>Adjust workout · @Model.Input.Date.ToString("ddd, MMM d")</h1>
 <p>Changes update the client's weekly plan. Preview includes the resulting nutrition targets for the whole week. Started and completed sessions stay locked. Targets for the following week also recalculate after saving.</p>
 <form method="get" class="card"><input type="hidden" name="date" value="@Model.Input.Date.ToString("yyyy-MM-dd")" /><label for="choice">Choose a workout</label><select name="choice" id="choice">@foreach(var option in Model.Options){<option value="@option.Value" selected="@(option.Value==Model.Input.Choice)">@option.Name</option>}</select><button>Load workout</button></form>

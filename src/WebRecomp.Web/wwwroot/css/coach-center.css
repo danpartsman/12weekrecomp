@@ -11,8 +11,14 @@
 .coach-shell label {margin:12px 0 6px;}
 .coach-shell input,.coach-shell textarea,.coach-shell select {color:var(--ink);background:var(--surface);border-color:var(--line);}
 .coach-shell input[type=date] {width:auto;max-width:100%;}
-.coach-shell button {font:inherit;border:1px solid var(--line);border-radius:9px;padding:10px 16px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer;}
-.coach-shell .button {background:var(--blue);color:#fff;}
+/* Links and form actions share the Weekly summary button treatment. */
+.coach-shell button:not([hidden]),.coach-shell .button {display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;max-width:100%;font:inherit;line-height:1.4;border:0;border-radius:9px;padding:11px 16px;background:#e2e8f0;color:var(--ink);font-weight:700;text-align:center;text-decoration:none;vertical-align:middle;cursor:pointer;}
+html[data-theme="dark"] .coach-shell button:not([hidden]),html[data-theme="dark"] .coach-shell .button {background:#334155;color:#e5e7eb;}
+.coach-shell button:not(:disabled):hover,.coach-shell .button:hover {filter:brightness(.94);}
+.coach-shell button:focus-visible,.coach-shell .button:focus-visible {outline:3px solid var(--teal);outline-offset:3px;}
+.coach-shell button:disabled {opacity:.55;cursor:not-allowed;}
+.coach-review-actions {display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.coach-review-actions .button {white-space:nowrap;}
 .coach-shell .topbar {background:var(--navy);color:white;}
 .coach-shell .brand-logo {max-width:235px;height:auto;}
 .coach-shell .brand-logo-dark {display:block!important;}

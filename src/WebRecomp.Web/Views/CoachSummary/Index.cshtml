@@ -50,7 +50,7 @@
     };
 }
 <header class="coach-summary-heading">
-    <a asp-controller="Coach" asp-action="Index">← All clients</a>
+    <a class="button" asp-controller="Coach" asp-action="Index">← All clients</a>
     <p class="eyebrow">CLIENT ROLLING SUMMARY</p>
     <h1>@Model.ClientName</h1>
     <p>Seven completed days · @Model.WeekStart.ToString("MMM d")–@Model.WeekEnd.ToString("MMM d, yyyy")</p>
