@@ -6,8 +6,8 @@
 <section class="accountability card" data-accountability data-client-id="@Model.ClientId" data-editable="@Model.Editable.ToString().ToLowerInvariant()" data-can-approve="@Model.CanApprove.ToString().ToLowerInvariant()" data-review-page="@Model.ReviewPage.ToString().ToLowerInvariant()" data-can-assign-snap="@((Model.Editable || Model.CanAssignSnap).ToString().ToLowerInvariant())" hidden="@(!Model.Editable && !Model.ReviewPage)">
     @Html.AntiForgeryToken()
     <p><button type="button" class="secondary" data-reload-agreement>Reload saved agreement</button></p>
-    <div class="accountability-heading"><div><p class="accountability-tag">TEST · SAVED AGREEMENT</p><h2>Fines, incentives &amp; Snap Workout</h2></div><span data-agreement-state>Not enabled</span></div>
-    <p>Agreement settings, excused dates, assignments, results and client approvals are saved in TEST and shared across authorized coach and client devices. Calculated totals do not collect payments automatically.</p>
+    <div class="accountability-heading"><div><p class="accountability-tag">SAVED COACH AGREEMENT</p><h2>Fines, incentives &amp; Snap Workout</h2></div><span data-agreement-state>Not enabled</span></div>
+    <p>Agreement settings, excused dates, assignments, results and client approvals are saved securely and shared across authorized coach and client devices. Calculated totals do not collect payments automatically.</p>
     @if (Model.Editable || Model.CanAssignSnap) { <p><button type="button" class="secondary" data-import-browser-draft hidden>Import old browser draft for review</button></p> }
     <section class="accountability-agreement-dates"><h3>Agreement dates</h3><p data-agreement-dates-summary></p>
     @if (Model.Editable || Model.CanAssignSnap)
@@ -63,7 +63,7 @@
         <details><summary>Late-payment calculator · Preview</summary><div class="accountability-fields"><label>Unpaid principal ($)<input data-unpaid type="number" min="0" max="10000" step="0.01" value="0" /></label><label>Days past due<input data-overdue type="number" min="0" max="365" step="1" value="0" /></label></div><p data-late-result></p></details>
         @if (Model.CanApprove)
         {
-            <section class="accountability-approval"><h3>Client approval</h3><p>Review all rules, tolerances, amounts, payment instructions and late fees above. Changes to these terms require new approval. Your approval is stored with the exact terms version in TEST.</p>
+            <section class="accountability-approval"><h3>Client approval</h3><p>Review all rules, tolerances, amounts, payment instructions and late fees above. Changes to these terms require new approval. Your approval is stored with the exact terms version securely.</p>
             <form data-approval-form autocomplete="off">
                 <label class="accountability-enable"><input type="checkbox" name="agree" required /> I have reviewed and agree to these accountability and contract payment terms.</label>
                 <div class="accountability-fields"><label>Username (account email)<input name="username" type="email" autocomplete="username" maxlength="320" required /></label><label>Password<input name="password" type="password" autocomplete="current-password" maxlength="1024" required /></label></div>

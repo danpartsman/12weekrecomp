@@ -48,6 +48,9 @@ jobs:
       - name: Run automated tests
         run: dotnet test ${{ env.TEST_PROJECT }} --configuration Release --no-restore
 
+      - name: Verify accountability calculations
+        run: node --test tests/accountability-preview.test.cjs
+
       - name: Publish web project
         run: dotnet publish ${{ env.WEB_PROJECT }} --configuration Release --no-build --output ./publish
 
@@ -92,7 +95,7 @@ jobs:
 
           Write-Host "Required RecompDatabase connection-string setting is present."
 
-      - name: Apply LIVE learning schema inside App Service
+      - name: Verify LIVE coach and accountability schema inside App Service
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -174,6 +177,9 @@ jobs:
           $env:RECOMP_RUNTIME_CONNECTION_STRING = $connection
           Set-Location $migrationDir
           & ".\WebRecomp.DatabaseMigrator.exe" --learning-coach --configured-auth
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:RECOMP_EXPECTED_DATABASE = 'sqldb-recomp-live'
+          & ".\WebRecomp.DatabaseMigrator.exe" --verify-accountability --configured-auth
           exit $LASTEXITCODE
           '@
           $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($migrationScript))

@@ -228,7 +228,7 @@
         function render() {
             const assigned = state.enabled ? state.rules.filter(r => r.assigned) : [];
             root.hidden = !editable && !reviewPage && !state.enabled && !state.snapWorkouts.length;
-            query('[data-agreement-state]').textContent = state.enabled ? 'Enabled · Saved in TEST' : state.snapWorkouts.length ? 'Snap Workout · Saved in TEST' : 'Not enabled';
+            query('[data-agreement-state]').textContent = state.enabled ? 'Enabled · Saved securely' : state.snapWorkouts.length ? 'Snap Workout · Saved securely' : 'Not enabled';
             query('[data-assigned-preview]').hidden = !state.enabled && !state.snapWorkouts.length;
             query('[data-exceptions-panel]').hidden = !canAssignSnap && !state.enabled && !state.snapWorkouts.length;
             query('[data-snap-workout]').hidden = !canAssignSnap && !state.snapWorkouts.length;
@@ -371,7 +371,7 @@
                     : { ExpectedRevision: serverRevision, WorkoutId: workoutId, ResultJson: JSON.stringify(next.snapResults[workoutId]) };
                 const result = await post(workoutId === null ? '/state/coach' : '/state/result', fields);
                 acceptEnvelope(result); drawEditor(); drawAgreementEditor(true); render(); drawWeek();
-                query('[data-snap-status]').textContent = message + (changed ? ' Current terms require client approval.' : '') + ' Saved in TEST and available on other devices. No payment was collected.';
+                query('[data-snap-status]').textContent = message + (changed ? ' Current terms require client approval.' : '') + ' Saved securely and available on other devices. No payment was collected.';
                 try { localStorage.setItem(key + ':server-change', String(Date.now())); } catch {}
                 return true;
             } catch (error) { query('[data-snap-status]').textContent = error.message; notice(error.message); return false; }
@@ -527,7 +527,7 @@
                 Object.entries(paymentNames).forEach(([field, prop]) => { next.payment[prop] = ['amount', 'graceDays', 'lateValue', 'lateCap'].includes(prop) ? Number(form.elements[field].value) : form.elements[field].value; });
                 if (!valid(next) || (next.enabled && !next.agreement.start) || terms(next).length > 32768) { notice('Set a valid agreement start date and correct the criteria and totals: lower ≤ upper, minimum total ≤ maximum total, whole occurrence counts, and percentage late charges between 0% and 100%.'); return; }
                 if (await persistSnap(next, 'Agreement settings saved.')) {
-                    notice('Saved in TEST. Changed terms require fresh client approval.');
+                    notice('Saved securely. Changed terms require fresh client approval.');
                     if (state.enabled || state.snapWorkouts.length) loadEvidence(query('[data-preview-week]').value);
                 }
             });
@@ -543,7 +543,7 @@
                 draft.rules = draft.rules.map(r => r.id === 'cheat-foods' ? { ...r, type: 'fine', lower: 0, upper: 0, amount: r.assigned && r.amount === 0 ? 2 : r.amount } : r);
                 if (!valid(draft)) throw new Error();
                 state = draft; drawEditor(); drawAgreementEditor(true); render(); drawWeek();
-                query('[data-snap-status]').textContent = 'Old browser draft loaded for review. Save the reviewed agreement to store it in TEST. Previous browser approvals are not imported.';
+                query('[data-snap-status]').textContent = 'Old browser draft loaded for review. Save the reviewed agreement to store it securely. Previous browser approvals are not imported.';
             } catch { query('[data-snap-status]').textContent = 'The old browser draft could not be imported.'; }
         });
         const approvalForm = query('[data-approval-form]');
@@ -556,7 +556,7 @@
                 const result = await post('/approve', fields); fields.Password = '';
                 if (current !== terms(state)) throw new Error('Terms changed during approval. Review and approve the new terms.');
                 acceptEnvelope(result); render();
-                query('[data-approval-status]').textContent = 'Credentials verified. Approval of these saved terms is recorded in TEST. Your password was not stored.';
+                query('[data-approval-status]').textContent = 'Credentials verified. Approval of these saved terms is recorded securely. Your password was not stored.';
             } catch (error) { query('[data-approval-status]').textContent = error.message || 'Approval could not be saved. No agreement was recorded.'; }
             finally { fields.Password = ''; button.disabled = false; }
         });

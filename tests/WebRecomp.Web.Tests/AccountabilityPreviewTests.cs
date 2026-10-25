@@ -90,11 +90,16 @@ public sealed class AccountabilityPreviewTests
             Enumerable.Range(-7, 9).Select(i => referenceDate.AddDays(i)).ToDictionary(d => d, d => new CoachSummaryPrescription(d, 180, 150, 60, 1860, "Rest", 0, 0, "Test prescription"))));
     }
 
-    [Fact]
-    public void PreviewGateIsTestOnly()
+    [Theory]
+    [InlineData("recomp-test", true)]
+    [InlineData("recomp-live", true)]
+    [InlineData("RECOMP-LIVE", true)]
+    [InlineData("other-site", false)]
+    [InlineData("", false)]
+    public void AccountabilityGateAllowsOnlyDeployedEnvironments(string site, bool expected)
     {
-        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["WEBSITE_SITE_NAME"] = "recomp-live" }).Build();
-        Assert.False(AccountabilityPreview.Enabled(config)); config["WEBSITE_SITE_NAME"] = "recomp-test"; Assert.True(AccountabilityPreview.Enabled(config));
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["WEBSITE_SITE_NAME"] = site }).Build();
+        Assert.Equal(expected, AccountabilityPreview.Enabled(config));
     }
     private sealed class PreviewClock : TimeProvider { public DateTimeOffset Now { get; set; } = new(2026, 10, 24, 0, 0, 0, TimeSpan.Zero); public override DateTimeOffset GetUtcNow() => Now; }
 }

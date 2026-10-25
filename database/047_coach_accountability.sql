@@ -1,6 +1,6 @@
 SET XACT_ABORT ON;
-IF DB_NAME() <> @ExpectedDatabase OR @ExpectedDatabase <> N'sqldb-recomp'
-    THROW 50001, 'Accountability rollout is restricted to the isolated TEST database.', 1;
+IF @ExpectedDatabase IS NULL OR DB_NAME() <> @ExpectedDatabase OR @ExpectedDatabase NOT IN (N'sqldb-recomp',N'sqldb-recomp-live')
+    THROW 50001, 'Accountability rollout requires an explicitly verified 12WR database.', 1;
 BEGIN TRANSACTION;
 IF OBJECT_ID(N'app.CoachAccountabilityAgreements',N'U') IS NULL
 BEGIN
@@ -66,7 +66,9 @@ DENY UPDATE, DELETE ON OBJECT::app.CoachAccountabilityEvents TO web_recomp_app;
 COMMIT TRANSACTION;
 SELECT N'ACCOUNTABILITY_SCHEMA_READY' AS Verification,
  (SELECT COUNT(*) FROM sys.tables WHERE schema_id=SCHEMA_ID(N'app') AND name IN (N'CoachAccountabilityAgreements',N'CoachAccountabilityApprovals',N'CoachAccountabilityEvents')) AS TablesPresent;
--- Exercise the actual SQL storage paths without leaving any sample financial records.
+-- Exercise storage only in TEST. Production migrations never insert sample financial records.
+IF @ExpectedDatabase = N'sqldb-recomp'
+BEGIN
 DECLARE @client uniqueidentifier, @coach uniqueidentifier, @owner uniqueidentifier;
 SELECT TOP(1) @client=r.client_id,@coach=r.coach_user_id,@owner=a.user_id
 FROM app.CoachClientRelationships r
@@ -100,3 +102,5 @@ BEGIN CATCH
  IF @@TRANCOUNT>0 ROLLBACK TRANSACTION;
  THROW;
 END CATCH;
+
+END;

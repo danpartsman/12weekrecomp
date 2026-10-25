@@ -54,11 +54,31 @@ if (string.IsNullOrWhiteSpace(runtimeBuilder.DataSource) ||
     return 4;
 }
 
-if ((sampleData || accountability || verifyAccountability) && (!string.Equals(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"), "recomp-test", StringComparison.OrdinalIgnoreCase)
-    || !string.Equals(runtimeBuilder.InitialCatalog, Environment.GetEnvironmentVariable("RECOMP_EXPECTED_TEST_DATABASE"), StringComparison.Ordinal)))
+var siteName = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
+if (sampleData && (!string.Equals(siteName, "recomp-test", StringComparison.OrdinalIgnoreCase)
+    || runtimeBuilder.InitialCatalog != "sqldb-recomp"
+    || runtimeBuilder.InitialCatalog != Environment.GetEnvironmentVariable("RECOMP_EXPECTED_TEST_DATABASE")))
 {
-    Console.Error.WriteLine("This migration requires the recomp-test App Service and its verified, isolated TEST database.");
+    Console.Error.WriteLine("Sample data requires the verified, isolated TEST database.");
     return 6;
+}
+if (accountability || verifyAccountability)
+{
+    var expectedCatalog = Environment.GetEnvironmentVariable("RECOMP_EXPECTED_DATABASE")
+        ?? Environment.GetEnvironmentVariable("RECOMP_EXPECTED_TEST_DATABASE");
+    var requiredCatalog = siteName?.ToLowerInvariant() switch
+    {
+        "recomp-test" => "sqldb-recomp",
+        "recomp-live" => "sqldb-recomp-live",
+        _ => null
+    };
+    if (requiredCatalog is null || runtimeBuilder.InitialCatalog != requiredCatalog || expectedCatalog != requiredCatalog
+        || !runtimeBuilder.DataSource.Replace("tcp:", "", StringComparison.OrdinalIgnoreCase).Split(',')[0]
+            .Equals("sql-recomp-test-dan.database.windows.net", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.Error.WriteLine("Accountability migration requires an exact 12WR site, SQL server and database match.");
+        return 6;
+    }
 }
 
 var migrationBuilder = new SqlConnectionStringBuilder
@@ -148,7 +168,7 @@ try
         Console.WriteLine($"Accountability tables present: {tables}/3.");
         if (tables != 3)
         {
-            Console.Error.WriteLine("A database administrator must apply database/047_coach_accountability.sql to TEST before deployment. Runtime permissions remain unchanged.");
+            Console.Error.WriteLine("A database administrator must apply database/047_coach_accountability.sql to this database before deployment. Runtime permissions remain unchanged.");
             return 7;
         }
         Console.WriteLine("ACCOUNTABILITY_SCHEMA_READY");
@@ -163,7 +183,7 @@ try
             while (await reader.ReadAsync())
                 for (var i = 0; i < reader.FieldCount; i++) Console.WriteLine($"{reader.GetName(i)}={reader.GetValue(i)}");
         } while (await reader.NextResultAsync());
-        Console.WriteLine(accountability ? "TEST accountability schema completed and verified. Existing entries were retained." : "TEST sample-data batch completed and verified. Existing entries were retained.");
+        Console.WriteLine(accountability ? "Accountability schema completed and verified. Existing entries were retained." : "TEST sample-data batch completed and verified. Existing entries were retained.");
         return 0;
     }
     await command.ExecuteNonQueryAsync();
