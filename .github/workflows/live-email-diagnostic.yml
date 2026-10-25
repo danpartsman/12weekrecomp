@@ -45,7 +45,31 @@ jobs:
               $claims = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($part)) | ConvertFrom-Json
               Write-Output ("GraphRoles=" + ($claims.roles -join ','))
               Write-Output ("GraphMailSend=" + (@($claims.roles) -contains 'Mail.Send'))
+              try {
+                  $probe = @{message=@{subject="12WR validation without recipients";body=@{contentType="Text";content="No recipients supplied."}};saveToSentItems=$false} | ConvertTo-Json -Depth 5
+                  Invoke-RestMethod -Method Post -Uri ("https://graph.microsoft.com/v1.0/users/" + [Uri]::EscapeDataString($sender) + "/sendMail") -Headers @{Authorization=("Bearer " + $token.access_token)} -ContentType "application/json" -Body $probe | Out-Null
+                  Write-Output "NoRecipientProbe=UnexpectedAcceptance"
+              } catch {
+                  Write-Output ("NoRecipientHTTP=" + [int]$_.Exception.Response.StatusCode)
+                  try { $e = $_.ErrorDetails.Message | ConvertFrom-Json; Write-Output ("NoRecipientCode=" + $e.error.code) } catch {}
+              }
           } catch { Write-Output ("IdentityDiagnostic=" + $_.Exception.GetType().Name) }
+          try {
+              $connection = $env:SQLAZURECONNSTR_RecompDatabase
+              if (!$connection) { $connection = $env:SQLCONNSTR_RecompDatabase }
+              if (!$connection) { $connection = $env:CUSTOMCONNSTR_RecompDatabase }
+              if (!$connection) { $connection = $env:ConnectionStrings__RecompDatabase }
+              $cb = New-Object System.Data.SqlClient.SqlConnectionStringBuilder($connection)
+              if ($cb.InitialCatalog -ne 'sqldb-recomp-live') { throw "Wrong database" }
+              $cn = New-Object System.Data.SqlClient.SqlConnection($cb.ConnectionString)
+              $cn.Open()
+              $cmd = $cn.CreateCommand()
+              $cmd.CommandText = "SELECT COUNT(*) FROM (SELECT email_normalized FROM app.UserAccounts WHERE account_status_code='ACTIVE' GROUP BY email_normalized HAVING COUNT(*)>1) d"
+              Write-Output ("ActiveDuplicateEmails=" + $cmd.ExecuteScalar())
+              $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE account_status_code='ACTIVE' AND contact_email IS NOT NULL AND LOWER(LTRIM(RTRIM(contact_email)))<>LOWER(email_normalized)"
+              Write-Output ("DifferentContactEmails=" + $cmd.ExecuteScalar())
+              $cn.Close()
+          } catch { Write-Output ("AccountDiagnostic=" + $_.Exception.GetType().Name) }
           $files = @(Get-ChildItem D:\home\LogFiles -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.txt','.log' -and $_.LastWriteTime -gt (Get-Date).AddDays(-2) } | Sort-Object LastWriteTime -Descending | Select-Object -First 30)
           $patterns = @('password-reset email transport','Microsoft Graph email send failed','Email:SenderAddress is not configured','ErrorAccessDenied','InvalidAuthenticationToken','Authorization_RequestDenied','ErrorSendAsDenied','AADSTS[0-9]+','ForgotPassword','duplicate')
           foreach ($pattern in $patterns) {
