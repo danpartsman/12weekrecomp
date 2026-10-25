@@ -1794,7 +1794,8 @@ public sealed class DetailedWorkoutController(
         bool completeWorkout,
         bool stopWorkout,
         int pausedSeconds,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool startPrepared = false)
     {
         var context =
             await userContext.GetAsync(
@@ -1941,6 +1942,14 @@ public sealed class DetailedWorkoutController(
                     unit));
         }
 
+        if (startPrepared)
+        {
+            if (!model.TemplateOnlyMode || model.WorkoutSessionId.HasValue || saveTemplate || completeWorkout || stopWorkout
+                || string.Equals(model.ReturnContext, "schedule", StringComparison.OrdinalIgnoreCase) || canonicalExercises.Count == 0)
+                return BadRequest("Build a new workout with at least one exercise before starting it unsaved.");
+            // Only this explicit Start submission leaves preparation mode and creates a live session.
+            model.TemplateOnlyMode = false;
+        }
         if (model.TemplateOnlyMode)
         {
             var returnToSchedule =

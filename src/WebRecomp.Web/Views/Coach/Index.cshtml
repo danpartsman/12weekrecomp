@@ -3,18 +3,20 @@
 <section class="page-header"><p class="eyebrow">12 WEEK RECOMP · COACH CENTER</p><h1>Your coaching workspace</h1><p>Connect your clients and review their progress in one place.</p></section>
 @if (TempData["CoachStatus"] is string status) { <div class="app-message success">@status</div> }
 <section class="card"><h2>Clients · @Model.Clients.Count</h2>
-@if (Model.Clients.Count == 0) { <p>No clients connected yet. Create a connection code below; your client accepts it from My Trainer.</p> }
-else { <div style="overflow-x:auto"><table><thead><tr><th>Client</th><th>Goal</th><th>Last completed workout</th></tr></thead><tbody>
-@foreach (var client in Model.Clients) { <tr><td><a asp-action="Client" asp-route-clientId="@client.ClientId">@client.Name</a></td><td>@client.Goal</td><td>@(client.LastWorkout?.ToString("MMM d, yyyy") ?? "No completed workouts")</td></tr> }
+@if (Model.Clients.Count == 0) { <p>No clients connected yet. Create a connection code below; your client accepts it from My Coach.</p> }
+else { <div style="overflow-x:auto"><table><thead><tr><th>Client</th><th>Goal</th><th>Last completed workout</th><th>Review</th></tr></thead><tbody>
+@foreach (var client in Model.Clients) { <tr><td><a asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">@client.Name</a></td><td>@client.Goal</td><td>@(client.LastWorkout?.ToString("MMM d, yyyy") ?? "No completed workouts")</td><td><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">Weekly summary</a> <a asp-action="Client" asp-route-clientId="@client.ClientId">Plan &amp; controls</a>
+@{ var previewConfig = Context.RequestServices.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>(); }
+@if (AccountabilityPreview.Enabled(previewConfig)) { <a asp-action="Accountability" asp-route-clientId="@client.ClientId">Fines &amp; incentives</a> }</td></tr> }
 </tbody></table></div> }
 <p>@Model.PendingInvites pending connection codes. New codes expire after 24 hours and work once.</p>
 <form asp-action="Invite" method="post"><button type="submit">Create client connection code</button></form>
-@if (TempData["CoachInviteCode"] is string code) { <p>Give this code to your client. They enter it under My Trainer and choose to connect.</p><textarea readonly aria-label="Client connection code" rows="1" style="width:10em;font-size:1.5rem;letter-spacing:0.12em">@code</textarea> }
+@if (TempData["CoachInviteCode"] is string code) { <p>Give this code to your client. They enter it under My Coach and choose to connect.</p><textarea readonly aria-label="Client connection code" rows="1" style="width:10em;font-size:1.5rem;letter-spacing:0.12em">@code</textarea> }
 </section>
 <section class="card"><h2>Coach profile</h2><form asp-action="Profile" method="post"><div asp-validation-summary="All"></div>
-<label for="DisplayName">Trainer name</label><input id="DisplayName" name="DisplayName" value="@Model.Profile.DisplayName" maxlength="100" required />
+<label for="DisplayName">Coach name</label><input id="DisplayName" name="DisplayName" value="@Model.Profile.DisplayName" maxlength="100" required />
 <label for="Specialties">Specialties</label><input id="Specialties" name="Specialties" value="@Model.Profile.Specialties" maxlength="500" />
 <label for="Bio">About you</label><textarea id="Bio" name="Bio" maxlength="2000" rows="3">@Model.Profile.Bio</textarea>
 <button type="submit">Save profile</button></form></section>
 <section class="card"><h2>Next steps</h2><p>Client plans and prescription controls are available now. More coaching tools will follow:</p>
-<ul><li>Prescription rules are available from each connected client’s overview, with macro and calorie limits and a weekly preview.</li><li>Coach routine library: reusable routines across clients, with an optional system-sharing setting.</li><li>Client plans and schedules are available from the client overview, with workout adjustments and planned versus completed training.</li><li>Messages: private coach–client conversations.</li><li>Trainer photo: show the client's personal trainer alongside their plan.</li></ul></section>
+<ul><li>Prescription rules are available from each connected client’s overview, with macro and calorie limits and a weekly preview.</li><li>Coach routine library: reusable routines across clients, with an optional system-sharing setting.</li><li>Client plans and schedules are available from the client overview, with workout adjustments and planned versus completed training.</li><li>Messages: private coach–client conversations.</li><li>Coach photo: show the client's personal trainer alongside their plan.</li></ul></section>

@@ -1,0 +1,175 @@
+@using System.Globalization
+@using WebRecomp.Web.Services.Coaching
+@using WebRecomp.Web.Services.Engine30
+@using WebRecomp.Web.Services.WorkoutTargeting
+@model CoachWeeklySummaryViewModel
+@{
+    Layout = "_CoachLayout";
+    ViewData["Title"] = Model.ClientName + " · Rolling summary";
+    string Number(decimal? value, string format = "0.#") => value?.ToString(format) ?? "—";
+    string Css(decimal value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+    string Percent(decimal? value) => Number(Engine30DashboardProjectionService.NormalizeBodyFatFraction(value) * 100);
+    string Signed(decimal? value) => value?.ToString("+0.0;-0.0;0.0") ?? "—";
+    string WorkoutName(string value) => value.Replace('_', ' ');
+    string Note(string? value) => value?.StartsWith("12WR_TEST_MONTH_", StringComparison.Ordinal) == true && value.Contains('·')
+        ? "Sample data · " + value[(value.IndexOf('·') + 1)..].Trim() : value ?? "";
+    string DayClass(CoachSummaryDay day) => day.Date == Model.ReferenceDate ? "is-current" : day.Date > Model.ReferenceDate ? "is-upcoming" : "";
+    string DayLabel(CoachSummaryDay day) => day.Date == Model.ReferenceDate
+        ? (Model.ReferenceDate == Model.Today ? "Today" : "Selected day")
+        : day.Date > Model.ReferenceDate ? (Model.ReferenceDate == Model.Today ? "Tomorrow" : "Next day") : "Completed day";
+    var scaleRows = new (string Label, Func<CoachSummaryDay, string> Value)[] {
+        ("Weight (lb)", d => Number(d.Scale?.WeightLb)),
+        ("Body fat (%)", d => Percent(d.Scale?.BodyFatPct)),
+        ("Fat mass (lb)", d => Number(d.Scale?.WeightLb * Engine30DashboardProjectionService.NormalizeBodyFatFraction(d.Scale?.BodyFatPct))),
+        ("Skeletal muscle (lb)", d => Number(d.Scale?.SkeletalMuscleMassLb)),
+        ("Total muscle (lb)", d => Number(d.Scale?.MuscleMassLb)),
+        ("Visceral fat", d => Number(d.Scale?.VisceralFatRating)),
+        ("Subcutaneous (%)", d => Percent(d.Scale?.SubcutaneousFatPct)),
+        ("Body water (lb)", d => Number(d.Scale?.BodyWaterLb)),
+        ("Waist / hips (in)", d => Number(d.Scale?.WaistIn) + " / " + Number(d.Scale?.HipsIn))
+    };
+    var nutritionRows = new (string Label, bool Target, Func<CoachSummaryDay, string> Value)[] {
+        ("Protein prescribed (g)", true, d => Number(d.Prescription?.ProteinG)),
+        ("Protein logged (g)", false, d => Number(d.Nutrition?.ActualProteinG)),
+        ("Carbs prescribed (g)", true, d => Number(d.Prescription?.CarbsG)),
+        ("Carbs logged (g)", false, d => Number(d.Nutrition?.ActualCarbsG)),
+        ("Fat prescribed (g)", true, d => Number(d.Prescription?.FatG)),
+        ("Fat logged (g)", false, d => Number(d.Nutrition?.ActualFatG)),
+        ("Calories prescribed", true, d => Number(d.Prescription?.Calories, "0")),
+        ("Calories logged", false, d => Number(d.Nutrition?.ActualCalories, "0")),
+        ("Fiber logged (g)", false, d => Number(d.Nutrition?.FiberG)),
+        ("Water logged (oz)", false, d => Number(d.Nutrition?.WaterOz))
+    };
+    var checkRows = new (string Label, Func<CoachSummaryDay, string> Value)[] {
+        ("Energy / 10", d => d.Checkin?.EnergyScore?.ToString() ?? "—"),
+        ("Soreness / 10", d => d.Checkin?.SorenessScore?.ToString() ?? "—"),
+        ("Sleep (h)", d => Number(d.Checkin?.SleepHours)),
+        ("Resting HR", d => d.Checkin?.RestingHr?.ToString() ?? "—"),
+        ("Steps", d => d.Checkin?.Steps?.ToString("N0") ?? "—"),
+        ("Activity (h)", d => Number(d.Checkin?.DailyActivityHours))
+    };
+}
+<header class="coach-summary-heading">
+    <a asp-controller="Coach" asp-action="Index">← All clients</a>
+    <p class="eyebrow">CLIENT ROLLING SUMMARY</p>
+    <h1>@Model.ClientName</h1>
+    <p>Seven completed days · @Model.WeekStart.ToString("MMM d")–@Model.WeekEnd.ToString("MMM d, yyyy")</p>
+    <a class="button" asp-controller="Coach" asp-action="Client" asp-route-clientId="@Model.ClientId">Plan &amp; coaching controls</a>
+</header>
+<nav class="coach-summary-navigation" aria-label="Choose rolling period">
+    @if(Model.WeekStart >= new DateOnly(1900, 1, 8)) {
+        <a class="button" asp-route-clientId="@Model.ClientId" asp-route-date="@Model.ReferenceDate.AddDays(-7).ToString("yyyy-MM-dd")">← Previous 7 days</a>
+    }
+    <form method="get">
+        <label for="summary-date">Seven days before</label>
+        <input id="summary-date" type="date" name="date" value="@Model.ReferenceDate.ToString("yyyy-MM-dd")" min="1900-01-08" max="@Model.Today.ToString("yyyy-MM-dd")" required />
+        <button type="submit">View</button>
+    </form>
+    <a class="button" asp-route-clientId="@Model.ClientId">Latest 7 days</a>
+    @if(Model.ReferenceDate < Model.Today) {
+        <a class="button" asp-route-clientId="@Model.ClientId" asp-route-date="@(Model.ReferenceDate.AddDays(7) > Model.Today ? Model.Today.ToString("yyyy-MM-dd") : Model.ReferenceDate.AddDays(7).ToString("yyyy-MM-dd"))">Next 7 days →</a>
+    }
+</nav>
+@await Html.PartialAsync("_AccountabilityPreview", new AccountabilityPreviewViewModel(Model.ClientId, Model.ClientName))
+@inject Microsoft.Extensions.Configuration.IConfiguration AccountabilityConfig
+@if (AccountabilityPreview.Enabled(AccountabilityConfig)) { <p><a class="button" asp-controller="Coach" asp-action="Accountability" asp-route-clientId="@(Model.ClientId)">Fines &amp; incentives · Preview</a> <a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@(Model.ClientId)">Snap Workout · Client portal</a></p> }
+<section aria-label="Seven completed days gauges">
+    <h2>Last 7 completed days</h2>
+    <p class="muted">@Model.CompletedWorkouts completed workouts · @Model.TrainingMinutes.ToString("0.#") minutes · @Model.NutritionDays / 7 days with nutrition. Today and tomorrow are excluded from all gauges and totals.</p>
+    <div class="coach-summary-gauges">
+    @foreach(var body in new[] { Model.FatChange, Model.MuscleChange }) {
+        var position = 50m + (body.Change ?? 0m) / Model.BodyScale * 45m;
+        <article class="cws-gauge cws-body">
+            <h3>@body.Label change</h3>
+            <strong class="cws-change-number">@Signed(body.Change) <small>lb</small></strong>
+            <p>@(body.Change is null ? "Insufficient readings" : body.Change > 0 ? "Gain" : body.Change < 0 ? "Loss" : "No change")</p>
+            <div class="cws-change-track" role="img" aria-label="@body.Label change @Signed(body.Change) pounds; zero in the center">
+                <span class="cws-zero"></span>
+                @if(body.Change.HasValue) {<i style="left:@Css(position)%"></i>}
+            </div>
+            <div class="cws-change-scale"><span>−@Number(Model.BodyScale) lb</span><span>0</span><span>+@Number(Model.BodyScale) lb</span></div>
+            <p class="muted">@Number(body.Earlier, "0.0") → @Number(body.Recent, "0.0") lb<br />@body.EarlierCount / 3 earlier · @body.RecentCount / 3 recent readings</p>
+        </article>
+    }
+    @foreach(var gauge in Model.Gauges) {
+        <article class="cws-gauge @(!gauge.Complete ? "is-partial" : "")">
+            <h3>@gauge.Label</h3>
+            <svg class="cws-ring" viewBox="0 0 120 120" role="img" aria-label="@gauge.Label: @Number(gauge.Actual) @gauge.Unit logged versus @Number(gauge.Target) prescribed; @gauge.LoggedDays of seven days logged">
+                <circle class="cws-ring-track" cx="60" cy="60" r="46" pathLength="100" />
+                <circle class="cws-ring-fill" cx="60" cy="60" r="46" pathLength="100" stroke-dasharray="@Css(gauge.Fill) 100" />
+                <text x="60" y="64" text-anchor="middle">@(gauge.Percent.HasValue ? Number(gauge.Percent, "0") + "%" : "—")</text>
+                <text class="cws-ring-label" x="60" y="81" text-anchor="middle">of prescribed</text>
+            </svg>
+            <strong>@Number(gauge.Actual, "N0") @gauge.Unit logged</strong>
+            <p>@Number(gauge.Target, "N0") @gauge.Unit prescribed</p>
+            <p class="muted">@gauge.LoggedDays / 7 days logged · @gauge.TargetDays / 7 targets<br />@(!gauge.Complete ? "Partial data; missing is unknown" : "Complete seven-day comparison")</p>
+        </article>
+    }
+    </div>
+    <p class="muted">Body changes compare the first three days’ average with the last three days’ average within this same seven-day window. Scale estimates can fluctuate. Nutrition gauges sum those seven days’ individual prescriptions; rings stop at 100%, while the number shows any overage.</p>
+    @if(Model.PrescriptionNotice is {} notice) {<p class="app-message">@notice</p>}
+</section>
+<section>
+    <h2>Daily detail · 9 days</h2>
+    <p class="muted">Seven completed days, then today and tomorrow’s prescriptions. Scroll sideways to see all nine days. “—” means not recorded. Prescribed and logged nutrition are separate rows.</p>
+    <div class="coach-summary-table-scroll" tabindex="0" role="region" aria-label="Nine-day client detail; scroll horizontally">
+    <table class="coach-summary-table">
+        <caption class="cws-visually-hidden">Aligned scale, training, nutrition, and check-in information for nine days</caption>
+        <thead><tr><th scope="col">Daily entry</th>@foreach(var day in Model.Days) {
+            <th scope="col" class="@DayClass(day)"><span class="cws-day-label">@DayLabel(day)</span><strong>@day.Date.ToString("ddd")</strong><span>@day.Date.ToString("MMM d")</span></th>
+        }</tr></thead>
+        <tbody>
+        <tr class="cws-section"><th colspan="10">Scale entries</th></tr>
+        @foreach(var row in scaleRows) {<tr><th scope="row">@row.Label</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">@row.Value(day)</td>}</tr>}
+        <tr><th scope="row">Scale notes</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">
+            @if(day.Scale is {} scale) {
+                @if(day.ScaleCount > 1) {<p class="muted">Latest of @day.ScaleCount readings</p>}
+                @if(!string.IsNullOrWhiteSpace(scale.Notes)) {<details><summary>Notes</summary><p class="coach-summary-note">@Note(scale.Notes)</p></details>}
+            } else {<span>—</span>}
+        </td>}</tr>
+        <tr class="cws-section"><th colspan="10">Training</th></tr>
+        <tr><th scope="row">Workout prescription</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">@(day.Prescription?.WorkoutName ?? (day.PlannedWorkout is {} planned ? WorkoutName(planned) : "Not scheduled"))</td>}</tr>
+        <tr><th scope="row">Prescribed min / RPE</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">@Number(day.Prescription?.Minutes) / @Number(day.Prescription?.Rpe)</td>}</tr>
+        <tr><th scope="row">Completed workouts</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">
+            @if(day.Workouts.Count == 0) {<span class="muted">No completed workout logged</span>}
+            @foreach(var workout in day.Workouts) {
+                var session = workout.Session;
+                <div class="coach-summary-workout"><strong>@(session.WorkoutName ?? WorkoutName(session.SystemWorkoutCode ?? session.WorkoutTypeCode))</strong>
+                <p>@Number(session.DurationMin) min · RPE @Number(session.SessionRpe) / 10</p>
+                @if(session.CalculatedWorkoutCalories.HasValue || session.CalculatedScaledGlycogenBurnG.HasValue) {<p class="muted">Estimated burn @Number(session.CalculatedWorkoutCalories) kcal · Glycogen @Number(session.CalculatedScaledGlycogenBurnG) g</p>}
+                @if(session.DeviceCalories.HasValue) {<p class="muted">Device @Number(session.DeviceCalories) kcal</p>}
+                @if(workout.Exercises.Count > 0 || !string.IsNullOrWhiteSpace(session.Notes)) {
+                    <details><summary>Session details</summary>
+                    @foreach(var exercise in workout.Exercises) {
+                        <p><strong>@exercise.ExerciseNameSnapshot</strong><br />@string.Join("; ", exercise.Sets.OrderBy(x => x.SetOrder).Select(x => $"{x.Reps?.ToString() ?? "—"} reps × {Number(CoachClientPlanService.Pounds(x.Load, x.LoadUnitCode))} lb"))</p>
+                    }
+                    @if(!string.IsNullOrWhiteSpace(session.Notes)) {<p class="coach-summary-note">@Note(session.Notes)</p>}
+                    </details>
+                }</div>
+            }
+        </td>}</tr>
+        <tr class="cws-section"><th colspan="10">Nutrition · individual daily prescription versus logged intake</th></tr>
+        @foreach(var row in nutritionRows) {<tr class="@(row.Target ? "cws-prescription-row" : "")"><th scope="row">@row.Label</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">@row.Value(day)</td>}</tr>}
+        <tr><th scope="row">Prescription source</th>@foreach(var day in Model.Days) {<td class="@DayClass(day) cws-small">@(day.Prescription?.Source ?? "Unavailable")</td>}</tr>
+        <tr><th scope="row">Nutrition notes</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">
+            @if(!string.IsNullOrWhiteSpace(day.Nutrition?.Notes)) {<details><summary>Notes</summary><p class="coach-summary-note">@Note(day.Nutrition.Notes)</p></details>} else {<span>—</span>}
+        </td>}</tr>
+        <tr class="cws-section"><th colspan="10">Daily check-in</th></tr>
+        @foreach(var row in checkRows) {<tr><th scope="row">@row.Label</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">@row.Value(day)</td>}</tr>}
+        <tr><th scope="row">Recovery &amp; notes</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">
+            @if(day.Checkin is {} checkin) {
+                var body = BodyCheckinCodec.Read(checkin.Notes);
+                @if(checkin.IllnessFlag) {<p class="coach-summary-alert">Illness reported</p>}
+                @if(checkin.PainFlag || body.UnlocatedPain) {<p class="coach-summary-alert">Pain reported</p>}
+                @if(body.Checked) {<p class="muted">Body check completed</p>}
+                @foreach(var region in body.Regions.Where(x => x.Mark > 0 || x.Soreness > 0 || x.Pain > 0)) {
+                    <p>@(BodyRegions.All.FirstOrDefault(x => x.Code == region.Region)?.Name ?? region.Region) · @region.Side:
+                    @(region.Mark == 2 || region.Pain > 0 ? $"Pain {region.Pain}/10" : $"Soreness {region.Soreness}/10")</p>
+                }
+                @if(!string.IsNullOrWhiteSpace(body.Note)) {<details><summary>Notes</summary><p class="coach-summary-note">@Note(body.Note)</p></details>}
+            } else {<span>—</span>}
+        </td>}</tr>
+        </tbody>
+    </table>
+    </div>
+</section>

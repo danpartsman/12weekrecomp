@@ -5,6 +5,9 @@ namespace WebRecomp.Web.Data;
 
 public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) : DbContext(options)
 {
+    public DbSet<CoachAccountabilityAgreement> CoachAccountabilityAgreements => Set<CoachAccountabilityAgreement>();
+    public DbSet<CoachAccountabilityApproval> CoachAccountabilityApprovals => Set<CoachAccountabilityApproval>();
+    public DbSet<CoachAccountabilityEvent> CoachAccountabilityEvents => Set<CoachAccountabilityEvent>();
     public DbSet<CoachWorkoutPlanRevision> CoachWorkoutPlanRevisions => Set<CoachWorkoutPlanRevision>();
     public DbSet<CoachPrescriptionRuleVersion> CoachPrescriptionRuleVersions => Set<CoachPrescriptionRuleVersion>();
     public DbSet<CoachProfile> CoachProfiles => Set<CoachProfile>();
@@ -86,6 +89,16 @@ public sealed class RecompDbContext(DbContextOptions<RecompDbContext> options) :
         Map<ProgramRecord>(modelBuilder, "Programs", "app", nameof(ProgramRecord.ProgramId));
         Map<ProgramPlanChange>(modelBuilder, "ProgramPlanChanges", "app", nameof(ProgramPlanChange.ProgramPlanChangeId));
         Map<ProgramGoal>(modelBuilder, "ProgramGoals", "app", nameof(ProgramGoal.ProgramGoalId));
+        Map<CoachAccountabilityAgreement>(modelBuilder, "CoachAccountabilityAgreements", "app", nameof(CoachAccountabilityAgreement.ClientId));
+        modelBuilder.Entity<CoachAccountabilityAgreement>().Property(x => x.Revision).IsConcurrencyToken();
+        modelBuilder.Entity<CoachAccountabilityAgreement>().Property(x => x.TermsHash).HasMaxLength(64);
+        Map<CoachAccountabilityApproval>(modelBuilder, "CoachAccountabilityApprovals", "app", nameof(CoachAccountabilityApproval.ApprovalId));
+        modelBuilder.Entity<CoachAccountabilityApproval>().Property(x => x.TermsHash).HasMaxLength(64);
+        modelBuilder.Entity<CoachAccountabilityApproval>().Property(x => x.SignedBy).HasMaxLength(320);
+        modelBuilder.Entity<CoachAccountabilityApproval>().HasOne<CoachAccountabilityAgreement>().WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<CoachAccountabilityEvent>().HasOne<CoachAccountabilityAgreement>().WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.Restrict);
+        Map<CoachAccountabilityEvent>(modelBuilder, "CoachAccountabilityEvents", "app", nameof(CoachAccountabilityEvent.EventId));
+        modelBuilder.Entity<CoachAccountabilityEvent>().Property(x => x.Kind).HasMaxLength(30);
         Map<CoachWorkoutPlanRevision>(modelBuilder, "CoachWorkoutPlanRevisions", "app", nameof(CoachWorkoutPlanRevision.CoachWorkoutPlanRevisionId));
         modelBuilder.Entity<CoachWorkoutPlanRevision>().Property(x => x.Reason).HasMaxLength(1000);
         Map<CoachPrescriptionRuleVersion>(modelBuilder, "CoachPrescriptionRuleVersions", "app", nameof(CoachPrescriptionRuleVersion.CoachPrescriptionRuleVersionId));

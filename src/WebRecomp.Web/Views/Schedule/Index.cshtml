@@ -146,6 +146,10 @@
                             title="@(Model.NextWeekHasPlan ? "Next week already has a plan. Recomp will not overwrite it." : "Copy this saved week into next week")">
                         Copy this week → next
                     </button>
+                    @if (Model.NextWeekHasPlan)
+                    {
+                        <span class="small" role="note">Next week already has a plan. Open Next week to edit it.</span>
+                    }
                 </form>
             </div>
         </div>
@@ -454,6 +458,11 @@
             @for (var i = 0; i < Model.Days.Count; i++)
             {
                 var day = Model.Days[i];
+                var planLockedReason = day.CanEditPlan
+                    ? null
+                    : day.HasActualWorkout
+                        ? "Workout already completed. The original plan is locked; use Correct workout above to make changes."
+                        : "This date has passed. Choose today or a future date to plan a workout.";
                 var category = CategoryFromDay(day.ActualWorkoutTypeCode ?? day.WorkoutTypeCode, day.HasActualWorkout ? null : day.WeeklyRole);
                 var selectedTemplate =
                     day.WorkoutTemplateId.HasValue
@@ -516,7 +525,7 @@
                     {
                         <p>Past day · No completed workout recorded. <a asp-controller="Workouts" asp-action="New" asp-route-date="@day.Date.ToString("yyyy-MM-dd")">Record or correct in Workouts</a></p>
                     }
-                    <div class="plan-day-workout">
+                    <div class="plan-day-workout" title="@planLockedReason">
                         <label for="workout-@i">
                             Originally planned workout
                             <button type="button"
@@ -527,7 +536,15 @@
                             </button>
                         </label>
 
+                        @if (planLockedReason is not null)
+                        {
+                            <p id="workout-lock-@i" class="plan-workout-lock-reason" role="note">
+                                <strong>@planLockedReason</strong>
+                            </p>
+                        }
                         <select id="workout-@i"
+                                title="@planLockedReason"
+                                aria-describedby="@(planLockedReason is not null ? $"workout-lock-{i}" : null)"
                                 disabled="@(!day.CanEditPlan ? "disabled" : null)"
                                 class="plan-workout-select"
                                 data-collapsible-workout-picker

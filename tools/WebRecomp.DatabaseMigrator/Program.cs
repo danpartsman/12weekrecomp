@@ -8,11 +8,17 @@ const string tokenVariable = "AZURE_SQL_ACCESS_TOKEN";
 var runtimeConnectionString = Environment.GetEnvironmentVariable(connectionStringVariable);
 var accessToken = Environment.GetEnvironmentVariable(tokenVariable);
 var configuredAuthentication = args.Contains("--configured-auth", StringComparer.Ordinal);
+var sampleData = args.Contains("--test-sample-data", StringComparer.Ordinal);
+var accountability = args.Contains("--accountability", StringComparer.Ordinal);
+var verifyAccountability = args.Contains("--verify-accountability", StringComparer.Ordinal);
 var learningMigration = args.Contains("--learning-coach", StringComparer.Ordinal);
-if (args.Any(x => x is not ("--learning-coach" or "--configured-auth"))
-    || (configuredAuthentication && !learningMigration))
+if (args.Any(x => x is not ("--learning-coach" or "--configured-auth" or "--test-sample-data" or "--accountability" or "--verify-accountability"))
+    || (configuredAuthentication && !learningMigration && !sampleData && !accountability && !verifyAccountability)
+    || (sampleData && (!configuredAuthentication || learningMigration || accountability))
+    || (accountability && (learningMigration || sampleData || verifyAccountability))
+    || (verifyAccountability && (!configuredAuthentication || learningMigration || sampleData)))
 {
-    Console.Error.WriteLine("Supported migration options: --learning-coach [--configured-auth].");
+    Console.Error.WriteLine("Supported options: --learning-coach [--configured-auth], or --test-sample-data --configured-auth, or --accountability [--configured-auth], or --verify-accountability --configured-auth.");
     return 5;
 }
 
@@ -46,6 +52,33 @@ if (string.IsNullOrWhiteSpace(runtimeBuilder.DataSource) ||
 {
     Console.Error.WriteLine("The runtime connection string does not contain both a SQL server and database name.");
     return 4;
+}
+
+var siteName = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
+if (sampleData && (!string.Equals(siteName, "recomp-test", StringComparison.OrdinalIgnoreCase)
+    || runtimeBuilder.InitialCatalog != "sqldb-recomp"
+    || runtimeBuilder.InitialCatalog != Environment.GetEnvironmentVariable("RECOMP_EXPECTED_TEST_DATABASE")))
+{
+    Console.Error.WriteLine("Sample data requires the verified, isolated TEST database.");
+    return 6;
+}
+if (accountability || verifyAccountability)
+{
+    var expectedCatalog = Environment.GetEnvironmentVariable("RECOMP_EXPECTED_DATABASE")
+        ?? Environment.GetEnvironmentVariable("RECOMP_EXPECTED_TEST_DATABASE");
+    var requiredCatalog = siteName?.ToLowerInvariant() switch
+    {
+        "recomp-test" => "sqldb-recomp",
+        "recomp-live" => "sqldb-recomp-live",
+        _ => null
+    };
+    if (requiredCatalog is null || runtimeBuilder.InitialCatalog != requiredCatalog || expectedCatalog != requiredCatalog
+        || !runtimeBuilder.DataSource.Replace("tcp:", "", StringComparison.OrdinalIgnoreCase).Split(',')[0]
+            .Equals("sql-recomp-test-dan.database.windows.net", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.Error.WriteLine("Accountability migration requires an exact 12WR site, SQL server and database match.");
+        return 6;
+    }
 }
 
 var migrationBuilder = new SqlConnectionStringBuilder
@@ -98,7 +131,13 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::nutrition TO web_recomp_app;
 
 // The learning migration is additive and idempotent. Run it with the
 // deployment identity, never by granting DDL to the runtime web identity.
-var migrationSql = learningMigration
+var migrationSql = verifyAccountability
+    ? "SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID(N'app') AND name IN (N'CoachAccountabilityAgreements', N'CoachAccountabilityApprovals', N'CoachAccountabilityEvents');"
+    : accountability
+    ? await File.ReadAllTextAsync(Path.Combine("database", "047_coach_accountability.sql"))
+    : sampleData
+    ? await File.ReadAllTextAsync(Path.Combine("database", "test_sample_month.sql"))
+    : learningMigration
     ? await File.ReadAllTextAsync(Path.Combine("database", "043_v1015c_learning_coach_foundation.sql"))
     : localAuthMigrationSql;
 if (learningMigration)
@@ -123,6 +162,30 @@ try
     await using var command = connection.CreateCommand();
     command.CommandText = migrationSql;
     command.CommandTimeout = 60;
+    if (verifyAccountability)
+    {
+        var tables = Convert.ToInt32(await command.ExecuteScalarAsync());
+        Console.WriteLine($"Accountability tables present: {tables}/3.");
+        if (tables != 3)
+        {
+            Console.Error.WriteLine("A database administrator must apply database/047_coach_accountability.sql to this database before deployment. Runtime permissions remain unchanged.");
+            return 7;
+        }
+        Console.WriteLine("ACCOUNTABILITY_SCHEMA_READY");
+        return 0;
+    }
+    if (sampleData || accountability)
+    {
+        command.Parameters.AddWithValue("@ExpectedDatabase", runtimeBuilder.InitialCatalog);
+        await using var reader = await command.ExecuteReaderAsync();
+        do
+        {
+            while (await reader.ReadAsync())
+                for (var i = 0; i < reader.FieldCount; i++) Console.WriteLine($"{reader.GetName(i)}={reader.GetValue(i)}");
+        } while (await reader.NextResultAsync());
+        Console.WriteLine(accountability ? "Accountability schema completed and verified. Existing entries were retained." : "TEST sample-data batch completed and verified. Existing entries were retained.");
+        return 0;
+    }
     await command.ExecuteNonQueryAsync();
 
     Console.WriteLine(

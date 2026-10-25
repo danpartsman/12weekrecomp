@@ -40,6 +40,8 @@
         }
         </div>
     </dialog>
+    @if (ViewData["AccountabilityCanApprove"] is true && ViewData["AccountabilityClientId"] is Guid accountabilityClientId)
+    { @await Html.PartialAsync("_AccountabilityPreview", new AccountabilityPreviewViewModel(accountabilityClientId, Model.ClientName, CanApprove: ViewData["AccountabilityCanApprove"] is true)) }
     @if (cockpit is null || Model.NeedsCurrentWeight)
     {
         <section class="d2-panel"><h2>Your personal plan needs a current weight</h2><a class="button" href="/DailyEntry">Open Daily Entry</a></section>

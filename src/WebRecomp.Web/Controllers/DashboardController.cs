@@ -121,6 +121,7 @@ public sealed class DashboardController(
             }
         }
 
+        ViewData["AccountabilityClientId"] = client.ClientId;
         ViewData["DashboardToday"] = today;
         ViewData["DashboardStart"] = program.StartDate;
         var vm = await dashboard.BuildAsync(context, selectedDate ?? today, cancellationToken);
@@ -184,6 +185,13 @@ public sealed class DashboardController(
             var context = await userContext.GetAsync(HttpContext, cancellationToken);
             ViewData["RecompCockpit"] = await cockpit.BuildAsync(context, day,
                 (WebRecomp.Web.Services.Dashboard2.MacroDayPlan)ViewData["MacroDayPlan"]!, cancellationToken);
+        }
+        if (WebRecomp.Web.ViewModels.AccountabilityPreview.Enabled(HttpContext.RequestServices.GetRequiredService<IConfiguration>()))
+        {
+            var accountContext = await userContext.GetAsync(HttpContext, cancellationToken);
+            if (accountContext.Client is not null)
+                ViewData["AccountabilityCanApprove"] = await HttpContext.RequestServices.GetRequiredService<WebRecomp.Web.Services.Coaching.CoachAccountabilityPreviewService>()
+                    .CanApproveAsync(accountContext.User.UserId, accountContext.Client.ClientId, cancellationToken);
         }
         view.ViewName = "CommandCenter";
         return view;

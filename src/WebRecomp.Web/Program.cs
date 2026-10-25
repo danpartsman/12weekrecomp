@@ -27,8 +27,13 @@ using WebRecomp.NutritionIntelligence.Providers.Usda;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachCenterService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachAccountabilityPreviewService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachAccountabilityStore>();
+builder.Services.AddSingleton<WebRecomp.Web.Services.Coaching.AccountabilityApprovalReceipt>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachClientPlanService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachWeekService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachWeeklySummaryService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.ICoachSummaryPrescriptionSource, WebRecomp.Web.Services.Coaching.CoachSummaryPrescriptionSource>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachWorkoutPlanService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.WorkoutIntelligence.SystemWorkoutPreviewService>();
 
@@ -119,6 +124,10 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             });
     });
+
+    options.AddPolicy("accountability-approval", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst("oid")?.Value ?? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0, AutoReplenishment = true }));
 
     options.AddPolicy("local-auth", httpContext =>
     {

@@ -186,7 +186,7 @@ public sealed class AdminUsersController(
     public async Task<IActionResult> SetRole(Guid userId, string role, string? search, CancellationToken cancellationToken)
     {
         var normalized = (role ?? string.Empty).Trim().ToUpperInvariant();
-        if (normalized is not ("CLIENT" or "ADMINISTRATOR"))
+        if (normalized is not ("CLIENT" or "COACH" or "ADMINISTRATOR"))
             return BadRequest("Unsupported role.");
 
         if (CurrentUserId() == userId && normalized != "ADMINISTRATOR")
@@ -206,7 +206,7 @@ public sealed class AdminUsersController(
 
         TempData["StatusMessage"] = affected == 0
             ? "That is a legacy Microsoft account. Its Microsoft identity remains listed here, but its role is still managed by the Microsoft compatibility sign-in configuration."
-            : $"Role updated to {normalized}.";
+            : $"Role updated to {normalized}. Ask the account holder to sign out and sign back in to use the updated role.";
 
         return RedirectToAction(nameof(Index), new { search });
     }

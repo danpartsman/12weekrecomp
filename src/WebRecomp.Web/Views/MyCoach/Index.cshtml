@@ -1,5 +1,10 @@
 @model MyCoachesViewModel
-@{ ViewData["Title"] = "My Trainer"; }
-<h1>My Trainer</h1>
-@foreach (var coach in Model.Coaches) { <section class="card"><h2>@coach.Name</h2><p>@coach.Specialties</p><p>@coach.Bio</p><form asp-action="Disconnect" asp-route-relationshipId="@coach.RelationshipId" method="post"><button type="submit">Disconnect trainer</button></form></section> }
-<section class="card"><h2>Connect with your trainer</h2><p>Enter the connection code your trainer gives you. Connecting lets that trainer view your goal, nutrition logs, body measurements, training schedule and completed workouts, and adjust nutrition targets and future workouts. You can disconnect here at any time.</p><form asp-action="Connect" method="post"><div asp-validation-summary="All"></div><label for="Code">Trainer connection code</label><input id="Code" name="Code" value="@Model.Input.Code" minlength="6" maxlength="64" required autocomplete="off" placeholder="PINE42" style="text-transform:uppercase" /><button type="submit">Connect trainer</button></form></section>
+@{ ViewData["Title"] = "My Coach"; }
+<h1>My Coach</h1>
+@foreach (var coach in Model.Coaches) { <section class="card"><h2>@coach.Name</h2><p>@coach.Specialties</p><p>@coach.Bio</p><form asp-action="Disconnect" asp-route-relationshipId="@coach.RelationshipId" method="post"><button type="submit">Disconnect coach</button></form></section> }
+@inject Microsoft.Extensions.Configuration.IConfiguration AccountabilityConfiguration
+@if (AccountabilityPreview.Enabled(AccountabilityConfiguration) && Model.Coaches.Count > 0 && Model.ClientId is Guid agreementClientId)
+{
+<section class="card"><h2>Coach agreement &amp; payments</h2><p>Review assigned accountability rules, excused dates and payment terms, then approve the saved agreement using your account credentials.</p><a class="button" asp-controller="AccountabilityPreview" asp-action="Index" asp-route-clientId="@agreementClientId">Review coach agreement</a> <a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@agreementClientId">Snap Workout</a></section>
+}
+<section class="card"><h2>Connect with your coach</h2><p>Enter the connection code your coach gives you. Connecting lets that coach view your goal, nutrition logs, body measurements, training schedule and completed workouts, and adjust nutrition targets and future workouts. You can disconnect here at any time.</p><form asp-action="Connect" method="post"><div asp-validation-summary="All"></div><label for="Code">Coach connection code</label><input id="Code" name="Code" value="@Model.Input.Code" minlength="6" maxlength="64" required autocomplete="off" placeholder="PINE42" style="text-transform:uppercase" /><button type="submit">Connect coach</button></form></section>

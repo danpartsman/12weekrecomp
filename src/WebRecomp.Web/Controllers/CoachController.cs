@@ -63,6 +63,16 @@ public sealed class CoachController(RecompDbContext db, AppUserContextService us
         return View(new CoachClientDetailViewModel(client, program, measurement, workouts) {Plan=plan});
     }
 
+    [HttpGet("clients/{clientId:guid}/accountability")]
+    public async Task<IActionResult> Accountability(Guid clientId, CancellationToken ct)
+    {
+        if (!AccountabilityPreview.Enabled(HttpContext.RequestServices.GetRequiredService<IConfiguration>())) return NotFound();
+        var user = (await users.GetAsync(HttpContext, ct)).User;
+        if (!await coaches.CanAccessAsync(user.UserId, clientId, ct)) return NotFound();
+        var client = await db.Clients.AsNoTracking().SingleOrDefaultAsync(x => x.ClientId == clientId && x.ClientStatusCode == "ACTIVE", ct);
+        return client is null ? NotFound() : View(new AccountabilityPreviewViewModel(clientId, client.ClientName, true));
+    }
+
     [HttpPost("clients/{clientId:guid}/disconnect"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Disconnect(Guid clientId, CancellationToken ct)
     {

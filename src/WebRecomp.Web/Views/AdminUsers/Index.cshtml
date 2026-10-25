@@ -8,7 +8,7 @@
     <header class="admin-heading">
         <span class="admin-eyebrow">ADMINISTRATION / USERS</span>
         <h1>User Management</h1>
-        <p>Manage 12 Week Recomp accounts and keep legacy Microsoft identities visible during the authentication transition.</p>
+        <p>Manage account access. Coach includes personal trainers who manage connected clients. To add a coach, have them create a 12WR account, then select Coach below.</p>
     </header>
 
     @if (TempData["StatusMessage"] is string statusMessage)
@@ -92,10 +92,13 @@
                                     <form asp-action="SetRole" asp-route-userId="@user.UserId" method="post">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="search" value="@Model.Search" />
-                                        <input type="hidden" name="role" value="@(user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase) ? "CLIENT" : "ADMINISTRATOR")" />
-                                        <button type="submit" class="button" disabled="@(user.IsCurrentUser && user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase))">
-                                            @(user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase) ? "Make Client" : "Make Administrator")
-                                        </button>
+                                        <label for="role-@user.UserId">Account role</label>
+                                        <select id="role-@user.UserId" name="role" disabled="@user.IsCurrentUser">
+                                            <option value="CLIENT" selected="@(user.RoleCode.Equals("CLIENT", StringComparison.OrdinalIgnoreCase))">Client</option>
+                                            <option value="COACH" selected="@(user.RoleCode.Equals("COACH", StringComparison.OrdinalIgnoreCase))">Coach</option>
+                                            <option value="ADMINISTRATOR" selected="@(user.RoleCode.Equals("ADMINISTRATOR", StringComparison.OrdinalIgnoreCase))">Administrator</option>
+                                        </select>
+                                        <button type="submit" class="button" disabled="@user.IsCurrentUser">Save role</button>
                                     </form>
                                 }
 
