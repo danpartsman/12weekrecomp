@@ -64,12 +64,25 @@ jobs:
               $cn = New-Object System.Data.SqlClient.SqlConnection($cb.ConnectionString)
               $cn.Open()
               $cmd = $cn.CreateCommand()
-              $cmd.CommandText = "SELECT COUNT(*) FROM (SELECT EmailNormalized FROM app.UserAccounts WHERE AccountStatusCode='ACTIVE' GROUP BY EmailNormalized HAVING COUNT(*)>1) d"
+              $cmd.CommandText = "SELECT COUNT(*) FROM (SELECT email_normalized FROM app.UserAccounts WHERE account_status_code='ACTIVE' GROUP BY email_normalized HAVING COUNT(*)>1) d"
               Write-Output ("ActiveDuplicateEmails=" + $cmd.ExecuteScalar())
-              $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE AccountStatusCode='ACTIVE' AND ContactEmail IS NOT NULL AND LOWER(LTRIM(RTRIM(ContactEmail)))<>LOWER(EmailNormalized)"
-              Write-Output ("DifferentContactEmails=" + $cmd.ExecuteScalar())
+              $cmd.CommandText = "SELECT COUNT(*) FROM app.UserAccounts WHERE account_status_code='ACTIVE' AND contact_email IS NOT NULL AND LOWER(LTRIM(RTRIM(contact_email)))<>LOWER(email_normalized)"
+              Write-Output ("Differentcontact_emails=" + $cmd.ExecuteScalar())
               $cn.Close()
-          } catch { Write-Output ("AccountDiagnostic=" + $_.Exception.GetType().Name) }
+          } catch { Write-Output ("AccountDiagnostic=" + $_.Exception.GetType().Name); if ($_.Exception.InnerException.Number) { Write-Output ("AccountSQLNumber=" + $_.Exception.InnerException.Number) } }
+          $iis = @(Get-ChildItem D:\home\LogFiles\http\RawLogs -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 3)
+          foreach ($file in $iis) {
+              $fieldsLine = Get-Content $file.FullName | Where-Object { $_ -like '#Fields:*' } | Select-Object -First 1
+              if (!$fieldsLine) { continue }
+              $fields = $fieldsLine.Substring(9).Split(' ')
+              $hostIndex = [Array]::IndexOf($fields,'cs-host')
+              $statusIndex = [Array]::IndexOf($fields,'sc-status')
+              foreach ($line in (Get-Content $file.FullName | Where-Object { $_ -match '/Account/ForgotPassword ' } | Select-Object -Last 8)) {
+                  $parts=$line.Split(' ')
+                  if ($hostIndex -ge 0) { Write-Output ("ForgotRequestHost=" + $parts[$hostIndex]) }
+                  if ($statusIndex -ge 0) { Write-Output ("ForgotRequestHTTP=" + $parts[$statusIndex]) }
+              }
+          }
           $files = @(Get-ChildItem D:\home\LogFiles -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.txt','.log' -and $_.LastWriteTime -gt (Get-Date).AddDays(-2) } | Sort-Object LastWriteTime -Descending | Select-Object -First 30)
           $patterns = @('password-reset email transport','Microsoft Graph email send failed','Email:SenderAddress is not configured','ErrorAccessDenied','InvalidAuthenticationToken','Authorization_RequestDenied','ErrorSendAsDenied','AADSTS[0-9]+','ForgotPassword','duplicate')
           foreach ($pattern in $patterns) {
