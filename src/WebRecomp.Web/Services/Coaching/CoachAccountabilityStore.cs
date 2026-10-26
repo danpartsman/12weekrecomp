@@ -5,7 +5,7 @@ using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 namespace WebRecomp.Web.Services.Coaching;
 public sealed class AccountabilityConflictException() : Exception("This agreement changed in another window. Reload before saving.");
-public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabilityPreviewService access, TimeProvider? clock=null)
+public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabilityPreviewService access, TimeProvider? clock=null, WebRecomp.Web.Services.Notifications.CoachNotificationProcessor? notifications=null)
 {
     private readonly TimeProvider time=clock??TimeProvider.System;
     public async Task<CoachAccountabilityAgreement?> ReadAsync(Guid actor,Guid client,bool coachRole,CancellationToken ct)
@@ -65,7 +65,13 @@ public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabi
         var hash=AccountabilityDocument.HashTerms(terms);
         if(row.TermsVersion==0||row.TermsHash!=hash)row.TermsVersion++;
         row.StateJson=stateJson;row.TermsJson=terms;row.TermsHash=hash;
-        Update(row,actor,"CONFIG",stateJson);await Commit(ct);return row;
+        Update(row,actor,"CONFIG",stateJson);await Commit(ct);
+        if (notifications is not null)
+        {
+            try { await notifications.QueueConfigAsync(client,row.Revision,ct); }
+            catch (Exception) { /* The immutable CONFIG event is recovered by the notification worker. */ }
+        }
+        return row;
     }
     public async Task<CoachAccountabilityAgreement> SaveResultAsync(Guid actor,Guid client,bool coachRole,int expected,string workoutId,string resultJson,CancellationToken ct)
     {
