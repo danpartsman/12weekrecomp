@@ -43,6 +43,16 @@
     ];
     lessons.push(...[["Ultra-processed meals can make overeating easier", "Food quality changes how easy it is to keep portions under control. In a controlled crossover trial, 20 adults ate about 500 more calories daily on an ultra-processed menu and gained about 2 pounds over two weeks; they lost about 2 pounds during the minimally processed phase. Start with one practical swap: replace a snack built around refined starch, added sugar and fat with a meal or snack containing recognizable protein and fiber-rich foods. This tested menus as a whole; it does not prove every packaged food or additive is harmful.", "20 adults, two weeks per menu; randomized controlled trial.", "https://pubmed.ncbi.nlm.nih.gov/31105044/"], ["Who actually reviewed that ingredient?", "A product on a shelf has not necessarily had every ingredient independently reviewed before sale. Under the U.S. GRAS pathway, a manufacturer can make an independent generally-recognized-as-safe conclusion, and notification to FDA has been voluntary for years. A lawful GRAS conclusion still requires a scientific basis; self-determination is not permission to call anything safe. Ask who assessed the ingredient, what exposure was studied, whether evidence is public, and whether the reviewers had financial ties.", "Regulatory pathway checked October 2026; GRAS is different from formal food-additive approval.", "https://www.fda.gov/regulatory-information/search-fda-guidance-documents/guidance-industry-regulatory-framework-substances-intended-use-human-food-or-animal-food-basis"], ["Different countries can make different ingredient decisions", "U.S. permission is not a universal verdict. The European Union withdrew titanium dioxide food-additive authorization in 2022, while FDA continues to permit specified food uses. That is a concrete difference worth questioning, not proof that America ranks worst worldwide or that every exposure causes harm; several other regulators also disagree with the EU assessment. Read the reason for a decision, the dose and the uncertainty instead of trusting either a marketing label or a frightening headline.", "Checked October 2026. Titanium dioxide is a color additive with FDA premarket review, not a GRAS example.", "https://food.ec.europa.eu/food-safety/food-improvement-agents/additives/re-evaluation_en"], ["A smaller body should still be a capable body", "Losing scale weight while surrendering strength is a poor bargain for your recomp goal. Resistance exercise supplies a reason to preserve muscle; adequate protein and a manageable deficit support that effort. In Longland's four-week trial, demanding training plus higher protein produced greater lean-mass gain and fat loss than lower protein. Log a few repeatable lifts alongside waist and weight trends: getting lighter is useful when your body remains strong.", "Young men under supervised demanding training; lean mass is not identical to muscle, and individual results differ.", "https://pubmed.ncbi.nlm.nih.gov/26817506/"], ["Question the claim, including ours", "Before accepting a diet rule, ask what was measured, who was studied, whether a comparison group existed, and who funded the work. A short protein-synthesis experiment answers a different question from a months-long strength or muscle study. The app estimates glycogen and maintenance; it does not measure them directly. Check whether advice improves your repeatable performance, recovery and body-composition trend, then investigate a persistent mismatch instead of blaming yourself or assuming the app must be right.", "Evidence literacy: distinguish mechanisms, trials, estimates and observed outcomes.", "https://pubmed.ncbi.nlm.nih.gov/38118410/"]]);
     const coachCode = document.querySelector('[data-dashboard3]')?.dataset.coachCode || 'MARISOL';
+    const luciaOpenings = [
+        "Ready? Let's make one useful move. ",
+        "Here's a small change worth trying. ",
+        "Let's turn this into a practical win. ",
+        "You've got this. Start with one good choice. ",
+        "Let's make your next step count. ",
+        "Here's something you can use today. ",
+        "One useful habit can build momentum. ",
+        "Let's keep this clear and doable. "
+    ];
     const voice = {
         MARISOL: ['Let’s build strength together. ', ' Take the next manageable step.'],
         NINA: ['Focus. Here is the job. ', ' Pick the action and follow through.'],
@@ -51,7 +61,7 @@
         CASSIE: ['Put this to work for your next session. ', ' Fuel well and keep performance moving.'],
         OWEN: ['Here’s a useful training upgrade. ', ' Try one change and build from it.'],
         AISHA: ['You can own this next step. ', ' Build a stronger body one decision at a time.'],
-        LUCIA: ['All right, let’s put this to work! ', ' Keep it practical and keep showing up.']
+        LUCIA: ['', ' Keep it practical and keep showing up.']
     }[coachCode] || ['', ''];
     const next = document.getElementById('d2-next-lesson');
     if (next) {
@@ -62,7 +72,8 @@
             const lesson = lessons[index % lessons.length];
             document.getElementById('d2-lesson-count').textContent = `${index % lessons.length + 1} of ${lessons.length}`;
             document.getElementById('d2-lesson-title').textContent = lesson[0];
-            document.getElementById('d2-lesson-body').textContent = voice[0] + lesson[1].replace('This is why ', 'That’s why ').replace('does not', 'doesn’t') + voice[1];
+            const opening = coachCode === 'LUCIA' ? luciaOpenings[index % luciaOpenings.length] : voice[0];
+            document.getElementById('d2-lesson-body').textContent = opening + lesson[1].replace('This is why ', 'That’s why ').replace('does not', 'doesn’t') + voice[1];
             document.getElementById('d2-lesson-limit').textContent = lesson[2];
             document.getElementById('d2-lesson-source').href = lesson[3].startsWith('https://') ? lesson[3] : 'https://pubmed.ncbi.nlm.nih.gov/' + lesson[3] + '/' ;
         };
