@@ -135,6 +135,31 @@ public sealed class CoachNotificationTests
         Assert.Empty(f.Email.Messages); Assert.Empty(f.Phone.Subjects);
         Assert.True(f.Files.Read<NotificationDelivery>("queue/daily-test")!.Finished);
     }
+    [Fact]
+    public async Task RealPushTransportEncryptsAndSignsWithoutExposingMessageText()
+    {
+        using var f = new Fixture(); using var handler = new RecordingHandler();
+        var sender = new WebPushDelivery(f.Files, new RecordingFactory(handler));
+        Assert.True(await sender.SendAsync(Device(), "Private test notice", "/notifications", "test", default));
+        Assert.Contains("aes128gcm", handler.Encoding);
+        Assert.Equal("vapid", handler.Scheme);
+        Assert.DoesNotContain("Private test notice", handler.Content);
+    }
+    private sealed class RecordingHandler : HttpMessageHandler
+    {
+        public string Encoding = "", Scheme = "", Content = "";
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Encoding = string.Join(",", request.Content!.Headers.ContentEncoding);
+            Scheme = request.Headers.Authorization?.Scheme ?? "";
+            Content = System.Text.Encoding.UTF8.GetString(await request.Content.ReadAsByteArrayAsync(ct));
+            return new HttpResponseMessage(System.Net.HttpStatusCode.Created);
+        }
+    }
+    private sealed class RecordingFactory(RecordingHandler handler) : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(handler, false);
+    }
     private static NotificationDevice Device()
     {
         using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256); var p = key.ExportParameters(false);

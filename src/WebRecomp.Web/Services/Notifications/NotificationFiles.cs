@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
-using WebPush;
 
 namespace WebRecomp.Web.Services.Notifications;
 
@@ -67,8 +66,11 @@ public sealed class NotificationFiles
     }
     private NotificationIdentity CreateIdentity()
     {
-        var keys = VapidHelper.GenerateVapidKeys();
-        var result = new NotificationIdentity(DateTime.UtcNow, keys.PublicKey, keys.PrivateKey, Convert.ToHexString(RandomNumberGenerator.GetBytes(32)));
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var parameters = key.ExportParameters(true);
+        static string B64(byte[] value) => Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        var publicKey = B64(new byte[] { 4 }.Concat(parameters.Q.X!).Concat(parameters.Q.Y!).ToArray());
+        var result = new NotificationIdentity(System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime(), publicKey, B64(parameters.D!), Convert.ToHexString(RandomNumberGenerator.GetBytes(32)));
         Write("identity", result); return result;
     }
     public static string DeviceId(string endpoint) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(endpoint)));
