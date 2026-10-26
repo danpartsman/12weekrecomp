@@ -121,6 +121,8 @@
             asp-append-version="true"
             defer></script>
 <link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
+<link rel="manifest" href="~/manifest.webmanifest" />
+<meta name="theme-color" content="#07131d" />
 </head>
 
 @{
@@ -408,6 +410,7 @@
                 </a>
 
                 <a asp-controller="MyCoach" asp-action="Index">My Coach</a>
+        <a asp-controller="Notifications" asp-action="Index">Notifications</a>
                 @if (User.IsInRole("Coach") || User.IsInRole("Administrator"))
                 {
                     <a asp-controller="Coach"

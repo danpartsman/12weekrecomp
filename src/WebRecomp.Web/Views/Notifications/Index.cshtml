@@ -1,0 +1,31 @@
+@model WebRecomp.Web.Services.Notifications.NotificationPreferences
+@{ ViewData["Title"] = "Notifications"; }
+<style>[data-notification-settings] [hidden]{display:none!important}</style>
+<section class="page-header"><p class="eyebrow">12 WEEK RECOMP</p><h1>Notifications</h1><p>Hear from your coach when a Snap Workout or agreement changes.</p></section>
+@if (TempData["NotificationStatus"] is string status) { <p class="app-message success" role="status">@status</p> }
+<section class="card" style="max-width:760px;margin-bottom:20px" data-notification-settings>
+    @Html.AntiForgeryToken()
+    <h2>Phone notifications</h2>
+    <p>Enable this on the phone you want to receive alerts. Tap an alert to open the update securely in your account.</p>
+    <p>Alerts use a short preview. Workout details, agreement terms and fee amounts stay inside your account.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button type="button" class="primary" data-enable-phone>Enable phone notifications</button>
+        <button type="button" class="button" data-test-phone hidden>Send a test notification</button>
+        <button type="button" class="button" data-disable-phone hidden>Disable on this device</button>
+    </div>
+    <p role="status" aria-live="polite" data-phone-status>Checking this device…</p>
+    <p class="muted">On iPhone or iPad, add 12WR to your Home Screen, open it from that icon, then enable notifications here.</p>
+    @if (ViewData["PushDeliveryEnabled"] is false) { <p class="muted">TEST environment: subscription setup can be reviewed here; external delivery is disabled.</p> }
+</section>
+<section class="card" style="max-width:760px">
+    <h2>Email and daily review</h2>
+    <form asp-action="Preferences" method="post">
+        <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="email" value="true" checked="@Model.Email" style="width:auto" />Email me about new or changed Snap Workouts and agreements.</label>
+        <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="dailyReview" value="true" checked="@Model.DailyReview" style="width:auto" />Send a daily phone reminder to review fees and incentives.</label>
+        <label for="reviewTime">Daily reminder time · your account's time zone</label>
+        <input type="time" id="reviewTime" name="reviewTime" value="@Model.ReviewTime" required style="max-width:200px" />
+        <p class="muted">For an active, approved agreement. This is a review reminder; today's totals may still change as you log or complete items.</p>
+        <button type="submit" class="primary">Save preferences</button>
+    </form>
+</section>
+<script src="~/js/coach-notifications.js" asp-append-version="true" defer></script>
