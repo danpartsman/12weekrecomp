@@ -45,7 +45,7 @@
             <div class="learning-full-copy">
                 <div class="learning-kicker">THE WHY · @lesson.SeriesTitle.ToUpperInvariant() · @lesson.ModuleNumber OF @lesson.TotalModules</div>
                 <h2>@lesson.Title</h2>
-                <p class="learning-why">@CoachVoice.Speak(coach, lesson.Body)</p>
+                <p class="learning-why">@CoachVoice.Speak(coach, lesson.Body, lesson.ModuleNumber - 1)</p>
                 @if (!string.IsNullOrWhiteSpace(lesson.Takeaway))
                 {
                     <p class="learning-takeaway"><strong>Remember:</strong> @lesson.Takeaway</p>
@@ -99,7 +99,7 @@
                     <div class="learning-dialog-copy">
                         <div class="learning-kicker">@lesson.SeriesTitle.ToUpperInvariant() · @lesson.ModuleNumber OF @lesson.TotalModules</div>
                         <h2 id="@($"{dialogId}-title")">@lesson.Title</h2>
-                        <p>@CoachVoice.Speak(coach, lesson.Body)</p>
+                        <p>@CoachVoice.Speak(coach, lesson.Body, lesson.ModuleNumber - 1)</p>
                         @if (!string.IsNullOrWhiteSpace(lesson.Takeaway))
                         {
                             <p class="learning-takeaway"><strong>Remember:</strong> @lesson.Takeaway</p>

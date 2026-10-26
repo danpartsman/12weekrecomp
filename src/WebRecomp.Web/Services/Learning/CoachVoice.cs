@@ -3,7 +3,20 @@ namespace WebRecomp.Web.Services.Learning;
 // Voice changes presentation, never evidence, targets, or the meaning of a lesson.
 public static class CoachVoice
 {
-    public static string Speak(CoachProfile coach, string? text)
+    private static readonly string[] LuciaOpenings =
+    [
+        "Ready? Let's make one useful move. ",
+        "Here's a small change worth trying. ",
+        "Let's turn this into a practical win. ",
+        "You've got this. Start with one good choice. ",
+        "Let's make your next step count. ",
+        "Here's something you can use today. ",
+        "One useful habit can build momentum. ",
+        "Let's keep this clear and doable. "
+    ];
+    private static int _luciaGreetingIndex;
+
+    public static string Speak(CoachProfile coach, string? text, int? variation = null)
     {
         if (string.IsNullOrWhiteSpace(text)) return "";
         var body = text.Replace("This matters because ", "Here's why: ")
@@ -16,7 +29,7 @@ public static class CoachVoice
             "CASSIE" => "Let's make this support your next session. " + body + " Fuel the work and keep your performance moving.",
             "OWEN" => "Here's something to put into practice. " + body + " Pick one useful change and build from there.",
             "AISHA" => "You can build a stronger body one decision at a time. " + body + " Own the next step.",
-            "LUCIA" => "All right, let's put this to work! " + body.Replace("does not", "doesn't").Replace("cannot", "can't") + " Keep it practical and keep showing up.",
+            "LUCIA" => LuciaOpenings[(int)((uint)(variation ?? Interlocked.Increment(ref _luciaGreetingIndex)) % (uint)LuciaOpenings.Length)] + body.Replace("does not", "doesn't").Replace("cannot", "can't") + " Keep it practical and keep showing up.",
             _ => "Let's build strength together. " + body + " Take the next manageable step; consistency adds up."
         };
     }

@@ -296,7 +296,7 @@ public static class CoachCatalog
             new CoachProfile("AISHA", "Aisha", "Confident, encouraging, and powerful.", "Strength and movement coach", "coach-aisha",
                 Enumerable.Range(0, 6).Select(pose => (string?)$"/images/coach/aisha-gallery-v1015d.webp#pose={pose}").ToArray()),
             new CoachProfile("LUCIA", "Lucía", "Playful energy with a little Puerto Rican spark.", "Fun, upbeat fitness coach", "coach-lucia",
-                Enumerable.Range(0, 6).Select(pose => (string?)$"/images/coach/lucia-gallery-v1015d.webp#pose={pose}").ToArray())
+                Enumerable.Range(0, 6).Select(pose => (string?)$"/images/coach/lucia-strength-v1015e-{pose}.webp").ToArray())
         }
         .ToDictionary(x => x.Code, StringComparer.OrdinalIgnoreCase);
 
