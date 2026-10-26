@@ -56,6 +56,25 @@ jobs:
       - name: Verify accountability preview calculations
         run: node --test tests/accountability-preview.test.cjs
 
+      - name: Verify native nutrition quantity controls and capture previews
+        shell: pwsh
+        run: |
+          npm install --prefix "$env:RUNNER_TEMP/nutrition-browser" --no-audit --no-fund playwright@1.62.1
+          if ($LASTEXITCODE -ne 0) { throw "Could not prepare the browser check." }
+          $env:NUTRITION_PLAYWRIGHT_MODULE = "$env:RUNNER_TEMP/nutrition-browser/node_modules/playwright"
+          $env:NUTRITION_CHROME_PATH = "$env:ProgramFiles/Google/Chrome/Application/chrome.exe"
+          node tests/nutrition-native-quantity.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Native nutrition quantity control check failed." }
+
+      - name: Save native quantity control previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nutrition-native-controls
+          path: quantity-control-preview/*.png
+          if-no-files-found: ignore
+          retention-days: 3
+
       - name: Publish web project
         run: dotnet publish src/WebRecomp.Web/WebRecomp.Web.csproj --configuration Release --no-build --output ./publish
 
