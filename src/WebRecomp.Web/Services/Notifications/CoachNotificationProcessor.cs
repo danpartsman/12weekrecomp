@@ -92,6 +92,10 @@ public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationF
             var owner = await OwnerAsync(item.ClientId, item.CoachUserId, ct);
             if (owner?.UserId != item.UserId) { item.EmailDone = item.PushDone = true; files.Write($"queue/{id}", item); return; }
             var settings = files.User(owner.UserId);
+            if (item.Id.StartsWith("daily-", StringComparison.Ordinal) && !settings.DailyReview)
+            {
+                item.EmailDone = item.PushDone = true; files.Write($"queue/{id}", item); return;
+            }
             try
             {
                 if (!item.EmailDone)

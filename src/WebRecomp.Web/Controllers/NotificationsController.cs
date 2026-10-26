@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Notifications;
 
@@ -39,7 +40,7 @@ public sealed class NotificationsController(AppUserContextService users, Notific
         TempData["NotificationStatus"] = "Notification preferences saved.";
         return RedirectToAction(nameof(Index));
     }
-    [HttpPost("subscribe"), ValidateAntiForgeryToken, RequestSizeLimit(12288)]
+    [HttpPost("subscribe"), ValidateAntiForgeryToken, EnableRateLimiting("access-code"), RequestSizeLimit(12288)]
     public async Task<IActionResult> Subscribe([FromBody] SubscriptionInput input, CancellationToken ct)
     {
         if (!ModelState.IsValid) return BadRequest("The phone subscription is incomplete.");
@@ -53,7 +54,7 @@ public sealed class NotificationsController(AppUserContextService users, Notific
         var user = (await users.GetAsync(HttpContext, ct)).User;
         files.RemoveDevice(user.UserId, endpoint); return Json(new { saved = true });
     }
-    [HttpPost("test"), ValidateAntiForgeryToken]
+    [HttpPost("test"), ValidateAntiForgeryToken, EnableRateLimiting("access-code")]
     public async Task<IActionResult> Test(string endpoint, CancellationToken ct)
     {
         var user = (await users.GetAsync(HttpContext, ct)).User;

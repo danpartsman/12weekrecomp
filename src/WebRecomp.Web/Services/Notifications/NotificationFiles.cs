@@ -81,8 +81,12 @@ public sealed class NotificationFiles
                  || uri.Host.EndsWith(".notify.windows.com", StringComparison.Ordinal)))
             throw new ArgumentException("Use a subscription created by this browser's notification service.");
         static byte[] Decode(string value) => Convert.FromBase64String(value.Replace('-', '+').Replace('_', '/').PadRight((value.Length + 3) / 4 * 4, '='));
-        try { var key = Decode(device.P256dh); if (key.Length != 65 || key[0] != 4 || Decode(device.Auth).Length != 16) throw new FormatException(); }
-        catch (FormatException) { throw new ArgumentException("The browser notification subscription is incomplete."); }
+        try {
+            var key = Decode(device.P256dh); if (key.Length != 65 || key[0] != 4 || Decode(device.Auth).Length != 16) throw new FormatException();
+            using var point = ECDsa.Create();
+            point.ImportParameters(new ECParameters { Curve = ECCurve.NamedCurves.nistP256, Q = new ECPoint { X = key[1..33], Y = key[33..65] } });
+        }
+        catch (Exception e) when (e is FormatException or CryptographicException) { throw new ArgumentException("The browser notification subscription is incomplete."); }
     }
     public NotificationPreferences User(Guid user) => Read<NotificationPreferences>($"users/{user:N}") ?? new();
     public void SaveUser(Guid user, NotificationPreferences settings) => Write($"users/{user:N}", settings);
@@ -114,7 +118,10 @@ public sealed class NotificationFiles
     public T? Read<T>(string name)
     {
         var path = Path.Combine(Root, name + ".json");
-        return File.Exists(path) ? JsonSerializer.Deserialize<T>(protector.Unprotect(File.ReadAllText(path))) : default;
+        if (!File.Exists(path)) return default;
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        return JsonSerializer.Deserialize<T>(protector.Unprotect(reader.ReadToEnd()));
     }
     public void Write<T>(string name, T value)
     {

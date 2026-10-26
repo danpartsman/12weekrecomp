@@ -104,6 +104,37 @@ public sealed class CoachNotificationTests
         await f.Processor.RunAsync(default); await f.Processor.RunAsync(default); Assert.Equal(2, f.Email.Messages.Count);
         Assert.True(f.Files.Read<NotificationDelivery>($"queue/{id}")!.Finished);
     }
+    [Fact]
+    public async Task MultipleOwnersAreNotGuessed()
+    {
+        using var f = new Fixture(); await f.Seed();
+        var other = Guid.NewGuid();
+        f.Db.AddRange(new UserAccount { UserId = other, ExternalSubject = "other", EmailNormalized = "other@example.com" },
+            new UserClientAccess { UserClientAccessId = Guid.NewGuid(), ClientId = f.Client, UserId = other });
+        await f.Db.SaveChangesAsync(); await f.Processor.RunAsync(default);
+        Assert.Empty(f.Email.Messages); Assert.Empty(f.Phone.Subjects);
+    }
+    [Fact]
+    public async Task EmailOptOutStillAllowsOneGenericPhoneAlert()
+    {
+        using var f = new Fixture(); await f.Seed(); f.Files.BindDevice(f.Owner, Device());
+        var settings = f.Files.User(f.Owner); settings.Email = false; f.Files.SaveUser(f.Owner, settings);
+        await f.Processor.RunAsync(default); await f.Processor.RunAsync(default);
+        Assert.Empty(f.Email.Messages); Assert.Single(f.Phone.Subjects);
+        Assert.DoesNotContain(Sample().SnapWorkouts[0].Name, f.Phone.Subjects[0]);
+    }
+    [Fact]
+    public async Task DailyReminderOptOutCancelsAnAlreadyQueuedReminder()
+    {
+        using var f = new Fixture(); await f.Seed(); f.Files.BindDevice(f.Owner, Device());
+        f.Db.CoachAccountabilityEvents.RemoveRange(f.Db.CoachAccountabilityEvents); await f.Db.SaveChangesAsync();
+        var settings = f.Files.User(f.Owner); settings.DailyReview = false; f.Files.SaveUser(f.Owner, settings);
+        f.Files.Enqueue(new() { Id = "daily-test", ClientId = f.Client, CoachUserId = f.Coach, UserId = f.Owner,
+            Subject = "Review today's fees and incentives", Body = "Review", Url = "/notifications", Email = false });
+        await f.Processor.RunAsync(default);
+        Assert.Empty(f.Email.Messages); Assert.Empty(f.Phone.Subjects);
+        Assert.True(f.Files.Read<NotificationDelivery>("queue/daily-test")!.Finished);
+    }
     private static NotificationDevice Device()
     {
         using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256); var p = key.ExportParameters(false);
@@ -118,13 +149,13 @@ public sealed class CoachNotificationTests
         public IDataProtectionProvider Protection = new EphemeralDataProtectionProvider();
         public NotificationFiles Files;
         public RecompDbContext Db = new(new DbContextOptionsBuilder<RecompDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
-        public FakeEmail Email = new(); public Guid Client = Guid.NewGuid(), Coach = Guid.NewGuid(), Owner = Guid.NewGuid();
+        public FakeEmail Email = new(); public FakePhone Phone = new(); public Guid Client = Guid.NewGuid(), Coach = Guid.NewGuid(), Owner = Guid.NewGuid();
         public CoachNotificationProcessor Processor;
         public Fixture()
         {
             Config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ["Notifications:DataPath"] = Path, ["Notifications:DeliveryEnabled"] = "true" }).Build();
             Files = new(Environment, Config, Protection); _ = Files.Identity;
-            Processor = new(Db, Files, Email, new FakePhone(), NullLogger<CoachNotificationProcessor>.Instance);
+            Processor = new(Db, Files, Email, Phone, NullLogger<CoachNotificationProcessor>.Instance);
         }
         public async Task Seed()
         {
@@ -145,7 +176,8 @@ public sealed class CoachNotificationTests
     }
     private sealed class FakePhone : IPhoneNotificationSender
     {
-        public Task<bool> SendAsync(NotificationDevice device, string subject, string url, string tag, CancellationToken ct) => Task.FromResult(true);
+        public List<string> Subjects = [];
+        public Task<bool> SendAsync(NotificationDevice device, string subject, string url, string tag, CancellationToken ct) { Subjects.Add(subject); return Task.FromResult(true); }
     }
     private sealed class TestEnvironment : IWebHostEnvironment
     {
