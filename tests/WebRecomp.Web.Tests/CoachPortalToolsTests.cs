@@ -1,4 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services.Coaching;
@@ -9,23 +13,38 @@ public sealed class CoachPortalToolsTests
     [Fact]
     public async Task DefaultsPersistWithoutRewritingAnExistingAgreement()
     {
-        var name = Guid.NewGuid().ToString(); var client = Guid.NewGuid();
-        using (var db = Db(name))
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var protection = new EphemeralDataProtectionProvider();
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["CoachDefaults:DataPath"] = directory }).Build();
+        try
         {
-            db.ConfigVersions.Add(new() { ConfigVersionId = Guid.NewGuid(), VersionCode = "CFG-3000.0", StatusCode = "ACTIVE" });
-            db.CoachAccountabilityAgreements.Add(new() { ClientId = client, StateJson = "original saved terms", Revision = 9 });
-            await db.SaveChangesAsync();
-            var defaults = new AccountabilityDefaults(); defaults.Rules[0].Amount = 3.25m; defaults.Rules[0].Min = 1.5m; defaults.Rules[0].Max = 55;
+            var store = new AccountabilityDefaultsStore(new EnvironmentStub(), config, protection);
+            var defaults = await store.ReadAsync(default); var stale = await store.ReadAsync(default);
+            defaults.Rules[0].Amount = 3.25m; defaults.Rules[0].Min = 1.5m; defaults.Rules[0].Max = 55;
             defaults.SnapRate = .27m; defaults.SnapCap = 75; defaults.LateCap = 12;
-            await new AccountabilityDefaultsStore(db).SaveAsync(defaults, default);
-        }
-        using (var db = Db(name))
-        {
-            var saved = await new AccountabilityDefaultsStore(db).ReadAsync(default);
+            await store.SaveAsync(defaults, default);
+            // A fresh store instance reads the durable data; simultaneous admin edits cannot overwrite it silently.
+            var fresh = new AccountabilityDefaultsStore(new EnvironmentStub(), config, protection);
+            var saved = await fresh.ReadAsync(default);
             Assert.Equal(3.25m, saved.Rules[0].Amount); Assert.Equal(55, saved.Rules[0].Max); Assert.Equal(.27m, saved.SnapRate);
             Assert.Equal(75, saved.SnapCap); Assert.Equal(12, saved.LateCap);
-            Assert.Equal("original saved terms", (await db.CoachAccountabilityAgreements.SingleAsync()).StateJson);
+            await Assert.ThrowsAsync<ArgumentException>(() => fresh.SaveAsync(stale, default));
+            Assert.DoesNotContain("SnapCap", await File.ReadAllTextAsync(Path.Combine(directory, "defaults.json")));
+            using var fixture = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures/accountability-js-document.json")));
+            var existing = AccountabilityDocument.Parse(fixture.RootElement.GetProperty("state").GetRawText());
+            // A new default does not invalidate or change a pre-existing client document.
+            AccountabilityDocument.ValidateTerms(existing, fixture.RootElement.GetProperty("terms").GetString()!);
         }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+    }
+    private sealed class EnvironmentStub : IWebHostEnvironment
+    {
+        public string ApplicationName { get; set; } = "WebRecomp.Web";
+        public string EnvironmentName { get; set; } = "Testing";
+        public string ContentRootPath { get; set; } = Path.GetTempPath();
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+        public string WebRootPath { get; set; } = "";
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
     }
     [Fact]
     public void DefaultsRejectInvertedLimitsNegativeAmountsAndUnsupportedRules()

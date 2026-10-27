@@ -3,7 +3,7 @@
 <section class="page-header"><p class="eyebrow">COACH SETTINGS</p><h1>Default fees &amp; limits</h1><p>Starting amounts for new agreements and new Snap Workouts. Existing agreements, approvals and past assignments keep their saved terms. Coaches can adjust new terms before requesting client approval.</p></section>
 @if (TempData["StatusMessage"] is string message) { <div class="app-message success" role="status">@message</div> }
 <section class="card"><form asp-action="Save" method="post">
-<div asp-validation-summary="All" role="alert"></div>
+<div asp-validation-summary="All" role="alert"></div><input asp-for="Revision" type="hidden" />
 <h2>Fines &amp; incentives · USD</h2><p>Minimum is the settlement threshold, not a minimum charge. Each maximum applies per rule’s assessment period.</p>
 <div style="overflow-x:auto"><table><thead><tr><th>Rule</th><th>Default amount ($)</th><th>Minimum ($)</th><th>Maximum ($)</th></tr></thead><tbody>
 @{ string[] names = ["Calories", "Protein", "Carbs", "Fat", "Training sessions", "Recovery days", "Daily records", "Weekly check-ins", "Cheat-food occurrences", "Missed appointments"]; }

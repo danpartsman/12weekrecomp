@@ -1,10 +1,10 @@
-using Microsoft.EntityFrameworkCore;
-using WebRecomp.Web.Data;
-using WebRecomp.Web.Models;
+using System.Text.Json;
+using Microsoft.AspNetCore.DataProtection;
 namespace WebRecomp.Web.Services.Coaching;
 
 public sealed class AccountabilityDefaults
 {
+    public string Revision { get; set; } = "";
     public List<AccountabilityRuleDefault> Rules { get; set; } = AccountabilityDocument.RuleIds.Select((id, i) => new AccountabilityRuleDefault
         { Id = id, Amount = new decimal[] { 2,2,2,2,10,5,2,5,2,5 }[i] }).ToList();
     public decimal PaymentAmount { get; set; }
@@ -34,45 +34,53 @@ public sealed class AccountabilityRuleDefault
     public decimal Max { get; set; } = 100;
 }
 
-// Uses the existing versioned settings table; defaults never rewrite signed client terms.
-public sealed class AccountabilityDefaultsStore(RecompDbContext db)
+// Private App Service storage survives deployments. The runtime SQL role intentionally
+// cannot write engine configuration; coach defaults do not require expanding that role.
+public sealed class AccountabilityDefaultsStore
 {
-    private const string Prefix = "COACH_DEFAULT_";
-    private async Task<Guid> ConfigAsync(CancellationToken ct) => await db.ConfigVersions.AsNoTracking()
-        .Where(x => x.VersionCode == "CFG-3000.0").Select(x => x.ConfigVersionId).SingleAsync(ct);
-    private static Dictionary<string, decimal> Values(AccountabilityDefaults d)
+    private readonly string root;
+    private readonly IDataProtector protector;
+    public AccountabilityDefaultsStore(IWebHostEnvironment environment, IConfiguration config, IDataProtectionProvider protection)
     {
-        var values = new Dictionary<string, decimal>();
-        foreach (var r in d.Rules) { values[r.Id + "_amount"] = r.Amount; values[r.Id + "_min"] = r.Min; values[r.Id + "_max"] = r.Max; }
-        values["payment"] = d.PaymentAmount; values["late_value"] = d.LateValue; values["late_cap"] = d.LateCap;
-        values["snap_cap"] = d.SnapCap; values["snap_rate"] = d.SnapRate; values["completion_reward"] = d.CompletionReward; values["extra_rep_rate"] = d.ExtraRepRate;
-        return values;
+        root = config["CoachDefaults:DataPath"] ?? Path.Combine(Environment.GetEnvironmentVariable("HOME") ?? environment.ContentRootPath, "data", "coach-defaults");
+        Directory.CreateDirectory(root);
+        protector = protection.CreateProtector("12WR.CoachDefaults.v1");
     }
     public async Task<AccountabilityDefaults> ReadAsync(CancellationToken ct)
     {
-        var d = new AccountabilityDefaults();
-        var config = await db.ConfigVersions.AsNoTracking().Where(x => x.VersionCode == "CFG-3000.0").Select(x => (Guid?)x.ConfigVersionId).SingleOrDefaultAsync(ct);
-        if (config is null) return d;
-        var rows = await db.GlobalSettings.AsNoTracking().Where(x => x.ConfigVersionId == config && x.SettingCode.StartsWith(Prefix)).ToListAsync(ct);
-        var saved = rows.ToDictionary(x => x.SettingCode, x => x.DecimalValue);
-        decimal Get(string key, decimal fallback) => saved.GetValueOrDefault(Prefix + key) ?? fallback;
-        foreach (var r in d.Rules) { r.Amount = Get(r.Id + "_amount", r.Amount); r.Min = Get(r.Id + "_min", r.Min); r.Max = Get(r.Id + "_max", r.Max); }
-        d.PaymentAmount = Get("payment", d.PaymentAmount); d.LateValue = Get("late_value", d.LateValue); d.LateCap = Get("late_cap", d.LateCap);
-        d.SnapCap = Get("snap_cap", d.SnapCap); d.SnapRate = Get("snap_rate", d.SnapRate); d.CompletionReward = Get("completion_reward", d.CompletionReward); d.ExtraRepRate = Get("extra_rep_rate", d.ExtraRepRate);
-        d.Validate(); return d;
+        var path = Path.Combine(root, "defaults.json");
+        if (!File.Exists(path)) return new();
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        var encrypted = await reader.ReadToEndAsync(ct);
+        var result = JsonSerializer.Deserialize<AccountabilityDefaults>(protector.Unprotect(encrypted))
+            ?? throw new InvalidOperationException("Coach defaults are unavailable.");
+        result.Validate(); return result;
     }
     public async Task SaveAsync(AccountabilityDefaults d, CancellationToken ct)
     {
         d.Validate();
-        var config = await ConfigAsync(ct);
-        var rows = await db.GlobalSettings.Where(x => x.ConfigVersionId == config && x.SettingCode.StartsWith(Prefix)).ToListAsync(ct);
-        foreach (var value in Values(d))
+        await using var lease = await LeaseAsync(ct);
+        var saved = await ReadAsync(ct);
+        if (d.Revision != saved.Revision) throw new ArgumentException("Defaults changed in another window. Reload this page before saving again.");
+        var revision = Guid.NewGuid().ToString("N");
+        var previousRevision = d.Revision; d.Revision = revision;
+        var temporary = Path.Combine(root, revision + ".tmp");
+        try
         {
-            var code = Prefix + value.Key;
-            var row = rows.SingleOrDefault(x => x.SettingCode == code);
-            if (row is null) { row = new GlobalSetting { GlobalSettingId = Guid.NewGuid(), ConfigVersionId = config, SettingCode = code, Description = "Coach agreement default: " + value.Key, UnitCode = "USD" }; db.GlobalSettings.Add(row); }
-            row.DecimalValue = value.Value;
+            await File.WriteAllTextAsync(temporary, protector.Protect(JsonSerializer.Serialize(d)), ct);
+            File.Move(temporary, Path.Combine(root, "defaults.json"), true);
         }
-        await db.SaveChangesAsync(ct);
+        catch { d.Revision = previousRevision; throw; }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+    private async Task<FileStream> LeaseAsync(CancellationToken ct)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            try { return new FileStream(Path.Combine(root, "defaults.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+            catch (IOException) when (attempt < 50) { await Task.Delay(100, ct); }
+        }
     }
 }
