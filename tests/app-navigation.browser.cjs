@@ -48,6 +48,12 @@ function navigation({admin=false,demo=false}={}) {
       const panel=await groups.nth(i).locator('.app-nav-panel').boundingBox();
       assert.ok(panel.x>=0 && panel.x+panel.width<=width+1,'Dropdown must stay inside phone viewport');
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+      const clickable=await groups.nth(i).locator('.app-nav-panel a').evaluateAll(links=>links.every(link=>{
+        const r=link.getBoundingClientRect(), hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+        return hit===link || link.contains(hit);
+      }));
+      assert.equal(clickable,true,'All phone menu entries must be visible and clickable, including below the header');
+      await page.keyboard.press('Escape');
     }
   }
   await page.setViewportSize({width:390,height:844});

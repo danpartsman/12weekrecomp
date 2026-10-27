@@ -1,6 +1,6 @@
 /* Four disclosure buttons share one navigation on desktop and phone. */
 .app-shell .topbar:has([data-app-navigation]) {flex-wrap:wrap;overflow:visible;position:relative;z-index:50000;}
-.app-shell .app-grouped-nav {display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-left:auto;min-width:0;}
+.app-shell .app-grouped-nav {display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-left:auto;min-width:0;overflow:visible;padding-bottom:0;}
 .app-nav-group {position:relative;min-width:0;}
 .app-shell .app-nav-group > summary {display:flex;align-items:center;justify-content:space-between;gap:16px;list-style:none;cursor:pointer;border:1px solid #425168;border-radius:9px;padding:11px 14px;min-height:44px;background:#1d2a3c;color:#f1f5f9;font-size:.9rem;font-weight:700;line-height:1.4;white-space:nowrap;}
 .app-nav-group > summary::-webkit-details-marker {display:none;}
