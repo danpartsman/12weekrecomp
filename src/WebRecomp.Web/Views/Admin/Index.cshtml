@@ -18,6 +18,7 @@
     </header>
 
     <div class="admin-grid">
+        <article class="admin-card"><span class="admin-card-status">COACH SETTINGS</span><h2>Fees &amp; Limits</h2><p>Set starting fines, incentives, settlement minimums, caps and Snap Workout rates.</p><div class="admin-card-actions"><a class="button primary" asp-controller="AdminCoachDefaults" asp-action="Index">Manage coach defaults</a></div></article>
         @if (WebRecomp.Web.Services.ExternalConnections.ExternalConnectionFeatures.IsEnabled)
         {
             <article class="admin-card admin-card-primary"><span class="admin-card-status">EXTERNAL CONNECTIONS</span><h2>Devices &amp; Services</h2><p>Manage scale providers, automatic synchronization, and user connection status.</p><div class="admin-card-actions"><a class="button primary" asp-controller="AdminExternalConnections" asp-action="Index">Manage external connections</a></div></article>

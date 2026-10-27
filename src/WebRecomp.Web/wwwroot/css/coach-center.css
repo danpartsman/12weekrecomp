@@ -91,3 +91,7 @@ html[data-theme="dark"] .coach-shell button:not([hidden]),html[data-theme="dark"
 @media(max-width:1250px){.coach-summary-gauges{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media(max-width:700px){.coach-summary-gauges{grid-template-columns:repeat(2,minmax(0,1fr));}.coach-summary-table-scroll{max-height:75vh;}}
 @media(max-width:380px){.coach-summary-gauges{grid-template-columns:1fr;}}
+
+.coach-shell .coach-panel > summary {font-size:1.2rem;padding:0;line-height:1.5;}
+.coach-panel-body {padding-top:18px;}
+.coach-shell .coach-panel > summary:focus-visible {outline:3px solid var(--teal);outline-offset:5px;border-radius:4px;}

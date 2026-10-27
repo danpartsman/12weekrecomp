@@ -30,7 +30,7 @@ public static class AccountabilityDocument
         for(var i=0;i<s.Rules.Count;i++)
         {
             var r=s.Rules[i];
-            if(!new[]{"fine","incentive"}.Contains(r.Type)||!Amounts.Contains(r.Amount)||!Frequencies.Contains(r.Frequency)||!Money(r.Min)||!Money(r.Max)||r.Min>r.Max||r.Lower>r.Upper) throw new ArgumentException("Check rule amounts and assessment periods.");
+            if(!new[]{"fine","incentive"}.Contains(r.Type)||!Money(r.Amount)||!Frequencies.Contains(r.Frequency)||!Money(r.Min)||!Money(r.Max)||r.Min>r.Max||r.Lower>r.Upper) throw new ArgumentException("Check rule amounts and assessment periods.");
             if(i<4 ? r.Lower < -100 || r.Lower>0 || r.Upper<0 || r.Upper>500 : r.Lower<0 || r.Upper>1000 || decimal.Truncate(r.Lower)!=r.Lower || decimal.Truncate(r.Upper)!=r.Upper) throw new ArgumentException("Check rule criteria.");
             if(r.Id=="cheat-foods" && (r.Type!="fine"||r.Lower!=0||r.Upper!=0||(r.Assigned&&r.Amount<=0))) throw new ArgumentException("Every cheat-food occurrence must use a positive paid rate without an allowance.");
         }

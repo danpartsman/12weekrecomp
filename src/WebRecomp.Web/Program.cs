@@ -29,6 +29,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachCenterService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachAccountabilityPreviewService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachAccountabilityStore>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.AccountabilityDefaultsStore>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapWorkoutLibrary>();
 builder.Services.AddSingleton<WebRecomp.Web.Services.Notifications.NotificationFiles>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Notifications.CoachNotificationProcessor>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Notifications.IPhoneNotificationSender, WebRecomp.Web.Services.Notifications.WebPushDelivery>();

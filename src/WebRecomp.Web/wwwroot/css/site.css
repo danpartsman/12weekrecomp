@@ -5480,3 +5480,9 @@ html[data-theme="dark"] .learn12wr-recomp-emphasis p {
 }
 
 .app-shell .app-quick-nav{flex-wrap:wrap;min-width:0}
+
+.pending-snap-banner {border:1px solid var(--teal);border-left:5px solid var(--teal);border-radius:14px;background:var(--surface);color:var(--ink);padding:18px 20px;margin-bottom:20px;min-width:0;}
+.pending-snap-banner p {margin:6px 0 12px;line-height:1.5;}
+.pending-snap-banner ul {list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px;}
+.pending-snap-banner li {min-width:0;max-width:100%;}
+.pending-snap-banner .button {white-space:normal;overflow-wrap:anywhere;}

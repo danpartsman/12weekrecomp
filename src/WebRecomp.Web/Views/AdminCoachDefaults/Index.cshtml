@@ -1,0 +1,26 @@
+@model WebRecomp.Web.Services.Coaching.AccountabilityDefaults
+@{ Layout = "_AdminLayout"; ViewData["Title"] = "Coach fee defaults"; }
+<section class="page-header"><p class="eyebrow">COACH SETTINGS</p><h1>Default fees &amp; limits</h1><p>Starting amounts for new agreements and new Snap Workouts. Existing agreements, approvals and past assignments keep their saved terms. Coaches can adjust new terms before requesting client approval.</p></section>
+@if (TempData["StatusMessage"] is string message) { <div class="app-message success" role="status">@message</div> }
+<section class="card"><form asp-action="Save" method="post">
+<div asp-validation-summary="All" role="alert"></div>
+<h2>Fines &amp; incentives · USD</h2><p>Minimum is the settlement threshold, not a minimum charge. Each maximum applies per rule’s assessment period.</p>
+<div style="overflow-x:auto"><table><thead><tr><th>Rule</th><th>Default amount ($)</th><th>Minimum ($)</th><th>Maximum ($)</th></tr></thead><tbody>
+@{ string[] names = ["Calories", "Protein", "Carbs", "Fat", "Training sessions", "Recovery days", "Daily records", "Weekly check-ins", "Cheat-food occurrences", "Missed appointments"]; }
+@for (var i = 0; i < Model.Rules.Count; i++)
+{
+<tr><th>@(i < names.Length ? names[i] : Model.Rules[i].Id)<input asp-for="Rules[i].Id" type="hidden" /></th><td><input asp-for="Rules[i].Amount" type="number" min="@(Model.Rules[i].Id == "cheat-foods" ? "0.01" : "0")" max="10000" step=".01" aria-label="@(names.ElementAtOrDefault(i) + " default amount")" required /></td><td><input asp-for="Rules[i].Min" type="number" min="0" max="10000" step=".01" aria-label="@(names.ElementAtOrDefault(i) + " minimum")" required /></td><td><input asp-for="Rules[i].Max" type="number" min="0" max="10000" step=".01" aria-label="@(names.ElementAtOrDefault(i) + " maximum")" required /></td></tr>
+}
+</tbody></table></div>
+<h2>Payments &amp; late fees</h2>
+<label asp-for="PaymentAmount">Contract payment ($)</label><input asp-for="PaymentAmount" type="number" min="0" max="10000" step=".01" required />
+<label asp-for="LateValue">Late fee ($; starts as a dollar amount)</label><input asp-for="LateValue" type="number" min="0" max="10000" step=".01" required />
+<label asp-for="LateCap">Maximum late fee per period ($)</label><input asp-for="LateCap" type="number" min="0" max="10000" step=".01" required />
+<h2>Snap Workouts</h2>
+<label asp-for="SnapCap">Assessment cap per workout and type ($)</label><input asp-for="SnapCap" type="number" min="0" max="10000" step=".01" required />
+<label asp-for="SnapRate">Fine or incentive per rep/set ($)</label><input asp-for="SnapRate" type="number" min="0" max="100" step=".01" required />
+<label asp-for="CompletionReward">Completion reward per exercise ($)</label><input asp-for="CompletionReward" type="number" min="0" max="10000" step=".01" required />
+<label asp-for="ExtraRepRate">Reward per extra rep ($)</label><input asp-for="ExtraRepRate" type="number" min="0" max="100" step=".01" required />
+<p>Reusing a past workout copies its original targets, rates and cap. These defaults apply when building a new workout.</p>
+<button type="submit">Save defaults</button> <a class="button" asp-controller="Admin" asp-action="Index">Admin Home</a>
+</form></section>

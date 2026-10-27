@@ -484,6 +484,7 @@
 
 
 <main class="container">
+    @if (User.Identity?.IsAuthenticated == true && !isPublicPage && !isOnboardingPage) { @await Component.InvokeAsync("PendingSnap") }
     @RenderBody()
 </main>
 
