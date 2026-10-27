@@ -1,0 +1,57 @@
+@model bool
+<nav class="app-grouped-nav" aria-label="Application navigation" data-app-navigation>
+    <details class="app-nav-group">
+        <summary>Command Center</summary>
+        <div class="app-nav-panel">
+            <a href="/CommandCenter">Command Center</a>
+            <a asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+            <a asp-controller="Progress" asp-action="Index">Progress</a>
+        </div>
+    </details>
+    <details class="app-nav-group">
+        <summary>Daily Entries</summary>
+        <div class="app-nav-panel">
+            <a asp-controller="DailyEntry" asp-action="Index">Daily Entries</a>
+            <a asp-controller="DailyEntry" asp-action="CheckIn">Recomp Tracking</a>
+            <a asp-controller="Nutrition" asp-action="Index">Nutrition</a>
+            <a asp-controller="DetailedWorkout" asp-action="Index">Workout</a>
+            <a asp-controller="Schedule" asp-action="Index">Weekly Plan</a>
+        </div>
+    </details>
+    <details class="app-nav-group">
+        <summary>Recomp Tips</summary>
+        <div class="app-nav-panel">
+            <a asp-controller="RecompTips" asp-action="Index">Recomp Tips</a>
+            <a href="/recomp/how-it-works">How It Works</a>
+            <a asp-controller="Home" asp-action="Evidence">Evidence</a>
+        </div>
+    </details>
+    <details class="app-nav-group">
+        <summary>Profile</summary>
+        <div class="app-nav-panel">
+            <a asp-controller="Profile" asp-action="Index">Profile</a>
+            <a asp-controller="Profile" asp-action="Settings">Settings</a>
+            <a asp-controller="MyCoach" asp-action="Index">My Coach</a>
+            <a asp-controller="Notifications" asp-action="Index">Notifications</a>
+            @if (Model)
+            {
+                <a asp-controller="GuidedDemo" asp-action="Index">Guided Demo Home</a>
+                <form asp-controller="Demo" asp-action="Exit" method="post">
+                    <button type="submit" class="app-nav-signout">End Guided Demo</button>
+                </form>
+            }
+            @if (!Model && (User.IsInRole("Coach") || User.IsInRole("Administrator")))
+            {
+                <a asp-controller="Coach" asp-action="Index">Coach Center</a>
+            }
+            @if (!Model && User.IsInRole("Administrator"))
+            {
+                <a asp-controller="Admin" asp-action="Index">Administration</a>
+            }
+            @if (!Model)
+            {
+                <a class="app-nav-signout" asp-controller="Account" asp-action="Logout">Sign Out</a>
+            }
+        </div>
+    </details>
+</nav>
