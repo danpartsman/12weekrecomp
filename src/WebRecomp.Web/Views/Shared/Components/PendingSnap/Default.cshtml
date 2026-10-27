@@ -1,0 +1,5 @@
+@model IReadOnlyList<WebRecomp.Web.Services.Coaching.AccountabilityWorkout>
+<aside class="pending-snap-banner" aria-label="Assigned Snap Workouts">
+    <div><strong>@Model.Count @(Model.Count == 1 ? "Snap Workout to complete" : "Snap Workouts to complete")</strong><p>Your coach has assigned a workout. This notice stays until you save completed results for the prescribed sets, reps and weight.</p></div>
+    <ul>@foreach (var workout in Model) { <li data-pending-workout="@workout.Id"><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@ViewData["ClientId"]" asp-fragment="snap-@workout.Id">Open @workout.Name · @workout.Date</a></li> }</ul>
+</aside>

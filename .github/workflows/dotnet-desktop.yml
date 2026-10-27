@@ -67,6 +67,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Native nutrition quantity control check failed." }
           node tests/lucia-presentation.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Lucia portrait presentation check failed." }
+          node tests/coach-portal.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Coach portal assignment check failed." }
           node tests/coach-notifications.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Phone notification setup check failed." }
 

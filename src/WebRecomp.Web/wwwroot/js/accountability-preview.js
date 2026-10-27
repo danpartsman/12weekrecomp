@@ -12,7 +12,6 @@
         ['cheat-foods', 'Cheat-food occurrences', 'count', null, 'Every reviewed occurrence is paid from the first occurrence; no free allowance.', 'fine', 2, 'daily', 0, 0],
         ['missed-review', 'Unapproved missed appointments', 'count', null, 'Only reviewed, unapproved missed appointments; approved exceptions are excluded.', 'fine', 5, 'weekly', 0, 0]
     ].map(([id, title, kind, metric, description, type, amount, frequency, lower, upper]) => ({ id, title, kind, metric, description, type, amount, frequency, lower, upper }));
-    const amounts = [0, 1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
     const frequencies = ['daily', 'weekly', 'monthly'];
     const methods = { 'bank-transfer': 'Bank transfer', 'card-external': 'Card through external provider', cash: 'Cash', check: 'Check', other: 'Other agreed method' };
     const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -22,7 +21,7 @@
     const datePattern = /^\d{4}-\d{2}-\d{2}$/;
     function valid(s) {
         if (s?.version !== 2 || typeof s.enabled !== 'boolean' || !Array.isArray(s.rules) || s.rules.length !== catalog.length) return false;
-        if (!catalog.every((c, i) => { const r = s.rules[i]; return r?.id === c.id && typeof r.assigned === 'boolean' && ['fine', 'incentive'].includes(r.type) && amounts.includes(r.amount) && frequencies.includes(r.frequency)
+        if (!catalog.every((c, i) => { const r = s.rules[i]; return r?.id === c.id && typeof r.assigned === 'boolean' && ['fine', 'incentive'].includes(r.type) && cents(r.amount) && frequencies.includes(r.frequency)
             && (r.id !== 'cheat-foods' || (r.type === 'fine' && r.lower === 0 && r.upper === 0 && (!r.assigned || r.amount > 0))) && cents(r.min) && cents(r.max) && r.min <= r.max && Number.isFinite(r.lower) && Number.isFinite(r.upper) && r.lower <= r.upper
             && (c.kind === 'macro' ? r.lower >= -100 && r.lower <= 0 && r.upper >= 0 && r.upper <= 500 : Number.isInteger(r.lower) && Number.isInteger(r.upper) && r.lower >= 0 && r.upper <= 1000); })) return false;
         const a = s.agreement;
@@ -173,10 +172,18 @@
         const editable = root.dataset.editable === 'true', reviewPage = root.dataset.reviewPage === 'true', canAssignSnap = editable || root.dataset.canAssignSnap === 'true', canRecordSnap = canAssignSnap || root.dataset.canApprove === 'true';
         const form = root.querySelector('[data-accountability-form]'), status = root.querySelector('[data-preview-status]');
         const query = s => root.querySelector(s), token = () => query('input[name="__RequestVerificationToken"]').value;
-        let state = defaults(), evidence = null, requestVersion = 0, evidenceReceivedAt = 0, serverRevision = 0, serverTerms = null, serverApproval = null, loaded = false, saveBusy = false;
+        const configured = JSON.parse(root.dataset.defaults || 'null');
+        function initialState() {
+            const initial = defaults();
+            if (!configured) return initial;
+            initial.rules = initial.rules.map(r => ({ ...r, ...configured.rules.find(d => d.id === r.id) }));
+            initial.payment = { ...initial.payment, amount: configured.paymentAmount, lateValue: configured.lateValue, lateCap: configured.lateCap };
+            return initial;
+        }
+        let state = initialState(), evidence = null, requestVersion = 0, evidenceReceivedAt = 0, serverRevision = 0, serverTerms = null, serverApproval = null, loaded = false, saveBusy = false;
         function notice(text) { if (status) status.textContent = text; }
         function acceptEnvelope(data) {
-            const incoming = data.state || defaults();
+            const incoming = data.state || initialState();
             if (!valid(incoming)) throw new Error('The saved agreement could not be validated. Ask your coach to review it.');
             state = incoming; serverRevision = data.revision; serverTerms = data.terms; serverApproval = data.approval;
         }
@@ -194,6 +201,7 @@
         async function boot() {
             if (!await load()) return;
             drawEditor(); drawAgreementEditor(true); render();
+            if (canAssignSnap) loadSnapLibrary();
             if (state.enabled || canAssignSnap || state.snapWorkouts.length) loadEvidence(query('[data-preview-week]').value);
         }
         function input(name, value, min, max, step, label) {
@@ -211,7 +219,7 @@
             catalog.forEach((c, i) => {
                 const r = state.rules[i], row = el('tr'), check = el('input'); check.type = 'checkbox'; check.name = c.id + '-assigned'; check.checked = r.assigned; check.setAttribute('aria-label', `Assign ${c.title}`);
                 const title = el('div'); title.append(el('strong', c.title), el('small', c.description), el('small', c.kind === 'macro' ? 'Criteria unit: % from prescription' : 'Criteria unit: occurrence count'));
-                const nodes = [check, title, select(c.id + '-type', c.id === 'cheat-foods' ? ['fine'] : ['fine', 'incentive'], r.type, `${c.title}: type`), select(c.id + '-amount', c.id === 'cheat-foods' ? amounts.filter(n => n > 0) : amounts, r.amount, `${c.title}: dollar amount`), select(c.id + '-frequency', frequencies, r.frequency, `${c.title}: assessment frequency`),
+                const nodes = [check, title, select(c.id + '-type', c.id === 'cheat-foods' ? ['fine'] : ['fine', 'incentive'], r.type, `${c.title}: type`), input(c.id + '-amount', r.amount, c.id === 'cheat-foods' ? '.01' : 0, 10000, '.01', `${c.title}: dollar amount`), select(c.id + '-frequency', frequencies, r.frequency, `${c.title}: assessment frequency`),
                     input(c.id + '-lower', r.lower, c.kind === 'macro' ? -100 : 0, c.kind === 'macro' ? 0 : 1000, c.kind === 'macro' ? '.1' : '1', `${c.title}: lower ${c.kind === 'macro' ? 'tolerance percent' : 'count'}`),
                     input(c.id + '-upper', r.upper, 0, c.kind === 'macro' ? 500 : 1000, c.kind === 'macro' ? '.1' : '1', `${c.title}: upper ${c.kind === 'macro' ? 'tolerance percent' : 'count'}`),
                     input(c.id + '-min', r.min, 0, 10000, '.01', `${c.title}: minimum dollars per assessment period`), input(c.id + '-max', r.max, 0, 10000, '.01', `${c.title}: maximum dollars per assessment period`)];
@@ -226,6 +234,16 @@
             return `${methods[p.method]} · ${money(p.amount)} ${p.frequency}, due ${due}. ${p.instructions ? 'Instructions: ' + p.instructions + '. ' : ''}Grace period: ${p.graceDays} days. Late charge: ${late} per full ${p.lateFrequency === 'monthly' ? '30-day' : p.lateFrequency === 'weekly' ? '7-day' : '1-day'} period after grace, capped at ${money(p.lateCap)} per late period, without compounding. Excused dates do not waive contract payments.`;
         }
         function render() {
+            const banner = document.querySelector('.pending-snap-banner');
+            if (banner) {
+                banner.querySelectorAll('[data-pending-workout]').forEach(item => {
+                    const w = state.snapWorkouts.find(w => w.id === item.dataset.pendingWorkout), result = w && state.snapResults[w.id];
+                    if (w && result?.finalized && w.exercises.every(e => (result.sets[e.id] || []).filter(s => s.reps >= e.reps && s.weight >= e.weight).length >= e.sets)) item.remove();
+                });
+                const remaining = banner.querySelectorAll('[data-pending-workout]').length;
+                if (!remaining) banner.remove();
+                else banner.querySelector('strong').textContent = `${remaining} Snap Workout${remaining === 1 ? '' : 's'} to complete`;
+            }
             const assigned = state.enabled ? state.rules.filter(r => r.assigned) : [];
             root.hidden = !editable && !reviewPage && !state.enabled && !state.snapWorkouts.length;
             query('[data-agreement-state]').textContent = state.enabled ? 'Enabled · Saved securely' : state.snapWorkouts.length ? 'Snap Workout · Saved securely' : 'Not enabled';
@@ -420,10 +438,11 @@
                 if (!deadlineTouched) snapForm.elements.snapDeadline.value = wallTime(defaultDeadline(), zone);
                 query('[data-snap-deadline-zone]').textContent = `Deadline time zone: ${zone}. Default: two hours after assignment.`;
             }
+            initializeReuseDates();
             if (!state.snapWorkouts.length) { container.append(el('p', 'No Snap Workouts assigned yet.')); return; }
             const week = evidence?.days?.length ? evidence.days : null, assessed = evidence ? assessSnap(state, evidence) : [];
             [...state.snapWorkouts].sort((a, b) => b.date.localeCompare(a.date)).forEach(w => {
-                const article = el('article', undefined, 'snap-assignment'); article.append(el('h4', `${w.name} · ${dayLabel(w.date)}`), el('p', `Assessment cap ${money(w.cap)} per type for this workout${state.excused[w.date] ? ' · EXCUSED: no assessment' : ''}.`));
+                const article = el('details', undefined, 'snap-assignment'); article.id = 'snap-' + w.id; article.append(el('summary', `${w.name} · ${dayLabel(w.date)} · ${state.snapResults[w.id]?.finalized && w.exercises.every(e => (state.snapResults[w.id].sets[e.id] || []).filter(s => s.reps >= e.reps && s.weight >= e.weight).length >= e.sets) ? 'Completed' : 'To complete'}`), el('p', `Assessment cap ${money(w.cap)} per type for this workout${state.excused[w.date] ? ' · EXCUSED: no assessment' : ''}.`));
                 article.append(el('p', w.deadlineUtc ? `Completion deadline: ${wallTime(w.deadlineUtc, zone).replace('T', ' ')} (${zone}).` : 'Earlier assignment: no deadline was configured.'));
                 if (week && (w.date < week[0].date || w.date > week.at(-1).date)) article.append(el('p', 'Outside the selected weekly total. Choose this assignment’s week to view its assessment.'));
                 const resultForm = el('form'), previous = state.snapResults[w.id], canRecord = canRecordSnap && today && w.date <= today;
@@ -484,9 +503,68 @@
                 article.append(resultForm);
                 if (canAssignSnap) { const remove = el('button', 'Remove assignment'); remove.type = 'button'; remove.className = 'secondary'; remove.addEventListener('click', async () => { const results = { ...state.snapResults }; delete results[w.id]; await persistSnap({ ...state, snapWorkouts: state.snapWorkouts.filter(x => x.id !== w.id), snapResults: results }, 'Snap Workout removed.'); }); article.append(remove); }
                 container.append(article);
+                if (location.hash === '#' + article.id) {
+                    article.open = true;
+                    for (let parent = article.parentElement; parent; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true;
+                    requestAnimationFrame(() => article.scrollIntoView({ block: 'start' }));
+                }
+            });
+        }
+        const reuseForm = query('[data-snap-reuse]');
+        let templates = [], reuseDeadlineTouched = false;
+        function initializeReuseDates() {
+            if (!reuseForm || !evidence) return;
+            const date = reuseForm.elements.reuseDate, deadline = reuseForm.elements.reuseDeadline;
+            if (!date.value) date.value = evidence.today;
+            date.min = shiftDate(evidence.today, -84); date.max = shiftDate(evidence.today, 84);
+            if (!reuseDeadlineTouched) {
+                const wall = wallTime(serverNow() + 2 * 3600000, evidence.timeZone || 'UTC');
+                deadline.value = date.value > evidence.today ? date.value + wall.slice(10) : wall;
+            }
+            query('[data-reuse-zone]').textContent = `Deadline time zone: ${evidence.timeZone || 'UTC'}.`;
+        }
+        async function loadSnapLibrary() {
+            if (!reuseForm) return;
+            const output = query('[data-snap-library-status]');
+            try {
+                const response = await fetch(api + '/snap-library', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
+                if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Could not load past workouts. Reload saved agreement to retry.');
+                templates = await response.json();
+                const list = query('[data-snap-library]'); list.replaceChildren();
+                templates.forEach((workout, i) => {
+                    const label = el('label', undefined, 'snap-library-choice'), check = el('input'), text = el('span');
+                    check.type = 'checkbox'; check.name = 'template'; check.value = i;
+                    text.append(el('strong', workout.name), el('p', workout.exercises.map(e => `${e.name}: ${e.sets} × ${e.reps} at ${number(e.weight)} lb · ${e.type} ${money(e.rate)} per ${snapBases[e.basis].toLowerCase()} · completion reward ${money(e.completionReward || 0)} · extra rep ${money(e.extraRepRate || 0)}`).join('; ')), el('small', `Cap ${money(workout.cap)} per type`));
+                    label.append(check, text); list.append(label);
+                });
+                output.textContent = templates.length ? 'Select workouts to assign again. The most recent versions appear first.' : 'No past workouts available yet. Create your first Snap Workout below.';
+            } catch (error) { output.textContent = error.message; }
+        }
+        if (reuseForm) {
+            reuseForm.elements.reuseDeadline.addEventListener('input', () => { reuseDeadlineTouched = true; });
+            reuseForm.elements.reuseDate.addEventListener('change', initializeReuseDates);
+            reuseForm.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (!reuseForm.reportValidity()) return;
+                const selected = [...reuseForm.querySelectorAll('input[name=template]:checked')].map(x => templates[Number(x.value)]);
+                const output = query('[data-snap-library-status]');
+                if (!selected.length) { output.textContent = 'Check at least one workout to assign.'; return; }
+                if (!evidence?.today) { output.textContent = 'Load a valid week before assigning workouts.'; return; }
+                if (state.snapWorkouts.length + selected.length > 50) { output.textContent = 'Use up to 50 assignments per client. Remove older assignments before adding more.'; return; }
+                if (!reuseDeadlineTouched) initializeReuseDates();
+                const date = reuseForm.elements.reuseDate.value, deadline = wallToUtc(reuseForm.elements.reuseDeadline.value, evidence.timeZone || 'UTC', serverNow());
+                if (!deadline || Date.parse(deadline) <= serverNow() || reuseForm.elements.reuseDeadline.value.slice(0, 10) < date) { output.textContent = 'Choose a future deadline on or after the assignment date.'; return; }
+                const copies = selected.map(w => ({ ...w, id: crypto.randomUUID(), date, createdAtUtc: new Date(serverNow()).toISOString(), deadlineUtc: deadline,
+                    exercises: w.exercises.map(e => ({ ...e, id: crypto.randomUUID() })) }));
+                output.textContent = 'Saving selected workouts…';
+                if (await persistSnap({ ...state, agreement: readAgreementFields(), snapWorkouts: [...state.snapWorkouts, ...copies] }, `${copies.length} Snap Workout(s) assigned.`)) {
+                    output.textContent = `${copies.length} workout(s) assigned with fresh results and deadlines.`;
+                    reuseForm.querySelectorAll('input[name=template]').forEach(x => { x.checked = false; });
+                } else output.textContent = query('[data-snap-status]').textContent;
             });
         }
         if (snapForm) {
+            snapForm.elements.snapCap.value = configured?.snapCap ?? 100;
             snapForm.elements.snapDeadline.addEventListener('input', () => { deadlineTouched = true; });
             snapForm.elements.snapDate.addEventListener('change', () => { if (!deadlineTouched && evidence) snapForm.elements.snapDeadline.value = wallTime(defaultDeadline(), evidence.timeZone || 'UTC'); });
             query('[data-snap-search-button]').addEventListener('click', searchExercises);
@@ -495,7 +573,7 @@
                 const chosen = exerciseOptions.find(e => e.id === query('[data-snap-picker]').value);
                 if (!chosen) { query('[data-snap-catalog-status]').textContent = 'Choose an exercise first.'; return; }
                 if (snapDraft.length >= 15) { query('[data-snap-catalog-status]').textContent = 'Use up to 15 exercises per Snap Workout.'; return; }
-                readSnapDraft(); snapDraft.push({ id: crypto.randomUUID(), catalogId: chosen.id, name: chosen.name, sets: 3, reps: 10, weight: 0, type: 'fine', basis: 'incomplete-reps', rate: .1, completionReward: 0, extraRepRate: 0 }); drawSnapDraft();
+                readSnapDraft(); snapDraft.push({ id: crypto.randomUUID(), catalogId: chosen.id, name: chosen.name, sets: 3, reps: 10, weight: 0, type: 'fine', basis: 'incomplete-reps', rate: configured?.snapRate ?? .1, completionReward: configured?.completionReward ?? 0, extraRepRate: configured?.extraRepRate ?? 0 }); drawSnapDraft();
             });
             snapForm.addEventListener('submit', async event => {
                 event.preventDefault(); if (!snapForm.reportValidity()) return;
@@ -506,7 +584,7 @@
                 const deadline = autoDeadline != null ? new Date(autoDeadline).toISOString() : wallToUtc(snapForm.elements.snapDeadline.value, evidence.timeZone || 'UTC', serverNow());
                 if (!deadline || Date.parse(deadline) <= serverNow() || snapForm.elements.snapDeadline.value.slice(0, 10) < snapForm.elements.snapDate.value) { query('[data-snap-status]').textContent = 'Choose a future deadline on or after the assignment date.'; return; }
                 const workout = { id: crypto.randomUUID(), deadlineUtc: deadline, createdAtUtc: new Date(serverNow()).toISOString(), date: snapForm.elements.snapDate.value, name: snapForm.elements.snapName.value.trim(), cap: Number(snapForm.elements.snapCap.value), exercises: snapDraft.map(e => ({ ...e })) };
-                if (await persistSnap({ ...state, agreement: readAgreementFields(), snapWorkouts: [...state.snapWorkouts, workout] }, 'Snap Workout assigned. The client can open their portal on any device to record results.')) { snapDraft = []; deadlineTouched = false; drawSnapDraft(); }
+                if (await persistSnap({ ...state, agreement: readAgreementFields(), snapWorkouts: [...state.snapWorkouts, workout] }, 'Snap Workout assigned. The client can open their portal on any device to record results.')) { snapDraft = []; deadlineTouched = false; drawSnapDraft(); loadSnapLibrary(); }
             });
             drawSnapDraft(); searchExercises();
         }

@@ -33,6 +33,14 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
         return View(new AccountabilityPreviewViewModel(clientId, name, CanApprove: await preview.CanApproveAsync(user.UserId, clientId, ct),
             ReviewPage: true, CanAssignSnap: CoachRole && await preview.CanAssignSnapAsync(user.UserId, clientId, ct)));
     }
+    [HttpGet("snap-library")]
+    public async Task<IActionResult> SnapLibrary(Guid clientId, [FromServices] SnapWorkoutLibrary library, CancellationToken ct)
+    {
+        if (!Enabled || !CoachRole) return NotFound();
+        var user = (await users.GetAsync(HttpContext, ct)).User;
+        try { return Json(await library.ReadAsync(user.UserId, clientId, ct)); }
+        catch (UnauthorizedAccessException) { return NotFound(); }
+    }
     [HttpGet("exercises")]
     public async Task<IActionResult> Exercises(Guid clientId, string? q, CancellationToken ct)
     {

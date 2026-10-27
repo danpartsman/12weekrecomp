@@ -1,5 +1,6 @@
 @model AccountabilityPreviewViewModel
-@{ ViewData["Title"] = "Snap Workout"; }
+@{ ViewData["Title"] = "Snap Workout"; if (Model.CanAssignSnap && !Model.CanApprove) { Layout = "_CoachLayout"; } }
+@if (Model.CanAssignSnap) { <p><a class="button" asp-controller="Coach" asp-action="Index">← Client list</a></p> }
 <h1>Snap Workout · @Model.ClientName</h1>
 <p>Quick exercise assignments with a weekly fee or incentive preview.</p>
 @await Html.PartialAsync("_AccountabilityPreview", Model)

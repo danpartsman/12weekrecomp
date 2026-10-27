@@ -72,9 +72,8 @@
 </nav>
 @await Html.PartialAsync("_AccountabilityPreview", new AccountabilityPreviewViewModel(Model.ClientId, Model.ClientName))
 @inject Microsoft.Extensions.Configuration.IConfiguration AccountabilityConfig
-@if (AccountabilityPreview.Enabled(AccountabilityConfig)) { <p><a class="button" asp-controller="Coach" asp-action="Accountability" asp-route-clientId="@(Model.ClientId)">Fines &amp; incentives · Preview</a> <a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@(Model.ClientId)">Snap Workout · Client portal</a></p> }
-<section aria-label="Seven completed days gauges">
-    <h2>Last 7 completed days</h2>
+@if (AccountabilityPreview.Enabled(AccountabilityConfig)) { <p><a class="button" asp-controller="Coach" asp-action="Accountability" asp-route-clientId="@(Model.ClientId)">Fines &amp; incentives · Preview</a> <a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-fragment="snap-workout" asp-route-clientId="@(Model.ClientId)">Snap Workout · Client portal</a></p> }
+<details class="card coach-panel"><summary>Last 7 completed days</summary><div class="coach-panel-body">
     <p class="muted">@Model.CompletedWorkouts completed workouts · @Model.TrainingMinutes.ToString("0.#") minutes · @Model.NutritionDays / 7 days with nutrition. Today and tomorrow are excluded from all gauges and totals.</p>
     <div class="coach-summary-gauges">
     @foreach(var body in new[] { Model.FatChange, Model.MuscleChange }) {
@@ -108,9 +107,8 @@
     </div>
     <p class="muted">Body changes compare the first three days’ average with the last three days’ average within this same seven-day window. Scale estimates can fluctuate. Nutrition gauges sum those seven days’ individual prescriptions; rings stop at 100%, while the number shows any overage.</p>
     @if(Model.PrescriptionNotice is {} notice) {<p class="app-message">@notice</p>}
-</section>
-<section>
-    <h2>Daily detail · 9 days</h2>
+</div></details>
+<details class="card coach-panel"><summary>Daily detail · 9 days</summary><div class="coach-panel-body">
     <p class="muted">Seven completed days, then today and tomorrow’s prescriptions. Scroll sideways to see all nine days. “—” means not recorded. Prescribed and logged nutrition are separate rows.</p>
     <div class="coach-summary-table-scroll" tabindex="0" role="region" aria-label="Nine-day client detail; scroll horizontally">
     <table class="coach-summary-table">
@@ -172,4 +170,4 @@
         </tbody>
     </table>
     </div>
-</section>
+</div></details>
