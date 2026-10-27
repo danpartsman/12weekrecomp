@@ -7,7 +7,7 @@ function fixture() {
   let html = fs.readFileSync('src/WebRecomp.Web/Views/Shared/_AccountabilityPreview.cshtml','utf8');
   html = html.replace('@await Html.PartialAsync("_SnapWorkout", Model)', fs.readFileSync('src/WebRecomp.Web/Views/Shared/_SnapWorkout.cshtml','utf8'));
   html = html.replace(/@for \(var week = 1; week <= 52; week\+\+\) \{.*?\}/s, '<option value="12">12 weeks</option>');
-  html = html.replace(/^\s*var initialDefaults.*$/gm,'').replace(/@\{[^}]*\}/g,'').replace(/^@(model|inject).*$/gm,'').replace(/@Html.AntiForgeryToken\(\)/g,'<input name="__RequestVerificationToken" type="hidden" value="test-token">');
+  html = html.replace(/^\s*var initialDefaults.*$/gm,'').replace(/@\{[^}]*\}/g,'').replace(/^\s*@(model|inject).*$/gm,'').replace(/@Html.AntiForgeryToken\(\)/g,'<input name="__RequestVerificationToken" type="hidden" value="test-token">');
   // Remove Razor conditional delimiters, keeping the coach and approval form markup used by this fixture.
   const pattern = /@if\s*\(/g; let match;
   while ((match=pattern.exec(html))) {
@@ -31,7 +31,7 @@ function fixture() {
   const page=await browser.newPage({viewport:{width:1280,height:900}}), errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   const css=['site.css','coach-center.css','accountability-preview.css'].map(f=>fs.readFileSync('src/WebRecomp.Web/wwwroot/css/'+f,'utf8')).join('\n');
-  const html = `<html data-theme="dark"><head><style>${css}</style></head><body class="app-shell coach-shell"><main class="container"><h1>Client · Fines &amp; incentives</h1>${fixture()}</main></body></html>`;
+  const html = `<html data-theme="dark"><head><meta charset="utf-8"><style>${css}</style></head><body class="app-shell coach-shell"><main class="container"><h1>Client · Fines &amp; incentives</h1>${fixture()}</main></body></html>`;
   await page.route('https://coach-portal.test/**',route=>route.fulfill({contentType:'text/html',body:html}));
   await page.goto('https://coach-portal.test/');
   const initial=engine.defaults();initial.agreement.start='2026-10-27';
@@ -76,6 +76,7 @@ function fixture() {
   },{workoutId});
   async function record(reps) {
     const article=page.locator('#snap-'+workoutId);
+    if (await article.getAttribute('open') === null) await article.locator(':scope > summary').click();
     await article.locator('input[name="'+exerciseId+'-0-reps"]').fill(String(reps));
     await article.locator('input[name="'+exerciseId+'-0-weight"]').fill('20');
     await article.locator('input[name="'+exerciseId+'-1-reps"]').fill('10');
@@ -96,6 +97,21 @@ function fixture() {
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await panel.locator(':scope > summary').click();await library.locator('summary').click();
   await page.screenshot({path:'quantity-control-preview/coach-workout-library-mobile.png',fullPage:true});
+  const newPage=await browser.newPage();
+  await newPage.route('https://new-coach-client.test/**',route=>route.fulfill({contentType:'text/html',body:html}));
+  await newPage.goto('https://new-coach-client.test/');
+  await newPage.evaluate(({initial})=>{
+    const config={rules:initial.rules.map(r=>({id:r.id,amount:3.25,min:1.5,max:55})),paymentAmount:25,lateValue:5,lateCap:20,snapCap:75,snapRate:.27,completionReward:3,extraRepRate:.15};
+    document.querySelector('[data-accountability]').dataset.defaults=JSON.stringify(config);
+    window.fetch=async url=>({ok:true,headers:{get:()=> 'application/json'},json:async()=>url.endsWith('/state')?{state:null,revision:0,terms:null,approval:null}:url.includes('/evidence')?{today:'2026-10-27',weekStart:'2026-10-26',nowUtc:'2026-10-27T18:00:00Z',timeZone:'America/Los_Angeles',days:[{date:'2026-10-27',completed:false,actual:null,target:null}]}:[]});
+  },{initial});
+  await newPage.addScriptTag({path:'src/WebRecomp.Web/wwwroot/js/accountability-preview.js'});
+  await newPage.waitForFunction(()=>document.querySelector('[name=calories-amount]')?.value==='3.25');
+  assert.equal(await newPage.locator('[name=calories-min]').inputValue(),'1.5');
+  assert.equal(await newPage.locator('[name=calories-max]').inputValue(),'55');
+  assert.equal(await newPage.locator('[name=snapCap]').inputValue(),'75');
+  assert.equal(await newPage.locator('[name=paymentAmount]').inputValue(),'25');
+  await newPage.close();
   assert.deepEqual(errors,[]);console.log('Coach disclosures, checkbox batch assignment, fresh identity/deadline, preserved rates and CSRF passed.');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

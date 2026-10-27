@@ -156,3 +156,10 @@ test('deadline conversion uses client time zone, rejects missing DST times and r
 test('new agreement periods, deadlines and bonus rates are included in approval terms', () => {
     const {s}=rewardedSnap();const before=terms(s);s.agreement.mode='weeks';assert.notEqual(terms(s),before);const next=terms(s);s.snapWorkouts[0].deadlineUtc='2026-10-14T19:00:00Z';assert.notEqual(terms(s),next);
 });
+test('custom cent amounts remain valid and are included in the client approval terms', () => {
+    const {s,evidence}=sample(), original=terms(s);
+    s.rules[1].amount=3.25;assert.equal(valid(s),true);assert.notEqual(terms(s),original);
+    evidence.days[0].actual.protein=150;assert.equal(assess(s,evidence)[0].amount,3.25);
+    s.rules[1].amount=3.251;assert.equal(valid(s),false);
+    s.rules[1].amount=10000.01;assert.equal(valid(s),false);
+});

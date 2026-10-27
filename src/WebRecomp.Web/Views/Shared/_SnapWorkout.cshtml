@@ -1,8 +1,8 @@
 @model AccountabilityPreviewViewModel
 <details class="accountability-panel" open="@(!Model.Editable)" id="snap-workout"><summary>Snap Workouts</summary>
 <section class="snap-workout" data-snap-workout>
-    <div class="accountability-heading"><div><p class="accountability-tag">QUICK ASSIGNMENT</p><h3>Snap Workout</h3></div><a asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@Model.ClientId">Open in client portal →</a></div>
-    <p>Assign exercises with sets, reps and weight. Rates apply to prescribed completed or incomplete reps or sets. Separate completion and extra-rep rewards can be added alongside unfinished-work penalties. On-time completion is required for these rewards; extra reps count only at the assigned weight. A set qualifies only when its recorded weight meets the assigned weight.</p>
+    <div class="accountability-heading"><div><p class="accountability-tag">QUICK ASSIGNMENT</p><h3>Snap Workout</h3></div><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@Model.ClientId">Open in client portal →</a></div>
+    <details><summary>Rates &amp; completion rules</summary><p>Assign exercises with sets, reps and weight. Rates apply to prescribed completed or incomplete reps or sets. Separate completion and extra-rep rewards can be added alongside unfinished-work penalties. On-time completion is required for these rewards; extra reps count only at the assigned weight. A set qualifies only when its recorded weight meets the assigned weight.</p></details>
     @if (Model.Editable || Model.CanAssignSnap)
     {
         <details class="snap-library"><summary>Assign from past Snap Workouts</summary>

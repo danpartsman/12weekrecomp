@@ -12,7 +12,6 @@
         ['cheat-foods', 'Cheat-food occurrences', 'count', null, 'Every reviewed occurrence is paid from the first occurrence; no free allowance.', 'fine', 2, 'daily', 0, 0],
         ['missed-review', 'Unapproved missed appointments', 'count', null, 'Only reviewed, unapproved missed appointments; approved exceptions are excluded.', 'fine', 5, 'weekly', 0, 0]
     ].map(([id, title, kind, metric, description, type, amount, frequency, lower, upper]) => ({ id, title, kind, metric, description, type, amount, frequency, lower, upper }));
-    const amounts = [0, 1, 2, 5, 10, 15, 20, 25, 30, 50, 75, 100];
     const frequencies = ['daily', 'weekly', 'monthly'];
     const methods = { 'bank-transfer': 'Bank transfer', 'card-external': 'Card through external provider', cash: 'Cash', check: 'Check', other: 'Other agreed method' };
     const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -443,7 +442,7 @@
             if (!state.snapWorkouts.length) { container.append(el('p', 'No Snap Workouts assigned yet.')); return; }
             const week = evidence?.days?.length ? evidence.days : null, assessed = evidence ? assessSnap(state, evidence) : [];
             [...state.snapWorkouts].sort((a, b) => b.date.localeCompare(a.date)).forEach(w => {
-                const article = el('article', undefined, 'snap-assignment'); article.id = 'snap-' + w.id; article.append(el('h4', `${w.name} · ${dayLabel(w.date)}`), el('p', `Assessment cap ${money(w.cap)} per type for this workout${state.excused[w.date] ? ' · EXCUSED: no assessment' : ''}.`));
+                const article = el('details', undefined, 'snap-assignment'); article.id = 'snap-' + w.id; article.append(el('summary', `${w.name} · ${dayLabel(w.date)} · ${state.snapResults[w.id]?.finalized && w.exercises.every(e => (state.snapResults[w.id].sets[e.id] || []).filter(s => s.reps >= e.reps && s.weight >= e.weight).length >= e.sets) ? 'Completed' : 'To complete'}`), el('p', `Assessment cap ${money(w.cap)} per type for this workout${state.excused[w.date] ? ' · EXCUSED: no assessment' : ''}.`));
                 article.append(el('p', w.deadlineUtc ? `Completion deadline: ${wallTime(w.deadlineUtc, zone).replace('T', ' ')} (${zone}).` : 'Earlier assignment: no deadline was configured.'));
                 if (week && (w.date < week[0].date || w.date > week.at(-1).date)) article.append(el('p', 'Outside the selected weekly total. Choose this assignment’s week to view its assessment.'));
                 const resultForm = el('form'), previous = state.snapResults[w.id], canRecord = canRecordSnap && today && w.date <= today;
@@ -505,6 +504,7 @@
                 if (canAssignSnap) { const remove = el('button', 'Remove assignment'); remove.type = 'button'; remove.className = 'secondary'; remove.addEventListener('click', async () => { const results = { ...state.snapResults }; delete results[w.id]; await persistSnap({ ...state, snapWorkouts: state.snapWorkouts.filter(x => x.id !== w.id), snapResults: results }, 'Snap Workout removed.'); }); article.append(remove); }
                 container.append(article);
                 if (location.hash === '#' + article.id) {
+                    article.open = true;
                     for (let parent = article.parentElement; parent; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true;
                     requestAnimationFrame(() => article.scrollIntoView({ block: 'start' }));
                 }

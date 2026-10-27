@@ -22,5 +22,5 @@
 <label asp-for="CompletionReward">Completion reward per exercise ($)</label><input asp-for="CompletionReward" type="number" min="0" max="10000" step=".01" required />
 <label asp-for="ExtraRepRate">Reward per extra rep ($)</label><input asp-for="ExtraRepRate" type="number" min="0" max="100" step=".01" required />
 <p>Reusing a past workout copies its original targets, rates and cap. These defaults apply when building a new workout.</p>
-<button type="submit">Save defaults</button> <a class="button" asp-controller="Admin" asp-action="Index">Admin Home</a>
+<button class="primary" type="submit">Save defaults</button> <a class="button" asp-controller="Admin" asp-action="Index">Admin Home</a>
 </form></section>

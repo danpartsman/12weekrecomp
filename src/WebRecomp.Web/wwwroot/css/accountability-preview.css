@@ -16,3 +16,7 @@
 .snap-library-choice input[type=checkbox] {flex:0 0 auto;width:20px;height:20px;margin-top:4px;}
 .snap-library-choice span {min-width:0;overflow-wrap:anywhere;}
 .snap-assignment:target {outline:3px solid var(--teal);outline-offset:4px;scroll-margin-top:24px;}
+
+.snap-assignment > summary {cursor:pointer;font-weight:700;overflow-wrap:anywhere;}
+.snap-assignment input[type=datetime-local] {max-width:100%;min-width:0;box-sizing:border-box;}
+@media(max-width:600px){.accountability-heading{align-items:flex-start;flex-wrap:wrap;}.accountability-fields{grid-template-columns:minmax(0,1fr);}.snap-workout{padding:12px;}.snap-assignment{padding:12px;}}
