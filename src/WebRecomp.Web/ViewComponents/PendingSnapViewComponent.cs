@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using WebRecomp.Web.Services;
+using WebRecomp.Web.ViewModels;
 using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.ViewComponents;
 public sealed class PendingSnapViewComponent(AppUserContextService users, CoachAccountabilityStore store, IConfiguration configuration) : ViewComponent

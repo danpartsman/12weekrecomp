@@ -241,7 +241,9 @@
                     const w = state.snapWorkouts.find(w => w.id === item.dataset.pendingWorkout), result = w && state.snapResults[w.id];
                     if (w && result?.finalized && w.exercises.every(e => (result.sets[e.id] || []).filter(s => s.reps >= e.reps && s.weight >= e.weight).length >= e.sets)) item.remove();
                 });
-                if (!banner.querySelector('[data-pending-workout]')) banner.remove();
+                const remaining = banner.querySelectorAll('[data-pending-workout]').length;
+                if (!remaining) banner.remove();
+                else banner.querySelector('strong').textContent = `${remaining} Snap Workout${remaining === 1 ? '' : 's'} to complete`;
             }
             const assigned = state.enabled ? state.rules.filter(r => r.assigned) : [];
             root.hidden = !editable && !reviewPage && !state.enabled && !state.snapWorkouts.length;
@@ -532,7 +534,7 @@
                 templates.forEach((workout, i) => {
                     const label = el('label', undefined, 'snap-library-choice'), check = el('input'), text = el('span');
                     check.type = 'checkbox'; check.name = 'template'; check.value = i;
-                    text.append(el('strong', workout.name), el('p', `${workout.exercises.map(e => `${e.name}: ${e.sets} × ${e.reps} at ${number(e.weight)} lb`).join(' · ')} · Cap ${money(workout.cap)}`));
+                    text.append(el('strong', workout.name), el('p', workout.exercises.map(e => `${e.name}: ${e.sets} × ${e.reps} at ${number(e.weight)} lb · ${e.type} ${money(e.rate)} per ${snapBases[e.basis].toLowerCase()} · completion reward ${money(e.completionReward || 0)} · extra rep ${money(e.extraRepRate || 0)}`).join('; ')), el('small', `Cap ${money(workout.cap)} per type`));
                     label.append(check, text); list.append(label);
                 });
                 output.textContent = templates.length ? 'Select workouts to assign again. The most recent versions appear first.' : 'No past workouts available yet. Create your first Snap Workout below.';

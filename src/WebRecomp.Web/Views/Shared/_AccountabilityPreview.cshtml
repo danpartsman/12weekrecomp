@@ -3,7 +3,7 @@
 @inject WebRecomp.Web.Services.Coaching.AccountabilityDefaultsStore CoachDefaults
 @if (AccountabilityPreview.Enabled(PreviewConfiguration))
 {
-@{ var initialDefaults = await CoachDefaults.ReadAsync(Context.RequestAborted); }
+    var initialDefaults = await CoachDefaults.ReadAsync(Context.RequestAborted);
 <link rel="stylesheet" href="~/css/accountability-preview.css" asp-append-version="true" />
 <section class="accountability card" data-accountability data-defaults="@System.Text.Json.JsonSerializer.Serialize(initialDefaults, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))" data-client-id="@Model.ClientId" data-editable="@Model.Editable.ToString().ToLowerInvariant()" data-can-approve="@Model.CanApprove.ToString().ToLowerInvariant()" data-review-page="@Model.ReviewPage.ToString().ToLowerInvariant()" data-can-assign-snap="@((Model.Editable || Model.CanAssignSnap).ToString().ToLowerInvariant())" hidden="@(!Model.Editable && !Model.ReviewPage)">
     @Html.AntiForgeryToken()
