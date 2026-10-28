@@ -1,9 +1,13 @@
 using System.Text.Json;
 namespace WebRecomp.Web.Services.Coaching;
 
-public sealed record AccountabilityCharge(string Key, DateOnly Date, string Kind, string Description, decimal Amount, decimal RawAmount, bool Ready = true, bool Settle = true);
+public sealed record AccountabilityCharge(string Key, DateOnly Date, string Kind, string Description, decimal Amount, decimal RawAmount, bool Ready = true, bool Settle = true, string TermsKey = "");
 public static class AccountabilityAssessment
 {
+    public static string RuleTermsKey(AccountabilityState state,AccountabilityRule rule) => AccountabilityDocument.HashTerms(JsonSerializer.Serialize(new{rule,state.Agreement},AccountabilityDocument.Json));
+    public static (DateOnly Start,DateOnly End) Period(DateOnly d,string frequency) => frequency switch {
+        "daily"=>(d,d),"weekly"=>(d.AddDays(-(((int)d.DayOfWeek+6)%7)),d.AddDays(6-(((int)d.DayOfWeek+6)%7))),
+        _=>(new(d.Year,d.Month,1),new(d.Year,d.Month,DateTime.DaysInMonth(d.Year,d.Month))) };
     public static decimal Cents(decimal value) => decimal.Round(value, 2, MidpointRounding.AwayFromZero);
     public static DateOnly? End(AccountabilityState s) => s.Agreement.Start == "" ? null : s.Agreement.Mode == "weeks"
         ? AccountabilityDocument.Date(s.Agreement.Start).AddDays(s.Agreement.Weeks * 7 - 1) : s.Agreement.EndedOn is { } end ? AccountabilityDocument.Date(end) : null;
@@ -48,10 +52,7 @@ public static class AccountabilityAssessment
         if (!s.Enabled || s.Agreement.Start=="") return rows;
         foreach(var r in s.Rules.Where(r=>r.Assigned))
         {
-            (DateOnly Start,DateOnly End) Bounds(DateOnly d) => r.Frequency switch {
-                "daily"=>(d,d), "weekly"=>(d.AddDays(-(((int)d.DayOfWeek+6)%7)),d.AddDays(6-(((int)d.DayOfWeek+6)%7))),
-                _=>(new(d.Year,d.Month,1),new(d.Year,d.Month,DateTime.DaysInMonth(d.Year,d.Month))) };
-            foreach(var bounds in days.Keys.Select(Bounds).Distinct().OrderBy(x=>x.Start))
+            foreach(var bounds in days.Keys.Select(d=>Period(d,r.Frequency)).Distinct().OrderBy(x=>x.Start))
             {
                 var start = AccountabilityDocument.Date(s.Agreement.Start); var from = bounds.Start<start?start:bounds.Start;
                 var end=End(s); var until=end.HasValue&&end<bounds.End?end.Value:bounds.End;
@@ -83,7 +84,7 @@ public static class AccountabilityAssessment
                 var outside=value<lower||value>upper;
                 var applies=included.Count>0&&(r.Id=="cheat-foods"?value>0:r.Type=="fine"?outside:!outside);
                 var raw=applies?r.Amount*(r.Id=="cheat-foods"?value.Value:1):0;var amount=Cents(Math.Min(raw,r.Max));
-                rows.Add(new($"rule:{r.Id}:{from:yyyy-MM-dd}:{until:yyyy-MM-dd}",until,r.Type,$"{r.Id} · {from:MMM d}–{until:MMM d, yyyy}",amount,Cents(raw),true,amount>=r.Min));
+                rows.Add(new($"rule:{r.Id}:{bounds.Start:yyyy-MM-dd}:{bounds.End:yyyy-MM-dd}",until,r.Type,$"{r.Id} · {from:MMM d}–{until:MMM d, yyyy}",amount,Cents(raw),true,amount>=r.Min,RuleTermsKey(s,r)));
             }
         }
         return rows;

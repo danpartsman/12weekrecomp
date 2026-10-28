@@ -24,4 +24,14 @@ public sealed class AccountabilityAssessmentTests
         Assert.Empty(AccountabilityLedger.Delta([charge with{Amount=10,RawAmount=10}],first,2,Guid.NewGuid()));
         Assert.Equal(-5,Assert.Single(AccountabilityLedger.Delta([charge with{Amount=0,RawAmount=0}],first,1,Guid.NewGuid())).Amount);
     }
+    [Fact]
+    public void AddingASnapWorkoutDoesNotPreventCorrectionsUnderUnchangedFeeTerms()
+    {
+        var charge=new AccountabilityCharge("rule:protein:2026-10-26:2026-10-26",new(2026,10,26),"fine","Protein",5,5,TermsKey:"same-fee-terms");
+        var posted=AccountabilityLedger.Delta([charge],[],1,Guid.NewGuid());
+        var correction=Assert.Single(AccountabilityLedger.Delta([charge with{Amount=0,RawAmount=0}],posted,2,Guid.NewGuid()));
+        Assert.Equal(-5,correction.Amount);
+        Assert.Empty(AccountabilityLedger.Delta([charge with{Amount=10,RawAmount=10,TermsKey="new-fee-terms"}],posted,2,Guid.NewGuid()));
+    }
+
 }

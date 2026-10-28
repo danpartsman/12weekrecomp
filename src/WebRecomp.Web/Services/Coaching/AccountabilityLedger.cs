@@ -17,6 +17,7 @@ public sealed class AccountabilityLedgerEntry
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public Guid ActorUserId { get; set; }
     public bool Automatic { get; set; }
+    public string TermsKey { get; set; } = "";
 }
 public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountabilityPreviewService access)
 {
@@ -31,6 +32,21 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
             using var doc=JsonDocument.Parse(payload);
             if(doc.RootElement.ValueKind==JsonValueKind.Object&&doc.RootElement.TryGetProperty("ledgerEntries",out var array))
                 entries.AddRange(JsonSerializer.Deserialize<List<AccountabilityLedgerEntry>>(array.GetRawText(),AccountabilityDocument.Json)??[]);
+        }
+        var legacy=entries.Where(x=>x.Automatic&&x.SourceKey.StartsWith("rule:")&&x.TermsKey=="").ToArray();
+        if(legacy.Length>0)
+        {
+            var versions=legacy.Select(x=>x.TermsVersion).Distinct().ToArray();
+            var history=await db.CoachAccountabilityEvents.AsNoTracking().Where(x=>x.ClientId==row.ClientId&&x.Kind=="CONFIG"&&versions.Contains(x.TermsVersion))
+                .OrderBy(x=>x.Revision).Select(x=>new{x.TermsVersion,x.PayloadJson}).ToListAsync(ct);
+            foreach(var entry in legacy)
+            {
+                var config=history.FirstOrDefault(x=>x.TermsVersion==entry.TermsVersion);if(config is null)continue;
+                var state=AccountabilityDocument.Parse(config.PayloadJson);var parts=entry.SourceKey.Split(':');
+                var rule=state.Rules.Single(x=>x.Id==parts[1]);var period=AccountabilityAssessment.Period(AccountabilityDocument.Date(parts[2]),rule.Frequency);
+                entry.SourceKey=$"rule:{rule.Id}:{period.Start:yyyy-MM-dd}:{period.End:yyyy-MM-dd}";
+                entry.TermsKey=AccountabilityAssessment.RuleTermsKey(state,rule);
+            }
         }
         return entries;
     }
@@ -63,13 +79,13 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
         foreach(var charge in charges.Where(x=>x.Ready))
         {
             var old=posted.Where(x=>x.Automatic&&x.SourceKey==charge.Key).ToArray();
-            if(charge.Key.StartsWith("rule:")&&old.Any(x=>x.TermsVersion!=version))continue;
+            if(charge.Key.StartsWith("rule:")&&old.Any(x=>x.TermsKey!=""&&charge.TermsKey!=""?x.TermsKey!=charge.TermsKey:x.TermsVersion!=version))continue;
             var signed=charge.Kind=="incentive"?-charge.Amount:charge.Amount;var delta=AccountabilityAssessment.Cents(signed-old.Sum(x=>x.Amount));
             if(delta==0)continue;
             var detail=charge.RawAmount>charge.Amount?$" · ${charge.RawAmount:0.00} before cap; ${charge.Amount:0.00} applied":"";
             if(!charge.Settle)detail+=" · Below this period's settlement threshold";
             output.Add(new(){SourceKey=charge.Key,Date=charge.Date,Kind=charge.Kind=="incentive"?"incentive":"fee",Amount=delta,RawAmount=charge.RawAmount,
-                TermsVersion=version,ActorUserId=actor,Automatic=true,Description=(old.Length>0?"Adjustment · ":"")+charge.Description+detail});
+                TermsVersion=version,TermsKey=charge.TermsKey,ActorUserId=actor,Automatic=true,Description=(old.Length>0?"Adjustment · ":"")+charge.Description+detail});
         }
         return output;
     }
