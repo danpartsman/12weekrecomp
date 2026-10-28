@@ -6,7 +6,10 @@
     string Money(decimal value)=>value.ToString("C2",System.Globalization.CultureInfo.GetCultureInfo("en-US"));
     string Kind(string value)=>value switch{"fee"=>"Fee","incentive"=>"Incentive","payment-client"=>"Client paid coach","payment-coach"=>"Coach paid client",_=>value};
     decimal running=0;
-    var zone=TimeZoneInfo.FindSystemTimeZoneById(Model.TimeZone);
+    TimeZoneInfo zone;
+    try{zone=TimeZoneInfo.FindSystemTimeZoneById(Model.TimeZone);}
+    catch(TimeZoneNotFoundException){zone=TimeZoneInfo.Utc;}
+    catch(InvalidTimeZoneException){zone=TimeZoneInfo.Utc;}
 }
 <link rel="stylesheet" href="~/css/coach-ledger.css" asp-append-version="true" />
 <section class="page-header"><p class="eyebrow">SHARED COACH ACCOUNT</p><h1>@Model.ClientName · Fees &amp; incentives</h1><p>A shared record of assessments and payments. Entries remain in posting order, including later corrections.</p></section>
@@ -23,7 +26,7 @@
 <details class="card ledger-entry-form" open><summary>Record a payment or adjustment</summary>
 <form asp-action="Entry" asp-route-clientId="@Model.ClientId" method="post">
     <input type="hidden" name="ExpectedRevision" value="@Model.Revision" /><input type="hidden" name="RequestId" value="@Guid.NewGuid()" />
-    <div class="ledger-fields"><label>Entry type<select name="Kind"><option value="payment-client">Client paid coach</option><option value="payment-coach">Coach paid client</option><option value="fee">Fee / charge</option><option value="incentive">Incentive / credit</option></select></label>
+    <div class="ledger-fields"><label>Entry type<select name="Kind"><option value="payment-client" selected="@(balance>=0)">Client paid coach</option><option value="payment-coach" selected="@(balance<0)">Coach paid client</option><option value="fee">Fee / charge</option><option value="incentive">Incentive / credit</option></select></label>
     <label>Date<input name="Date" type="date" value="@Model.Today.ToString("yyyy-MM-dd")" required /></label><label>Amount ($)<input name="Amount" type="number" min=".01" max="10000" step=".01" required /></label>
     <label class="ledger-description">Description / payment reference<input name="Description" maxlength="300" required placeholder="e.g. Payment received by bank transfer" /></label></div>
     <p>Enter the amount received or paid. A client payment reduces an amount owed to the coach; a coach payment settles an incentive balance. Manual charges and credits are recorded with your description.</p><button type="submit">Record entry</button>

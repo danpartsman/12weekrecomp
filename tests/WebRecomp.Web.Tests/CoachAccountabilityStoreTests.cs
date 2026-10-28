@@ -165,6 +165,30 @@ public sealed class CoachAccountabilityStoreTests
         Assert.Equal(50,reward.RawAmount);Assert.Equal(20,reward.Amount);
         w.Cap=100;e.Reps=15;Assert.Equal(35,Assert.Single(AccountabilityAssessment.Snap(f.State,AccountabilityDocument.Date(w.Date)).Where(x=>x.Kind=="incentive")).Amount);
     }
+    [Fact]
+    public async Task LedgerPaymentsAndReversalsPersistAcrossRequestsAndNeverEraseHistory()
+    {
+        var f=await Fixture.Create();var request=Guid.NewGuid();Guid entryId;var today=DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
+        using(var db=f.Db())await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+        using(var db=f.Db())
+        {
+            var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);var ledger=new AccountabilityLedger(db,access);
+            var row=await f.Store(db).ReadAsync(f.Coach,f.Client,true,default);
+            await ledger.RecordAsync(f.Coach,row!,row!.Revision,request,"fee",today,20,"Reviewed fee",default);
+            entryId=Assert.Single(await ledger.ReadAsync(row,default)).Id;
+            Assert.Equal(2,(await db.CoachAccountabilityAgreements.AsNoTracking().SingleAsync()).Revision);
+        }
+        using(var db=f.Db())
+        {
+            var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);var ledger=new AccountabilityLedger(db,access);
+            var row=await f.Store(db).ReadAsync(f.Coach,f.Client,true,default);
+            await ledger.RecordAsync(f.Coach,row!,1,request,"fee",today,20,"Reviewed fee",default);
+            await ledger.ReverseAsync(f.Coach,row!,row!.Revision,entryId,"Entered in error",default);
+            await ledger.ReverseAsync(f.Coach,row!,1,entryId,"Entered in error",default);
+            var entries=await ledger.ReadAsync(row!,default);Assert.Equal(2,entries.Count);Assert.Equal(0,entries.Sum(x=>x.Amount));
+            Assert.Equal(20,entries[0].Amount);Assert.Equal(-20,entries[1].Amount);
+        }
+    }
     private sealed class Fixture
     {
         public Guid Coach=Guid.NewGuid(),OtherCoach=Guid.NewGuid(),Owner=Guid.NewGuid(),Client=Guid.NewGuid();

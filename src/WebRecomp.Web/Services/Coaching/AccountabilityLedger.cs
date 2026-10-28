@@ -45,6 +45,12 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
         if(!await ApprovedAsync(row,ct))return [];
         var client=await db.Clients.AsNoTracking().SingleAsync(x=>x.ClientId==row.ClientId,ct);
         var current=AccountabilityAssessment.Snap(state,AppUserContextService.GetClientToday(client)).ToList();
+        if(state.Enabled && state.Rules.Any(x=>x.Assigned && Array.IndexOf(AccountabilityDocument.RuleIds,x.Id)>=4))
+        {
+            var today=AppUserContextService.GetClientToday(client);var days=new Dictionary<DateOnly,JsonElement>();
+            for(var d=today.AddDays(-84);d<=today;d=d.AddDays(1))days[d]=JsonSerializer.SerializeToElement(new{date=d.ToString("yyyy-MM-dd"),completed=d<today});
+            current.AddRange(AccountabilityAssessment.Rules(state,days,today));
+        }
         var posted=await ReadAsync(row,ct);
         // Removing an assignment or excusing its date records a reversal rather than deleting old lines.
         foreach(var key in posted.Where(x=>x.Automatic&&x.SourceKey.StartsWith("snap:")).Select(x=>x.SourceKey).Distinct())
@@ -95,7 +101,7 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
                 }
                 var next=new DateOnly(date.Year,date.Month,1).AddMonths(1);date=next>date?next:date.AddDays(1);
             }
-            changes.AddRange(Delta(AccountabilityAssessment.Rules(state,days,today).Where(x=>x.Date>=first),await ReadAsync(row,ct),row.TermsVersion,actor));
+            changes.AddRange(Delta(AccountabilityAssessment.Rules(state,days,today).Where(x=>x.Date>=first && changes.All(c=>c.SourceKey!=x.Key)),await ReadAsync(row,ct),row.TermsVersion,actor));
         }
         Append(row,actor,changes);await SaveAsync(ct);
     }

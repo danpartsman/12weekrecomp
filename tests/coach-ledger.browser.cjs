@@ -15,6 +15,11 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   fs.mkdirSync('quantity-control-preview',{recursive:true});await page.screenshot({path:'quantity-control-preview/coach-ledger-desktop.png',fullPage:true});
   await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.screenshot({path:'quantity-control-preview/coach-ledger-mobile.png',fullPage:true});
+  const scroll=page.locator('.ledger-table-scroll');await scroll.scrollIntoViewIfNeeded();
+  await scroll.evaluate(n=>n.scrollLeft=n.scrollWidth);
+  const total=page.locator('.ledger-table tbody tr').last().locator('td').last();
+  assert.equal(await total.evaluate(n=>{const r=n.getBoundingClientRect();return r.right<=innerWidth && r.left>=0 && r.bottom<=innerHeight;}),true);
+  await page.screenshot({path:'quantity-control-preview/coach-ledger-mobile-balance.png'});
   console.log('Ledger payment direction, positive amounts, running-balance table and responsive layout passed.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
