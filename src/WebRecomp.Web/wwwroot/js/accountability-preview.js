@@ -175,6 +175,7 @@
         const editable = root.dataset.editable === 'true', reviewPage = root.dataset.reviewPage === 'true', canAssignSnap = editable || root.dataset.canAssignSnap === 'true', canRecordSnap = canAssignSnap || root.dataset.canApprove === 'true';
         const form = root.querySelector('[data-accountability-form]'), status = root.querySelector('[data-preview-status]');
         const query = s => root.querySelector(s), token = () => query('input[name="__RequestVerificationToken"]').value;
+        if (root.dataset.simpleSnap === 'true') query('[data-reload-agreement]').textContent = 'Reload workouts';
         const configured = JSON.parse(root.dataset.defaults || 'null');
         function initialState() {
             const initial = defaults();

@@ -36,4 +36,4 @@
 .snap-simple-fees > summary {cursor:pointer;font-weight:700;}
 .snap-simple-fees[open] > summary {margin-bottom:12px;}
 @media(max-width:800px){.snap-simple-targets{grid-template-columns:repeat(3,minmax(0,1fr));}.snap-simple-targets label:first-child{grid-column:1/-1;}}
-@media(max-width:450px){.snap-simple-exercise{padding:12px;}.snap-simple-targets{grid-template-columns:minmax(0,1fr);}.snap-simple-targets label:first-child{grid-column:auto;}}
+@media(max-width:450px){.snap-simple-exercise{padding:12px;}.snap-simple-targets{grid-template-columns:repeat(2,minmax(0,1fr));}.snap-simple-targets label:first-child,.snap-simple-targets label:last-child{grid-column:1/-1;}}

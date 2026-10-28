@@ -2,15 +2,14 @@
 <details class="accountability-panel" open="@(!Model.Editable)" id="snap-workout" data-snap-panel><summary>Snap Workouts</summary>
 <section class="snap-workout" data-snap-workout>
     <div class="accountability-heading"><div><p class="accountability-tag">QUICK ASSIGNMENT</p><h3>Snap Workout</h3></div><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@Model.ClientId">Open in client portal →</a></div>
-    <details><summary>Rates &amp; completion rules</summary><p>Assign exercises with sets, reps and weight. Rates apply to prescribed completed or incomplete reps or sets. Separate completion and extra-rep rewards can be added alongside unfinished-work penalties. On-time completion is required for these rewards; new max-weight assignments count reps within their weight limit. Earlier assignments retain their prescribed-weight requirements.</p></details>
+    <details><summary>Rates &amp; completion rules</summary><p>Assign exercises with sets, reps and weight. Rates apply to prescribed completed or incomplete reps or sets. Separate completion and extra-rep rewards can be added alongside unfinished-work penalties. On-time completion is required for these rewards; new max-weight assignments count reps within their weight limit. Earlier assignments retain their prescribed-weight requirements.</p><p>The deadline defaults to two hours after assignment. Late results forfeit completion and extra-rep rewards; unfinished-work penalties use reviewed final quantities. Unknown results remain pending.</p><p>The assessment cap applies separately to each workout’s total fines and total incentives. Assignment rates and targets are included in the client’s approval terms.</p></details>
     @if (Model.Editable || Model.CanAssignSnap)
     {
         <details class="snap-editor" open><summary>Create Snap Workout</summary>
         <form data-snap-assign>
             <div class="accountability-fields"><label>Workout name<input name="snapName" maxlength="100" value="Snap Workout" required /></label><label>Assignment date<input name="snapDate" type="date" required /></label><label>Completion deadline<input name="snapDeadline" type="datetime-local" required /></label><label>Assessment cap per workout ($)<input name="snapCap" type="number" min="0" max="10000" step=".01" value="100" required /></label></div>
-            <p data-snap-deadline-zone></p><p>The deadline defaults to two hours after assignment. Late results forfeit completion and extra-rep rewards; unfinished-work penalties use reviewed final quantities. Unknown results remain pending.</p>
-            <p>The cap applies separately to this workout’s total fines and total incentives. Assignment rates and targets become part of the client’s approval terms.</p>
-            <h3>Exercises</h3><p>Type each exercise below. Enter the heaviest permitted weight in lb; use 0 lb for bodyweight movements. Qualifying sets must meet the reps target without exceeding the weight limit.</p>
+            <p data-snap-deadline-zone></p>
+            <h3>Exercises</h3><p>Type an exercise and its targets. Max weight is the permitted limit in lb; use 0 for bodyweight.</p>
             <div class="snap-simple-exercises" data-snap-draft></div>
             <p><button type="button" data-snap-add>Add another exercise</button></p>
             <p data-snap-catalog-status role="status"></p>
