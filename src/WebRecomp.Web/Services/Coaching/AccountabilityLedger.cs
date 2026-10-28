@@ -21,6 +21,13 @@ public sealed class AccountabilityLedgerEntry
 }
 public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountabilityPreviewService access)
 {
+    // The client account is shared with every currently assigned coach. Signed agreement
+    // configuration still uses CoachAccountabilityStore's stricter author/owner checks.
+    public async Task<CoachAccountabilityAgreement?> AccountAsync(Guid actor,Guid clientId,bool coachRole,CancellationToken ct)
+    {
+        if(!await access.CanViewAsync(actor,clientId,coachRole,ct))throw new UnauthorizedAccessException();
+        return await db.CoachAccountabilityAgreements.AsNoTracking().SingleOrDefaultAsync(x=>x.ClientId==clientId,ct);
+    }
     // Ledger batches share the existing append-only RESULT audit stream, without changing signed terms.
     public async Task<List<AccountabilityLedgerEntry>> ReadAsync(CoachAccountabilityAgreement row, CancellationToken ct)
     {
@@ -99,7 +106,8 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
     }
     public async Task RefreshAsync(Guid actor,CoachAccountabilityAgreement row,UserAccount user,CancellationToken ct)
     {
-        if(!await access.CanViewAsync(actor,row.ClientId,actor==row.CoachUserId,ct)||!await access.CanAssignSnapAsync(row.CoachUserId,row.ClientId,ct))throw new UnauthorizedAccessException();
+        if(!await access.CanViewAsync(actor,row.ClientId,await access.CanAssignSnapAsync(actor,row.ClientId,ct),ct))throw new UnauthorizedAccessException();
+        if(!await access.CanAssignSnapAsync(row.CoachUserId,row.ClientId,ct))return;
         if(!await ApprovedAsync(row,ct))return;
         var state=AccountabilityDocument.Parse(row.StateJson);var changes=await SnapDeltaAsync(row,state,actor,ct);
         if(state.Enabled&&state.Rules.Any(x=>x.Assigned))
@@ -123,7 +131,7 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
     }
     public async Task RecordAsync(Guid coach,CoachAccountabilityAgreement row,int expected,Guid requestId,string kind,DateOnly date,decimal amount,string description,CancellationToken ct)
     {
-        if(coach!=row.CoachUserId||!await access.CanAssignSnapAsync(coach,row.ClientId,ct))throw new UnauthorizedAccessException();
+        if(!await access.CanAssignSnapAsync(coach,row.ClientId,ct))throw new UnauthorizedAccessException();
         if(requestId==Guid.Empty||!new[]{"fee","incentive","payment-client","payment-coach"}.Contains(kind)||!AccountabilityDocument.Money(amount)||amount<=0||string.IsNullOrWhiteSpace(description)||description.Length>300)
             throw new ArgumentException("Enter a positive dollar amount and a short description.");
         var source="manual:"+requestId.ToString("N");var signed=kind is "incentive" or "payment-client"?-amount:amount;
@@ -137,7 +145,7 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
     }
     public async Task ReverseAsync(Guid coach,CoachAccountabilityAgreement row,int expected,Guid entryId,string reason,CancellationToken ct)
     {
-        if(coach!=row.CoachUserId||!await access.CanAssignSnapAsync(coach,row.ClientId,ct))throw new UnauthorizedAccessException();
+        if(!await access.CanAssignSnapAsync(coach,row.ClientId,ct))throw new UnauthorizedAccessException();
         if(string.IsNullOrWhiteSpace(reason)||reason.Length>300)throw new ArgumentException("Enter a reason for the correction.");
         var entries=await ReadAsync(row,ct);var original=entries.SingleOrDefault(x=>x.Id==entryId&&!x.Automatic&&!x.SourceKey.StartsWith("reverse:"))??throw new ArgumentException("Choose a manual entry to reverse.");
         var key="reverse:"+entryId.ToString("N");if(entries.Any(x=>x.SourceKey==key))return;

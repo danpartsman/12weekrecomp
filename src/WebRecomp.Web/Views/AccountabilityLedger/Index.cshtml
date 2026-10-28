@@ -13,7 +13,7 @@
 }
 <link rel="stylesheet" href="~/css/coach-ledger.css" asp-append-version="true" />
 <section class="page-header"><p class="eyebrow">SHARED COACH ACCOUNT</p><h1>@Model.ClientName · Fees &amp; incentives</h1><p>A shared record of assessments and payments. Entries remain in posting order, including later corrections.</p></section>
-<p class="ledger-links"><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@Model.ClientId">Snap Workouts</a> <a class="button" asp-controller="AccountabilityPreview" asp-action="Index" asp-route-clientId="@Model.ClientId">Agreement</a>@if(Model.CanRecord){<a class="button" asp-controller="Coach" asp-action="Index">Client list</a>}</p>
+<p class="ledger-links">@if(Model.CanReviewAgreement){<a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@Model.ClientId">Snap Workouts</a> <a class="button" asp-controller="@(Model.CanRecord?"Coach":"AccountabilityPreview")" asp-action="@(Model.CanRecord?"Accountability":"Index")" asp-route-clientId="@Model.ClientId">Agreement</a>} @if(Model.CanRecord){<a class="button" asp-controller="Coach" asp-action="Index">Client list</a>}</p>
 @if(TempData["LedgerStatus"] is string status){<div class="app-message" role="status">@status</div>}
 <section class="card ledger-summary" aria-label="Account balance">
     <div><span>Running balance</span><strong>@Money(Math.Abs(balance))</strong><p>@(balance>0?"Client owes coach":balance<0?"Coach owes client":"Account is settled")</p></div>

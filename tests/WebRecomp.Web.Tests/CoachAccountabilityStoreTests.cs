@@ -1,3 +1,7 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
@@ -187,6 +191,87 @@ public sealed class CoachAccountabilityStoreTests
             await ledger.ReverseAsync(f.Coach,row!,1,entryId,"Entered in error",default);
             var entries=await ledger.ReadAsync(row!,default);Assert.Equal(2,entries.Count);Assert.Equal(0,entries.Sum(x=>x.Amount));
             Assert.Equal(20,entries[0].Amount);Assert.Equal(-20,entries[1].Amount);
+        }
+    }
+    [Theory]
+    [InlineData("coach",true,true)]
+    [InlineData("other",true,false)]
+    [InlineData("owner",false,true)]
+    public async Task LedgerPageOpensForEveryAssignedCoachAndClient(string subject,bool asCoach,bool canReviewAgreement)
+    {
+        var f=await Fixture.Create();using var db=f.Db();
+        await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+        var config=new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ["WEBSITE_SITE_NAME"]="recomp-test" }).Build();
+        var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);
+        var ledger=new AccountabilityLedger(db,access);
+        var controller=new WebRecomp.Web.Controllers.AccountabilityLedgerController(new AppUserContextService(db,config),ledger,access,config);
+        var claims=new List<System.Security.Claims.Claim>{new("sub",subject)};
+        if(asCoach)claims.Add(new(System.Security.Claims.ClaimTypes.Role,"Coach"));
+        controller.ControllerContext=new Microsoft.AspNetCore.Mvc.ControllerContext { HttpContext=new Microsoft.AspNetCore.Http.DefaultHttpContext { User=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(claims,"test")) } };
+        var result=Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(await controller.Index(f.Client,default));
+        var page=Assert.IsType<WebRecomp.Web.Controllers.AccountabilityLedgerPage>(result.Model);
+        Assert.Equal(f.Client,page.ClientId);Assert.Equal(asCoach,page.CanRecord);Assert.Equal(canReviewAgreement,page.CanReviewAgreement);Assert.Empty(page.Entries);
+    }
+    [Fact]
+    public async Task SecondAssignedCoachCanRecordSharedPaymentsButRevokedCoachCannot()
+    {
+        var f=await Fixture.Create();using var db=f.Db();
+        var row=await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+        var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);var ledger=new AccountabilityLedger(db,access);
+        Assert.NotNull(await ledger.AccountAsync(f.OtherCoach,f.Client,true,default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.AccountAsync(f.OtherCoach,f.Client,false,default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.AccountAsync(Guid.NewGuid(),f.Client,true,default));
+        await ledger.RecordAsync(f.OtherCoach,row,row.Revision,Guid.NewGuid(),"payment-client",DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),10,"Payment received",default);
+        var entry=Assert.Single(await ledger.ReadAsync(row,default));Assert.Equal(f.OtherCoach,entry.ActorUserId);Assert.Equal(-10,entry.Amount);
+        await ledger.ReverseAsync(f.OtherCoach,row,row.Revision,entry.Id,"Correction",default);
+        Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        var link=await db.CoachClientRelationships.SingleAsync(x=>x.CoachUserId==f.OtherCoach);link.RevokedAtUtc=DateTime.UtcNow;await db.SaveChangesAsync();
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.AccountAsync(f.OtherCoach,f.Client,true,default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.RecordAsync(f.OtherCoach,row,row.Revision,Guid.NewGuid(),"fee",entry.Date,10,"No longer assigned",default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.ReverseAsync(f.OtherCoach,row,row.Revision,entry.Id,"No longer assigned",default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>f.Store(db).ReadAsync(f.OtherCoach,f.Client,true,default));
+    }
+    [Theory]
+    [InlineData("coach",true)]
+    [InlineData("other",true)]
+    [InlineData("owner",false)]
+    public async Task LedgerHttpRouteRendersForBothCoachesAndClient(string subject,bool canRecord)
+    {
+        var f=await Fixture.Create();
+        using(var db=f.Db())await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+        using var server=new Microsoft.AspNetCore.TestHost.TestServer(new Microsoft.AspNetCore.Hosting.WebHostBuilder()
+            .UseSetting(Microsoft.AspNetCore.Hosting.WebHostDefaults.ApplicationKey,typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly.GetName().Name)
+            .ConfigureAppConfiguration((_,builder)=>builder.AddInMemoryCollection(new Dictionary<string,string?>{["WEBSITE_SITE_NAME"]="recomp-test"}))
+            .ConfigureServices(services=>
+            {
+                services.AddScoped<RecompDbContext>(_=>f.Db());
+                services.AddScoped<AppUserContextService>();services.AddScoped<CoachCenterService>();
+                services.AddScoped<CoachAccountabilityPreviewService>(_=>new CoachAccountabilityPreviewService(_.GetRequiredService<RecompDbContext>(),_.GetRequiredService<CoachCenterService>(),null!));
+                services.AddScoped<CoachAccountabilityStore>();services.AddScoped<AccountabilityLedger>();
+                services.AddAuthentication("ledger-test").AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,LedgerTestAuthentication>("ledger-test",_=>{});
+                services.AddAuthorization();services.AddControllersWithViews().AddApplicationPart(typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly);
+            })
+            .Configure(app=>{app.UseRouting();app.UseAuthentication();app.UseAuthorization();app.UseEndpoints(endpoints=>endpoints.MapControllers());}));
+        using var http=server.CreateClient();http.DefaultRequestHeaders.Add("X-Test-Actor",subject);
+        var response=await http.GetAsync($"/clients/{f.Client}/coach-ledger");
+        Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);
+        var html=await response.Content.ReadAsStringAsync();Assert.Contains("Running balance",html);Assert.Contains("Account history",html);
+        Assert.Equal(canRecord,html.Contains("Record a payment or adjustment"));
+        Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync($"/clients/{Guid.NewGuid()}/coach-ledger")).StatusCode);
+        http.DefaultRequestHeaders.Remove("X-Test-Actor");
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized,(await http.GetAsync($"/clients/{f.Client}/coach-ledger")).StatusCode);
+    }
+    private sealed class LedgerTestAuthentication(Microsoft.Extensions.Options.IOptionsMonitor<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions> options,Microsoft.Extensions.Logging.ILoggerFactory logger,System.Text.Encodings.Web.UrlEncoder encoder)
+        :Microsoft.AspNetCore.Authentication.AuthenticationHandler<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions>(options,logger,encoder)
+    {
+        protected override Task<Microsoft.AspNetCore.Authentication.AuthenticateResult> HandleAuthenticateAsync()
+        {
+            var subject=Request.Headers["X-Test-Actor"].ToString();
+            if(subject=="")return Task.FromResult(Microsoft.AspNetCore.Authentication.AuthenticateResult.NoResult());
+            var claims=new List<System.Security.Claims.Claim>{new("sub",subject)};
+            if(subject!="owner")claims.Add(new(System.Security.Claims.ClaimTypes.Role,"Coach"));
+            var principal=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(claims,Scheme.Name));
+            return Task.FromResult(Microsoft.AspNetCore.Authentication.AuthenticateResult.Success(new Microsoft.AspNetCore.Authentication.AuthenticationTicket(principal,Scheme.Name)));
         }
     }
     private sealed class Fixture
