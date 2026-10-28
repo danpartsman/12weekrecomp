@@ -293,7 +293,8 @@
 
 
 <main class="container">
-    @if (User.Identity?.IsAuthenticated == true && !isPublicPage && !isOnboardingPage) { @await Component.InvokeAsync("PendingSnap") }
+    @if (User.Identity?.IsAuthenticated == true && !isPublicPage && !isOnboardingPage) { <div data-pending-snap-host aria-live="polite">@await Component.InvokeAsync("PendingSnap")</div>
+    <script src="~/js/pending-snap.js" asp-append-version="true" defer></script> }
     @RenderBody()
 </main>
 

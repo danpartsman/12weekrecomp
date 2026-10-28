@@ -8,17 +8,19 @@ public sealed class AccountabilityConflictException() : Exception("This agreemen
 public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabilityPreviewService access, TimeProvider? clock=null, WebRecomp.Web.Services.Notifications.CoachNotificationProcessor? notifications=null, AccountabilityLedger? ledger=null)
 {
     private readonly TimeProvider time=clock??TimeProvider.System;
-    public async Task<CoachAccountabilityAgreement?> ReadAsync(Guid actor,Guid client,bool coachRole,CancellationToken ct)
+    public Task<CoachAccountabilityAgreement?> ReadAsync(Guid actor,Guid client,bool coachRole,CancellationToken ct)=>ReadCoreAsync(actor,client,coachRole,ct,false);
+    public Task<CoachAccountabilityAgreement?> ReadSnapAsync(Guid actor,Guid client,bool coachRole,CancellationToken ct)=>ReadCoreAsync(actor,client,coachRole,ct,true);
+    private async Task<CoachAccountabilityAgreement?> ReadCoreAsync(Guid actor,Guid client,bool coachRole,CancellationToken ct,bool snapAccess)
     {
         if(!await access.CanViewAsync(actor,client,coachRole,ct))throw new UnauthorizedAccessException();
         var row=await db.CoachAccountabilityAgreements.AsNoTracking().SingleOrDefaultAsync(x=>x.ClientId==client,ct);
-        if(row is not null)await AuthorizeRow(row,actor,coachRole,ct);
+        if(row is not null)await AuthorizeRow(row,actor,coachRole,ct,snapAccess);
         return row;
     }
-    private async Task AuthorizeRow(CoachAccountabilityAgreement row,Guid actor,bool coachRole,CancellationToken ct)
+    private async Task AuthorizeRow(CoachAccountabilityAgreement row,Guid actor,bool coachRole,CancellationToken ct,bool snapAccess=false)
     {
         if(!await access.CanAssignSnapAsync(row.CoachUserId,row.ClientId,ct)
-            || !((coachRole&&actor==row.CoachUserId)||await access.CanApproveAsync(actor,row.ClientId,ct)))throw new UnauthorizedAccessException();
+            || !((coachRole&&(actor==row.CoachUserId||(snapAccess&&await access.CanAssignSnapAsync(actor,row.ClientId,ct))))||await access.CanApproveAsync(actor,row.ClientId,ct)))throw new UnauthorizedAccessException();
     }
     public async Task<object> EnvelopeAsync(CoachAccountabilityAgreement? row,CancellationToken ct)
     {
@@ -29,7 +31,7 @@ public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabi
         return new {state=document.RootElement.Clone(),revision=row.Revision,termsVersion=row.TermsVersion,terms=row.TermsJson,
             approval=approved is null?null:new{approvedAt=DateTime.SpecifyKind(approved.ApprovedAtUtc,DateTimeKind.Utc),signedBy=approved.SignedBy,termsVersion=approved.TermsVersion}};
     }
-    public async Task<CoachAccountabilityAgreement> SaveCoachAsync(Guid actor,Guid client,bool coachRole,int expected,string stateJson,string terms,CancellationToken ct)
+    public async Task<CoachAccountabilityAgreement> SaveCoachAsync(Guid actor,Guid client,bool coachRole,int expected,string stateJson,string terms,CancellationToken ct,bool snapOnly=false)
     {
         if(!coachRole||!await access.CanAssignSnapAsync(actor,client,ct))throw new UnauthorizedAccessException();
         var state=AccountabilityDocument.Parse(stateJson);AccountabilityDocument.ValidateTerms(state,terms);
@@ -45,11 +47,12 @@ public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabi
         }
         else
         {
-            await AuthorizeRow(row,actor,coachRole,ct);
-            if(row.CoachUserId!=actor)throw new UnauthorizedAccessException();
+            await AuthorizeRow(row,actor,coachRole,ct,snapOnly);
+            if(!snapOnly&&row.CoachUserId!=actor)throw new UnauthorizedAccessException();
             if(row.Revision!=expected)throw new AccountabilityConflictException();
             // A configuration save cannot silently overwrite completion records saved by the client.
             var before=AccountabilityDocument.Parse(row.StateJson);
+            if(snapOnly&&WithoutSnap(before)!=WithoutSnap(state))throw new ArgumentException("Snap Workout changes cannot change agreement dates, fees or payment settings. Reload the saved agreement.");
             foreach(var pair in before.SnapResults)
             {
                 var replacement=state.SnapWorkouts.SingleOrDefault(w=>w.Id==pair.Key);
@@ -78,8 +81,7 @@ public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabi
     public async Task<CoachAccountabilityAgreement> SaveResultAsync(Guid actor,Guid client,bool coachRole,int expected,string workoutId,string resultJson,CancellationToken ct)
     {
         var row=await db.CoachAccountabilityAgreements.SingleOrDefaultAsync(x=>x.ClientId==client,ct)??throw new ArgumentException("Your coach has not saved an agreement yet.");
-        await AuthorizeRow(row,actor,coachRole,ct);if(row.Revision!=expected)throw new AccountabilityConflictException();
-        if(actor!=row.CoachUserId&&!await access.CanApproveAsync(actor,client,ct))throw new UnauthorizedAccessException();
+        await AuthorizeRow(row,actor,coachRole,ct,true);if(row.Revision!=expected)throw new AccountabilityConflictException();
         var state=AccountabilityDocument.Parse(row.StateJson);AccountabilityResult result;
         try{result=JsonSerializer.Deserialize<AccountabilityResult>(resultJson,AccountabilityDocument.Json)??throw new JsonException();}
         catch(JsonException){throw new ArgumentException("Check completed sets, reps and weight.");}
@@ -110,6 +112,12 @@ public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabi
             await Commit(ct);
         }
         return row;
+    }
+    private static string WithoutSnap(AccountabilityState state)
+    {
+        var node=JsonNode.Parse(AccountabilityDocument.Serialize(state))!.AsObject();
+        node.Remove("snapWorkouts");node.Remove("snapResults");
+        return AccountabilityDocument.Canonical(node.ToJsonString());
     }
     private void Update(CoachAccountabilityAgreement row,Guid actor,string kind,string payload)
     {

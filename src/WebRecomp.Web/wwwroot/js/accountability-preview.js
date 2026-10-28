@@ -206,7 +206,7 @@
         async function load() {
             loaded = false;
             try {
-                const response = await fetch(api + '/state', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
+                const response = await fetch(api + (root.dataset.snapPage === 'true' ? '/snap-state' : '/state'), { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
                 if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error('Could not load the saved coaching agreement. Confirm your coach connection and reload.');
                 acceptEnvelope(await response.json()); loaded = true;
                 const importButton = query('[data-import-browser-draft]');
@@ -403,8 +403,9 @@
             try {
                 const fields = workoutId === null ? { ExpectedRevision: serverRevision, StateJson: JSON.stringify(next), Terms: terms(next) }
                     : { ExpectedRevision: serverRevision, WorkoutId: workoutId, ResultJson: JSON.stringify(next.snapResults[workoutId]) };
-                const result = await post(workoutId === null ? '/state/coach' : '/state/result', fields);
+                const result = await post(workoutId === null ? (root.dataset.snapPage === 'true' ? '/state/snap' : '/state/coach') : '/state/result', fields);
                 acceptEnvelope(result); drawEditor(); drawAgreementEditor(true); render(); drawWeek();
+                window.dispatchEvent(new Event('snap-workouts-changed'));
                 query('[data-snap-status]').textContent = message + (changed ? ' Current terms require client approval.' : '') + ' Saved securely and available on other devices. No payment was collected.';
                 try { localStorage.setItem(key + ':server-change', String(Date.now())); } catch {}
                 return true;

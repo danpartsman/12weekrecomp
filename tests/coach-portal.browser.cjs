@@ -19,7 +19,7 @@ function fixture() {
     while(braces && end<html.length) {if(html[end]==='{')braces++; if(html[end]==='}')braces--;end++;}
     html=html.slice(0,match.index)+html.slice(pos+1,end-1)+html.slice(end); pattern.lastIndex=0;
   }
-  html=html.replace(/<section class="accountability card"[^>]+>/,'<section class="accountability card" data-accountability data-client-id="11111111-1111-1111-1111-111111111111" data-editable="true" data-review-page="true" data-can-assign-snap="true">')
+  html=html.replace(/<section class="accountability card"[^>]+>/,'<section class="accountability card" data-accountability data-client-id="11111111-1111-1111-1111-111111111111" data-editable="true" data-review-page="true" data-can-assign-snap="true" data-snap-page="true">')
     .replaceAll('open="@(!Model.Editable)"','').replaceAll('@Model.ClientId','11111111-1111-1111-1111-111111111111')
     .replace('@(Model.Editable ? "Client agreement" : "Your assigned arrangement")','Client agreement')
     .replace(/<script[^>]*>.*?<\/script>/gs,'');
@@ -41,7 +41,7 @@ function fixture() {
    const json=data=>({ok:true,headers:{get:()=> 'application/json'},json:async()=>data});
    window.fetch=async(url,options={})=>{
     if(options.method==='POST'){
-      const fields=Object.fromEntries(options.body); window.__saves.push(fields);
+      const fields=Object.fromEntries(options.body); window.__saves.push({...fields,__url:url});
       if(fields.StateJson)window.__state=JSON.parse(fields.StateJson);
       if(fields.ResultJson)window.__state.snapResults[fields.WorkoutId]=JSON.parse(fields.ResultJson);
       return json({state:window.__state,revision:++revision,termsVersion:revision,terms:fields.Terms,approval:null});
@@ -63,6 +63,7 @@ function fixture() {
   await page.waitForFunction(()=>window.__saves.length===1);
   await page.waitForFunction(()=>document.querySelector('[data-snap-library-status]').textContent.includes('2 workout(s) assigned'));
   const saved=await page.evaluate(()=>JSON.parse(window.__saves[0].StateJson));
+  assert.equal(await page.evaluate(()=>window.__saves[0].__url),'/accountability-preview/clients/11111111-1111-1111-1111-111111111111/state/snap');
   assert.equal(saved.snapWorkouts.length,2);assert.equal(saved.snapWorkouts[0].cap,75);assert.equal(saved.snapWorkouts[0].exercises[0].rate,.25);
   assert.notEqual(saved.snapWorkouts[0].id,saved.snapWorkouts[1].id);assert.notEqual(saved.snapWorkouts[0].exercises[0].id,'old-exercise');
   assert.equal(saved.snapWorkouts[0].date,'2026-10-27');assert.ok(Date.parse(saved.snapWorkouts[0].deadlineUtc)>Date.parse(saved.snapWorkouts[0].createdAtUtc));

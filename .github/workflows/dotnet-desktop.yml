@@ -71,6 +71,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Grouped navigation check failed." }
           node tests/coach-ledger.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Coach ledger check failed." }
+          node tests/pending-snap.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Pending Snap notice check failed." }
           node tests/coach-portal.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Coach portal assignment check failed." }
           node tests/coach-notifications.browser.cjs

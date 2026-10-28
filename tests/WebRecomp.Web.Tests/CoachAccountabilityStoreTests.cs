@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -239,19 +240,7 @@ public sealed class CoachAccountabilityStoreTests
     {
         var f=await Fixture.Create();
         using(var db=f.Db())await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
-        using var server=new Microsoft.AspNetCore.TestHost.TestServer(new Microsoft.AspNetCore.Hosting.WebHostBuilder()
-            .UseSetting(Microsoft.AspNetCore.Hosting.WebHostDefaults.ApplicationKey,typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly.GetName().Name)
-            .ConfigureAppConfiguration((_,builder)=>builder.AddInMemoryCollection(new Dictionary<string,string?>{["WEBSITE_SITE_NAME"]="recomp-test"}))
-            .ConfigureServices(services=>
-            {
-                services.AddScoped<RecompDbContext>(_=>f.Db());
-                services.AddScoped<AppUserContextService>();services.AddScoped<CoachCenterService>();
-                services.AddScoped<CoachAccountabilityPreviewService>(_=>new CoachAccountabilityPreviewService(_.GetRequiredService<RecompDbContext>(),_.GetRequiredService<CoachCenterService>(),null!));
-                services.AddScoped<CoachAccountabilityStore>();services.AddScoped<AccountabilityLedger>();
-                services.AddAuthentication("ledger-test").AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,LedgerTestAuthentication>("ledger-test",_=>{});
-                services.AddAuthorization();services.AddControllersWithViews().AddApplicationPart(typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly);
-            })
-            .Configure(app=>{app.UseRouting();app.UseAuthentication();app.UseAuthorization();app.UseEndpoints(endpoints=>endpoints.MapControllers());}));
+        using var server=CreateServer(f);
         using var http=server.CreateClient();http.DefaultRequestHeaders.Add("X-Test-Actor",subject);
         var response=await http.GetAsync($"/clients/{f.Client}/coach-ledger");
         Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);
@@ -260,6 +249,86 @@ public sealed class CoachAccountabilityStoreTests
         Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync($"/clients/{Guid.NewGuid()}/coach-ledger")).StatusCode);
         http.DefaultRequestHeaders.Remove("X-Test-Actor");
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized,(await http.GetAsync($"/clients/{f.Client}/coach-ledger")).StatusCode);
+    }
+    private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f)
+    {
+        return new Microsoft.AspNetCore.TestHost.TestServer(new Microsoft.AspNetCore.Hosting.WebHostBuilder()
+            .UseSetting(Microsoft.AspNetCore.Hosting.WebHostDefaults.ApplicationKey,typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly.GetName().Name)
+            .ConfigureAppConfiguration((_,builder)=>builder.AddInMemoryCollection(new Dictionary<string,string?>{["WEBSITE_SITE_NAME"]="recomp-test"}))
+            .ConfigureServices(services=>
+            {
+                services.AddScoped<RecompDbContext>(_=>f.Db());
+                services.AddScoped<AppUserContextService>();services.AddScoped<CoachCenterService>();
+                services.AddScoped<CoachAccountabilityPreviewService>(_=>new CoachAccountabilityPreviewService(_.GetRequiredService<RecompDbContext>(),_.GetRequiredService<CoachCenterService>(),null!));
+                services.AddScoped<CoachAccountabilityStore>();services.AddScoped<AccountabilityLedger>();
+                services.AddRateLimiter(o=>o.AddConcurrencyLimiter("access-code",p=>p.PermitLimit=100));
+                services.AddAuthentication("ledger-test").AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,LedgerTestAuthentication>("ledger-test",_=>{});
+                services.AddAuthorization();services.AddControllersWithViews().AddApplicationPart(typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly).AddControllersAsServices();
+                services.AddTransient<WebRecomp.Web.Controllers.AccountabilityPreviewController>(provider=>new(provider.GetRequiredService<AppUserContextService>(),provider.GetRequiredService<CoachAccountabilityPreviewService>(),null!,null!,provider.GetRequiredService<IConfiguration>(),provider.GetRequiredService<CoachAccountabilityStore>()));
+            })
+            .Configure(app=>{app.UseRouting();app.UseAuthentication();app.UseAuthorization();app.UseRateLimiter();app.UseEndpoints(endpoints=>endpoints.MapControllers());}));
+    }
+    [Fact]
+    public async Task SecondCoachAssignmentAppearsInClientPortalAndStaysUntilCompleted()
+    {
+        var f=await Fixture.Create();var workout=f.State.SnapWorkouts.Single();f.State.SnapWorkouts=[];
+        using(var db=f.Db())await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+        using var server=CreateServer(f);using var http=server.CreateClient();
+        void Actor(string name){http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor",name);}
+        Actor("other");
+        var page=await http.GetAsync($"/clients/{f.Client}/coach-ledger");var html=await page.Content.ReadAsStringAsync();
+        var token=System.Text.RegularExpressions.Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;Assert.NotEmpty(token);
+        http.DefaultRequestHeaders.Add("Cookie",string.Join("; ",page.Headers.GetValues("Set-Cookie").Select(x=>x.Split(';')[0])));
+        var stateResponse=await http.GetAsync($"/accountability-preview/clients/{f.Client}/snap-state");Assert.Equal(System.Net.HttpStatusCode.OK,stateResponse.StatusCode);
+        f.State.SnapWorkouts.Add(workout);
+        var save=await http.PostAsync($"/accountability-preview/clients/{f.Client}/state/snap",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["ExpectedRevision"]="1",["StateJson"]=AccountabilityDocument.Serialize(f.State),["Terms"]=AccountabilityDocument.ExpectedTerms(f.State)}));
+        Assert.Equal(System.Net.HttpStatusCode.OK,save.StatusCode);
+        using(var db=f.Db()){var row=await db.CoachAccountabilityAgreements.SingleAsync();Assert.Equal(f.Coach,row.CoachUserId);Assert.Contains(await db.CoachAccountabilityEvents.ToListAsync(),x=>x.ActorUserId==f.OtherCoach&&x.Kind=="CONFIG");}
+        Actor("owner");
+        async Task<int> Pending()
+        {
+            var response=await http.GetAsync("/my-coach/pending-snaps");Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);
+            using var json=JsonDocument.Parse(await response.Content.ReadAsStringAsync());Assert.Equal(f.Client,json.RootElement.GetProperty("clientId").GetGuid());return json.RootElement.GetProperty("workouts").GetArrayLength();
+        }
+        Assert.Equal(1,await Pending());
+        var portal=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger");Assert.Contains("data-pending-workout=\"workout-1\"",portal);Assert.Contains("pending-snap.js",portal);
+        async Task Results(int reps)
+        {
+            Actor("other");f.Result.Sets["exercise-1"][0].Reps=reps;
+            int revision;using(var db=f.Db())revision=(await db.CoachAccountabilityAgreements.SingleAsync()).Revision;
+            var response=await http.PostAsync($"/accountability-preview/clients/{f.Client}/state/result",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["ExpectedRevision"]=revision.ToString(),["WorkoutId"]=workout.Id,["ResultJson"]=JsonSerializer.Serialize(f.Result,AccountabilityDocument.Json)}));
+            Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);Actor("owner");
+        }
+        await Results(9);Assert.Equal(1,await Pending());await Results(10);Assert.Equal(0,await Pending());
+        Assert.DoesNotContain("data-pending-workout=",await http.GetStringAsync($"/clients/{f.Client}/coach-ledger"));
+    }
+    [Fact]
+    public async Task SnapAssignmentCannotChangeFeesAndRevokedCoachCannotAssign()
+    {
+        var f=await Fixture.Create();using var db=f.Db();var store=f.Store(db);
+        var row=await store.SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+        var altered=AccountabilityDocument.Parse(row.StateJson);altered.Payment.Amount=999;
+        await Assert.ThrowsAsync<ArgumentException>(()=>store.SaveCoachAsync(f.OtherCoach,f.Client,true,row.Revision,AccountabilityDocument.Serialize(altered),AccountabilityDocument.ExpectedTerms(altered),default,snapOnly:true));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>store.ReadSnapAsync(Guid.NewGuid(),f.Client,true,default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>store.SaveCoachAsync(f.Owner,f.Client,false,row.Revision,row.StateJson,row.TermsJson,default,snapOnly:true));
+        var link=await db.CoachClientRelationships.SingleAsync(x=>x.CoachUserId==f.OtherCoach);link.RevokedAtUtc=DateTime.UtcNow;await db.SaveChangesAsync();
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>store.ReadSnapAsync(f.OtherCoach,f.Client,true,default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>store.SaveCoachAsync(f.OtherCoach,f.Client,true,row.Revision,row.StateJson,row.TermsJson,default,snapOnly:true));
+    }
+    [Fact]
+    public async Task FeesAndPaymentsAreSeparateForEachClient()
+    {
+        var f=await Fixture.Create();using var db=f.Db();var second=Guid.NewGuid();
+        db.Clients.Add(new(){ClientId=second,ClientName="Separate client"});db.CoachClientRelationships.Add(new(){CoachClientRelationshipId=Guid.NewGuid(),CoachUserId=f.Coach,ClientId=second,StatusCode="ACTIVE"});await db.SaveChangesAsync();
+        var store=f.Store(db);var state=AccountabilityDocument.Serialize(f.State);var terms=AccountabilityDocument.ExpectedTerms(f.State);
+        var firstRow=await store.SaveCoachAsync(f.Coach,f.Client,true,0,state,terms,default);var secondRow=await store.SaveCoachAsync(f.Coach,second,true,0,state,terms,default);
+        var ledger=new AccountabilityLedger(db,new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!));var day=DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));var sameRequest=Guid.NewGuid();
+        await ledger.RecordAsync(f.Coach,firstRow,firstRow.Revision,sameRequest,"fee",day,20,"First client fee",default);
+        await ledger.RecordAsync(f.Coach,secondRow,secondRow.Revision,sameRequest,"fee",day,75,"Second client fee",default);
+        await ledger.RecordAsync(f.Coach,firstRow,firstRow.Revision,Guid.NewGuid(),"payment-client",day,5,"First client payment",default);
+        Assert.Equal(15,(await ledger.ReadAsync(firstRow,default)).Sum(x=>x.Amount));Assert.Equal(75,(await ledger.ReadAsync(secondRow,default)).Sum(x=>x.Amount));
+        Assert.All(await ledger.ReadAsync(firstRow,default),x=>Assert.DoesNotContain("Second client",x.Description));Assert.Single(await ledger.ReadAsync(secondRow,default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.AccountAsync(f.Owner,second,false,default));
     }
     private sealed class LedgerTestAuthentication(Microsoft.Extensions.Options.IOptionsMonitor<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions> options,Microsoft.Extensions.Logging.ILoggerFactory logger,System.Text.Encodings.Web.UrlEncoder encoder)
         :Microsoft.AspNetCore.Authentication.AuthenticationHandler<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions>(options,logger,encoder)

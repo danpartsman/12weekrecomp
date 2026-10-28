@@ -32,7 +32,7 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
         var name = await preview.ClientNameAsync(clientId, ct); if (name is null) return NotFound();
         return View(new AccountabilityPreviewViewModel(clientId, name, CanApprove: await preview.CanApproveAsync(user.UserId, clientId, ct),
             ReviewPage: true, CanAssignSnap: CoachRole && await preview.CanAssignSnapAsync(user.UserId, clientId, ct),
-            SimpleSnap: CoachRole && await preview.CanAssignSnapAsync(user.UserId, clientId, ct)));
+            SimpleSnap: CoachRole && await preview.CanAssignSnapAsync(user.UserId, clientId, ct), SnapPage: true));
     }
     [HttpGet("snap-library")]
     public async Task<IActionResult> SnapLibrary(Guid clientId, [FromServices] SnapWorkoutLibrary library, CancellationToken ct)
@@ -87,6 +87,25 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
         var user = (await users.GetAsync(HttpContext, ct)).User;
         try { return Json(await store!.EnvelopeAsync(await store.ReadAsync(user.UserId, clientId, CoachRole, ct), ct)); }
         catch (UnauthorizedAccessException) { return NotFound(); }
+    }
+    [HttpGet("snap-state")]
+    public async Task<IActionResult> SnapState(Guid clientId,CancellationToken ct)
+    {
+        if(!Enabled)return NotFound();
+        var user=(await users.GetAsync(HttpContext,ct)).User;
+        try{return Json(await store!.EnvelopeAsync(await store.ReadSnapAsync(user.UserId,clientId,CoachRole,ct),ct));}
+        catch(UnauthorizedAccessException){return NotFound();}
+    }
+    [HttpPost("state/snap"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(4194304)]
+    public async Task<IActionResult> SaveSnap(Guid clientId,SaveStateInput input,CancellationToken ct)
+    {
+        if(!Enabled)return NotFound();
+        if(!ModelState.IsValid)return BadRequest(new{error="Check workout fields."});
+        var user=(await users.GetAsync(HttpContext,ct)).User;
+        try{return Json(await store!.EnvelopeAsync(await store.SaveCoachAsync(user.UserId,clientId,CoachRole,input.ExpectedRevision,input.StateJson,input.Terms,ct,snapOnly:true),ct));}
+        catch(UnauthorizedAccessException){return NotFound();}
+        catch(AccountabilityConflictException e){return Conflict(new{error=e.Message});}
+        catch(ArgumentException e){return BadRequest(new{error=e.Message});}
     }
     [HttpPost("state/coach"), ValidateAntiForgeryToken, EnableRateLimiting("access-code"), RequestSizeLimit(4194304)]
     public async Task<IActionResult> SaveCoach(Guid clientId, SaveStateInput input, CancellationToken ct)
