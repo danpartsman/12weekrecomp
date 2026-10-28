@@ -464,13 +464,13 @@
             if (!state.snapWorkouts.length) { container.append(el('p', 'No Snap Workouts assigned yet.')); return; }
             const week = evidence?.days?.length ? evidence.days : null, assessed = evidence ? assessSnap(state, evidence) : [];
             [...state.snapWorkouts].sort((a, b) => b.date.localeCompare(a.date)).forEach(w => {
-                const article = el('details', undefined, 'snap-assignment'); article.id = 'snap-' + w.id; article.append(el('summary', `${w.name} · ${dayLabel(w.date)} · ${snapCompleted(w, state.snapResults[w.id]) ? 'Completed' : 'To complete'}`), el('p', `Assessment cap ${money(w.cap)} per type for this workout${state.excused[w.date] ? ' · EXCUSED: no assessment' : ''}.`));
+                const article = el('details', undefined, 'snap-assignment'); article.id = 'snap-' + w.id; article.append(el('summary', `${w.name} · ${dayLabel(w.date)} · ${snapCompleted(w, state.snapResults[w.id]) ? 'Completed' : state.snapResults[w.id]?.finalized ? 'Submitted · targets incomplete' : state.snapResults[w.id] ? 'Progress saved' : 'To complete'}`), el('p', `Assessment cap ${money(w.cap)} per type for this workout${state.excused[w.date] ? ' · EXCUSED: no assessment' : ''}.`));
                 if (w.completionReward) article.append(el('p', `Whole-workout completion reward ${money(w.completionReward)}. Exercise extra-rep rewards are added separately, within the total incentive cap.`));
                 assessed.filter(x => x.id === `snap-${w.id}-completion`).forEach(row => article.append(el('p', row.reason)));
                 article.append(el('p', w.deadlineUtc ? `Completion deadline: ${wallTime(w.deadlineUtc, zone).replace('T', ' ')} (${zone}).` : 'Earlier assignment: no deadline was configured.'));
                 if (week && (w.date < week[0].date || w.date > week.at(-1).date)) article.append(el('p', 'Outside the selected weekly total. Choose this assignment’s week to view its assessment.'));
                 const resultForm = el('form'), previous = state.snapResults[w.id], canRecord = canRecordSnap && today && w.date <= today;
-                const recordBodies = {}, rowCounts = {};
+                const recordBodies = {}, rowCounts = {}, quickEntries = {};
                 function drawSetRows(e, records) {
                     const body = recordBodies[e.id]; body.replaceChildren(); rowCounts[e.id] = records.length;
                     records.forEach((saved, i) => {
@@ -491,12 +491,15 @@
                         [setsInput, repsInput, weightInput].forEach(n => { n.required = false; });
                         [['Completed sets', setsInput], ['Reps per completed set', repsInput], ['Weight used (lb)', weightInput]].forEach(([text, n]) => { const label = el('label', text); label.append(n); quick.append(label); });
                         const apply = el('button', 'Apply completed sets / reps / weight'); apply.type = 'button'; apply.dataset.snapQuickApply = e.id;
-                        apply.addEventListener('click', () => {
-                            if ([setsInput, repsInput, weightInput].some(n => n.value === '' || !n.reportValidity())) { query('[data-snap-status]').textContent = 'Enter valid completed sets, reps and weight before applying.'; return; }
+                        let dirty = false; [setsInput,repsInput,weightInput].forEach(n => n.addEventListener('input', () => { dirty = true; }));
+                        const applyQuick = () => {
+                            if ([setsInput, repsInput, weightInput].some(n => n.value === '' || !n.reportValidity())) { query('[data-snap-status]').textContent = 'Enter valid completed sets, reps and weight before applying.'; return false; }
                             const count = Number(setsInput.value), reps = Number(repsInput.value), weight = Number(weightInput.value);
                             drawSetRows(e, Array.from({ length: Math.max(e.sets, count) }, (_, i) => i < count ? { reps, weight } : { reps: 0, weight: 0 }));
-                            query('[data-snap-status]').textContent = 'Set rows filled. Review them and save the workout results.';
-                        }); quick.append(apply); section.append(quick);
+                            dirty = false; query('[data-snap-status]').textContent = 'Set rows filled. Review them and save the workout results.'; return true;
+                        };
+                        quickEntries[e.id] = () => !dirty || applyQuick();
+                        apply.addEventListener('click', applyQuick); quick.append(apply); section.append(quick);
                     }
                     const wrapper = el('div', undefined, 'accountability-scroll'), table = el('table'), heading = el('thead'), headRow = el('tr');
                     ['Set', 'Target reps', 'Prescribed / max lb', 'Completed reps', 'Used lb'].forEach(text => headRow.append(el('th', text))); heading.append(headRow); table.append(heading); const body = el('tbody'); recordBodies[e.id] = body;
@@ -505,13 +508,18 @@
                     resultForm.append(section);
                 });
                 if (canRecord) {
-                    const finalLabel = el('label', undefined, 'accountability-enable'), finalized = el('input'); finalized.type = 'checkbox'; finalized.name = 'finalized'; finalized.checked = !!previous?.finalized; finalLabel.append(finalized, el('span', 'Finished — these are the final recorded sets.'));
                     const completionLabel = el('label', `Completion date and time (${zone})`), completionInput = el('input'); completionInput.type = 'datetime-local'; completionInput.name = 'completedAt'; completionInput.value = wallTime(previous?.completedAtUtc || serverNow(), zone); let editedTime = !!previous?.completedAtUtc; completionInput.addEventListener('input', () => { editedTime = true; }); completionLabel.append(completionInput);
-                    resultForm.append(finalLabel, completionLabel, el('p', 'Enter reps and weight for every set before marking finished. Use 0 reps for an uncompleted set. Quick entry can include extra sets; individual rows can be adjusted.'));
-                    const save = el('button', 'Save workout results'); save.type = 'submit'; resultForm.append(save);
+                    resultForm.append(completionLabel, el('p', 'Enter reps and weight for every set before marking finished. Use 0 reps for an uncompleted set. Quick entry can include extra sets; individual rows can be adjusted.'));
+                    const save = el('button', previous?.finalized ? 'Save updated results' : 'Save progress'); save.type = 'submit';
+                    const finish = el('button', 'Finish workout'); finish.type = 'submit'; finish.dataset.snapFinish = 'true';
+                    const feedback = el('p'); feedback.dataset.snapResultStatus = 'true'; feedback.setAttribute('role','status'); feedback.tabIndex = -1;
+                    resultForm.append(save, finish, feedback);
+                    const resultNotice = text => { const node = document.getElementById(article.id)?.querySelector('[data-snap-result-status]') || feedback; node.textContent = text; node.focus(); };
                     resultForm.addEventListener('submit', async event => {
-                        event.preventDefault(); if (!resultForm.reportValidity()) return;
-                        const result = { finalized: finalized.checked, sets: {} };
+                        event.preventDefault();
+                        if (Object.values(quickEntries).some(apply => !apply())) { resultNotice('Complete sets, reps and weight in quick entry before saving.'); return; }
+                        if (!resultForm.reportValidity()) return;
+                        const result = { finalized: event.submitter?.dataset.snapFinish === 'true' || !!previous?.finalized, sets: {} };
                         if (result.finalized) {
                             if (!editedTime) completionInput.value = wallTime(serverNow(), zone);
                             const completed = editedTime ? wallToUtc(completionInput.value, zone, w.createdAtUtc ? Date.parse(w.createdAtUtc) - 60000 : null) : new Date(serverNow()).toISOString();
@@ -519,8 +527,12 @@
                             result.completedAtUtc = completed;
                         }
                         for (const e of w.exercises) result.sets[e.id] = Array.from({ length: rowCounts[e.id] }, (_, i) => { const get = field => { const value = resultForm.elements[`${e.id}-${i}-${field}`].value; return value === '' ? null : Number(value); }; return { reps: get('reps'), weight: get('weight') }; });
-                        if (result.finalized && Object.values(result.sets).some(sets => sets.some(set => set.reps === null || set.weight === null))) { query('[data-snap-status]').textContent = 'Final results need reps and weight for every set. Enter 0 reps for an uncompleted set, or save progress.'; return; }
-                        await persistSnap({ ...state, snapResults: { ...state.snapResults, [w.id]: result } }, 'Workout results saved. Weekly penalties and rewards updated.', w.id);
+                        if (result.finalized && Object.values(result.sets).some(sets => sets.some(set => set.reps === null || set.weight === null))) { resultNotice('Enter reps and weight for every set. Use 0 reps for an uncompleted set, or Save progress to continue later.'); return; }
+                        save.disabled = finish.disabled = true;
+                        try {
+                            const saved = await persistSnap({ ...state, snapResults: { ...state.snapResults, [w.id]: result } }, 'Workout results saved and visible to your coach.', w.id);
+                            resultNotice(saved ? (result.finalized ? 'Finished and sent to your coach.' : 'Progress saved and visible to your coach.') + (!serverApproval ? ' Agreement approval is only needed before automatic fees and incentives post.' : '') : query('[data-snap-status]').textContent);
+                        } finally { save.disabled = finish.disabled = false; }
                     });
                 } else if (w.date > today) resultForm.append(el('p', 'Record results on or after the assignment date.'));
                 else if (previous?.completedAtUtc) resultForm.append(el('p', `Completed: ${wallTime(previous.completedAtUtc, zone).replace('T', ' ')} (${zone}).`));

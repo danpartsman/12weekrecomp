@@ -300,6 +300,15 @@ public sealed class CoachAccountabilityStoreTests
             Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);Actor("owner");
         }
         await Results(9);Assert.Equal(1,await Pending());await Results(10);Assert.Equal(0,await Pending());
+        using(var db=f.Db())
+        {
+            Assert.Empty(await db.CoachAccountabilityApprovals.ToListAsync());
+            foreach(var coach in new[]{f.Coach,f.OtherCoach})
+            {
+                var status=(await new CoachCenterService(db).SnapStatusesAsync(coach,default))[f.Client];
+                Assert.Equal(1,status.Submitted);Assert.Equal(1,status.Completed);Assert.Equal("Completed",status.Status);
+            }
+        }
         Assert.DoesNotContain("data-pending-workout=",await http.GetStringAsync($"/clients/{f.Client}/coach-ledger"));
     }
     [Fact]

@@ -15,17 +15,34 @@ public sealed class CoachCenterService(RecompDbContext db)
         db.CoachClientRelationships.AnyAsync(x => x.CoachUserId == coachUserId && x.ClientId == clientId
             && x.StatusCode == "ACTIVE" && x.RevokedAtUtc == null, ct);
 
+    public async Task<Dictionary<Guid,CoachSnapStatus>> SnapStatusesAsync(Guid coach,CancellationToken ct)
+    {
+        var ids=from link in db.CoachClientRelationships join client in db.Clients on link.ClientId equals client.ClientId
+                where link.CoachUserId==coach&&link.StatusCode=="ACTIVE"&&link.RevokedAtUtc==null&&client.ClientStatusCode=="ACTIVE" select client.ClientId;
+        var rows=await db.CoachAccountabilityAgreements.AsNoTracking().Where(x=>ids.Contains(x.ClientId)).Select(x=>new{x.ClientId,x.StateJson}).ToListAsync(ct);
+        return rows.ToDictionary(x=>x.ClientId,x=>SnapStatus(AccountabilityDocument.Parse(x.StateJson)));
+    }
+    public static CoachSnapStatus SnapStatus(AccountabilityState state)
+    {
+        var ordered=state.SnapWorkouts.OrderByDescending(w=>state.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true)
+            .ThenByDescending(w=>state.SnapResults.GetValueOrDefault(w.Id)?.CompletedAtUtc).ThenByDescending(w=>w.Date).ThenByDescending(w=>w.CreatedAtUtc).ToList();
+        var latest=ordered.FirstOrDefault();var result=latest is null?null:state.SnapResults.GetValueOrDefault(latest.Id);
+        return new(state.SnapWorkouts.Count,state.SnapWorkouts.Count(w=>state.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true),
+            state.SnapWorkouts.Count(w=>SnapWorkoutLibrary.Completed(w,state.SnapResults.GetValueOrDefault(w.Id))),latest?.Id,latest?.Name,
+            latest is null?null:SnapWorkoutLibrary.Completed(latest,result)?"Completed":result?.Finalized==true?"Submitted · targets incomplete":result is not null?"Progress saved":"Assigned");
+    }
     public async Task<CoachCenterViewModel> BuildAsync(UserAccount user, CancellationToken ct)
     {
         var profile = await db.CoachProfiles.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user.UserId, ct);
         var ids = db.CoachClientRelationships.Where(x => x.CoachUserId == user.UserId && x.StatusCode == "ACTIVE" && x.RevokedAtUtc == null).Select(x => x.ClientId);
         var clients = await db.Clients.AsNoTracking().Where(x => ids.Contains(x.ClientId) && x.ClientStatusCode == "ACTIVE").OrderBy(x => x.ClientName).ToListAsync(ct);
+        var snaps=await SnapStatusesAsync(user.UserId,ct);
         var roster = new List<CoachRosterClient>();
         foreach (var client in clients)
         {
             var goal = await db.Programs.Where(x => x.ClientId == client.ClientId && x.ProgramStatusCode == "ACTIVE").OrderByDescending(x => x.StartDate).Select(x => x.GoalCode).FirstOrDefaultAsync(ct);
             var last = await db.WorkoutSessions.Where(x => x.ClientId == client.ClientId && x.CompletedFlag).OrderByDescending(x => x.WorkoutDate).Select(x => (DateOnly?)x.WorkoutDate).FirstOrDefaultAsync(ct);
-            roster.Add(new(client.ClientId, client.ClientName, goal, last));
+            roster.Add(new(client.ClientId, client.ClientName, goal, last){Snap=snaps.GetValueOrDefault(client.ClientId)??new()});
         }
         return new(new() { DisplayName = profile?.DisplayName ?? user.PreferredDisplayName ?? user.DisplayName ?? "Coach", Bio = profile?.Bio, Specialties = profile?.Specialties }, roster,
             await db.CoachClientRelationships.CountAsync(x => x.CoachUserId == user.UserId && x.StatusCode == "INVITED" && x.InviteExpiresAtUtc > DateTime.UtcNow, ct));

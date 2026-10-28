@@ -82,9 +82,8 @@ function fixture() {
     await article.locator('input[name="'+exerciseId+'-0-weight"]').fill('20');
     await article.locator('input[name="'+exerciseId+'-1-reps"]').fill('10');
     await article.locator('input[name="'+exerciseId+'-1-weight"]').fill('20');
-    await article.locator('input[name=finalized]').check();
     const before=await page.evaluate(()=>window.__saves.length);
-    await article.getByRole('button',{name:'Save workout results',exact:true}).click();
+    await article.getByRole('button',{name:'Finish workout',exact:true}).click();
     await page.waitForFunction(before=>window.__saves.length>before,before);
     await page.waitForFunction(()=>document.querySelector('[data-snap-status]').textContent.includes('Workout results saved'));
   }

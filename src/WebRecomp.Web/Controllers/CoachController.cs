@@ -17,6 +17,13 @@ public sealed class CoachController(RecompDbContext db, AppUserContextService us
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct) => View(await coaches.BuildAsync((await users.GetAsync(HttpContext, ct)).User, ct));
 
+    [HttpGet("snap-status")]
+    public async Task<IActionResult> SnapStatus(CancellationToken ct)
+    {
+        var user=(await users.GetAsync(HttpContext,ct)).User;
+        return Json((await coaches.SnapStatusesAsync(user.UserId,ct)).Select(x=>new{clientId=x.Key,snap=x.Value}));
+    }
+
     [HttpPost("profile"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Profile(CoachProfileInput input, CancellationToken ct)
     {
