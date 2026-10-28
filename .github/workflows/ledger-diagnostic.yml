@@ -33,7 +33,14 @@ jobs:
           if(!$connection){$connection=$env:SQLCONNSTR_RecompDatabase}
           if(!$connection){$connection=$env:CUSTOMCONNSTR_RecompDatabase}
           if(!$connection){$connection=$env:ConnectionStrings__RecompDatabase}
-          $db=New-Object System.Data.SqlClient.SqlConnection($connection)
+          $builder=New-Object System.Data.Common.DbConnectionStringBuilder
+          $builder.ConnectionString=$connection
+          $builder.Remove('Authentication') | Out-Null
+          $builder.Remove('User Id') | Out-Null
+          $builder.Remove('Password') | Out-Null
+          $identity=Invoke-RestMethod -Uri ($env:IDENTITY_ENDPOINT+'?resource=https%3A%2F%2Fdatabase.windows.net%2F&api-version=2019-08-01') -Headers @{'X-IDENTITY-HEADER'=$env:IDENTITY_HEADER}
+          $db=New-Object System.Data.SqlClient.SqlConnection($builder.ConnectionString)
+          $db.AccessToken=$identity.access_token
           $db.Open()
           $cmd=$db.CreateCommand()
           $cmd.CommandText="SELECT 'agreement' AS kind, CONVERT(varchar(36),CoachUserId) AS actor FROM app.CoachAccountabilityAgreements WHERE ClientId='6f156c0a-feed-47a4-b832-e9581aa81ad4' UNION ALL SELECT 'active-coach',CONVERT(varchar(36),CoachUserId) FROM app.CoachClientRelationships WHERE ClientId='6f156c0a-feed-47a4-b832-e9581aa81ad4' AND StatusCode='ACTIVE' AND RevokedAtUtc IS NULL UNION ALL SELECT 'active-owner',CONVERT(varchar(36),UserId) FROM app.UserClientAccess WHERE ClientId='6f156c0a-feed-47a4-b832-e9581aa81ad4' AND AccessRoleCode='OWNER' AND RevokedAtUtc IS NULL"
