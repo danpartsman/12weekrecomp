@@ -163,3 +163,16 @@ test('custom cent amounts remain valid and are included in the client approval t
     s.rules[1].amount=3.251;assert.equal(valid(s),false);
     s.rules[1].amount=10000.01;assert.equal(valid(s),false);
 });
+test('typed Snap exercises use a weight ceiling without changing earlier prescribed-weight rules', () => {
+    const {s,evidence}=rewardedSnap();const w=s.snapWorkouts[0], e=w.exercises[0];
+    e.catalogId='';e.weight=0;e.maxWeight=25;e.sets=2;e.reps=10;
+    s.snapResults[w.id].sets[e.id]=[{reps:10,weight:20},{reps:10,weight:25}];
+    assert.equal(valid(s),true);
+    const {snapCompleted}=require('../src/WebRecomp.Web/wwwroot/js/accountability-preview.js');
+    assert.equal(snapCompleted(w,s.snapResults[w.id]),true);
+    const within=terms(s);e.maxWeight=30;assert.notEqual(terms(s),within);e.maxWeight=25;
+    s.snapResults[w.id].sets[e.id][1].weight=26;
+    assert.equal(snapCompleted(w,s.snapResults[w.id]),false);
+    assert.equal(require('../src/WebRecomp.Web/wwwroot/js/accountability-preview.js').assessSnap(s,evidence).find(row=>row.id===`snap-${w.id}-${e.id}`).completedSets,1);
+    e.maxWeight=-1;assert.equal(valid(s),false);delete e.maxWeight;assert.equal(valid(s),false);
+});

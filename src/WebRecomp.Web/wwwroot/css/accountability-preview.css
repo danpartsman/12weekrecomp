@@ -20,3 +20,20 @@
 .snap-assignment > summary {cursor:pointer;font-weight:700;overflow-wrap:anywhere;}
 .snap-assignment input[type=datetime-local] {max-width:100%;min-width:0;box-sizing:border-box;}
 @media(max-width:600px){.accountability-heading{align-items:flex-start;flex-wrap:wrap;}.accountability-fields{grid-template-columns:minmax(0,1fr);}.snap-workout{padding:12px;}.snap-assignment{padding:12px;}}
+
+/* Simple coach assignment page; full agreement and review remain in the client agreement page. */
+.accountability[data-simple-snap=true] > :not([data-snap-panel]):not([data-snap-page-controls]) {display:none!important;}
+.accountability[data-simple-snap=true] > [data-snap-panel] {border:0;padding:0;margin:0;}
+.accountability[data-simple-snap=true] > [data-snap-panel] > summary,.accountability[data-simple-snap=true] .snap-workout > .accountability-heading {display:none;}
+.accountability[data-simple-snap=true] .snap-workout {border:0;padding:0;margin:0;}
+.snap-simple-exercises {display:grid;gap:16px;margin:16px 0;}
+.snap-simple-exercise {border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0;}
+.snap-simple-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
+.snap-simple-targets {display:grid;grid-template-columns:minmax(220px,3fr) repeat(3,minmax(85px,1fr));gap:12px;}
+.snap-simple-targets label {display:grid;gap:6px;min-width:0;}
+.snap-simple-targets input {width:100%;min-width:0;}
+.snap-simple-fees {margin-top:16px;border-top:1px solid var(--line);padding-top:12px;}
+.snap-simple-fees > summary {cursor:pointer;font-weight:700;}
+.snap-simple-fees[open] > summary {margin-bottom:12px;}
+@media(max-width:800px){.snap-simple-targets{grid-template-columns:repeat(3,minmax(0,1fr));}.snap-simple-targets label:first-child{grid-column:1/-1;}}
+@media(max-width:450px){.snap-simple-exercise{padding:12px;}.snap-simple-targets{grid-template-columns:minmax(0,1fr);}.snap-simple-targets label:first-child{grid-column:auto;}}

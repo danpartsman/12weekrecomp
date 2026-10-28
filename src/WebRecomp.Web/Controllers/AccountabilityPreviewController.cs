@@ -31,7 +31,8 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
         if (!await preview.CanViewAsync(user.UserId, clientId, CoachRole, ct)) return NotFound();
         var name = await preview.ClientNameAsync(clientId, ct); if (name is null) return NotFound();
         return View(new AccountabilityPreviewViewModel(clientId, name, CanApprove: await preview.CanApproveAsync(user.UserId, clientId, ct),
-            ReviewPage: true, CanAssignSnap: CoachRole && await preview.CanAssignSnapAsync(user.UserId, clientId, ct)));
+            ReviewPage: true, CanAssignSnap: CoachRole && await preview.CanAssignSnapAsync(user.UserId, clientId, ct),
+            SimpleSnap: CoachRole && await preview.CanAssignSnapAsync(user.UserId, clientId, ct)));
     }
     [HttpGet("snap-library")]
     public async Task<IActionResult> SnapLibrary(Guid clientId, [FromServices] SnapWorkoutLibrary library, CancellationToken ct)

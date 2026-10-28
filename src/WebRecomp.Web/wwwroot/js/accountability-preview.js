@@ -104,8 +104,8 @@
         if (new Set(workouts.map(w => w.id)).size !== workouts.length) return false;
         if (!workouts.every(w => safeId(w.id) && (w.deadlineUtc == null || (isoInstant(w.deadlineUtc) && isoInstant(w.createdAtUtc) && Date.parse(w.deadlineUtc) > Date.parse(w.createdAtUtc))) && realDate(w.date) && typeof w.name === 'string' && w.name.trim().length > 0 && w.name.length <= 100 && cents(w.cap)
             && Array.isArray(w.exercises) && w.exercises.length > 0 && w.exercises.length <= 15 && new Set(w.exercises.map(e => e.id)).size === w.exercises.length
-            && w.exercises.every(e => safeId(e.id) && safeId(e.catalogId) && typeof e.name === 'string' && e.name.length > 0 && e.name.length <= 250 && Number.isInteger(e.sets) && e.sets >= 1 && e.sets <= 10
-                && Number.isInteger(e.reps) && e.reps >= 1 && e.reps <= 100 && cents(e.weight) && e.weight <= 2000 && ['fine', 'incentive'].includes(e.type) && Object.hasOwn(snapBases, e.basis) && cents(e.rate) && e.rate <= 100 && (e.completionReward == null || cents(e.completionReward)) && (e.extraRepRate == null || (cents(e.extraRepRate) && e.extraRepRate <= 100))))) return false;
+            && w.exercises.every(e => safeId(e.id) && (safeId(e.catalogId) || (e.catalogId === '' && e.maxWeight != null && e.weight === 0)) && typeof e.name === 'string' && e.name.trim().length > 0 && e.name.length <= 250 && Number.isInteger(e.sets) && e.sets >= 1 && e.sets <= 10
+                && Number.isInteger(e.reps) && e.reps >= 1 && e.reps <= 100 && cents(e.weight) && e.weight <= 2000 && (e.maxWeight == null || (cents(e.maxWeight) && e.maxWeight <= 2000 && e.maxWeight >= e.weight)) && ['fine', 'incentive'].includes(e.type) && Object.hasOwn(snapBases, e.basis) && cents(e.rate) && e.rate <= 100 && (e.completionReward == null || cents(e.completionReward)) && (e.extraRepRate == null || (cents(e.extraRepRate) && e.extraRepRate <= 100))))) return false;
         return Object.entries(results).every(([id, result]) => {
             const w = workouts.find(w => w.id === id);
             return w && result && typeof result.finalized === 'boolean' && (result.completedAtUtc == null || isoInstant(result.completedAtUtc)) && (!result.finalized || !w.deadlineUtc || isoInstant(result.completedAtUtc)) && result.sets && typeof result.sets === 'object' && !Array.isArray(result.sets)
@@ -127,6 +127,9 @@
         return candidates.length ? new Date(candidates[0]).toISOString() : null;
     }
     const isoInstant = value => typeof value === 'string' && /Z$/.test(value) && Number.isFinite(Date.parse(value));
+    const qualifyingWeight = (e, weight) => known(weight) && weight + 1e-7 >= e.weight && (e.maxWeight == null || weight <= e.maxWeight + 1e-7);
+    const snapCompleted = (w, result) => !!result?.finalized && w.exercises.every(e => (result.sets[e.id] || []).filter(s => s.reps >= e.reps && qualifyingWeight(e, s.weight)).length >= e.sets);
+    const loadLabel = e => e.maxWeight == null ? `${number(e.weight)} lb prescribed` : `Max ${number(e.maxWeight)} lb`;
     function assessSnap(s, evidence) {
         if (!evidence?.days?.length) return [];
         const first = evidence.days[0].date, last = evidence.days.at(-1).date, today = evidence.today;
@@ -142,8 +145,8 @@
                 if (w.date > today || !result?.finalized) { rows.push({ ...row, status: 'pending', reason: w.date > today ? 'Assignment date is in the future' : overdue ? 'Deadline passed; completion is unverified and needs review' : 'Completion has not been finalized' }); continue; }
                 const recorded = result.sets?.[e.id];
                 if (!Array.isArray(recorded) || recorded.length < e.sets || recorded.some(set => !known(set.reps) || !known(set.weight))) { rows.push({ ...row, status: 'pending', reason: 'Missing completed reps or weight' }); continue; }
-                const totalReps = recorded.reduce((n, set) => n + (set.weight + 1e-7 >= e.weight ? Math.max(0, set.reps) : 0), 0);
-                const totalSets = recorded.filter(set => set.reps >= e.reps && set.weight + 1e-7 >= e.weight).length;
+                const totalReps = recorded.reduce((n, set) => n + (qualifyingWeight(e, set.weight) ? Math.max(0, set.reps) : 0), 0);
+                const totalSets = recorded.filter(set => set.reps >= e.reps && qualifyingWeight(e, set.weight)).length;
                 const assignedReps = e.sets * e.reps, completedReps = Math.min(assignedReps, totalReps), completedSets = Math.min(e.sets, totalSets);
                 const units = { 'completed-reps': completedReps, 'completed-sets': completedSets, 'incomplete-reps': assignedReps - completedReps, 'incomplete-sets': e.sets - completedSets }[e.basis];
                 const onTime = !w.deadlineUtc || (isoInstant(result.completedAtUtc) && Date.parse(result.completedAtUtc) <= Date.parse(w.deadlineUtc));
@@ -159,7 +162,7 @@
         }
         return rows;
     }
-    if (typeof module !== 'undefined' && module.exports) module.exports = { catalog, defaults, valid, terms, outcome, assess, lateFee, validSnap, assessSnap, snapBases, activeOn, agreementEnd, periodBounds, wallTime, wallToUtc };
+    if (typeof module !== 'undefined' && module.exports) module.exports = { catalog, defaults, valid, terms, outcome, assess, lateFee, validSnap, assessSnap, snapCompleted, snapBases, activeOn, agreementEnd, periodBounds, wallTime, wallToUtc };
     if (typeof document === 'undefined') return;
     const money = n => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
     const number = n => known(n) ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(n) : '—';
@@ -238,7 +241,7 @@
             if (banner) {
                 banner.querySelectorAll('[data-pending-workout]').forEach(item => {
                     const w = state.snapWorkouts.find(w => w.id === item.dataset.pendingWorkout), result = w && state.snapResults[w.id];
-                    if (w && result?.finalized && w.exercises.every(e => (result.sets[e.id] || []).filter(s => s.reps >= e.reps && s.weight >= e.weight).length >= e.sets)) item.remove();
+                    if (w && snapCompleted(w, result)) item.remove();
                 });
                 const remaining = banner.querySelectorAll('[data-pending-workout]').length;
                 if (!remaining) banner.remove();
@@ -376,7 +379,7 @@
             agreementForm.addEventListener('submit', async event => { event.preventDefault(); if (!agreementForm.reportValidity()) return; const next = { ...state, agreement: readAgreementFields() }; if (await persistSnap(next, 'Agreement dates saved.')) { drawAgreementEditor(true); query('[data-agreement-dates-status]').textContent = 'Saved. Changed agreement dates require fresh client approval.'; } });
             query('[data-end-agreement]').addEventListener('click', async () => { if (!evidence?.today || !state.agreement.start || evidence.today < state.agreement.start) { query('[data-agreement-dates-status]').textContent = 'The agreement has not started yet.'; return; } if (await persistSnap({ ...state, agreement: { ...state.agreement, endedOn: evidence.today } }, 'Agreement ends after today.')) query('[data-agreement-dates-status]').textContent = 'Saved: no new assessments after today.'; });
         }
-        let snapDraft = [], exerciseOptions = [], catalogRequest = 0;
+        let snapDraft = [];
         const snapForm = query('[data-snap-assign]');
         async function persistSnap(next, message, workoutId = null) {
             if (!loaded) { query('[data-snap-status]').textContent = 'Load the saved agreement before saving changes.'; return false; }
@@ -395,39 +398,44 @@
             } catch (error) { query('[data-snap-status]').textContent = error.message; notice(error.message); return false; }
             finally { saveBusy = false; }
         }
+        function newSnapExercise() {
+            return { id: crypto.randomUUID(), catalogId: '', name: '', sets: 3, reps: 10, weight: 0, maxWeight: 0,
+                type: 'fine', basis: 'incomplete-reps', rate: configured?.snapRate ?? .1, completionReward: configured?.completionReward ?? 0, extraRepRate: configured?.extraRepRate ?? 0 };
+        }
         function readSnapDraft() {
             if (!snapForm) return;
             snapDraft = snapDraft.map(e => {
                 const val = field => snapForm.elements[`snap-${e.id}-${field}`].value;
-                return { ...e, sets: Number(val('sets')), reps: Number(val('reps')), weight: Number(val('weight')), type: val('type'), basis: val('basis'), rate: Number(val('rate')), completionReward: Number(val('completionReward')), extraRepRate: Number(val('extraRepRate')) };
+                return { ...e, name: val('name').trim(), sets: Number(val('sets')), reps: Number(val('reps')), weight: 0, maxWeight: Number(val('maxWeight')),
+                    type: val('type'), basis: val('basis'), rate: Number(val('rate')), completionReward: Number(val('completionReward')), extraRepRate: Number(val('extraRepRate')) };
             });
         }
         function drawSnapDraft() {
             if (!snapForm) return;
             const body = query('[data-snap-draft]'); body.replaceChildren();
-            snapDraft.forEach(e => {
-                const row = el('tr'), remove = el('button', 'Remove'); remove.type = 'button'; remove.setAttribute('aria-label', `Remove ${e.name}`);
-                remove.addEventListener('click', () => { readSnapDraft(); snapDraft = snapDraft.filter(x => x.id !== e.id); drawSnapDraft(); });
-                const basis = el('select'); basis.name = `snap-${e.id}-basis`; basis.setAttribute('aria-label', `${e.name}: fee basis`);
+            snapDraft.forEach((e, i) => {
+                const card = el('section', undefined, 'snap-simple-exercise'); card.setAttribute('aria-label', `Exercise ${i + 1}`);
+                const heading = el('div', undefined, 'snap-simple-heading'), remove = el('button', 'Remove'); remove.type = 'button'; remove.setAttribute('aria-label', `Remove exercise ${i + 1}`);
+                remove.addEventListener('click', () => { readSnapDraft(); snapDraft = snapDraft.filter(x => x.id !== e.id); if (!snapDraft.length) snapDraft.push(newSnapExercise()); drawSnapDraft(); });
+                heading.append(el('strong', `Exercise ${i + 1}`), remove); card.append(heading);
+                const fields = el('div', undefined, 'snap-simple-targets');
+                const name = el('input'); Object.assign(name, { type: 'text', name: `snap-${e.id}-name`, value: e.name, maxLength: 250, required: true, placeholder: 'e.g. Dumbbell curl' });
+                function field(container, text, node) { const label = el('label', text); label.append(node); container.append(label); }
+                field(fields, 'Exercise', name);
+                field(fields, 'Sets', input(`snap-${e.id}-sets`, e.sets, 1, 10, 1, 'Sets'));
+                field(fields, 'Reps per set', input(`snap-${e.id}-reps`, e.reps, 1, 100, 1, 'Reps per set'));
+                field(fields, 'Max weight (lb)', input(`snap-${e.id}-maxWeight`, e.maxWeight, 0, 2000, '.01', 'Max weight in pounds'));
+                card.append(fields);
+                const fees = el('details', undefined, 'snap-simple-fees'); fees.append(el('summary', 'Fines & incentives'));
+                const feeFields = el('div', undefined, 'accountability-fields'), basis = el('select'); basis.name = `snap-${e.id}-basis`;
                 Object.entries(snapBases).forEach(([value, label]) => { const o = el('option', label); o.value = value; basis.append(o); }); basis.value = e.basis;
-                const nodes = [el('strong', e.name), input(`snap-${e.id}-sets`, e.sets, 1, 10, 1, `${e.name}: prescribed sets`), input(`snap-${e.id}-reps`, e.reps, 1, 100, 1, `${e.name}: reps per set`),
-                    input(`snap-${e.id}-weight`, e.weight, 0, 2000, '.01', `${e.name}: prescribed weight in pounds`), select(`snap-${e.id}-type`, ['fine', 'incentive'], e.type, `${e.name}: fine or incentive`), basis,
-                    input(`snap-${e.id}-rate`, e.rate, 0, 100, '.01', `${e.name}: dollars per assessed rep or set`), input(`snap-${e.id}-completionReward`, e.completionReward || 0, 0, 10000, '.01', `${e.name}: reward for completing this exercise`), input(`snap-${e.id}-extraRepRate`, e.extraRepRate || 0, 0, 100, '.01', `${e.name}: reward per extra completed rep`), remove];
-                nodes.forEach(n => { const td = el('td'); td.append(n); row.append(td); }); body.append(row);
+                field(feeFields, 'Fine or incentive', select(`snap-${e.id}-type`, ['fine', 'incentive'], e.type, 'Fine or incentive'));
+                field(feeFields, 'Fee basis', basis);
+                field(feeFields, '$ per unit', input(`snap-${e.id}-rate`, e.rate, 0, 100, '.01', 'Dollars per assessed rep or set'));
+                field(feeFields, 'Completion reward ($/exercise)', input(`snap-${e.id}-completionReward`, e.completionReward || 0, 0, 10000, '.01', 'Reward for completing this exercise'));
+                field(feeFields, 'Extra-rep reward ($/rep)', input(`snap-${e.id}-extraRepRate`, e.extraRepRate || 0, 0, 100, '.01', 'Reward per extra completed rep'));
+                fees.append(feeFields); card.append(fees); body.append(card);
             });
-        }
-        async function searchExercises() {
-            if (!canAssignSnap || !snapForm) return;
-            const revision = ++catalogRequest, picker = query('[data-snap-picker]'), output = query('[data-snap-catalog-status]');
-            output.textContent = 'Loading exercise choices…';
-            try {
-                const response = await fetch(api + '/exercises?q=' + encodeURIComponent(query('[data-snap-search]').value.trim()), { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
-                if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error();
-                const result = await response.json(); if (revision !== catalogRequest) return;
-                exerciseOptions = result; picker.replaceChildren(); const blank = el('option', 'Choose an exercise'); blank.value = ''; picker.append(blank);
-                result.forEach(e => { const option = el('option', e.name); option.value = e.id; picker.append(option); });
-                output.textContent = result.length ? `${result.length} exercises found. Refine the search if needed.` : 'No matching exercises. Try another name.';
-            } catch { if (revision === catalogRequest) output.textContent = 'Could not load the exercise catalog. Only the assigned coach can select exercises.'; }
         }
         function renderSnapAssignments() {
             const container = query('[data-snap-assignments]'); if (!container) return; container.replaceChildren();
@@ -442,7 +450,7 @@
             if (!state.snapWorkouts.length) { container.append(el('p', 'No Snap Workouts assigned yet.')); return; }
             const week = evidence?.days?.length ? evidence.days : null, assessed = evidence ? assessSnap(state, evidence) : [];
             [...state.snapWorkouts].sort((a, b) => b.date.localeCompare(a.date)).forEach(w => {
-                const article = el('details', undefined, 'snap-assignment'); article.id = 'snap-' + w.id; article.append(el('summary', `${w.name} · ${dayLabel(w.date)} · ${state.snapResults[w.id]?.finalized && w.exercises.every(e => (state.snapResults[w.id].sets[e.id] || []).filter(s => s.reps >= e.reps && s.weight >= e.weight).length >= e.sets) ? 'Completed' : 'To complete'}`), el('p', `Assessment cap ${money(w.cap)} per type for this workout${state.excused[w.date] ? ' · EXCUSED: no assessment' : ''}.`));
+                const article = el('details', undefined, 'snap-assignment'); article.id = 'snap-' + w.id; article.append(el('summary', `${w.name} · ${dayLabel(w.date)} · ${snapCompleted(w, state.snapResults[w.id]) ? 'Completed' : 'To complete'}`), el('p', `Assessment cap ${money(w.cap)} per type for this workout${state.excused[w.date] ? ' · EXCUSED: no assessment' : ''}.`));
                 article.append(el('p', w.deadlineUtc ? `Completion deadline: ${wallTime(w.deadlineUtc, zone).replace('T', ' ')} (${zone}).` : 'Earlier assignment: no deadline was configured.'));
                 if (week && (w.date < week[0].date || w.date > week.at(-1).date)) article.append(el('p', 'Outside the selected weekly total. Choose this assignment’s week to view its assessment.'));
                 const resultForm = el('form'), previous = state.snapResults[w.id], canRecord = canRecordSnap && today && w.date <= today;
@@ -450,7 +458,7 @@
                 function drawSetRows(e, records) {
                     const body = recordBodies[e.id]; body.replaceChildren(); rowCounts[e.id] = records.length;
                     records.forEach((saved, i) => {
-                        const row = el('tr'); row.append(el('th', String(i + 1)), el('td', i < e.sets ? String(e.reps) : 'Extra set'), el('td', number(e.weight)));
+                        const row = el('tr'); row.append(el('th', String(i + 1)), el('td', i < e.sets ? String(e.reps) : 'Extra set'), el('td', e.maxWeight == null ? number(e.weight) : '≤ ' + number(e.maxWeight)));
                         if (canRecord) {
                             const reps = input(`${e.id}-${i}-reps`, saved?.reps ?? '', 0, 1000, 1, `${e.name}, set ${i + 1}: completed reps`), weight = input(`${e.id}-${i}-weight`, saved?.weight ?? '', 0, 2000, '.01', `${e.name}, set ${i + 1}: weight used in pounds`);
                             reps.required = false; weight.required = false; [reps, weight].forEach(n => { const td = el('td'); td.append(n); row.append(td); });
@@ -460,7 +468,7 @@
                 }
                 w.exercises.forEach(e => {
                     const section = el('section', undefined, 'snap-exercise');
-                    section.append(el('h5', e.name), el('p', `${e.sets} sets × ${e.reps} reps · ${number(e.weight)} lb · ${e.type === 'fine' ? 'Penalty/fee' : 'Base incentive'} ${money(e.rate)} per ${snapBases[e.basis].toLowerCase().replace(/s$/, '')}. Completion reward ${money(e.completionReward || 0)} + ${money(e.extraRepRate || 0)} per extra qualifying rep, earned only when the assigned sets are finished on time.`));
+                    section.append(el('h5', e.name), el('p', `${e.sets} sets × ${e.reps} reps · ${loadLabel(e)} · ${e.type === 'fine' ? 'Penalty/fee' : 'Base incentive'} ${money(e.rate)} per ${snapBases[e.basis].toLowerCase().replace(/s$/, '')}. Completion reward ${money(e.completionReward || 0)} + ${money(e.extraRepRate || 0)} per extra qualifying rep, earned only when the assigned sets are finished on time and the weight requirement is met.`));
                     const records = previous?.sets?.[e.id] || Array.from({ length: e.sets }, () => ({ reps: null, weight: null }));
                     if (canRecord) {
                         const quick = el('div', undefined, 'snap-quick-entry accountability-fields'), setsInput = input(`quick-${e.id}-sets`, '', 0, 20, 1, `${e.name}: completed sets`), repsInput = input(`quick-${e.id}-reps`, '', 0, 1000, 1, `${e.name}: completed reps per set`), weightInput = input(`quick-${e.id}-weight`, '', 0, 2000, '.01', `${e.name}: completed weight in pounds`);
@@ -475,7 +483,7 @@
                         }); quick.append(apply); section.append(quick);
                     }
                     const wrapper = el('div', undefined, 'accountability-scroll'), table = el('table'), heading = el('thead'), headRow = el('tr');
-                    ['Set', 'Target reps', 'Target lb', 'Completed reps', 'Used lb'].forEach(text => headRow.append(el('th', text))); heading.append(headRow); table.append(heading); const body = el('tbody'); recordBodies[e.id] = body;
+                    ['Set', 'Target reps', 'Prescribed / max lb', 'Completed reps', 'Used lb'].forEach(text => headRow.append(el('th', text))); heading.append(headRow); table.append(heading); const body = el('tbody'); recordBodies[e.id] = body;
                     table.append(body); wrapper.append(table); section.append(wrapper); drawSetRows(e, records);
                     assessed.filter(x => x.workoutId === w.id && (x.id === `snap-${w.id}-${e.id}` || x.id === `snap-${w.id}-${e.id}-reward`)).forEach(row => section.append(el('p', row.status === 'assessed' ? `${row.reason} · ${row.type} preview ${money(row.amount)}` : row.reason)));
                     resultForm.append(section);
@@ -534,7 +542,7 @@
                 templates.forEach((workout, i) => {
                     const label = el('label', undefined, 'snap-library-choice'), check = el('input'), text = el('span');
                     check.type = 'checkbox'; check.name = 'template'; check.value = i;
-                    text.append(el('strong', workout.name), el('p', workout.exercises.map(e => `${e.name}: ${e.sets} × ${e.reps} at ${number(e.weight)} lb · ${e.type} ${money(e.rate)} per ${snapBases[e.basis].toLowerCase()} · completion reward ${money(e.completionReward || 0)} · extra rep ${money(e.extraRepRate || 0)}`).join('; ')), el('small', `Cap ${money(workout.cap)} per type`));
+                    text.append(el('strong', workout.name), el('p', workout.exercises.map(e => `${e.name}: ${e.sets} × ${e.reps} at ${loadLabel(e)} · ${e.type} ${money(e.rate)} per ${snapBases[e.basis].toLowerCase()} · completion reward ${money(e.completionReward || 0)} · extra rep ${money(e.extraRepRate || 0)}`).join('; ')), el('small', `Cap ${money(workout.cap)} per type`));
                     label.append(check, text); list.append(label);
                 });
                 output.textContent = templates.length ? 'Select workouts to assign again. The most recent versions appear first.' : 'No past workouts available yet. Create your first Snap Workout below.';
@@ -567,13 +575,10 @@
             snapForm.elements.snapCap.value = configured?.snapCap ?? 100;
             snapForm.elements.snapDeadline.addEventListener('input', () => { deadlineTouched = true; });
             snapForm.elements.snapDate.addEventListener('change', () => { if (!deadlineTouched && evidence) snapForm.elements.snapDeadline.value = wallTime(defaultDeadline(), evidence.timeZone || 'UTC'); });
-            query('[data-snap-search-button]').addEventListener('click', searchExercises);
-            query('[data-snap-search]').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); searchExercises(); } });
             query('[data-snap-add]').addEventListener('click', () => {
-                const chosen = exerciseOptions.find(e => e.id === query('[data-snap-picker]').value);
-                if (!chosen) { query('[data-snap-catalog-status]').textContent = 'Choose an exercise first.'; return; }
                 if (snapDraft.length >= 15) { query('[data-snap-catalog-status]').textContent = 'Use up to 15 exercises per Snap Workout.'; return; }
-                readSnapDraft(); snapDraft.push({ id: crypto.randomUUID(), catalogId: chosen.id, name: chosen.name, sets: 3, reps: 10, weight: 0, type: 'fine', basis: 'incomplete-reps', rate: configured?.snapRate ?? .1, completionReward: configured?.completionReward ?? 0, extraRepRate: configured?.extraRepRate ?? 0 }); drawSnapDraft();
+                readSnapDraft(); snapDraft.push(newSnapExercise()); drawSnapDraft();
+                query('[data-snap-draft]').lastElementChild.querySelector('input').focus();
             });
             snapForm.addEventListener('submit', async event => {
                 event.preventDefault(); if (!snapForm.reportValidity()) return;
@@ -584,9 +589,9 @@
                 const deadline = autoDeadline != null ? new Date(autoDeadline).toISOString() : wallToUtc(snapForm.elements.snapDeadline.value, evidence.timeZone || 'UTC', serverNow());
                 if (!deadline || Date.parse(deadline) <= serverNow() || snapForm.elements.snapDeadline.value.slice(0, 10) < snapForm.elements.snapDate.value) { query('[data-snap-status]').textContent = 'Choose a future deadline on or after the assignment date.'; return; }
                 const workout = { id: crypto.randomUUID(), deadlineUtc: deadline, createdAtUtc: new Date(serverNow()).toISOString(), date: snapForm.elements.snapDate.value, name: snapForm.elements.snapName.value.trim(), cap: Number(snapForm.elements.snapCap.value), exercises: snapDraft.map(e => ({ ...e })) };
-                if (await persistSnap({ ...state, agreement: readAgreementFields(), snapWorkouts: [...state.snapWorkouts, workout] }, 'Snap Workout assigned. The client can open their portal on any device to record results.')) { snapDraft = []; deadlineTouched = false; drawSnapDraft(); loadSnapLibrary(); }
+                if (await persistSnap({ ...state, agreement: readAgreementFields(), snapWorkouts: [...state.snapWorkouts, workout] }, 'Snap Workout assigned. The client can open their portal on any device to record results.')) { snapDraft = [newSnapExercise()]; deadlineTouched = false; drawSnapDraft(); loadSnapLibrary(); }
             });
-            drawSnapDraft(); searchExercises();
+            snapDraft = [newSnapExercise()]; drawSnapDraft();
         }
         const saveExceptions = query('[data-save-exceptions]');
         if (saveExceptions) saveExceptions.addEventListener('click', async () => {

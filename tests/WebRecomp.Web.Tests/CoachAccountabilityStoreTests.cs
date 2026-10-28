@@ -97,6 +97,40 @@ public sealed class CoachAccountabilityStoreTests
         await Assert.ThrowsAsync<ArgumentException>(()=>store.SaveCoachAsync(f.Coach,f.Client,true,row.Revision,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default));
         Assert.Equal(10,AccountabilityDocument.Parse(row.StateJson).SnapWorkouts[0].Exercises[0].Reps);
     }
+    [Fact]
+    public async Task TypedExercisePersistsReusesAndCompletesWithoutCreatingACatalogItem()
+    {
+        var f=await Fixture.Create();var e=f.State.SnapWorkouts[0].Exercises[0];
+        e.CatalogId="";e.Name="Coach's custom movement";e.Weight=0;e.MaxWeight=25;
+        using(var db=f.Db())
+        {
+            var before=await db.ExerciseCatalogItems.CountAsync();
+            await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+            Assert.Equal(before,await db.ExerciseCatalogItems.CountAsync());
+        }
+        using(var db=f.Db())
+        {
+            var row=await f.Store(db).ReadAsync(f.Owner,f.Client,false,default);
+            var saved=AccountabilityDocument.Parse(row!.StateJson);Assert.Equal(25,saved.SnapWorkouts[0].Exercises[0].MaxWeight);
+            var library=await new SnapWorkoutLibrary(db,new CoachCenterService(db)).ReadAsync(f.Coach,f.Client,default);
+            Assert.Equal(25,Assert.Single(library).Exercises[0].MaxWeight);
+            Assert.True(SnapWorkoutLibrary.Completed(saved.SnapWorkouts[0],f.Result));
+            f.Result.Sets["exercise-1"][0].Weight=26;
+            Assert.False(SnapWorkoutLibrary.Completed(saved.SnapWorkouts[0],f.Result));
+        }
+    }
+    [Fact]
+    public async Task TypedExerciseRequiresValidNameAndCeilingWhileCatalogIdsRemainValidated()
+    {
+        var f=await Fixture.Create();var e=f.State.SnapWorkouts[0].Exercises[0];
+        e.CatalogId="";e.Weight=0;
+        Assert.Throws<ArgumentException>(()=>AccountabilityDocument.Validate(f.State));
+        e.MaxWeight=-1;Assert.Throws<ArgumentException>(()=>AccountabilityDocument.Validate(f.State));
+        e.MaxWeight=25;e.Name=" ";Assert.Throws<ArgumentException>(()=>AccountabilityDocument.Validate(f.State));
+        e.Name="Typed exercise";e.CatalogId=Guid.NewGuid().ToString();
+        using var db=f.Db();
+        await Assert.ThrowsAsync<ArgumentException>(()=>f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default));
+    }
     private sealed class Fixture
     {
         public Guid Coach=Guid.NewGuid(),OtherCoach=Guid.NewGuid(),Owner=Guid.NewGuid(),Client=Guid.NewGuid();

@@ -33,7 +33,7 @@ public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabi
     {
         if(!coachRole||!await access.CanAssignSnapAsync(actor,client,ct))throw new UnauthorizedAccessException();
         var state=AccountabilityDocument.Parse(stateJson);AccountabilityDocument.ValidateTerms(state,terms);
-        var ids=state.SnapWorkouts.SelectMany(x=>x.Exercises).Select(x=>Guid.Parse(x.CatalogId)).Distinct().ToArray();
+        var ids=state.SnapWorkouts.SelectMany(x=>x.Exercises).Where(x=>x.CatalogId!="").Select(x=>Guid.Parse(x.CatalogId)).Distinct().ToArray();
         var prefix=client.ToString("N")+":";
         var valid=await db.ExerciseCatalogItems.AsNoTracking().Where(x=>ids.Contains(x.ExerciseCatalogItemId)&&x.IsActive&&(x.SourceCode!="12WR_CSV_UNMAPPED"||x.SourceExternalId.StartsWith(prefix))).Select(x=>x.ExerciseCatalogItemId).ToListAsync(ct);
         if(valid.Count!=ids.Length)throw new ArgumentException("One or more exercises are not available to this client.");
