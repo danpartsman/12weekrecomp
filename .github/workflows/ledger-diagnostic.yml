@@ -34,12 +34,12 @@ jobs:
           if(!$connection){$connection=$env:CUSTOMCONNSTR_RecompDatabase}
           if(!$connection){$connection=$env:ConnectionStrings__RecompDatabase}
           $builder=New-Object System.Data.Common.DbConnectionStringBuilder
-          $builder.ConnectionString=$connection
+          $builder.set_ConnectionString([string]$connection)
           $builder.Remove('Authentication') | Out-Null
           $builder.Remove('User Id') | Out-Null
           $builder.Remove('Password') | Out-Null
           $identity=Invoke-RestMethod -Uri ($env:IDENTITY_ENDPOINT+'?resource=https%3A%2F%2Fdatabase.windows.net%2F&api-version=2019-08-01') -Headers @{'X-IDENTITY-HEADER'=$env:IDENTITY_HEADER}
-          $db=New-Object System.Data.SqlClient.SqlConnection($builder.ConnectionString)
+          $db=New-Object System.Data.SqlClient.SqlConnection($builder.get_ConnectionString())
           $db.AccessToken=$identity.access_token
           $db.Open()
           $cmd=$db.CreateCommand()
