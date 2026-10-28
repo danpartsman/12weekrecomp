@@ -43,7 +43,7 @@ jobs:
           $db.AccessToken=$identity.access_token
           $db.Open()
           $cmd=$db.CreateCommand()
-          $cmd.CommandText="SELECT 'agreement' AS kind, CONVERT(varchar(36),CoachUserId) AS actor FROM app.CoachAccountabilityAgreements WHERE ClientId='6f156c0a-feed-47a4-b832-e9581aa81ad4' UNION ALL SELECT 'active-coach',CONVERT(varchar(36),CoachUserId) FROM app.CoachClientRelationships WHERE ClientId='6f156c0a-feed-47a4-b832-e9581aa81ad4' AND StatusCode='ACTIVE' AND RevokedAtUtc IS NULL UNION ALL SELECT 'active-owner',CONVERT(varchar(36),UserId) FROM app.UserClientAccess WHERE ClientId='6f156c0a-feed-47a4-b832-e9581aa81ad4' AND AccessRoleCode='OWNER' AND RevokedAtUtc IS NULL"
+          $cmd.CommandText="SELECT 'agreement' AS kind, CONVERT(varchar(36),coach_user_id) AS actor FROM app.CoachAccountabilityAgreements WHERE client_id='6f156c0a-feed-47a4-b832-e9581aa81ad4' UNION ALL SELECT 'active-coach',CONVERT(varchar(36),coach_user_id) FROM app.CoachClientRelationships WHERE client_id='6f156c0a-feed-47a4-b832-e9581aa81ad4' AND status_code='ACTIVE' AND revoked_at_utc IS NULL UNION ALL SELECT 'active-owner',CONVERT(varchar(36),user_id) FROM app.UserClientAccess WHERE client_id='6f156c0a-feed-47a4-b832-e9581aa81ad4' AND access_role_code='OWNER' AND revoked_at_utc IS NULL"
           $r=$cmd.ExecuteReader()
           while($r.Read()){Write-Output "$($r.GetString(0)): $($r.GetString(1))"}
           $r.Close();$db.Close()
