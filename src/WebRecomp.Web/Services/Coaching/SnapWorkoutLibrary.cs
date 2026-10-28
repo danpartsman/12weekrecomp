@@ -19,7 +19,7 @@ public sealed class SnapWorkoutLibrary(RecompDbContext db, CoachCenterService co
             try { state = AccountabilityDocument.Parse(json); } catch (ArgumentException) { continue; }
             foreach (var workout in state.SnapWorkouts.AsEnumerable().Reverse())
             {
-                var template = new AccountabilityWorkout { Name = workout.Name, Cap = workout.Cap,
+                var template = new AccountabilityWorkout { Name = workout.Name, Cap = workout.Cap, CompletionReward = workout.CompletionReward,
                     Exercises = workout.Exercises.Select((e, i) => new AccountabilityExercise { Id = "exercise-" + i, CatalogId = e.CatalogId,
                         Name = e.Name, Sets = e.Sets, Reps = e.Reps, Weight = e.Weight, MaxWeight = e.MaxWeight, Type = e.Type, Basis = e.Basis, Rate = e.Rate,
                         CompletionReward = e.CompletionReward, ExtraRepRate = e.ExtraRepRate }).ToList() };

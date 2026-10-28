@@ -131,6 +131,40 @@ public sealed class CoachAccountabilityStoreTests
         using var db=f.Db();
         await Assert.ThrowsAsync<ArgumentException>(()=>f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default));
     }
+    [Fact]
+    public async Task LedgerPostsIncentiveOnceAppendsCorrectionAndRecordsPaymentIdempotently()
+    {
+        var f=await Fixture.Create();var w=f.State.SnapWorkouts[0];var e=w.Exercises[0];
+        w.Cap=100;w.CompletionReward=20;e.CompletionReward=0;e.ExtraRepRate=1;e.Sets=3;e.Reps=10;
+        f.Result.Sets[e.Id]=[new(){Reps=20,Weight=e.Weight},new(){Reps=20,Weight=e.Weight},new(){Reps=20,Weight=e.Weight}];
+        using var db=f.Db();var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);
+        var ledger=new AccountabilityLedger(db,access);var store=new CoachAccountabilityStore(db,access,ledger:ledger);
+        var row=await store.SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+        await store.SaveResultAsync(f.Owner,f.Client,false,row.Revision,w.Id,JsonSerializer.Serialize(f.Result,AccountabilityDocument.Json),default);
+        Assert.Empty(await ledger.ReadAsync(row,default)); // Unapproved previews are not posted as debt.
+        await store.ApproveAsync(f.Owner,f.Client,row.Revision,row.TermsJson,"Owner",default);
+        Assert.Equal(-50,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        await store.SaveResultAsync(f.Owner,f.Client,false,row.Revision,w.Id,JsonSerializer.Serialize(f.Result,AccountabilityDocument.Json),default);
+        Assert.Equal(2,(await ledger.ReadAsync(row,default)).Count);
+        f.Result.Sets[e.Id].ForEach(set=>set.Reps=15);
+        await store.SaveResultAsync(f.Owner,f.Client,false,row.Revision,w.Id,JsonSerializer.Serialize(f.Result,AccountabilityDocument.Json),default);
+        var entries=await ledger.ReadAsync(row,default);Assert.Equal(-35,entries.Sum(x=>x.Amount));Assert.Contains(entries,x=>x.Amount==15&&x.Description.StartsWith("Adjustment"));
+        var request=Guid.NewGuid();var revision=row.Revision;var date=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.RecordAsync(f.Owner,row,revision,request,"payment-coach",date,35,"Paid client",default));
+        await ledger.RecordAsync(f.Coach,row,revision,request,"payment-coach",date,35,"Paid client",default);
+        await ledger.RecordAsync(f.Coach,row,revision,request,"payment-coach",date,35,"Paid client",default);
+        Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        await Assert.ThrowsAsync<AccountabilityConflictException>(()=>ledger.RecordAsync(f.Coach,row,revision,request,"payment-coach",date,36,"Paid client",default));
+    }
+    [Fact]
+    public async Task LedgerMatchesScreenshotCapAndNeverDropsPerRepReward()
+    {
+        var f=await Fixture.Create();var w=f.State.SnapWorkouts[0];var e=w.Exercises[0];w.Cap=20;e.Sets=3;e.Reps=10;e.CompletionReward=20;e.ExtraRepRate=1;
+        f.State.SnapResults[w.Id]=new(){Finalized=true,CompletedAtUtc=DateTimeOffset.UtcNow,Sets=new(){[e.Id]=[new(){Reps=20,Weight=e.Weight},new(){Reps=20,Weight=e.Weight},new(){Reps=20,Weight=e.Weight}]}};
+        var charges=AccountabilityAssessment.Snap(f.State,AccountabilityDocument.Date(w.Date));var reward=Assert.Single(charges.Where(x=>x.Kind=="incentive"));
+        Assert.Equal(50,reward.RawAmount);Assert.Equal(20,reward.Amount);
+        w.Cap=100;e.Reps=15;Assert.Equal(35,Assert.Single(AccountabilityAssessment.Snap(f.State,AccountabilityDocument.Date(w.Date)).Where(x=>x.Kind=="incentive")).Amount);
+    }
     private sealed class Fixture
     {
         public Guid Coach=Guid.NewGuid(),OtherCoach=Guid.NewGuid(),Owner=Guid.NewGuid(),Client=Guid.NewGuid();

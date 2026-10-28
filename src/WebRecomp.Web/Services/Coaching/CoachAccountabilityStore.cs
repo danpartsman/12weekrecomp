@@ -5,7 +5,7 @@ using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 namespace WebRecomp.Web.Services.Coaching;
 public sealed class AccountabilityConflictException() : Exception("This agreement changed in another window. Reload before saving.");
-public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabilityPreviewService access, TimeProvider? clock=null, WebRecomp.Web.Services.Notifications.CoachNotificationProcessor? notifications=null)
+public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabilityPreviewService access, TimeProvider? clock=null, WebRecomp.Web.Services.Notifications.CoachNotificationProcessor? notifications=null, AccountabilityLedger? ledger=null)
 {
     private readonly TimeProvider time=clock??TimeProvider.System;
     public async Task<CoachAccountabilityAgreement?> ReadAsync(Guid actor,Guid client,bool coachRole,CancellationToken ct)
@@ -65,10 +65,12 @@ public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabi
         var hash=AccountabilityDocument.HashTerms(terms);
         if(row.TermsVersion==0||row.TermsHash!=hash)row.TermsVersion++;
         row.StateJson=stateJson;row.TermsJson=terms;row.TermsHash=hash;
-        Update(row,actor,"CONFIG",stateJson);await Commit(ct);
+        Update(row,actor,"CONFIG",stateJson);var configRevision=row.Revision;
+        if(ledger is not null)ledger.Append(row,actor,await ledger.SnapDeltaAsync(row,state,actor,ct));
+        await Commit(ct);
         if (notifications is not null)
         {
-            try { await notifications.QueueConfigAsync(client,row.Revision,ct); }
+            try { await notifications.QueueConfigAsync(client,configRevision,ct); }
             catch (Exception) { /* The immutable CONFIG event is recovered by the notification worker. */ }
         }
         return row;
@@ -88,7 +90,8 @@ public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabi
         if(result.Finalized&&result.CompletedAtUtc.HasValue&&(result.CompletedAtUtc>time.GetUtcNow().AddMinutes(1)||(w.CreatedAtUtc.HasValue&&result.CompletedAtUtc<w.CreatedAtUtc.Value.AddMinutes(-1))))throw new ArgumentException("Use a real completion time after assignment and no later than now.");
         state.SnapResults[workoutId]=result;
         var node=JsonNode.Parse(row.StateJson)!.AsObject();node["snapResults"]=JsonSerializer.SerializeToNode(state.SnapResults,AccountabilityDocument.Json);row.StateJson=node.ToJsonString();
-        Update(row,actor,"RESULT",JsonSerializer.Serialize(new{workoutId,result},AccountabilityDocument.Json));await Commit(ct);return row;
+        var ledgerEntries=ledger is null?new List<AccountabilityLedgerEntry>():await ledger.SnapDeltaAsync(row,state,actor,ct);
+        Update(row,actor,"RESULT",JsonSerializer.Serialize(new{workoutId,result,ledgerEntries},AccountabilityDocument.Json));await Commit(ct);return row;
     }
     public async Task<CoachAccountabilityAgreement> ApproveAsync(Guid actor,Guid client,int expected,string terms,string signedBy,CancellationToken ct)
     {
@@ -102,7 +105,9 @@ public sealed class CoachAccountabilityStore(RecompDbContext db, CoachAccountabi
         if(!existing)
         {
             db.CoachAccountabilityApprovals.Add(new(){ApprovalId=Guid.NewGuid(),ClientId=client,CoachUserId=row.CoachUserId,OwnerUserId=actor,TermsVersion=row.TermsVersion,TermsHash=row.TermsHash,TermsJson=row.TermsJson,SignedBy=signedBy,ApprovedAtUtc=time.GetUtcNow().UtcDateTime});
-            Update(row,actor,"APPROVE",row.TermsJson);await Commit(ct);
+            Update(row,actor,"APPROVE",row.TermsJson);
+            if(ledger is not null)ledger.Append(row,actor,await ledger.SnapDeltaAsync(row,state,actor,ct));
+            await Commit(ct);
         }
         return row;
     }

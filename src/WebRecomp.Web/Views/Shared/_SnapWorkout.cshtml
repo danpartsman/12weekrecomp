@@ -7,7 +7,8 @@
     {
         <details class="snap-editor" open><summary>Create Snap Workout</summary>
         <form data-snap-assign>
-            <div class="accountability-fields"><label>Workout name<input name="snapName" maxlength="100" value="Snap Workout" required /></label><label>Assignment date<input name="snapDate" type="date" required /></label><label>Completion deadline<input name="snapDeadline" type="datetime-local" required /></label><label>Assessment cap per workout ($)<input name="snapCap" type="number" min="0" max="10000" step=".01" value="100" required /></label></div>
+            <div class="accountability-fields"><label>Workout name<input name="snapName" maxlength="100" value="Snap Workout" required /></label><label>Assignment date<input name="snapDate" type="date" required /></label><label>Completion deadline<input name="snapDeadline" type="datetime-local" required /></label><label>Total fine / incentive cap ($)<input name="snapCap" type="number" min="0" max="10000" step=".01" value="100" required /></label><label>Whole-workout completion reward ($)<input name="snapCompletionReward" type="number" min="0" max="10000" step=".01" value="0" required /></label></div>
+            <p data-snap-cap-note role="status" aria-live="polite"></p>
             <p data-snap-deadline-zone></p>
             <h3>Exercises</h3><p>Type an exercise and its targets. Max weight is the permitted limit in lb; use 0 for bodyweight.</p>
             <div class="snap-simple-exercises" data-snap-draft></div>

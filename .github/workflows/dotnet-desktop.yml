@@ -69,6 +69,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Lucia portrait presentation check failed." }
           node tests/app-navigation.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Grouped navigation check failed." }
+          node tests/coach-ledger.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Coach ledger check failed." }
           node tests/coach-portal.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Coach portal assignment check failed." }
           node tests/coach-notifications.browser.cjs

@@ -102,7 +102,7 @@
         const workouts = s.snapWorkouts ?? [], results = s.snapResults ?? {};
         if (!Array.isArray(workouts) || workouts.length > 50 || !results || typeof results !== 'object' || Array.isArray(results) || Object.keys(results).length > 50) return false;
         if (new Set(workouts.map(w => w.id)).size !== workouts.length) return false;
-        if (!workouts.every(w => safeId(w.id) && (w.deadlineUtc == null || (isoInstant(w.deadlineUtc) && isoInstant(w.createdAtUtc) && Date.parse(w.deadlineUtc) > Date.parse(w.createdAtUtc))) && realDate(w.date) && typeof w.name === 'string' && w.name.trim().length > 0 && w.name.length <= 100 && cents(w.cap)
+        if (!workouts.every(w => safeId(w.id) && (w.deadlineUtc == null || (isoInstant(w.deadlineUtc) && isoInstant(w.createdAtUtc) && Date.parse(w.deadlineUtc) > Date.parse(w.createdAtUtc))) && realDate(w.date) && typeof w.name === 'string' && w.name.trim().length > 0 && w.name.length <= 100 && cents(w.cap) && (w.completionReward == null || cents(w.completionReward))
             && Array.isArray(w.exercises) && w.exercises.length > 0 && w.exercises.length <= 15 && new Set(w.exercises.map(e => e.id)).size === w.exercises.length
             && w.exercises.every(e => safeId(e.id) && (safeId(e.catalogId) || (e.catalogId === '' && e.maxWeight != null && e.weight === 0)) && typeof e.name === 'string' && e.name.trim().length > 0 && e.name.length <= 250 && Number.isInteger(e.sets) && e.sets >= 1 && e.sets <= 10
                 && Number.isInteger(e.reps) && e.reps >= 1 && e.reps <= 100 && cents(e.weight) && e.weight <= 2000 && (e.maxWeight == null || (cents(e.maxWeight) && e.maxWeight <= 2000 && e.maxWeight >= e.weight)) && ['fine', 'incentive'].includes(e.type) && Object.hasOwn(snapBases, e.basis) && cents(e.rate) && e.rate <= 100 && (e.completionReward == null || cents(e.completionReward)) && (e.extraRepRate == null || (cents(e.extraRepRate) && e.extraRepRate <= 100))))) return false;
@@ -137,6 +137,14 @@
         for (const w of (s.snapWorkouts || []).filter(w => w.date >= first && w.date <= last)) {
             const totals = { fine: 0, incentive: 0 }, result = s.snapResults?.[w.id];
             const limited = (type, value) => { const amount = Math.round(Math.min(value, Math.max(0, w.cap - totals[type])) * 100) / 100; totals[type] += amount; return amount; };
+            const capNote = (raw, applied, type) => raw > applied ? ` · ${raw.toFixed(2)} before cap; workout ${type} cap ${w.cap.toFixed(2)}; applied ${applied.toFixed(2)}` : '';
+            if ((w.completionReward || 0) > 0) {
+                const ready = w.date <= today && result?.finalized, active = activeOn(s,w.date) && !s.excused[w.date];
+                const onTime = !w.deadlineUtc || (isoInstant(result?.completedAtUtc) && Date.parse(result.completedAtUtc) <= Date.parse(w.deadlineUtc));
+                const raw = ready && active && onTime && snapCompleted(w,result) ? w.completionReward : 0, paid = limited('incentive',raw);
+                rows.push({id:`snap-${w.id}-completion`,workoutId:w.id,title:`${w.name} · Whole-workout completion`,label:w.date,type:'incentive',amount:paid,rawAmount:raw,minimum:0,cap:w.cap,settle:true,
+                    status:ready?'assessed':'pending',reason:!ready?'Whole-workout completion pending':raw?`Whole-workout completion reward ${raw.toFixed(2)}${capNote(raw,paid,'incentive')}`:'Whole-workout completion reward not earned: check all exercises, agreement dates and deadline'});
+            }
             for (const e of w.exercises) {
                 const row = { id: `snap-${w.id}-${e.id}`, workoutId: w.id, title: `${w.name} · ${e.name}`, label: w.date, type: e.type, amount: 0, minimum: 0, cap: w.cap, settle: true, basis: e.basis };
                 if (!activeOn(s, w.date)) { rows.push({ ...row, status: 'inactive', reason: 'Outside the saved agreement dates · no assessment' }); continue; }
@@ -152,12 +160,16 @@
                 const onTime = !w.deadlineUtc || (isoInstant(result.completedAtUtc) && Date.parse(result.completedAtUtc) <= Date.parse(w.deadlineUtc));
                 const complete = completedSets === e.sets;
                 const raw = e.type === 'incentive' && !onTime ? 0 : Math.round(units * e.rate * 100) / 100, amount = limited(e.type, raw);
-                rows.push({ ...row, status: 'assessed', amount, units, completedReps, completedSets, totalReps, totalSets, onTime, assignedReps, assignedSets: e.sets, applies: units > 0,
-                    reason: `${units} ${snapBases[e.basis].toLowerCase()} × ${e.rate.toFixed(2)}/unit${onTime ? '' : ' · completed after deadline or completion time unavailable; no bonus'}` });
+                rows.push({ ...row, status: 'assessed', amount, rawAmount: raw, units, completedReps, completedSets, totalReps, totalSets, onTime, assignedReps, assignedSets: e.sets, applies: units > 0,
+                    reason: `${units} ${snapBases[e.basis].toLowerCase()} × ${e.rate.toFixed(2)}/unit${onTime ? '' : ' · completed after deadline or completion time unavailable; no bonus'}${capNote(raw, amount, e.type)}` });
                 const extraReps = complete ? Math.max(0, totalReps - assignedReps) : 0;
                 const reward = onTime && complete ? (e.completionReward || 0) + extraReps * (e.extraRepRate || 0) : 0;
-                if ((e.completionReward || 0) > 0 || (e.extraRepRate || 0) > 0) rows.push({ ...row, id: row.id + '-reward', type: 'incentive', status: 'assessed', amount: limited('incentive', Math.round(reward * 100) / 100), units: extraReps,
-                    onTime, applies: reward > 0, reason: !onTime ? 'Completion or extra-rep reward not earned: deadline missed or time unverified' : !complete ? 'Completion or extra-rep reward not earned: assigned sets unfinished' : `Completion reward ${(e.completionReward || 0).toFixed(2)} + ${extraReps} extra reps × ${(e.extraRepRate || 0).toFixed(2)}` });
+                if ((e.completionReward || 0) > 0 || (e.extraRepRate || 0) > 0) {
+                    const rounded = Math.round(reward * 100) / 100, paid = limited('incentive',rounded);
+                    rows.push({ ...row, id: row.id + '-reward', type: 'incentive', status: 'assessed', amount: paid, rawAmount: rounded, units: extraReps,
+                        onTime, applies: reward > 0, reason: !onTime ? 'Completion or extra-rep reward not earned: deadline missed or time unverified' : !complete ? 'Completion or extra-rep reward not earned: assigned sets unfinished'
+                            : `Exercise completion reward ${(e.completionReward || 0).toFixed(2)} + ${extraReps} extra reps × ${(e.extraRepRate || 0).toFixed(2)} = ${rounded.toFixed(2)}${capNote(rounded,paid,'incentive')}` });
+                }
             }
         }
         return rows;
@@ -433,7 +445,7 @@
                 field(feeFields, 'Fine or incentive', select(`snap-${e.id}-type`, ['fine', 'incentive'], e.type, 'Fine or incentive'));
                 field(feeFields, 'Fee basis', basis);
                 field(feeFields, '$ per unit', input(`snap-${e.id}-rate`, e.rate, 0, 100, '.01', 'Dollars per assessed rep or set'));
-                field(feeFields, 'Completion reward ($/exercise)', input(`snap-${e.id}-completionReward`, e.completionReward || 0, 0, 10000, '.01', 'Reward for completing this exercise'));
+                field(feeFields, 'Additional completion reward ($/exercise)', input(`snap-${e.id}-completionReward`, e.completionReward || 0, 0, 10000, '.01', 'Reward for completing this exercise'));
                 field(feeFields, 'Extra-rep reward ($/rep)', input(`snap-${e.id}-extraRepRate`, e.extraRepRate || 0, 0, 100, '.01', 'Reward per extra completed rep'));
                 fees.append(feeFields); card.append(fees); body.append(card);
             });
@@ -452,6 +464,8 @@
             const week = evidence?.days?.length ? evidence.days : null, assessed = evidence ? assessSnap(state, evidence) : [];
             [...state.snapWorkouts].sort((a, b) => b.date.localeCompare(a.date)).forEach(w => {
                 const article = el('details', undefined, 'snap-assignment'); article.id = 'snap-' + w.id; article.append(el('summary', `${w.name} · ${dayLabel(w.date)} · ${snapCompleted(w, state.snapResults[w.id]) ? 'Completed' : 'To complete'}`), el('p', `Assessment cap ${money(w.cap)} per type for this workout${state.excused[w.date] ? ' · EXCUSED: no assessment' : ''}.`));
+                if (w.completionReward) article.append(el('p', `Whole-workout completion reward ${money(w.completionReward)}. Exercise extra-rep rewards are added separately, within the total incentive cap.`));
+                assessed.filter(x => x.id === `snap-${w.id}-completion`).forEach(row => article.append(el('p', row.reason)));
                 article.append(el('p', w.deadlineUtc ? `Completion deadline: ${wallTime(w.deadlineUtc, zone).replace('T', ' ')} (${zone}).` : 'Earlier assignment: no deadline was configured.'));
                 if (week && (w.date < week[0].date || w.date > week.at(-1).date)) article.append(el('p', 'Outside the selected weekly total. Choose this assignment’s week to view its assessment.'));
                 const resultForm = el('form'), previous = state.snapResults[w.id], canRecord = canRecordSnap && today && w.date <= today;
@@ -574,6 +588,14 @@
         }
         if (snapForm) {
             snapForm.elements.snapCap.value = configured?.snapCap ?? 100;
+            function capNotice() {
+                const base = Number(snapForm.elements.snapCompletionReward.value) + snapDraft.reduce((n,e)=>n+Number(snapForm.elements[`snap-${e.id}-completionReward`]?.value || 0),0);
+                const extra = snapDraft.some(e=>Number(snapForm.elements[`snap-${e.id}-extraRepRate`]?.value || 0)>0);
+                const cap = Number(snapForm.elements.snapCap.value);
+                query('[data-snap-cap-note]').textContent = base > cap ? `Completion rewards total ${money(base)}, but the incentive cap is ${money(cap)}. The cap will reduce the payment.`
+                    : extra && base >= cap ? 'The completion reward uses the full incentive cap. Increase the cap to allow extra-rep rewards.' : 'The cap limits the combined completion and extra-rep rewards for the whole workout.';
+            }
+            snapForm.addEventListener('input', capNotice); capNotice();
             snapForm.elements.snapDeadline.addEventListener('input', () => { deadlineTouched = true; });
             snapForm.elements.snapDate.addEventListener('change', () => { if (!deadlineTouched && evidence) snapForm.elements.snapDeadline.value = wallTime(defaultDeadline(), evidence.timeZone || 'UTC'); });
             query('[data-snap-add]').addEventListener('click', () => {
@@ -589,7 +611,7 @@
                 if (autoDeadline != null) snapForm.elements.snapDeadline.value = wallTime(autoDeadline, evidence.timeZone || 'UTC');
                 const deadline = autoDeadline != null ? new Date(autoDeadline).toISOString() : wallToUtc(snapForm.elements.snapDeadline.value, evidence.timeZone || 'UTC', serverNow());
                 if (!deadline || Date.parse(deadline) <= serverNow() || snapForm.elements.snapDeadline.value.slice(0, 10) < snapForm.elements.snapDate.value) { query('[data-snap-status]').textContent = 'Choose a future deadline on or after the assignment date.'; return; }
-                const workout = { id: crypto.randomUUID(), deadlineUtc: deadline, createdAtUtc: new Date(serverNow()).toISOString(), date: snapForm.elements.snapDate.value, name: snapForm.elements.snapName.value.trim(), cap: Number(snapForm.elements.snapCap.value), exercises: snapDraft.map(e => ({ ...e })) };
+                const workout = { id: crypto.randomUUID(), deadlineUtc: deadline, createdAtUtc: new Date(serverNow()).toISOString(), date: snapForm.elements.snapDate.value, name: snapForm.elements.snapName.value.trim(), cap: Number(snapForm.elements.snapCap.value), ...(Number(snapForm.elements.snapCompletionReward.value)>0?{completionReward:Number(snapForm.elements.snapCompletionReward.value)}:{}), exercises: snapDraft.map(e => ({ ...e })) };
                 if (await persistSnap({ ...state, agreement: readAgreementFields(), snapWorkouts: [...state.snapWorkouts, workout] }, 'Snap Workout assigned. The client can open their portal on any device to record results.')) { snapDraft = [newSnapExercise()]; deadlineTouched = false; drawSnapDraft(); loadSnapLibrary(); }
             });
             snapDraft = [newSnapExercise()]; drawSnapDraft();
