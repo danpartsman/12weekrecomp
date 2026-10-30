@@ -279,6 +279,8 @@ app.UseForwardedHeaders();
 
 app.UseHttpsRedirection();
 
+app.UseMiddleware<AppInstallMiddleware>();
+
 // Static asset provider: explicitly support modern marketing image formats.
 // This avoids a silent 404 on environments whose default provider does not
 // include WebP, which would leave image-led pages visually blank.

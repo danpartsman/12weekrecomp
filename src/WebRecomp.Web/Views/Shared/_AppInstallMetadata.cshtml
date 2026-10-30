@@ -1,0 +1,6 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration InstallConfiguration
+@{var test=WebRecomp.Web.Middleware.AppInstallIdentity.IsTest(InstallConfiguration,Context.Request.Host.Host);}
+<link rel="manifest" href="~/manifest.webmanifest" />
+<meta name="theme-color" content="@(test?"#854d0e":"#07131d")" />
+<meta name="apple-mobile-web-app-title" content="@(test?"12WR TEST":"12WR")" />
+@if(test){<link rel="icon" type="image/svg+xml" sizes="any" href="~/favicon-test.svg" asp-append-version="true" />}

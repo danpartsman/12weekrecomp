@@ -1,0 +1,5 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration InstallConfiguration
+@if(WebRecomp.Web.Middleware.AppInstallIdentity.IsTest(InstallConfiguration,Context.Request.Host.Host))
+{
+<aside class="app-environment-notice" aria-label="Test environment"><strong>TEST APP</strong><span>Test environment · @Context.Request.Host.Host</span></aside>
+}

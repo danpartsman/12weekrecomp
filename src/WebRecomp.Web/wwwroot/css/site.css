@@ -5486,3 +5486,5 @@ html[data-theme="dark"] .learn12wr-recomp-emphasis p {
 .pending-snap-banner ul {list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px;}
 .pending-snap-banner li {min-width:0;max-width:100%;}
 .pending-snap-banner .button {white-space:normal;overflow-wrap:anywhere;}
+
+.app-environment-notice{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 16px;background:#854d0e;color:#fff7d6;border-bottom:2px solid #fbbf24;font-size:.85rem;position:relative;z-index:150}.app-environment-notice strong{letter-spacing:.08em}.app-environment-notice span{overflow-wrap:anywhere}
