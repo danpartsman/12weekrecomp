@@ -24,7 +24,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var retryWorkout=state.SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==retry?.WorkoutId);
             if(retryWorkout is not null&&retry is not null)
             {
-                var result=new AccountabilityResult{DurationMinutes=retry.DurationMinutes};
+                var result=new AccountabilityResult{DurationMinutes=null};
                 foreach(var exercise in retryWorkout.Exercises)
                 {
                     var entered=retry.Exercises.FirstOrDefault(e=>e.Id==exercise.Id)?.Sets;
@@ -91,7 +91,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             if(!ModelState.IsValid)throw new ArgumentException("Check the completed reps and weight.");
             var finish=input.SubmitMode=="finish"||(Request.HasFormContentType&&Request.Form["Action"]=="finish");
             var user=(await users.GetAsync(HttpContext,ct)).User;
-            await simple.ResultAsync(user.UserId,clientId,Coach,input.Revision,input.WorkoutId,new(){Finalized=finish,DurationMinutes=input.DurationMinutes,Sets=input.Exercises.ToDictionary(e=>e.Id,e=>e.Sets.Select(s=>new AccountabilitySet{Reps=s.Reps,Weight=s.Weight,Rpe=e.Rpe}).ToList())},ct);
+            await simple.ResultAsync(user.UserId,clientId,Coach,input.Revision,input.WorkoutId,new(){Finalized=finish,DurationMinutes=null,Sets=input.Exercises.ToDictionary(e=>e.Id,e=>e.Sets.Select(s=>new AccountabilitySet{Reps=s.Reps,Weight=s.Weight,Rpe=e.Rpe}).ToList())},ct);
             TempData["SimpleStatus"]=finish?"Workout finished. Your coach can see the results and calculated account entries.":"Progress saved.";
         }
         catch(UnauthorizedAccessException){return NotFound();}
@@ -123,7 +123,6 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
     }
     public sealed class ResultInput
     {
-        [Range(typeof(decimal),"1","360")]public decimal? DurationMinutes{get;set;}
         public int Revision{get;set;}public string WorkoutId{get;set;}="";public string SubmitMode{get;set;}="progress";
         public List<ExerciseResults> Exercises{get;set;}=[];
     }

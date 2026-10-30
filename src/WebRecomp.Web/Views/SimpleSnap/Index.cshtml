@@ -31,20 +31,20 @@
 @foreach(var w in workouts){
  var previous=Model.State.SnapResults.GetValueOrDefault(w.Id);var completed=SnapWorkoutLibrary.Completed(w,previous);var canRecord=AccountabilityDocument.Date(w.Date)<=Model.Today;
  <details class="simple-workout" id="snap-@w.Id" open="@(Context.Request.Query["assignment"]==w.Id)"><summary>@w.Name · @w.Date · @(completed?"Completed":previous?.Finalized==true?"Finished · penalties applied":previous is null?"Assigned":"Progress saved")</summary>
- <div class="snap-charge-summary"><span>Maximum total charges <strong>@w.Cap.ToString("C2")</strong></span>@if(w.DeadlineUtc.HasValue){<span>Required Completion Time <strong data-snap-deadline="@w.DeadlineUtc.Value.ToString("O")" data-time-zone="@Model.ClientTimeZone">@TimeZoneInfo.ConvertTime(w.DeadlineUtc.Value,TimeZoneInfo.FindSystemTimeZoneById(Model.ClientTimeZone)).ToString("MMM d, yyyy h:mm tt") (@Model.ClientTimeZone)</strong></span>}</div>
+ <div class="snap-charge-summary"><span>Maximum total charges <strong>@w.Cap.ToString("C2")</strong></span>
+ @if(w.DeadlineUtc.HasValue){<span>Required Completion Time <strong data-snap-deadline="@w.DeadlineUtc.Value.ToString("O")" data-time-zone="@Model.ClientTimeZone">@TimeZoneInfo.ConvertTime(w.DeadlineUtc.Value,TimeZoneInfo.FindSystemTimeZoneById(Model.ClientTimeZone)).ToString("MMM d, yyyy h:mm tt") (@Model.ClientTimeZone)</strong></span><span class="snap-countdown-card" data-snap-countdown data-workout-id="@w.Id" data-deadline="@w.DeadlineUtc.Value.ToString("O")" data-server-now="@DateTimeOffset.UtcNow.ToString("O")" data-finished="@((previous?.Finalized==true).ToString().ToLowerInvariant())">Time remaining <strong data-time-remaining>@if(previous?.Finalized==true){<text>Finished @(previous.CompletedAtUtc<=w.DeadlineUtc?"on time":"after the deadline")</text>}else{<text>Loading…</text>}</strong></span>}
+ </div>
  @if(w.CompletionReward>0){<p>Previously assigned whole-workout completion fee: @w.CompletionReward.Value.ToString("C2").</p>}
- @if(w.DeadlineUtc.HasValue){<p data-snap-countdown data-workout-id="@w.Id" data-deadline="@w.DeadlineUtc.Value.ToString("O")" data-server-now="@DateTimeOffset.UtcNow.ToString("O")" data-finished="@((previous?.Finalized==true).ToString().ToLowerInvariant())">@if(previous?.Finalized==true){<span>Finished @(previous.CompletedAtUtc<=w.DeadlineUtc?"on time":"after the deadline")</span>}else{<span data-time-remaining>Loading time remaining…</span>}</p><p>Late-completion fine: @((w.LatePenalty??0).ToString("C2")), applied once if not finished by the deadline.</p>}
+ @if(w.DeadlineUtc.HasValue){<p class="muted">Late fee: @((w.LatePenalty??0).ToString("C2")), applied once if not finished by the deadline.</p>}
  @if(Model.Estimates.TryGetValue(w.Id,out var estimate)){
- if(estimate is not null){<p class="snap-engine-estimate">@(estimate.Actual?"Recorded work estimate":"Assigned work estimate"): <strong>@estimate.Calories.ToString("0") active calories</strong> · <strong>@estimate.Glycogen.ToString("0.0") g glycogen</strong> · @estimate.Minutes.ToString("0.#") minutes @(previous?.DurationMinutes is null?"(estimated duration)":"(reported duration)").</p>}
+ if(estimate is not null){<p class="snap-engine-estimate">@(estimate.Actual?"Recorded work estimate":"Assigned work estimate"): <strong>@estimate.Calories.ToString("0") active calories</strong> · <strong>@estimate.Glycogen.ToString("0.0") g glycogen</strong>.</p>}
  else{<p class="muted">Energy estimate needs the client’s weight, height, date of birth and sex.</p>}
  }
- <form asp-action="Result" asp-route-clientId="@Model.ClientId" method="post"><input name="Revision" type="hidden" value="@Model.Revision" /><input name="WorkoutId" type="hidden" value="@w.Id" />
- <label class="snap-duration">Workout duration (minutes, optional)<input name="DurationMinutes" type="number" min="1" max="360" step=".1" value="@previous?.DurationMinutes" placeholder="Leave blank to estimate from reps and sets" /></label>
+ <form asp-action="Result" asp-route-clientId="@Model.ClientId" method="post" data-snap-results data-finished="@((previous?.Finalized==true).ToString().ToLowerInvariant())" data-can-record="@canRecord.ToString().ToLowerInvariant()"><input name="Revision" type="hidden" value="@Model.Revision" /><input name="WorkoutId" type="hidden" value="@w.Id" />
  @for(var e=0;e<w.Exercises.Count;e++){
  var exercise=w.Exercises[e];var records=previous?.Sets.GetValueOrDefault(exercise.Id);
- <h3>@exercise.Name</h3><p>@exercise.Sets × @exercise.Reps reps · max @exercise.MaxWeight lb. @if(exercise.CompletionReward>0){<span>Completion fee @exercise.CompletionReward.Value.ToString("C2") · </span>}Incomplete exercise fee @((exercise.Penalty??exercise.Rate).ToString("C2"))@(exercise.Penalty.HasValue?"":" per "+exercise.Basis.Replace('-',' ')) · extra-rep incentive @((exercise.ExtraRepRate??0).ToString("C2")) per rep. Paid by the client to the coach.</p>
+ <section class="snap-result-exercise"><h3 class="snap-exercise-title">@exercise.Name</h3><p>@exercise.Sets × @exercise.Reps reps · max @exercise.MaxWeight lb. @if(exercise.CompletionReward>0){<span>Completion fee @exercise.CompletionReward.Value.ToString("C2") · </span>}Incomplete exercise fee @((exercise.Penalty??exercise.Rate).ToString("C2"))@(exercise.Penalty.HasValue?"":" per "+exercise.Basis.Replace('-',' ')) · extra-rep incentive @((exercise.ExtraRepRate??0).ToString("C2")) per rep. Paid by the client to the coach.</p>
  <p class="muted">Muscle focus: @(string.IsNullOrWhiteSpace(exercise.MuscleFocus)?"Engine default":exercise.MuscleFocus) · Coach RPE: @(exercise.Rpe?.ToString("0.#")??"Engine default")</p>
- <label class="snap-rpe">Actual RPE (optional)<input name="Exercises[@e].Rpe" type="number" min="1" max="10" step=".1" value="@(records?.FirstOrDefault()?.Rpe)" placeholder="1–10" disabled="@(!canRecord)" /></label>
  <input name="Exercises[@e].Id" type="hidden" value="@exercise.Id" />
  <div class="simple-table-scroll"><table><thead><tr><th>Set</th><th>Completed reps</th><th>Weight used (lb)</th></tr></thead><tbody>
  @for(var n=0;n<Math.Max(exercise.Sets,records?.Count??0);n++){
@@ -52,9 +52,12 @@
  <tr><th>@(n+1)</th><td><input aria-label="@exercise.Name set @(n+1) reps" name="Exercises[@e].Sets[@n].Reps" type="number" min="0" max="1000" value="@saved?.Reps" disabled="@(!canRecord)" /></td><td><input aria-label="@exercise.Name set @(n+1) weight" name="Exercises[@e].Sets[@n].Weight" type="number" min="0" max="2000" step=".01" value="@(saved?.WeightRecorded==false?null:(saved?.Weight??(exercise.MaxWeight==0?0:(decimal?)null)))" disabled="@(!canRecord)" /></td></tr>
  }
  </tbody></table></div>
+ <label class="snap-rpe">Actual RPE (optional)<input name="Exercises[@e].Rpe" type="number" min="1" max="10" step=".1" value="@(records?.FirstOrDefault()?.Rpe)" placeholder="1–10" disabled="@(!canRecord)" /></label>
+</section>
  }
- @if(canRecord){<p>Finish workout submits the final results even if targets were missed. Blank entries count as unfinished work and the assigned penalties apply. Extra reps add an incentive payable to the coach after the prescribed sets are complete.</p><button name="SubmitMode" value="progress" type="submit" class="secondary">Save progress</button> <button name="SubmitMode" value="finish" type="submit">Finish workout</button>}
+ @if(canRecord){<p>Finish workout submits the final results even if targets were missed. Blank entries count as unfinished work and the assigned penalties apply. Extra reps add an incentive payable to the coach after the prescribed sets are complete.</p><div class="snap-result-actions"><button name="SubmitMode" value="progress" type="submit" class="button">Save progress</button> <button name="SubmitMode" value="finish" type="submit" class="button">Finish workout</button></div>}
  else{<p>Results can be recorded on or after @w.Date.</p>}
+ <p class="snap-wake-status" data-snap-wake-status role="status"></p><button type="button" class="button" data-snap-wake-retry hidden>Keep screen awake</button>
  </form>
  @if(previous?.Finalized==true){<p>Results saved. Calculated fees and incentives appear in <a asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId">Fees &amp; payments</a>.</p>}
  </details>
@@ -68,3 +71,5 @@
 <script src="~/js/snap-assignment-time.js" asp-append-version="true" defer></script>
 
 <script src="~/js/snap-engine-estimate.js" asp-append-version="true" defer></script>
+
+<script src="~/js/snap-wake-lock.js" asp-append-version="true" defer></script>

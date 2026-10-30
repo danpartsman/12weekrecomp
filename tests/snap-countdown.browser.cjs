@@ -7,5 +7,6 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
  assert.match(await page.locator('[data-time-remaining]').textContent(),/2h 0m 0s|1h 59m/);
  await page.evaluate(async()=>{window.__now='2026-10-30T12:00:01Z';await window.__callbacks.find(c=>c.delay===30000).fn();});assert.match(await page.locator('[data-time-remaining]').textContent(),/Time expired/);
  await page.evaluate(async()=>{window.__finished=true;await window.__callbacks.find(c=>c.delay===30000).fn();});assert.equal(await page.locator('[data-time-remaining]').textContent(),'Finished on time');
+ await require('./snap-client.browser.cjs')(browser);
  console.log('Server-clock countdown, deadline expiry and finalized status updates passed.');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1);});

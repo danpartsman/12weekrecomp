@@ -9,7 +9,7 @@
             if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))return;
             const data=await response.json();if(!Number.isFinite(Date.parse(data.nowUtc)))return;
             serverStart=Date.parse(data.nowUtc);anchor=performance.now();
-            for(const timer of timers){const workout=data.workouts?.find(w=>w.id===timer.dataset.workoutId);if(workout?.finished){timer.dataset.finished='true';const output=timer.querySelector('[data-time-remaining]');if(output)output.textContent=Date.parse(workout.finishedAtUtc)<=Date.parse(timer.dataset.deadline)?'Finished on time':'Finished after the deadline';}}
+            for(const timer of timers){const workout=data.workouts?.find(w=>w.id===timer.dataset.workoutId);if(workout?.finished){timer.dataset.finished='true';const form=document.getElementById('snap-'+workout.id)?.querySelector('[data-snap-results]');if(form)form.dataset.finished='true';const output=timer.querySelector('[data-time-remaining]');if(output)output.textContent=Date.parse(workout.finishedAtUtc)<=Date.parse(timer.dataset.deadline)?'Finished on time':'Finished after the deadline';}}
             draw();
         }catch{/* Server-side deadline processing remains authoritative. */}finally{busy=false;}
     }
