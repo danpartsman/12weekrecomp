@@ -8,6 +8,7 @@ on:
       - '.github/workflows/live-email-diagnostic.yml'
       - '.github/workflows/coach-notification-delivery.yml'
       - '.github/workflows/deploy-live.yml'
+      - '.github/workflows/live-app-identity-check.yml'
   workflow_dispatch:
 
 concurrency:

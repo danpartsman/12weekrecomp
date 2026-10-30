@@ -1,0 +1,24 @@
+name: Verify LIVE installed app identity
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/live-app-identity-check.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare public LIVE app metadata
+        shell: python
+        run: |
+          import json, urllib.request, time
+          for base in ['https://12weekrecomp.com','https://recomp-live.azurewebsites.net']:
+              req=urllib.request.Request(base+'/manifest.webmanifest?identity-check='+str(int(time.time())),headers={'Cache-Control':'no-cache','Accept':'application/manifest+json','User-Agent':'12WR-Release-Check'})
+              with urllib.request.urlopen(req,timeout=45) as r:
+                  data=json.loads(r.read().decode('utf-8-sig'))
+                  print(json.dumps({'host':base,'status':r.status,'content_type':r.headers.get('Content-Type'),'cache':r.headers.get('CF-Cache-Status'),'age':r.headers.get('Age'),'manifest':data}))
+                  assert data.get('name')=='12 Week Recomp', 'Wrong LIVE name'
+                  assert data.get('short_name')=='12WR', 'Wrong LIVE short name'
+                  assert data['icons'][0]['src']=='/favicon.svg', 'Wrong LIVE icon'
