@@ -17,6 +17,16 @@ public sealed class CoachController(RecompDbContext db, AppUserContextService us
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct) => View(await coaches.BuildAsync((await users.GetAsync(HttpContext, ct)).User, ct));
 
+    [HttpGet("snap-status")]
+    public async Task<IActionResult> SnapStatus(CancellationToken ct)
+    {
+        var user=(await users.GetAsync(HttpContext,ct)).User;
+        return Json((await coaches.SnapStatusesAsync(user.UserId,ct)).Select(x=>new{clientId=x.Key,snap=x.Value}));
+    }
+
+    [HttpGet("old")]
+    public async Task<IActionResult> Old(CancellationToken ct)=>View(await coaches.BuildAsync((await users.GetAsync(HttpContext,ct)).User,ct));
+
     [HttpPost("profile"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Profile(CoachProfileInput input, CancellationToken ct)
     {
@@ -64,9 +74,11 @@ public sealed class CoachController(RecompDbContext db, AppUserContextService us
     }
 
     [HttpGet("clients/{clientId:guid}/accountability")]
-    public async Task<IActionResult> Accountability(Guid clientId, CancellationToken ct)
+    public async Task<IActionResult> Accountability(Guid clientId, CancellationToken ct,bool old=false)
     {
         if (!AccountabilityPreview.Enabled(HttpContext.RequestServices.GetRequiredService<IConfiguration>())) return NotFound();
+        if(SimpleCoaching.Enabled(HttpContext.RequestServices.GetRequiredService<IConfiguration>())&&!old)return RedirectToAction("Index","AccountabilityLedger",new{clientId});
+        ViewData["OldCoaching"]=SimpleCoaching.Enabled(HttpContext.RequestServices.GetRequiredService<IConfiguration>());
         var user = (await users.GetAsync(HttpContext, ct)).User;
         if (!await coaches.CanAccessAsync(user.UserId, clientId, ct)) return NotFound();
         var client = await db.Clients.AsNoTracking().SingleOrDefaultAsync(x => x.ClientId == clientId && x.ClientStatusCode == "ACTIVE", ct);

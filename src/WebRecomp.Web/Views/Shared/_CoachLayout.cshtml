@@ -1,5 +1,7 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration AppEnvironmentConfiguration
 @using System.Reflection
 @{
+    var testApp=WebRecomp.Web.Middleware.AppInstallIdentity.IsTest(AppEnvironmentConfiguration,Context.Request.Host.Host);
     var assembly = Assembly.GetExecutingAssembly();
 
     var appVersion =
@@ -21,7 +23,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@title - 12 Week Recomp</title>
+    <title>@(testApp?"[TEST] ":"")@title - 12 Week Recomp</title>
 
     <script>
         (() => {
@@ -48,9 +50,13 @@
           asp-append-version="true" />
 <link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/coach-center.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/app-navigation.css" asp-append-version="true" />
+<script src="~/js/app-navigation.js" asp-append-version="true" defer></script>
+<partial name="_AppInstallMetadata" />
 </head>
 
 <body class="app-shell coach-shell">
+<partial name="_AppEnvironmentNotice" />
 
 <header class="topbar">
 
@@ -66,26 +72,7 @@
         <a class="free-stamp free-stamp--brand" href="/recomp/why-free" aria-label="Completely free — read why">FREE</a>
     </div>
 
-    <nav class="public-nav"
-         aria-label="Coach navigation">
-
-        <a asp-controller="Coach"
-           asp-action="Index">
-            Coach Center
-        </a>
-
-        <a asp-controller="CommandCenter"
-           asp-action="Index">
-            My Recomp
-        </a>
-
-        <a class="nav-signout"
-           asp-controller="Account"
-           asp-action="Logout">
-            Sign Out
-        </a>
-
-    </nav>
+    @await Html.PartialAsync("_AppNavigation", false)
 
 </header>
 

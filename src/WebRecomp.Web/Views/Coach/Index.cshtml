@@ -4,10 +4,10 @@
 @if (TempData["CoachStatus"] is string status) { <div class="app-message success">@status</div> }
 <details class="card coach-panel" open><summary>Clients · @Model.Clients.Count</summary><div class="coach-panel-body">
 @if (Model.Clients.Count == 0) { <p>No clients connected yet. Create a connection code below; your client accepts it from My Coach.</p> }
-else { <div style="overflow-x:auto"><table><thead><tr><th>Client</th><th>Goal</th><th>Last completed workout</th><th>Review</th></tr></thead><tbody>
-@foreach (var client in Model.Clients) { <tr><td><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">@client.Name</a></td><td>@client.Goal</td><td>@(client.LastWorkout?.ToString("MMM d, yyyy") ?? "No completed workouts")</td><td><div class="coach-review-actions"><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">Weekly summary</a> <a class="button" asp-action="Client" asp-route-clientId="@client.ClientId">Plan &amp; controls</a>
+else { <div style="overflow-x:auto"><table><thead><tr><th>Client</th><th>Goal</th><th>Last regular workout</th><th>Snap Workouts</th><th>Review</th></tr></thead><tbody>
+@foreach (var client in Model.Clients) { <tr><td><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">@client.Name</a></td><td>@client.Goal</td><td>@(client.LastWorkout?.ToString("MMM d, yyyy") ?? "No completed workouts")</td><td data-snap-client="@client.ClientId">@await Html.PartialAsync("_CoachSnapStatus", client)</td><td><div class="coach-review-actions"><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">Weekly summary</a> <a class="button" asp-action="Client" asp-route-clientId="@client.ClientId">Plan &amp; controls</a>
 @{ var previewConfig = Context.RequestServices.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>(); }
-@if (AccountabilityPreview.Enabled(previewConfig)) { <a class="button" asp-action="Accountability" asp-route-clientId="@client.ClientId">Fines &amp; incentives</a> <a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@client.ClientId" asp-fragment="snap-workout">Snap Workout</a> }</div></td></tr> }
+@if (AccountabilityPreview.Enabled(previewConfig)) { <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@client.ClientId" asp-fragment="snap-workout">Snap Workout</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@client.ClientId" aria-label="Fees and payments for @client.Name">Fees &amp; payments</a> }</div></td></tr> }
 </tbody></table></div> }
 <p>@Model.PendingInvites pending connection codes. New codes expire after 24 hours and work once.</p>
 <form asp-action="Invite" method="post"><button type="submit">Create client connection code</button></form>
@@ -18,3 +18,7 @@ else { <div style="overflow-x:auto"><table><thead><tr><th>Client</th><th>Goal</t
 <label for="Specialties">Specialties</label><input id="Specialties" name="Specialties" value="@Model.Profile.Specialties" maxlength="500" />
 <label for="Bio">About you</label><textarea id="Bio" name="Bio" maxlength="2000" rows="3">@Model.Profile.Bio</textarea>
 <button type="submit">Save profile</button></form></div></details>
+
+<script src="~/js/coach-snap-status.js" asp-append-version="true" defer></script>
+
+<p><a class="button secondary" asp-action="Old">Old coaching screens · reference only</a></p>

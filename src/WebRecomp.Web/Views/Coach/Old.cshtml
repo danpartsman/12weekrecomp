@@ -1,0 +1,6 @@
+@model CoachCenterViewModel
+@{Layout="_CoachLayout";ViewData["Title"]="Old coaching screens";}
+<h1>Old coaching screens · reference only</h1>
+<p>These screens and their original source have been kept for later review. Agreement approvals, automatic adherence rules, contract payments and late-fee calculations are not part of the active simple flow. Existing posted account entries are retained.</p>
+<p><a class="button" asp-action="Index">Back to active Coach Center</a></p>
+@foreach(var client in Model.Clients){<section class="card"><h2>@client.Name</h2><a class="button secondary" asp-action="Accountability" asp-route-clientId="@client.ClientId" asp-route-old="true">Old fees &amp; agreement</a> <a class="button secondary" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@client.ClientId" asp-route-old="true">Old Snap Workout interface</a></section>}

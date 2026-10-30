@@ -7,7 +7,7 @@ using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.Services.Notifications;
 
 public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationFiles files, IEmailService email,
-    IPhoneNotificationSender phone, ILogger<CoachNotificationProcessor> logger)
+    IPhoneNotificationSender phone, ILogger<CoachNotificationProcessor> logger,IConfiguration? configuration=null)
 {
     public async Task QueueConfigAsync(Guid clientId, int revision, CancellationToken ct)
     {
@@ -56,6 +56,7 @@ public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationF
     }
     private async Task QueueDailyReviewsAsync(CancellationToken ct)
     {
+        if(SimpleCoaching.Enabled(configuration))return;
         var agreements = await db.CoachAccountabilityAgreements.AsNoTracking().ToListAsync(ct);
         foreach (var agreement in agreements)
         {
@@ -69,9 +70,9 @@ public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationF
             var now = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone);
             var state = AccountabilityDocument.Parse(agreement.StateJson);
             if (!DailyReviewDue(state, DateOnly.FromDateTime(now.DateTime), now.TimeOfDay, settings.ReviewTime)) continue;
-            var path = $"/accountability-preview/clients/{client.ClientId:D}";
+            var path = $"/clients/{client.ClientId:D}/coach-ledger";
             files.Enqueue(new() { Id = $"daily-{client.ClientId:N}-{owner.UserId:N}-{now:yyyyMMdd}", ClientId = client.ClientId, CoachUserId = agreement.CoachUserId,
-                UserId = owner.UserId, Subject = "Review today's fees and incentives", Body = "Open your agreement to review today's calculated fees, incentives and pending items.", Url = path, Email = false });
+                UserId = owner.UserId, Subject = "Review today's fees and incentives", Body = "Open your shared account to review posted fees, incentives and payments.", Url = path, Email = false });
         }
     }
     public static bool DailyReviewDue(AccountabilityState state, DateOnly today, TimeSpan localTime, string reviewTime)

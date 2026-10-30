@@ -16,54 +16,47 @@ function navigation({admin=false,demo=false}={}) {
   const page=await browser.newPage({viewport:{width:1440,height:900}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   const css=['site.css','test-live-preview.css','design-system-v1012.css','app-navigation.css'].map(f=>fs.readFileSync('src/WebRecomp.Web/wwwroot/css/'+f,'utf8')).join('\n');
-  const html=`<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><style>${css}</style></head><body class="app-shell test-live-preview"><header class="topbar"><div class="brand"><a href="/CommandCenter">12 WEEK RECOMP</a></div>${navigation({admin:true})}</header><main class="container"><h1>Command Center</h1><section class="card"><h2>Your daily plan</h2><button id="outside">View today's plan</button></section></main></body></html>`;
-  await page.route('https://navigation.test/**',route=>route.fulfill({contentType:'text/html',body:html}));
+  const script=fs.readFileSync('src/WebRecomp.Web/wwwroot/js/app-navigation.js','utf8');
+  const html=`<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><style>${css}</style></head><body class="app-shell test-live-preview"><header class="topbar"><div class="brand"><a href="/CommandCenter">12 WEEK RECOMP</a></div>${navigation({admin:true})}</header><main class="container"><h1>Section main page</h1><section class="card"><button id="outside">Outside</button></section></main><script>${script}</script></body></html>`;
+  await page.route('https://navigation.test/**',route=>route.fulfill({contentType:'text/html',body:html.replace('Section main page',new URL(route.request().url()).pathname)}));
+  await page.addInitScript(()=>{Object.defineProperty(window,'sessionStorage',{get(){throw new Error('Storage disabled for regression test');}});});
   await page.goto('https://navigation.test/CommandCenter');
-  await page.addScriptTag({path:'src/WebRecomp.Web/wwwroot/js/app-navigation.js'});
-  assert.deepEqual(await page.locator('.app-nav-group > summary').allTextContents(),['Command Center','Daily Entries','Recomp Tips','Profile']);
-  assert.equal(await page.locator('.app-nav-group[open]').count(),0);
-  const expected=[['Command Center','Dashboard','Progress'],['Daily Entries','Recomp Tracking','Nutrition','Workout','Weekly Plan'],['Recomp Tips','How It Works','Evidence'],['Profile','Settings','My Coach','Notifications','Coach Center','Administration','Sign Out']];
   const groups=page.locator('.app-nav-group');
+  assert.deepEqual(await page.locator('.app-nav-primary').allTextContents(),['Command Center','Daily Entries','Recomp Tips','Profile']);
+  assert.equal(await page.locator('.app-nav-group[open]').count(),0);
+  const expected=[['Dashboard','Progress'],['Recomp Tracking','Nutrition','Workout','Weekly Plan'],['How It Works','Evidence'],['Settings','My Coach','Notifications','Coach Center','Administration','Sign Out']];
+  const paths=['/CommandCenter','/DailyEntry','/tips','/Profile'];
+  async function navigate(i){const button=groups.nth(i).locator('summary');const box=await button.boundingBox();await Promise.all([page.waitForNavigation(),i%2?button.click({position:{x:box.width-10,y:box.height/2}}):groups.nth(i).locator('.app-nav-primary').click()]);assert.equal(new URL(page.url()).pathname,paths[i]);assert.equal(await page.locator('h1').textContent(),paths[i]);assert.equal(new URL(page.url()).searchParams.has('nav'),false);await page.waitForFunction(()=>document.querySelectorAll('.app-nav-group[open]').length===1);}
   for(let i=0;i<4;i++){
-    await groups.nth(i).locator('summary').click();
-    await page.waitForFunction(()=>document.querySelectorAll('.app-nav-group[open]').length===1);
-    assert.deepEqual(await groups.nth(i).locator('a').allTextContents(),expected[i]);
-    assert.equal(await groups.nth(i).locator('.app-nav-panel').isVisible(),true);
+   await navigate(i);assert.deepEqual(await groups.nth(i).locator('.app-nav-panel a').allTextContents(),expected[i]);assert.equal(await groups.nth(i).locator('.app-nav-panel').isVisible(),true);
   }
   await page.keyboard.press('Escape');assert.equal(await page.locator('.app-nav-group[open]').count(),0);
-  assert.equal(await groups.nth(3).locator('summary').evaluate(n=>n===document.activeElement),true);
-  await page.keyboard.press('ArrowDown');await page.keyboard.press('ArrowDown');
-  assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Settings');
+  await groups.nth(3).locator('.app-nav-primary').focus();await page.keyboard.press('ArrowDown');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Settings');
   await page.keyboard.press('End');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Sign Out');
-  await page.locator('#outside').click();assert.equal(await page.locator('.app-nav-group[open]').count(),0);
-  await groups.nth(0).locator('summary').click();
-  assert.equal(await page.locator('a[aria-current=page]').getAttribute('href'),'/CommandCenter');
-  fs.mkdirSync('quantity-control-preview',{recursive:true});
-  await page.screenshot({path:'quantity-control-preview/navigation-desktop.png'});
+  await page.evaluate(()=>document.querySelector('#outside').click());assert.equal(await page.locator('.app-nav-group[open]').count(),0);
+  await navigate(0);await page.mouse.move(700,700);await page.waitForFunction(()=>document.querySelectorAll('.app-nav-group[open]').length===0,{},{timeout:7000});
+  await navigate(0);fs.mkdirSync('quantity-control-preview',{recursive:true});await page.screenshot({path:'quantity-control-preview/navigation-desktop.png'});
   for(const width of [820,390,320]){
-    await page.setViewportSize({width,height:844});
-    for(let i=0;i<4;i++){
-      await groups.nth(i).locator('summary').click();
-      if(await groups.nth(i).getAttribute('open')===null)await groups.nth(i).locator('summary').click();
-      const panel=await groups.nth(i).locator('.app-nav-panel').boundingBox();
-      assert.ok(panel.x>=0 && panel.x+panel.width<=width+1,'Dropdown must stay inside phone viewport');
-      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-      const clickable=await groups.nth(i).locator('.app-nav-panel a').evaluateAll(links=>links.every(link=>{
-        const r=link.getBoundingClientRect(), hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
-        return hit===link || link.contains(hit);
-      }));
-      assert.equal(clickable,true,'All phone menu entries must be visible and clickable, including below the header');
-      await page.keyboard.press('Escape');
-    }
+   await page.setViewportSize({width,height:844});await page.evaluate(()=>document.querySelector('#outside').click());
+   assert.equal(await page.locator('.app-nav-toggle').isVisible(),true);assert.equal(await groups.first().isVisible(),false);
+   for(let i=0;i<4;i++){
+    await page.locator('.app-nav-toggle').click();await navigate(i);
+    assert.equal(await page.locator('.app-nav-toggle').getAttribute('aria-expanded'),'true');
+    const panel=await groups.nth(i).locator('.app-nav-panel').boundingBox();assert.ok(panel.x>=0&&panel.x+panel.width<=width+1);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    await page.evaluate(()=>document.querySelector('#outside').click());assert.equal(await page.locator('.app-nav-toggle').getAttribute('aria-expanded'),'false');
+   }
   }
-  await page.setViewportSize({width:390,height:844});
-  await groups.nth(1).locator('summary').click();
-  await page.screenshot({path:'quantity-control-preview/navigation-mobile.png'});
-  assert.deepEqual(errors,[]);
-  assert.equal(navigation().includes('Coach Center'),false);
-  assert.equal(navigation().includes('Administration'),false);
-  assert.equal(navigation({demo:true}).includes('End Guided Demo'),true);
-  assert.equal(navigation({demo:true}).includes('Sign Out'),false);
-  console.log('Grouped navigation links, keyboard controls, outside dismissal, roles, demo exit and phone viewport checks passed.');
+  await page.setViewportSize({width:390,height:844});await page.locator('.app-nav-toggle').click();await navigate(1);await page.screenshot({path:'quantity-control-preview/navigation-mobile.png'});
+  // Coach pages must render the same responsive menu, rather than the legacy public-nav.
+  const coachLayout=fs.readFileSync('src/WebRecomp.Web/Views/Shared/_CoachLayout.cshtml','utf8');
+  assert.match(coachLayout, /PartialAsync\("_AppNavigation", false\)/);assert.match(coachLayout,/app-navigation\.css/);assert.match(coachLayout,/app-navigation\.js/);assert.equal(coachLayout.includes('aria-label="Coach navigation"'),false);
+  await page.evaluate(()=>{document.body.className='app-shell coach-shell';});
+  await page.addStyleTag({path:'src/WebRecomp.Web/wwwroot/css/coach-center.css'});
+  await page.evaluate(()=>document.querySelector('#outside').click());
+  assert.equal(await page.locator('.app-nav-toggle').isVisible(),true);await page.locator('.app-nav-toggle').click();
+  assert.equal(await groups.first().isVisible(),true);await navigate(0);
+  assert.deepEqual(errors,[]);assert.equal(navigation().includes('Coach Center'),false);assert.equal(navigation().includes('Administration'),false);assert.equal(navigation({demo:true}).includes('End Guided Demo'),true);assert.equal(navigation({demo:true}).includes('Sign Out'),false);
+  console.log('Primary navigation changes page and opens destination flyouts with storage blocked; timed dismissal, keyboard, mobile hamburger, viewport and roles passed.');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

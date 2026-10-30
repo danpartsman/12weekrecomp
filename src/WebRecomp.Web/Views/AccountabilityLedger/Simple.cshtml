@@ -1,0 +1,50 @@
+@model WebRecomp.Web.Controllers.AccountabilityLedgerPage
+@{
+    ViewData["Title"]="Fees, incentives & payments";
+    if(Model.CanRecord){Layout="_CoachLayout";}
+    var balance=Model.Entries.Sum(x=>x.Amount);
+    string Money(decimal value)=>value.ToString("C2",System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+    string Kind(string value)=>value switch{"fee"=>"Fee","incentive"=>"Incentive","incentive-client"=>"Extra-rep incentive","completion-fee"=>"Completion fee","penalty"=>"Penalty","late-penalty"=>"Late-completion fine","payment-client"=>"Client paid coach",_=>value};
+    var history=Model.History;
+    var visibleEntries=history.Select(row=>row.Entry).ToList();
+    TimeZoneInfo zone;
+    try{zone=TimeZoneInfo.FindSystemTimeZoneById(Model.TimeZone);}
+    catch(TimeZoneNotFoundException){zone=TimeZoneInfo.Utc;}
+    catch(InvalidTimeZoneException){zone=TimeZoneInfo.Utc;}
+}
+<link rel="stylesheet" href="~/css/coach-ledger.css" asp-append-version="true" />
+<section class="page-header"><p class="eyebrow">CLIENT ACCOUNT</p><h1>@Model.ClientName · Fees &amp; incentives</h1><p>Fees, incentives and payments for @Model.ClientName only. This client has a separate running balance; entries remain in posting order, including later corrections.</p></section>
+<p class="ledger-links"><a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId">Snap Workouts</a> @if(Model.CanRecord){<a class="button" asp-controller="Coach" asp-action="Index">Client list</a>}</p>
+@if(TempData["LedgerStatus"] is string status){<div class="app-message" role="status">@status</div>}
+<section class="card ledger-summary" aria-label="Account balance">
+    <div><span>Running balance</span><strong>@Money(Math.Abs(balance))</strong><p>@(balance>0?"Client owes coach":balance<0?"Client payment credit":"Account is settled")</p></div>
+    <div><span>All time fees assessed</span><strong>@Money(Model.Entries.Where(x=>x.Kind is "fee" or "completion-fee" or "penalty" or "late-penalty").Sum(x=>x.Amount))</strong></div>
+    <div><span>All time incentives payable</span><strong>@Money(Model.Entries.Where(x=>x.Kind=="incentive-client").Sum(x=>x.Amount))</strong></div>
+</section>
+
+@if(Model.CanRecord)
+{
+<details class="card ledger-entry-form" open><summary>Record a payment or adjustment</summary>
+<form asp-action="Entry" asp-route-clientId="@Model.ClientId" method="post">
+    <input type="hidden" name="ExpectedRevision" value="@Model.Revision" /><input type="hidden" name="RequestId" value="@Guid.NewGuid()" />
+    <div class="ledger-fields"><label>Entry type<select name="Kind"><option value="payment-client">Payment received from client</option><option value="fee">Fee / charge</option><option value="completion-fee">Completion fee</option><option value="penalty">Penalty</option><option value="incentive-client">Extra-rep incentive payable to coach</option></select></label>
+    <label>Date<input name="Date" type="date" value="@Model.Today.ToString("yyyy-MM-dd")" required /></label><label>Amount ($)<input name="Amount" type="number" min=".01" max="10000" step=".01" required /></label>
+    <label class="ledger-description">Description / payment reference<input name="Description" maxlength="300" required placeholder="e.g. Payment received by bank transfer" /></label></div>
+    <details class="simple-fee-calculator"><summary>Calculate a fee · quantity × rate</summary><div class="ledger-fields"><label>Quantity<input type="number" min=".01" max="1000" step=".01" value="1" data-fee-quantity /></label><label>Rate ($)<input type="number" min=".01" max="10000" step=".01" data-fee-rate /></label></div><button type="button" class="secondary" data-calculate-fee>Use calculated fee</button><p data-fee-calculation role="status"></p></details>
+    <p>Fees, penalties and incentives increase what the client owes the coach. Record a payment received from the client to reduce that balance.</p><button type="submit">Record entry</button>
+</form></details>
+}
+<section class="card"><h2>Account history</h2><p>Fees, penalties and incentives all increase the client’s balance. Payments received from the client reduce it. A payment credit can be applied against future charges. No money is transferred by this page.</p>
+@if(history.Count==0){<p>@(Model.ThirtyDays?"No transactions were posted in the last 30 days.":"No entries have been posted yet.")</p>}
+else{<div class="ledger-table-scroll" tabindex="0" role="region" aria-label="Account history; scroll horizontally"><table class="ledger-table"><thead><tr><th>Posted (@Model.TimeZone)</th><th>Effective date</th><th>Type</th><th>Description</th><th>Increase ($)</th><th>Decrease ($)</th><th>Running balance</th></tr></thead><tbody>
+@foreach(var row in history){var entry=row.Entry;<tr><td>@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(entry.CreatedAtUtc,DateTimeKind.Utc),zone).ToString("MMM d, yyyy HH:mm")</td><td>@entry.Date.ToString("MMM d, yyyy")</td><td>@Kind(entry.Kind)</td><td>@entry.Description</td><td>@(entry.Amount>0?Money(entry.Amount):"—")</td><td>@(entry.Amount<0?Money(-entry.Amount):"—")</td><td>@Money(row.Balance)</td></tr>}
+</tbody></table></div>}
+@if(Model.CanRecord && visibleEntries.Any(x=>!x.Automatic && !x.SourceKey.StartsWith("reverse:") && Model.Entries.All(y=>y.SourceKey!="reverse:"+x.Id.ToString("N"))))
+{
+<details class="ledger-correction"><summary>Correct a manual entry</summary><form asp-action="Reverse" asp-route-clientId="@Model.ClientId" method="post"><input name="expectedRevision" type="hidden" value="@Model.Revision" /><label>Entry<select name="entryId">@foreach(var entry in visibleEntries.Where(x=>!x.Automatic && !x.SourceKey.StartsWith("reverse:") && Model.Entries.All(y=>y.SourceKey!="reverse:"+x.Id.ToString("N")))){<option value="@entry.Id">@entry.Date.ToString("MMM d") · @Kind(entry.Kind) · @Money(Math.Abs(entry.Amount)) · @entry.Description</option>}</select></label><label>Reason<input name="reason" maxlength="300" required /></label><button type="submit">Record reversal</button></form></details>
+}
+<p class="muted">New simple Snap Workouts post calculated fees and incentives when finished. Corrections add an adjustment line. Existing account history is retained.</p>
+<partial name="_LedgerHistoryControls" model="Model" />
+</section>
+
+<script src="~/js/simple-fee-calculator.js" asp-append-version="true" defer></script>

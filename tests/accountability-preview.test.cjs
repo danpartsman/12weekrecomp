@@ -163,3 +163,31 @@ test('custom cent amounts remain valid and are included in the client approval t
     s.rules[1].amount=3.251;assert.equal(valid(s),false);
     s.rules[1].amount=10000.01;assert.equal(valid(s),false);
 });
+test('typed Snap exercises use a weight ceiling without changing earlier prescribed-weight rules', () => {
+    const {s,evidence}=rewardedSnap();const w=s.snapWorkouts[0], e=w.exercises[0];
+    e.catalogId='';e.weight=0;e.maxWeight=25;e.sets=2;e.reps=10;
+    s.snapResults[w.id].sets[e.id]=[{reps:10,weight:20},{reps:10,weight:25}];
+    assert.equal(valid(s),true);
+    const {snapCompleted}=require('../src/WebRecomp.Web/wwwroot/js/accountability-preview.js');
+    assert.equal(snapCompleted(w,s.snapResults[w.id]),true);
+    const within=terms(s);e.maxWeight=30;assert.notEqual(terms(s),within);e.maxWeight=25;
+    s.snapResults[w.id].sets[e.id][1].weight=26;
+    assert.equal(snapCompleted(w,s.snapResults[w.id]),false);
+    assert.equal(require('../src/WebRecomp.Web/wwwroot/js/accountability-preview.js').assessSnap(s,evidence).find(row=>row.id===`snap-${w.id}-${e.id}`).completedSets,1);
+    e.maxWeight=-1;assert.equal(valid(s),false);delete e.maxWeight;assert.equal(valid(s),false);
+});
+test('screenshot reward includes all 30 extra reps and explains the $20 cap',()=>{
+    const {s,evidence}=rewardedSnap(),w=s.snapWorkouts[0],e=w.exercises[0];w.cap=20;e.sets=3;e.reps=10;e.completionReward=20;e.extraRepRate=1;
+    s.snapResults[w.id].sets[e.id]=Array.from({length:3},()=>({reps:20,weight:e.weight}));
+    const reward=assessSnap(s,evidence).find(r=>r.id.endsWith('-reward'));
+    assert.equal(reward.units,30);assert.equal(reward.rawAmount,50);assert.equal(reward.amount,20);assert.match(reward.reason,/50.00 before cap/);
+    w.cap=100;e.reps=15;assert.equal(assessSnap(s,evidence).find(r=>r.id.endsWith('-reward')).amount,35);
+});
+test('whole-workout completion is paid once, alongside per-exercise extra reps',()=>{
+    const {s,evidence}=rewardedSnap(),w=s.snapWorkouts[0],e=w.exercises[0];w.completionReward=20;e.completionReward=0;e.extraRepRate=1;e.sets=3;e.reps=10;w.cap=100;
+    s.snapResults[w.id].sets[e.id]=Array.from({length:3},()=>({reps:20,weight:e.weight}));
+    let rows=assessSnap(s,evidence);assert.equal(rows.filter(r=>r.type==='incentive').reduce((n,r)=>n+r.amount,0),50);
+    assert.equal(rows.find(r=>r.id.endsWith('-completion')).amount,20);
+    w.cap=20;rows=assessSnap(s,evidence);assert.equal(rows.filter(r=>r.type==='incentive').reduce((n,r)=>n+r.amount,0),20);
+    assert.equal(rows.find(r=>r.id.endsWith('-reward')).rawAmount,30);assert.equal(rows.find(r=>r.id.endsWith('-reward')).amount,0);
+});

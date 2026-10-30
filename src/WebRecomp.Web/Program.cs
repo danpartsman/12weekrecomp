@@ -31,6 +31,10 @@ builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachAccountabilityPr
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachAccountabilityStore>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.AccountabilityDefaultsStore>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapWorkoutLibrary>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.AccountabilityLedger>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SimpleCoachingService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapWorkoutEstimateService>();
+builder.Services.AddHostedService<WebRecomp.Web.Services.Coaching.SimpleDeadlineWorker>();
 builder.Services.AddSingleton<WebRecomp.Web.Services.Notifications.NotificationFiles>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Notifications.CoachNotificationProcessor>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Notifications.IPhoneNotificationSender, WebRecomp.Web.Services.Notifications.WebPushDelivery>();
@@ -274,6 +278,8 @@ app.UseExceptionHandler("/TestDiagnostics/Error");
 app.UseForwardedHeaders();
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<AppInstallMiddleware>();
 
 // Static asset provider: explicitly support modern marketing image formats.
 // This avoids a silent 404 on environments whose default provider does not

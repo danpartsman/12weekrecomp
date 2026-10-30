@@ -8,7 +8,8 @@ public sealed class CoachProfileInput
     [StringLength(2000)] public string? Bio { get; set; }
     [StringLength(500)] public string? Specialties { get; set; }
 }
-public sealed record CoachRosterClient(Guid ClientId, string Name, string? Goal, DateOnly? LastWorkout);
+public sealed record CoachSnapStatus(int Assigned=0,int Submitted=0,int Completed=0,string? LatestWorkoutId=null,string? LatestName=null,string? Status=null);
+public sealed record CoachRosterClient(Guid ClientId, string Name, string? Goal, DateOnly? LastWorkout) { public CoachSnapStatus Snap {get;init;}=new(); }
 public sealed record CoachCenterViewModel(CoachProfileInput Profile, IReadOnlyList<CoachRosterClient> Clients, int PendingInvites);
 public sealed record CoachClientDetailViewModel(Client Client, ProgramRecord? Program, Measurement? Measurement, IReadOnlyList<WorkoutSession> Workouts)
 {

@@ -1,6 +1,8 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration AppEnvironmentConfiguration
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery DeviceAntiforgery
 @using System.Reflection
 @{
+    var testApp=WebRecomp.Web.Middleware.AppInstallIdentity.IsTest(AppEnvironmentConfiguration,Context.Request.Host.Host);
     var assembly = Assembly.GetExecutingAssembly();
 
     var appVersion =
@@ -39,7 +41,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - 12 Week Recomp</title>
+    <title>@(testApp?"[TEST] ":"")@ViewData["Title"] - 12 Week Recomp</title>
     <link rel="icon" type="image/x-icon" href="~/favicon.ico" asp-append-version="true" />
     <link rel="icon" type="image/svg+xml" sizes="any" href="~/favicon.svg" asp-append-version="true" />
 
@@ -107,10 +109,10 @@
             asp-append-version="true"
             defer></script>
 <link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
-<link rel="manifest" href="~/manifest.webmanifest" />
-<meta name="theme-color" content="#07131d" />
+
 <link rel="stylesheet" href="~/css/app-navigation.css" asp-append-version="true" />
 <script src="~/js/app-navigation.js" asp-append-version="true" defer></script>
+<partial name="_AppInstallMetadata" />
 </head>
 
 @{
@@ -120,6 +122,7 @@
             : "";
 }
 <body class="@shellClass @appThemeClass @(ViewData["BodyClass"] as string)">
+<partial name="_AppEnvironmentNotice" />
 
 <header class="topbar">
 
@@ -293,7 +296,8 @@
 
 
 <main class="container">
-    @if (User.Identity?.IsAuthenticated == true && !isPublicPage && !isOnboardingPage) { @await Component.InvokeAsync("PendingSnap") }
+    @if (User.Identity?.IsAuthenticated == true && !isPublicPage && !isOnboardingPage) { <div data-pending-snap-host aria-live="polite">@await Component.InvokeAsync("PendingSnap")</div>
+    <script src="~/js/pending-snap.js" asp-append-version="true" defer></script> }
     @RenderBody()
 </main>
 

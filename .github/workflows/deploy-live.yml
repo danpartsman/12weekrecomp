@@ -202,7 +202,7 @@ jobs:
           az webapp config appsettings set `
             --resource-group $env:AZURE_RESOURCE_GROUP `
             --name $env:AZURE_WEBAPP_NAME `
-            --settings WEBSITE_RUN_FROM_PACKAGE="1" SCM_DO_BUILD_DURING_DEPLOYMENT="false" `
+            --settings WEBSITE_RUN_FROM_PACKAGE="1" SCM_DO_BUILD_DURING_DEPLOYMENT="false" SimpleCoaching__Enabled="true" `
             --output none
 
           az webapp config appsettings delete `
@@ -438,3 +438,24 @@ jobs:
 
           Write-Host "LIVE account creation and sign-in pages are enabled and production-clean."
 
+
+      - name: Verify promoted LIVE Snap experience and app identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $base = "https://12weekrecomp.com"
+          $manifestResponse = Invoke-WebRequest -Uri "$base/manifest.webmanifest?v=${{ github.sha }}" -TimeoutSec 45
+          $manifest = $manifestResponse.Content | ConvertFrom-Json
+          if ($manifest.name -ne '12 Week Recomp' -or $manifest.short_name -ne '12WR' -or $manifest.icons[0].src -ne '/favicon.svg') {
+              throw "LIVE installed-app identity is incorrect."
+          }
+          $navigation = Invoke-WebRequest -Uri "$base/js/app-navigation.js?v=${{ github.sha }}" -TimeoutSec 30
+          $snap = Invoke-WebRequest -Uri "$base/js/snap-wake-lock.js?v=${{ github.sha }}" -TimeoutSec 30
+          $countdown = Invoke-WebRequest -Uri "$base/js/snap-countdown.js?v=${{ github.sha }}" -TimeoutSec 30
+          if ($navigation.Content -notmatch 'location.assign' -or $navigation.Content -notmatch 'destination.searchParams' -or
+              $snap.Content -notmatch 'navigator.wakeLock' -or $countdown.Content -notmatch 'data-snap-countdown') {
+              throw "Promoted LIVE navigation or Snap assets do not match this release."
+          }
+          $enabled = az webapp config appsettings list --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AZURE_WEBAPP_NAME --query "[?name=='SimpleCoaching__Enabled'].value | [0]" -o tsv
+          if ($enabled -ne 'true') { throw "Simple coaching is not enabled on LIVE." }
+          Write-Host "LIVE app identity, primary navigation, Snap countdown, screen-awake support and simplified coaching setting verified."
