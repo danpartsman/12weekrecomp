@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.Controllers;
-public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft);
+public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone);
 [Authorize,Route("clients/{clientId:guid}/snap"),ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
 public sealed class SimpleSnapController(AppUserContextService users,SimpleCoachingService simple,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,IConfiguration configuration):Controller
 {
@@ -32,7 +32,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
                 }
                 state.SnapResults[retryWorkout.Id]=result;
             }
-            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",Coach&&await access.CanAssignSnapAsync(user.UserId,clientId,ct),row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today}));
+            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",Coach&&await access.CanAssignSnapAsync(user.UserId,clientId,ct),row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today},clock.Zone));
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }
@@ -58,7 +58,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         {
             var user=(await users.GetAsync(HttpContext,ct)).User;
             await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,new(){Name=input.Name.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
-                TimeLimitMinutes=input.TimeUnit=="hours"?checked(input.TimeAllowed*60):input.TimeAllowed,LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=e.Penalty,CompletionReward=e.CompletionReward,ExtraRepRate=e.ExtraRepRate}).ToList()},ct);
+                TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
             TempData["SimpleStatus"]="Workout assigned. Your client can open it in their portal.";return RedirectToAction(nameof(Index),new{clientId});
         }
         catch(UnauthorizedAccessException){return NotFound();}
@@ -86,8 +86,9 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         public Guid RequestId{get;set;}=Guid.NewGuid();
         [Required,StringLength(100)]public string Name{get;set;}="Snap Workout";
         public DateOnly Date{get;set;}
-        [Range(1,10080)]public int TimeAllowed{get;set;}=2;
-        [RegularExpression("^(hours|minutes)$")]public string TimeUnit{get;set;}="hours";
+        [Range(typeof(decimal),"0.0166666667","168")]public decimal TimeAllowed{get;set;}=2;
+        [Range(typeof(decimal),"0","10000")]public decimal IncompleteExerciseFee{get;set;}
+        [Range(typeof(decimal),"0","100")]public decimal CoachIncentivePerRep{get;set;}
         public decimal LatePenalty{get;set;}
         public decimal Cap{get;set;}=100;
         public decimal CompletionReward{get;set;}
