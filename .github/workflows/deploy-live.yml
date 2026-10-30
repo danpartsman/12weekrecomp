@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '.github/workflows/live-email-diagnostic.yml'
+      - '.github/workflows/coach-notification-delivery.yml'
+      - '.github/workflows/deploy-live.yml'
   workflow_dispatch:
 
 concurrency:
