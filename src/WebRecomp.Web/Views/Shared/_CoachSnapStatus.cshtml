@@ -4,5 +4,5 @@ else
 {
     <strong>@Model.Snap.Status · @Model.Snap.LatestName</strong>
     <p class="muted">@Model.Snap.Submitted submitted · @Model.Snap.Completed completed · @Model.Snap.Assigned assigned</p>
-    <a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@Model.ClientId" asp-route-assignment="@Model.Snap.LatestWorkoutId" asp-fragment="snap-@Model.Snap.LatestWorkoutId">Review Snap results</a>
+    <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-assignment="@Model.Snap.LatestWorkoutId" asp-fragment="snap-@Model.Snap.LatestWorkoutId">Review Snap results</a>
 }

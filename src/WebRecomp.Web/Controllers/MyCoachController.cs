@@ -31,7 +31,7 @@ public sealed class MyCoachController(RecompDbContext db, AppUserContextService 
         return new(connections, input) { ClientId = clientId };
     }
     [HttpGet("pending-snaps")]
-    public async Task<IActionResult> PendingSnaps([FromServices] CoachAccountabilityStore store,[FromServices] IConfiguration configuration,CancellationToken ct)
+    public async Task<IActionResult> PendingSnaps([FromServices] CoachAccountabilityStore store,[FromServices] IConfiguration configuration,[FromServices] SimpleCoachingService simple,CancellationToken ct)
     {
         if(!AccountabilityPreview.Enabled(configuration))return NotFound();
         var id=await OwnedClientAsync(ct);
@@ -39,10 +39,10 @@ public sealed class MyCoachController(RecompDbContext db, AppUserContextService 
         var user=(await users.GetAsync(HttpContext,ct)).User;
         try
         {
-            var row=await store.ReadSnapAsync(user.UserId,id.Value,false,ct);
+            var row=SimpleCoaching.Enabled(configuration)?await simple.ReadAsync(user.UserId,id.Value,false,ct):await store.ReadSnapAsync(user.UserId,id.Value,false,ct);
             var workouts=row is null?[]:AccountabilityDocument.Parse(row.StateJson).SnapWorkouts;
             var state=row is null?null:AccountabilityDocument.Parse(row.StateJson);
-            return Json(new{clientId=id.Value,workouts=workouts.Where(w=>!SnapWorkoutLibrary.Completed(w,state!.SnapResults.GetValueOrDefault(w.Id))).OrderBy(w=>w.Date).Select(w=>new{w.Id,w.Name,w.Date})});
+            return Json(new{clientId=id.Value,workouts=workouts.Where(w=>(!SimpleCoaching.Enabled(configuration)||w.Simple)&&!SnapWorkoutLibrary.Completed(w,state!.SnapResults.GetValueOrDefault(w.Id))).OrderBy(w=>w.Date).Select(w=>new{w.Id,w.Name,w.Date})});
         }
         catch(UnauthorizedAccessException){return Json(new{clientId=id.Value,workouts=Array.Empty<object>()});}
     }

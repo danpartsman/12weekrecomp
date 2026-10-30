@@ -1,0 +1,7 @@
+@model AccountabilityPreviewViewModel
+@{ ViewData["Title"] = "Snap Workout"; if (Model.CanAssignSnap && !Model.CanApprove) { Layout = "_CoachLayout"; } }
+@if (Model.CanAssignSnap) { <p><a class="button" asp-controller="Coach" asp-action="Index">← Client list</a></p> }
+<h1>Snap Workout · @Model.ClientName</h1>
+@if (Model.CanAssignSnap) { <p>Type the exercises, sets, reps and max weight. Fine and reward settings are available under each exercise.</p> }
+else { <p>Open your assigned workout below and record your completed sets.</p> }
+@await Html.PartialAsync("_AccountabilityPreview", Model)

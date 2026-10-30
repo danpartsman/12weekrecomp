@@ -19,7 +19,7 @@ public sealed class AccountabilityLedgerEntry
     public bool Automatic { get; set; }
     public string TermsKey { get; set; } = "";
 }
-public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountabilityPreviewService access)
+public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountabilityPreviewService access,IConfiguration? configuration=null)
 {
     // The client account is shared with every currently assigned coach. Signed agreement
     // configuration still uses CoachAccountabilityStore's stricter author/owner checks.
@@ -65,6 +65,7 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
     }
     public async Task<List<AccountabilityLedgerEntry>> SnapDeltaAsync(CoachAccountabilityAgreement row,AccountabilityState state,Guid actor,CancellationToken ct)
     {
+        if(SimpleCoaching.Enabled(configuration))return [];
         if(!await ApprovedAsync(row,ct))return [];
         var client=await db.Clients.AsNoTracking().SingleAsync(x=>x.ClientId==row.ClientId,ct);
         var current=AccountabilityAssessment.Snap(state,AppUserContextService.GetClientToday(client)).ToList();
@@ -106,6 +107,7 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
     }
     public async Task RefreshAsync(Guid actor,CoachAccountabilityAgreement row,UserAccount user,CancellationToken ct)
     {
+        if(SimpleCoaching.Enabled(configuration))return;
         if(!await access.CanViewAsync(actor,row.ClientId,await access.CanAssignSnapAsync(actor,row.ClientId,ct),ct))throw new UnauthorizedAccessException();
         if(!await access.CanAssignSnapAsync(row.CoachUserId,row.ClientId,ct))return;
         if(!await ApprovedAsync(row,ct))return;

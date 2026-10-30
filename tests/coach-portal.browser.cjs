@@ -6,6 +6,7 @@ const engine = require('../src/WebRecomp.Web/wwwroot/js/accountability-preview.j
 function fixture() {
   let html = fs.readFileSync('src/WebRecomp.Web/Views/Shared/_AccountabilityPreview.cshtml','utf8');
   html = html.replace('@await Html.PartialAsync("_SnapWorkout", Model)', fs.readFileSync('src/WebRecomp.Web/Views/Shared/_SnapWorkout.cshtml','utf8'));
+  html = html.replace(/disabled="@\(ViewData\["OldCoaching"\] is true\)"/g,'');
   html = html.replace(/@for \(var week = 1; week <= 52; week\+\+\) \{.*?\}/s, '<option value="12">12 weeks</option>');
   html = html.replace(/^\s*var initialDefaults.*$/gm,'').replace(/@\{[^}]*\}/g,'').replace(/^\s*@(model|inject).*$/gm,'').replace(/@Html.AntiForgeryToken\(\)/g,'<input name="__RequestVerificationToken" type="hidden" value="test-token">');
   // Remove Razor conditional delimiters, keeping the coach and approval form markup used by this fixture.

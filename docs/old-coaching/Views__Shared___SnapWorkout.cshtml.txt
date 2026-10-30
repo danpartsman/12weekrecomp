@@ -1,0 +1,34 @@
+@model AccountabilityPreviewViewModel
+<details class="accountability-panel" open="@(!Model.Editable)" id="snap-workout" data-snap-panel><summary>Snap Workouts</summary>
+<section class="snap-workout" data-snap-workout>
+    <div class="accountability-heading"><div><p class="accountability-tag">QUICK ASSIGNMENT</p><h3>Snap Workout</h3></div><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@Model.ClientId">Open in client portal →</a></div>
+    <details><summary>Rates &amp; completion rules</summary><p>Assign exercises with sets, reps and weight. Rates apply to prescribed completed or incomplete reps or sets. Separate completion and extra-rep rewards can be added alongside unfinished-work penalties. On-time completion is required for these rewards; new max-weight assignments count reps within their weight limit. Earlier assignments retain their prescribed-weight requirements.</p><p>The deadline defaults to two hours after assignment. Late results forfeit completion and extra-rep rewards; unfinished-work penalties use reviewed final quantities. Unknown results remain pending.</p><p>The assessment cap applies separately to each workout’s total fines and total incentives. Assignment rates and targets are included in the client’s approval terms.</p></details>
+    @if (Model.Editable || Model.CanAssignSnap)
+    {
+        <details class="snap-editor" open><summary>Create Snap Workout</summary>
+        <form data-snap-assign>
+            <div class="accountability-fields"><label>Workout name<input name="snapName" maxlength="100" value="Snap Workout" required /></label><label>Assignment date<input name="snapDate" type="date" required /></label><label>Completion deadline<input name="snapDeadline" type="datetime-local" required /></label><label>Total fine / incentive cap ($)<input name="snapCap" type="number" min="0" max="10000" step=".01" value="100" required /></label><label>Whole-workout completion reward ($)<input name="snapCompletionReward" type="number" min="0" max="10000" step=".01" value="0" required /></label></div>
+            <p data-snap-cap-note role="status" aria-live="polite"></p>
+            <p data-snap-deadline-zone></p>
+            <h3>Exercises</h3><p>Type an exercise and its targets. Max weight is the permitted limit in lb; use 0 for bodyweight.</p>
+            <div class="snap-simple-exercises" data-snap-draft></div>
+            <p><button type="button" data-snap-add>Add another exercise</button></p>
+            <p data-snap-catalog-status role="status"></p>
+            <button type="submit">Assign Snap Workout</button>
+        </form></details>
+        <details class="snap-library"><summary>Assign from past Snap Workouts</summary>
+            <p>Check one or more workouts, choose a new date and deadline, then assign. Each copy keeps its original exercises, targets, rates and cap. Results are not copied.</p>
+            <form data-snap-reuse>
+                <div class="accountability-fields"><label>Assignment date<input name="reuseDate" type="date" required /></label><label>Completion deadline<input name="reuseDeadline" type="datetime-local" required /></label></div>
+                <p data-reuse-zone></p><div data-snap-library></div>
+                <p data-snap-library-status role="status"></p><button type="submit">Assign selected workouts</button>
+            </form>
+        </details>
+
+    }
+    <p data-snap-status role="status" aria-live="polite"></p>
+    <div data-snap-assignments></div>
+    <p data-snap-weekly-total></p>
+    <p class="snap-preview-note">Selected-week calculated totals. Assignments and completion records are saved securely for the connected coach and client. No payment is collected automatically.</p>
+</section>
+</details>

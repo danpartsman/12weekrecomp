@@ -71,6 +71,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Grouped navigation check failed." }
           node tests/coach-ledger.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Coach ledger check failed." }
+          node tests/simple-coaching.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Simple coaching form check failed." }
           node tests/pending-snap.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Pending Snap notice check failed." }
           node tests/coach-portal.browser.cjs
@@ -114,7 +116,7 @@ jobs:
           az webapp config appsettings set `
               --name recomp-test `
               --resource-group $resourceGroup `
-              --settings WebRecomp__EnableTestPersonas="false" WebRecomp__BootstrapAdministratorEmailSha256="0618188557cf5bee9c97b08c64f7a748835803dbaf1aa2a5cf3a9f2dd1da60bb" | Out-Null
+              --settings SimpleCoaching__Enabled="true" WebRecomp__EnableTestPersonas="false" WebRecomp__BootstrapAdministratorEmailSha256="0618188557cf5bee9c97b08c64f7a748835803dbaf1aa2a5cf3a9f2dd1da60bb" | Out-Null
 
           az webapp log config `
               --name recomp-test `

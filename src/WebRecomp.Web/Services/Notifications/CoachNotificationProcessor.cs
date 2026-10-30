@@ -7,7 +7,7 @@ using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.Services.Notifications;
 
 public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationFiles files, IEmailService email,
-    IPhoneNotificationSender phone, ILogger<CoachNotificationProcessor> logger)
+    IPhoneNotificationSender phone, ILogger<CoachNotificationProcessor> logger,IConfiguration? configuration=null)
 {
     public async Task QueueConfigAsync(Guid clientId, int revision, CancellationToken ct)
     {
@@ -56,6 +56,7 @@ public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationF
     }
     private async Task QueueDailyReviewsAsync(CancellationToken ct)
     {
+        if(SimpleCoaching.Enabled(configuration))return;
         var agreements = await db.CoachAccountabilityAgreements.AsNoTracking().ToListAsync(ct);
         foreach (var agreement in agreements)
         {

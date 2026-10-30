@@ -1,0 +1,83 @@
+@model AccountabilityPreviewViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration PreviewConfiguration
+@inject WebRecomp.Web.Services.Coaching.AccountabilityDefaultsStore CoachDefaults
+@if (AccountabilityPreview.Enabled(PreviewConfiguration))
+{
+    var initialDefaults = await CoachDefaults.ReadAsync(Context.RequestAborted);
+<link rel="stylesheet" href="~/css/accountability-preview.css" asp-append-version="true" />
+<section class="accountability card" data-accountability data-snap-page="@Model.SnapPage.ToString().ToLowerInvariant()" data-simple-snap="@Model.SimpleSnap.ToString().ToLowerInvariant()" data-defaults="@System.Text.Json.JsonSerializer.Serialize(initialDefaults, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))" data-client-id="@Model.ClientId" data-editable="@Model.Editable.ToString().ToLowerInvariant()" data-can-approve="@Model.CanApprove.ToString().ToLowerInvariant()" data-review-page="@Model.ReviewPage.ToString().ToLowerInvariant()" data-can-assign-snap="@((Model.Editable || Model.CanAssignSnap).ToString().ToLowerInvariant())" hidden="@(!Model.Editable && !Model.ReviewPage)">
+    @Html.AntiForgeryToken()
+    @if (Model.Editable || Model.CanAssignSnap) { <p class="muted">New Snap Workouts and agreement changes notify the client by email and on devices they have enabled.</p> }
+    <p data-snap-page-controls><a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId">Fees, incentives &amp; payments</a> <button type="button" class="secondary" data-reload-agreement>Reload saved agreement</button></p>
+    <div class="accountability-heading"><div><p class="accountability-tag">SAVED COACH AGREEMENT</p><h2>Fines, incentives &amp; Snap Workout</h2></div><span data-agreement-state>Not enabled</span></div>
+    <p>Agreement settings, excused dates, assignments, results and client approvals are saved securely and shared across authorized coach and client devices. Calculated totals do not collect payments automatically.</p>
+    @if (Model.Editable || Model.CanAssignSnap) { <p><button type="button" class="secondary" data-import-browser-draft hidden>Import old browser draft for review</button></p> }
+    <details class="accountability-panel"><summary>Agreement dates</summary><section class="accountability-agreement-dates"><p data-agreement-dates-summary></p>
+    @if (Model.Editable || Model.CanAssignSnap)
+    {
+        <form data-agreement-form><div class="accountability-fields"><label>Start date<input name="agreementStart" type="date" required /></label><label>Termination<select name="agreementMode"><option value="open">Until ended</option><option value="weeks">Number of weeks</option></select></label><label>Number of weeks<select name="agreementWeeks">@for (var week = 1; week <= 52; week++) { <option value="@week">@week @(week == 1 ? "week" : "weeks")</option> }</select></label></div><button type="submit">Save agreement dates</button> <button type="button" class="secondary" data-end-agreement>End after today</button></form>
+    }
+    <p data-agreement-dates-status role="status" aria-live="polite"></p></section></details>
+    @if (Model.Editable)
+    {
+        <details class="accountability-panel"><summary>Fines, incentives &amp; payment settings</summary><form id="accountability-settings-@Model.ClientId" data-accountability-form>
+            <label class="accountability-enable"><input type="checkbox" name="enabled" /> Enable fines &amp; incentives for this client</label>
+            <p>Macro criteria are percentage differences from each day’s prescription. For example, lower −5% and upper +5% includes both endpoints. A fine applies outside the range; an incentive applies within it. Count criteria use the allowed minimum and maximum per selected assessment period.</p>
+            <div class="accountability-scroll"><table><caption>Accountability criteria · USD</caption><thead><tr><th>Assign</th><th>Rule</th><th>Type</th><th>Amount</th><th>Assess</th><th>Lower criterion</th><th>Upper criterion</th><th>Minimum per period ($)</th><th>Maximum per period ($)</th></tr></thead><tbody data-rule-editor></tbody></table></div>
+            <p>Minimum is a settlement threshold, never a minimum charge. Each rule’s maximum resets for its assigned daily, calendar-week or calendar-month period. Every reviewed cheat-food occurrence is charged from the first occurrence, up to that period’s cap. Fees apply only within the agreement dates.</p>
+            <fieldset class="accountability-payment"><legend>Contract payments &amp; late-payment terms</legend>
+                <div class="accountability-fields">
+                    <label>Payment method<select name="paymentMethod"><option value="bank-transfer">Bank transfer</option><option value="card-external">Card through external provider</option><option value="cash">Cash</option><option value="check">Check</option><option value="other">Other agreed method</option></select></label>
+                    <label>Payment frequency<select name="paymentFrequency"><option>daily</option><option>weekly</option><option>monthly</option></select></label>
+                    <label>Payment due day<select name="paymentDay"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></label>
+                    <label>Contract payment amount ($)<input name="paymentAmount" type="number" min="0" max="10000" step="0.01" required /></label>
+                    <label>Grace period (days)<input name="graceDays" type="number" min="0" max="30" step="1" required /></label>
+                    <label>Late charge basis<select name="lateBasis"><option value="amount">Dollar amount</option><option value="percent">Percentage of unpaid principal</option></select></label>
+                    <label>Late charge amount ($ or %)<input name="lateValue" type="number" min="0" max="10000" step="0.01" required /></label>
+                    <label>Late charge frequency<select name="lateFrequency"><option>daily</option><option selected>weekly</option><option>monthly</option></select></label>
+                    <label>Maximum late fee per period ($)<input name="lateCap" type="number" min="0" max="10000" step="0.01" required /></label>
+                    <label class="accountability-wide">Payment instructions<input name="paymentInstructions" maxlength="300" placeholder="External payment link or instructions; do not enter card or bank account numbers" /></label>
+                </div>
+                <p>Weekly payments use the selected weekday. Monthly payments use its first occurrence in each month. Daily payments are due each day. Late charges use unpaid principal without compounding, after the grace period, up to the stated cap per late period. Excused days waive adherence assessments, not contract payments.</p>
+            </fieldset>
+            <div class="accountability-actions"><button type="submit">Save agreement</button><button type="button" class="secondary" data-reset-preview>Reload saved settings</button></div>
+            <p data-preview-status role="status" aria-live="polite"></p>
+        </form></details>
+    }
+    <details class="accountability-panel"><summary>Fee exceptions &amp; weekly review</summary><section class="accountability-exceptions" data-exceptions-panel>
+        <div class="accountability-week-nav"><h3>Fee exceptions · Seven days</h3><label>Week containing<input type="date" data-preview-week /></label><button type="button" data-load-week>View week</button></div>
+        <p>Check Excused for illness or an approved inability to complete the program. Each checked date waives adherence and Snap Workout assessments for that date; contract payments and late-payment terms remain separate. Excuses apply to the displayed dates only.</p>
+        <p data-evidence-status role="status"></p>
+        <div class="accountability-excuses" data-excused-days></div>
+        @if (Model.Editable || Model.CanAssignSnap) { <button type="button" data-save-exceptions>Save fee exceptions</button> }
+        <p data-exceptions-status role="status" aria-live="polite"></p>
+    </section></details>
+    @await Html.PartialAsync("_SnapWorkout", Model)
+    <details class="accountability-panel" open="@(!Model.Editable)"><summary>Agreement, approval &amp; calculated totals</summary><div data-assigned-preview hidden>
+        <h3>@(Model.Editable ? "Client agreement" : "Your assigned arrangement")</h3>
+        <p data-assignment-summary></p><div class="accountability-assigned" data-assigned-rules></div>
+        <h3>Contract payments</h3><p data-payment-summary></p>
+        <p data-approval-state role="status" aria-live="polite">Awaiting client approval.</p>
+        <div class="accountability-scroll"><table><caption>Logged values against assigned daily targets</caption><thead><tr><th>Date</th><th>Calories</th><th>Protein</th><th>Carbs</th><th>Fat</th><th>Assessment</th></tr></thead><tbody data-macro-evidence></tbody></table></div>
+        <details data-count-panel><summary>Reviewed counts for count-based rules</summary><p>Coach enters reviewed counts below. Blank means unknown. Counts are summed within the rule’s selected assessment period.</p><div class="accountability-scroll"><table><thead data-count-heading></thead><tbody data-count-evidence></tbody></table></div></details>
+        @if (Model.Editable) { <p><button type="submit" form="accountability-settings-@Model.ClientId">Save excuses &amp; reviewed counts</button></p> }
+        <p data-assessment-total></p><ul data-assessment-ledger></ul>
+        <p>These are calculated amounts for the selected week, subject to approval and review. Monthly assessments use the full month, remain pending until the period closes and count toward the weekly total in the week the period ends. No automatic payment is collected.</p>
+        <details><summary>Late-payment calculator · Preview</summary><div class="accountability-fields"><label>Unpaid principal ($)<input data-unpaid type="number" min="0" max="10000" step="0.01" value="0" /></label><label>Days past due<input data-overdue type="number" min="0" max="365" step="1" value="0" /></label></div><p data-late-result></p></details>
+        @if (Model.CanApprove)
+        {
+            <section class="accountability-approval"><h3>Client approval</h3><p>Review all rules, tolerances, amounts, payment instructions and late fees above. Changes to these terms require new approval. Your approval is stored with the exact terms version securely.</p>
+            <form data-approval-form autocomplete="off">
+                <label class="accountability-enable"><input type="checkbox" name="agree" required /> I have reviewed and agree to these accountability and contract payment terms.</label>
+                <div class="accountability-fields"><label>Username (account email)<input name="username" type="email" autocomplete="username" maxlength="320" required /></label><label>Password<input name="password" type="password" autocomplete="current-password" maxlength="1024" required /></label></div>
+                <button type="submit">Verify credentials &amp; approve agreement</button><p data-approval-status role="status" aria-live="polite"></p>
+            </form></section>
+        }
+    </div>
+    </details>
+    <p data-no-agreement hidden>No enabled agreement is saved for this client. Your connected coach can configure and save the agreement.</p>
+    @if (!Model.Editable && (User.IsInRole("Coach") || User.IsInRole("Administrator")))
+    { <p><a class="button" asp-controller="Coach" asp-action="Accountability" asp-route-clientId="@Model.ClientId">Configure client preview →</a></p> }
+</section>
+<script src="~/js/accountability-preview.js" asp-append-version="true" defer></script>
+}

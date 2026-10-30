@@ -1,0 +1,5 @@
+@model AccountabilityPreviewViewModel
+@{ ViewData["Title"] = "Coach agreement · Preview"; }
+<p><a asp-controller="MyCoach" asp-action="Index">← My Coach</a></p>
+<h1>Review your coach agreement</h1>
+@await Html.PartialAsync("_AccountabilityPreview", Model)

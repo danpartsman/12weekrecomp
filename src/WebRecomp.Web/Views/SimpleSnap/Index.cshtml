@@ -1,0 +1,55 @@
+@model WebRecomp.Web.Controllers.SimpleSnapPage
+@using WebRecomp.Web.Services.Coaching
+@{ViewData["Title"]="Snap Workouts";if(Model.Coach){Layout="_CoachLayout";}var workouts=Model.State.SnapWorkouts.Where(w=>w.Simple).Reverse().ToList();}
+<link rel="stylesheet" href="~/css/coach-center.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/simple-coaching.css" asp-append-version="true" />
+<section class="page-header"><h1>@Model.Name · Snap Workouts</h1><p>Assign a workout, record the results, and track fees and payments in this client's account.</p></section>
+<p><a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId">Fees &amp; payments</a> @if(Model.Coach){<a class="button" asp-controller="Coach" asp-action="Index">Client list</a>}</p>
+@if(TempData["SimpleStatus"] is string status){<div class="app-message" role="status">@status</div>}
+<div asp-validation-summary="All" class="app-message"></div>
+@if(Model.Coach)
+{
+<details class="card" open><summary>Assign a Snap Workout</summary>
+<form asp-action="Assign" asp-route-clientId="@Model.ClientId" method="post" data-simple-assignment>
+<input type="hidden" name="Revision" value="@Model.Revision" /><input type="hidden" name="RequestId" value="@Model.Draft.RequestId" />
+<div class="simple-fields"><label>Workout name<input name="Name" value="@Model.Draft.Name" maxlength="100" required /></label><label>Date<input name="Date" type="date" min="@Model.Today.ToString("yyyy-MM-dd")" value="@Model.Draft.Date.ToString("yyyy-MM-dd")" required /></label><label>Completion reward ($)<input name="CompletionReward" type="number" min="0" max="10000" step=".01" value="@Model.Draft.CompletionReward" required /></label><label>Maximum fees / incentives ($ each)<input name="Cap" type="number" min="0" max="10000" step=".01" value="@Model.Draft.Cap" required /></label></div>
+<p class="muted">The cap limits total fees and total incentives separately. Completion and extra-rep rewards share the incentive cap.</p>
+<div data-simple-exercises>
+@for(var i=0;i<Model.Draft.Exercises.Count;i++){
+ var exercise=Model.Draft.Exercises[i];
+ <section class="simple-exercise" data-exercise><div class="simple-fields"><label>Exercise<input name="Exercises[@i].Name" value="@exercise.Name" maxlength="250" required /></label><label>Sets<input name="Exercises[@i].Sets" type="number" min="1" max="10" value="@exercise.Sets" required /></label><label>Reps per set<input name="Exercises[@i].Reps" type="number" min="1" max="100" value="@exercise.Reps" required /></label><label>Max weight (lb)<input name="Exercises[@i].MaxWeight" type="number" min="0" max="2000" step=".01" value="@exercise.MaxWeight" required /></label></div>
+ <details><summary>Fees &amp; incentives for this exercise</summary><div class="simple-fields"><label>Type<select name="Exercises[@i].Type"><option value="fine" selected="@(exercise.Type=="fine")">Fee</option><option value="incentive" selected="@(exercise.Type=="incentive")">Incentive</option></select></label><label>Calculate per<select name="Exercises[@i].Basis">@foreach(var basis in new[]{"incomplete-reps","incomplete-sets","completed-reps","completed-sets"}){<option value="@basis" selected="@(exercise.Basis==basis)">@basis.Replace('-',' ')</option>}</select></label><label>Rate ($)<input name="Exercises[@i].Rate" type="number" min="0" max="100" step=".01" value="@exercise.Rate" required /></label><label>Exercise completion reward ($)<input name="Exercises[@i].CompletionReward" type="number" min="0" max="10000" step=".01" value="@exercise.CompletionReward" required /></label><label>Extra rep reward ($)<input name="Exercises[@i].ExtraRepRate" type="number" min="0" max="100" step=".01" value="@exercise.ExtraRepRate" required /></label></div></details>
+ <button class="secondary" type="button" data-remove-exercise>Remove exercise</button></section>
+}
+</div>
+<p><button type="button" class="secondary" data-add-exercise>Add exercise</button></p>
+<button type="submit">Assign workout</button>
+</form></details>
+}
+<section class="card"><h2>@(Model.Coach?"Assigned workouts & results":"Your assigned workouts")</h2>
+@if(workouts.Count==0){<p>No active Snap Workouts yet.</p>}
+@foreach(var w in workouts){
+ var previous=Model.State.SnapResults.GetValueOrDefault(w.Id);var completed=SnapWorkoutLibrary.Completed(w,previous);var canRecord=AccountabilityDocument.Date(w.Date)<=Model.Today;
+ <details class="simple-workout" id="snap-@w.Id" open="@(Context.Request.Query["assignment"]==w.Id)"><summary>@w.Name · @w.Date · @(completed?"Completed":previous?.Finalized==true?"Finished · targets incomplete":previous is null?"Assigned":"Progress saved")</summary>
+ <p>Completion reward @((w.CompletionReward??0).ToString("C2")) · fee cap @w.Cap.ToString("C2") · incentive cap @w.Cap.ToString("C2")</p>
+ <form asp-action="Result" asp-route-clientId="@Model.ClientId" method="post"><input name="Revision" type="hidden" value="@Model.Revision" /><input name="WorkoutId" type="hidden" value="@w.Id" />
+ @for(var e=0;e<w.Exercises.Count;e++){
+ var exercise=w.Exercises[e];var records=previous?.Sets.GetValueOrDefault(exercise.Id);
+ <h3>@exercise.Name</h3><p>@exercise.Sets × @exercise.Reps reps · max @exercise.MaxWeight lb. @exercise.Type @exercise.Rate.ToString("C2") per @exercise.Basis.Replace('-',' ') · extra rep reward @((exercise.ExtraRepRate??0).ToString("C2")).</p>
+ <input name="Exercises[@e].Id" type="hidden" value="@exercise.Id" />
+ <div class="simple-table-scroll"><table><thead><tr><th>Set</th><th>Completed reps</th><th>Weight used (lb)</th></tr></thead><tbody>
+ @for(var n=0;n<Math.Max(exercise.Sets,records?.Count??0);n++){
+ var saved=records is not null&&n<records.Count?records[n]:null;
+ <tr><th>@(n+1)</th><td><input aria-label="@exercise.Name set @(n+1) reps" name="Exercises[@e].Sets[@n].Reps" type="number" min="0" max="1000" value="@saved?.Reps" disabled="@(!canRecord)" /></td><td><input aria-label="@exercise.Name set @(n+1) weight" name="Exercises[@e].Sets[@n].Weight" type="number" min="0" max="2000" step=".01" value="@(saved?.Weight??(exercise.MaxWeight==0?0:(decimal?)null))" disabled="@(!canRecord)" /></td></tr>
+ }
+ </tbody></table></div>
+ }
+ @if(canRecord){<p>Enter reps and weight for every set. Use 0 reps for an unfinished set. Extra reps count toward incentives after the prescribed sets are complete.</p><button name="Action" value="progress" type="submit" class="secondary">Save progress</button> <button name="Action" value="finish" type="submit">Finish workout</button>}
+ else{<p>Results can be recorded on or after @w.Date.</p>}
+ </form>
+ @if(previous?.Finalized==true){<p>Results saved. Calculated fees and incentives appear in <a asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId">Fees &amp; payments</a>.</p>}
+ </details>
+}
+</section>
+@if(Model.Coach){<p><a class="button secondary" asp-controller="Coach" asp-action="Old">Old coaching screens · reference only</a></p>}
+<script src="~/js/simple-coaching.js" asp-append-version="true" defer></script>

@@ -32,6 +32,7 @@ builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachAccountabilitySt
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.AccountabilityDefaultsStore>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapWorkoutLibrary>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.AccountabilityLedger>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SimpleCoachingService>();
 builder.Services.AddSingleton<WebRecomp.Web.Services.Notifications.NotificationFiles>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Notifications.CoachNotificationProcessor>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Notifications.IPhoneNotificationSender, WebRecomp.Web.Services.Notifications.WebPushDelivery>();

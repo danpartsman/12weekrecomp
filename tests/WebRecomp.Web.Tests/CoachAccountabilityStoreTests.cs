@@ -250,17 +250,17 @@ public sealed class CoachAccountabilityStoreTests
         http.DefaultRequestHeaders.Remove("X-Test-Actor");
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized,(await http.GetAsync($"/clients/{f.Client}/coach-ledger")).StatusCode);
     }
-    private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f)
+    private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f,bool simpleMode=false)
     {
         return new Microsoft.AspNetCore.TestHost.TestServer(new Microsoft.AspNetCore.Hosting.WebHostBuilder()
             .UseSetting(Microsoft.AspNetCore.Hosting.WebHostDefaults.ApplicationKey,typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly.GetName().Name)
-            .ConfigureAppConfiguration((_,builder)=>builder.AddInMemoryCollection(new Dictionary<string,string?>{["WEBSITE_SITE_NAME"]="recomp-test"}))
+            .ConfigureAppConfiguration((_,builder)=>builder.AddInMemoryCollection(new Dictionary<string,string?>{["WEBSITE_SITE_NAME"]="recomp-test",["SimpleCoaching:Enabled"]=simpleMode.ToString()}))
             .ConfigureServices(services=>
             {
                 services.AddScoped<RecompDbContext>(_=>f.Db());
                 services.AddScoped<AppUserContextService>();services.AddScoped<CoachCenterService>();
                 services.AddScoped<CoachAccountabilityPreviewService>(_=>new CoachAccountabilityPreviewService(_.GetRequiredService<RecompDbContext>(),_.GetRequiredService<CoachCenterService>(),null!));
-                services.AddScoped<CoachAccountabilityStore>();services.AddScoped<AccountabilityLedger>();
+                services.AddScoped<CoachAccountabilityStore>();services.AddScoped<AccountabilityLedger>();services.AddScoped<SimpleCoachingService>();
                 services.AddRateLimiter(o=>o.AddConcurrencyLimiter("access-code",p=>p.PermitLimit=100));
                 services.AddAuthentication("ledger-test").AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,LedgerTestAuthentication>("ledger-test",_=>{});
                 services.AddAuthorization();services.AddControllersWithViews().AddApplicationPart(typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly).AddControllersAsServices();
@@ -351,6 +351,61 @@ public sealed class CoachAccountabilityStoreTests
             var principal=new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(claims,Scheme.Name));
             return Task.FromResult(Microsoft.AspNetCore.Authentication.AuthenticateResult.Success(new Microsoft.AspNetCore.Authentication.AuthenticationTicket(principal,Scheme.Name)));
         }
+    }
+    [Fact]
+    public async Task SimpleWorkoutsPostWithoutApprovalCorrectWithoutDuplicatesAndSettleWithPayment()
+    {
+        var f=await Fixture.Create();using var db=f.Db();
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{["SimpleCoaching:Enabled"]="true"}).Build();
+        var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);var ledger=new AccountabilityLedger(db,access,config);var simple=new SimpleCoachingService(db,access,ledger);
+        var today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());var request=Guid.NewGuid();
+        var workout=new AccountabilityWorkout{Name="Simple strength",Date=today.ToString("yyyy-MM-dd"),Cap=100,CompletionReward=20,Exercises=[new(){Name="Shoulder press",Sets=3,Reps=10,MaxWeight=35,ExtraRepRate=1}]};
+        await simple.AssignAsync(f.OtherCoach,f.Client,0,request,workout,default);
+        var row=await db.CoachAccountabilityAgreements.SingleAsync();var id="simple-"+request.ToString("N");var saved=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.Single();
+        Assert.True(saved.Simple);Assert.Equal(f.OtherCoach,row.CoachUserId);Assert.Empty(await db.CoachAccountabilityApprovals.ToListAsync());
+        var result=new AccountabilityResult{Finalized=true,Sets=new(){[saved.Exercises[0].Id]=[new(){Reps=20,Weight=35},new(){Reps=20,Weight=35},new(){Reps=20,Weight=35}]}};
+        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,id,result,default);Assert.Equal(-50,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,id,result,default);Assert.Equal(-50,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));Assert.Equal(2,(await ledger.ReadAsync(row,default)).Count);
+        result.Sets[saved.Exercises[0].Id].ForEach(x=>x.Reps=15);await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,id,result,default);Assert.Equal(-35,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"payment-coach",today,35,"Paid incentive",default);Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>simple.AssignAsync(f.Owner,f.Client,row.Revision,Guid.NewGuid(),workout,default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>simple.ResultAsync(Guid.NewGuid(),f.Client,false,row.Revision,id,result,default));
+    }
+    [Fact]
+    public async Task SimpleFlowLeavesOldTermsAndChargesArchivedEvenWhenOldAgreementHasEnded()
+    {
+        var f=await Fixture.Create();using var db=f.Db();f.State.Agreement.EndedOn=AppUserContextService.GetClientToday(await db.Clients.SingleAsync()).AddDays(-1).ToString("yyyy-MM-dd");
+        var row=await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);var oldTerms=row.TermsJson;
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{["SimpleCoaching:Enabled"]="true"}).Build();var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);var ledger=new AccountabilityLedger(db,access,config);var simple=new SimpleCoachingService(db,access,ledger);var today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        await simple.AssignAsync(f.OtherCoach,f.Client,row.Revision,Guid.NewGuid(),new(){Name="Simple workout",Date=today.ToString("yyyy-MM-dd"),Exercises=[new(){Name="Squat",Sets=1,Reps=10,MaxWeight=0,Type="fine",Basis="incomplete-reps",Rate=2}]},default);
+        var state=AccountabilityDocument.Parse(row.StateJson);var workout=state.SnapWorkouts.Single(x=>x.Simple);
+        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,workout.Id,new(){Finalized=true,Sets=new(){[workout.Exercises[0].Id]=[new(){Reps=7,Weight=0}]}},default);
+        Assert.Equal(oldTerms,row.TermsJson);Assert.Equal(f.State.Agreement.EndedOn,AccountabilityDocument.Parse(row.StateJson).Agreement.EndedOn);
+        var entry=Assert.Single(await ledger.ReadAsync(row,default));Assert.Equal(6,entry.Amount);Assert.Contains(workout.Id,entry.SourceKey);Assert.DoesNotContain("workout-1",entry.SourceKey);
+        await ledger.RefreshAsync(f.Owner,row,await db.UserAccounts.SingleAsync(x=>x.UserId==f.Owner),default);Assert.Single(await ledger.ReadAsync(row,default));
+    }
+    [Fact]
+    public async Task ActiveSimpleHttpFormsAssignFinishAndPostClientLedgerWithoutAgreement()
+    {
+        var f=await Fixture.Create();using var server=CreateServer(f,true);using var http=server.CreateClient();
+        void Actor(string actor){http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor",actor);http.DefaultRequestHeaders.Remove("Cookie");}
+        async Task<string> Token(string url)
+        {
+            var response=await http.GetAsync(url);Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);var html=await response.Content.ReadAsStringAsync();
+            if(response.Headers.TryGetValues("Set-Cookie",out var cookies)){http.DefaultRequestHeaders.Remove("Cookie");http.DefaultRequestHeaders.Add("Cookie",string.Join("; ",cookies.Select(x=>x.Split(';')[0])));}
+            return System.Text.RegularExpressions.Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        }
+        Actor("other");var token=await Token($"/clients/{f.Client}/snap");Assert.NotEmpty(token);var request=Guid.NewGuid();
+        DateOnly today;using(var db=f.Db())today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        var response=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["RequestId"]=request.ToString(),["Revision"]="0",["Name"]="Quick test workout",["Date"]=today.ToString("yyyy-MM-dd"),["Cap"]="100",["CompletionReward"]="20",["Exercises[0].Name"]="Squat",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="0",["Exercises[0].ExtraRepRate"]="1"}));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
+        Actor("owner");token=await Token($"/clients/{f.Client}/snap");Assert.NotEmpty(token);
+        string id,exercise;int revision;using(var db=f.Db()){var row=await db.CoachAccountabilityAgreements.SingleAsync();revision=row.Revision;var workout=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.Single();id=workout.Id;exercise=workout.Exercises[0].Id;}
+        response=await http.PostAsync($"/clients/{f.Client}/snap/result",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["Revision"]=revision.ToString(),["WorkoutId"]=id,["Action"]="finish",["Exercises[0].Id"]=exercise,["Exercises[0].Sets[0].Reps"]="40",["Exercises[0].Sets[0].Weight"]="0"}));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
+        var account=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger");Assert.Contains("$50.00",account);Assert.DoesNotContain("waiting for the client's approval",account);
+        using(var db=f.Db()){Assert.Empty(await db.CoachAccountabilityApprovals.ToListAsync());Assert.True(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapResults[id].Finalized);}
+        Actor("other");Assert.Contains("Completed",await http.GetStringAsync("/coach"));Assert.Contains("Old coaching screens",await http.GetStringAsync("/coach/old"));
     }
     private sealed class Fixture
     {

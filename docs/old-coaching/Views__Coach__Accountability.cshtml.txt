@@ -1,0 +1,5 @@
+@model AccountabilityPreviewViewModel
+@{ Layout = "_CoachLayout"; ViewData["Title"] = "Fines & incentives · Preview"; }
+<p><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@Model.ClientId">← Client summary</a></p>
+<h1>@Model.ClientName · Fines &amp; incentives</h1>
+@await Html.PartialAsync("_AccountabilityPreview", Model)
