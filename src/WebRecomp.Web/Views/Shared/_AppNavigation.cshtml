@@ -3,14 +3,14 @@
     <button type="button" class="app-nav-toggle" aria-expanded="false" aria-controls="app-nav-items">☰ <span>Menu</span></button>
     <div class="app-nav-items" id="app-nav-items">
     <details class="app-nav-group">
-        <summary><a class="app-nav-primary" href="/CommandCenter">Command Center</a></summary>
+        <summary><a class="app-nav-primary" href="/CommandCenter?nav=command-center">Command Center</a></summary>
         <div class="app-nav-panel">
             <a asp-controller="Dashboard" asp-action="Index">Dashboard</a>
             <a asp-controller="Progress" asp-action="Index">Progress</a>
         </div>
     </details>
     <details class="app-nav-group">
-        <summary><a class="app-nav-primary" href="/DailyEntry">Daily Entries</a></summary>
+        <summary><a class="app-nav-primary" href="/DailyEntry?nav=daily-entries">Daily Entries</a></summary>
         <div class="app-nav-panel">
             <a asp-controller="DailyEntry" asp-action="CheckIn">Recomp Tracking</a>
             <a asp-controller="Nutrition" asp-action="Index">Nutrition</a>
@@ -19,14 +19,14 @@
         </div>
     </details>
     <details class="app-nav-group">
-        <summary><a class="app-nav-primary" href="/tips">Recomp Tips</a></summary>
+        <summary><a class="app-nav-primary" href="/tips?nav=recomp-tips">Recomp Tips</a></summary>
         <div class="app-nav-panel">
             <a href="/recomp/how-it-works">How It Works</a>
             <a asp-controller="Home" asp-action="Evidence">Evidence</a>
         </div>
     </details>
     <details class="app-nav-group">
-        <summary><a class="app-nav-primary" href="/Profile">Profile</a></summary>
+        <summary><a class="app-nav-primary" href="/Profile?nav=profile">Profile</a></summary>
         <div class="app-nav-panel">
             <a asp-controller="Profile" asp-action="Settings">Settings</a>
             <a asp-controller="MyCoach" asp-action="Index">My Coach</a>
