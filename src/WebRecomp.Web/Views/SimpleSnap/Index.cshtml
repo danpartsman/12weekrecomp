@@ -32,6 +32,7 @@
  var previous=Model.State.SnapResults.GetValueOrDefault(w.Id);var completed=SnapWorkoutLibrary.Completed(w,previous);var canRecord=AccountabilityDocument.Date(w.Date)<=Model.Today;
  <details class="simple-workout" id="snap-@w.Id" open="@(Context.Request.Query["assignment"]==w.Id)"><summary>@w.Name · @w.Date · @(completed?"Completed":previous?.Finalized==true?"Finished · penalties applied":previous is null?"Assigned":"Progress saved")</summary>
  <p>Maximum total charge @w.Cap.ToString("C2")</p>
+ @if(w.CompletionReward>0){<p>Previously assigned whole-workout completion fee: @w.CompletionReward.Value.ToString("C2").</p>}
  @if(w.DeadlineUtc.HasValue){<p data-snap-countdown data-workout-id="@w.Id" data-deadline="@w.DeadlineUtc.Value.ToString("O")" data-server-now="@DateTimeOffset.UtcNow.ToString("O")" data-finished="@((previous?.Finalized==true).ToString().ToLowerInvariant())">@if(previous?.Finalized==true){<span>Finished @(previous.CompletedAtUtc<=w.DeadlineUtc?"on time":"after the deadline")</span>}else{<span data-time-remaining>Loading time remaining…</span>}</p><p>Late-completion fine: @((w.LatePenalty??0).ToString("C2")), applied once if not finished by the deadline.</p>}
  <form asp-action="Result" asp-route-clientId="@Model.ClientId" method="post"><input name="Revision" type="hidden" value="@Model.Revision" /><input name="WorkoutId" type="hidden" value="@w.Id" />
  @for(var e=0;e<w.Exercises.Count;e++){
