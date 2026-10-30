@@ -5,7 +5,8 @@
     var balance=Model.Entries.Sum(x=>x.Amount);
     string Money(decimal value)=>value.ToString("C2",System.Globalization.CultureInfo.GetCultureInfo("en-US"));
     string Kind(string value)=>value switch{"fee"=>"Fee","incentive"=>"Incentive","payment-client"=>"Client paid coach","payment-coach"=>"Coach paid client",_=>value};
-    decimal running=0;
+    var history=Model.History;
+    var visibleEntries=history.Select(row=>row.Entry).ToList();
     TimeZoneInfo zone;
     try{zone=TimeZoneInfo.FindSystemTimeZoneById(Model.TimeZone);}
     catch(TimeZoneNotFoundException){zone=TimeZoneInfo.Utc;}
@@ -32,14 +33,14 @@
     <p>Enter the amount received or paid. A client payment reduces an amount owed to the coach; a coach payment settles an incentive balance. Manual charges and credits are recorded with your description.</p><button type="submit">Record entry</button>
 </form></details>
 }
-<section class="card"><h2>Account history</h2><p>Fees increase the balance; incentives and client payments reduce it. A negative balance is an amount the coach owes the client. Contract charges and late-fee adjustments can be entered by the coach. No money is transferred by this page.</p>
-@if(Model.Entries.Count==0){<p>No entries have been posted yet.</p>}
+<section class="card"><h2>Account history</h2><partial name="_LedgerHistoryControls" model="Model" /><p>Fees increase the balance; incentives and client payments reduce it. A negative balance is an amount the coach owes the client. Contract charges and late-fee adjustments can be entered by the coach. No money is transferred by this page.</p>
+@if(history.Count==0){<p>@(Model.ThirtyDays?"No transactions were posted in the last 30 days.":"No entries have been posted yet.")</p>}
 else{<div class="ledger-table-scroll" tabindex="0" role="region" aria-label="Account history; scroll horizontally"><table class="ledger-table"><thead><tr><th>Posted (@Model.TimeZone)</th><th>Effective date</th><th>Type</th><th>Description</th><th>Increase ($)</th><th>Decrease ($)</th><th>Running balance</th></tr></thead><tbody>
-@foreach(var entry in Model.Entries){running+=entry.Amount;<tr><td>@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(entry.CreatedAtUtc,DateTimeKind.Utc),zone).ToString("MMM d, yyyy HH:mm")</td><td>@entry.Date.ToString("MMM d, yyyy")</td><td>@Kind(entry.Kind)</td><td>@entry.Description</td><td>@(entry.Amount>0?Money(entry.Amount):"—")</td><td>@(entry.Amount<0?Money(-entry.Amount):"—")</td><td>@Money(running)</td></tr>}
+@foreach(var row in history){var entry=row.Entry;<tr><td>@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(entry.CreatedAtUtc,DateTimeKind.Utc),zone).ToString("MMM d, yyyy HH:mm")</td><td>@entry.Date.ToString("MMM d, yyyy")</td><td>@Kind(entry.Kind)</td><td>@entry.Description</td><td>@(entry.Amount>0?Money(entry.Amount):"—")</td><td>@(entry.Amount<0?Money(-entry.Amount):"—")</td><td>@Money(row.Balance)</td></tr>}
 </tbody></table></div>}
-@if(Model.CanRecord && Model.Entries.Any(x=>!x.Automatic && !x.SourceKey.StartsWith("reverse:") && Model.Entries.All(y=>y.SourceKey!="reverse:"+x.Id.ToString("N"))))
+@if(Model.CanRecord && visibleEntries.Any(x=>!x.Automatic && !x.SourceKey.StartsWith("reverse:") && Model.Entries.All(y=>y.SourceKey!="reverse:"+x.Id.ToString("N"))))
 {
-<details class="ledger-correction"><summary>Correct a manual entry</summary><form asp-action="Reverse" asp-route-clientId="@Model.ClientId" method="post"><input name="expectedRevision" type="hidden" value="@Model.Revision" /><label>Entry<select name="entryId">@foreach(var entry in Model.Entries.Where(x=>!x.Automatic && !x.SourceKey.StartsWith("reverse:") && Model.Entries.All(y=>y.SourceKey!="reverse:"+x.Id.ToString("N")))){<option value="@entry.Id">@entry.Date.ToString("MMM d") · @Kind(entry.Kind) · @Money(Math.Abs(entry.Amount)) · @entry.Description</option>}</select></label><label>Reason<input name="reason" maxlength="300" required /></label><button type="submit">Record reversal</button></form></details>
+<details class="ledger-correction"><summary>Correct a manual entry</summary><form asp-action="Reverse" asp-route-clientId="@Model.ClientId" method="post"><input name="expectedRevision" type="hidden" value="@Model.Revision" /><label>Entry<select name="entryId">@foreach(var entry in visibleEntries.Where(x=>!x.Automatic && !x.SourceKey.StartsWith("reverse:") && Model.Entries.All(y=>y.SourceKey!="reverse:"+x.Id.ToString("N")))){<option value="@entry.Id">@entry.Date.ToString("MMM d") · @Kind(entry.Kind) · @Money(Math.Abs(entry.Amount)) · @entry.Description</option>}</select></label><label>Reason<input name="reason" maxlength="300" required /></label><button type="submit">Record reversal</button></form></details>
 }
 <p class="muted">Automatic adherence assessments use complete, reviewed evidence from the last 12 weeks. Posted history is retained. When a result or excused date is corrected under the same terms, a new adjustment line records the difference.</p>
 </section>

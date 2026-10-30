@@ -5,14 +5,29 @@ using Microsoft.AspNetCore.RateLimiting;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.Controllers;
-public sealed record AccountabilityLedgerPage(Guid ClientId,string ClientName,bool CanRecord,int Revision,bool Approved,IReadOnlyList<AccountabilityLedgerEntry> Entries,DateOnly Today,string TimeZone,bool CanReviewAgreement=true);
+public sealed record AccountabilityLedgerPage(Guid ClientId,string ClientName,bool CanRecord,int Revision,bool Approved,IReadOnlyList<AccountabilityLedgerEntry> Entries,DateOnly Today,string TimeZone,bool CanReviewAgreement=true)
+{
+    public bool ThirtyDays{get;init;}
+    public IReadOnlyList<AccountabilityLedgerHistoryRow> History
+    {
+        get
+        {
+            decimal balance=0;
+            var rows=Entries.Select(entry=>{balance+=entry.Amount;return new AccountabilityLedgerHistoryRow(entry,balance);}).ToList();
+            if(!ThirtyDays)return rows.TakeLast(5).ToList();
+            TimeZoneInfo zone;try{zone=TimeZoneInfo.FindSystemTimeZoneById(TimeZone);}catch(TimeZoneNotFoundException){zone=TimeZoneInfo.Utc;}catch(InvalidTimeZoneException){zone=TimeZoneInfo.Utc;}
+            return rows.Where(row=>{var date=DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(row.Entry.CreatedAtUtc,DateTimeKind.Utc),zone));return date>=Today.AddDays(-29)&&date<=Today;}).ToList();
+        }
+    }
+}
+public sealed record AccountabilityLedgerHistoryRow(AccountabilityLedgerEntry Entry,decimal Balance);
 [Authorize,Route("clients/{clientId:guid}/coach-ledger")]
 [ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
 public sealed class AccountabilityLedgerController(AppUserContextService users,AccountabilityLedger ledger,CoachAccountabilityPreviewService access,IConfiguration configuration,SimpleCoachingService? simple=null):Controller
 {
     private bool CoachRole=>User.IsInRole("Coach")||User.IsInRole("Administrator");
     [HttpGet("")]
-    public async Task<IActionResult> Index(Guid clientId,CancellationToken ct)
+    public async Task<IActionResult> Index(Guid clientId,CancellationToken ct,bool thirtyDays=false)
     {
         if(!WebRecomp.Web.ViewModels.AccountabilityPreview.Enabled(configuration))return NotFound();
         var user=(await users.GetAsync(HttpContext,ct)).User;
@@ -22,10 +37,10 @@ public sealed class AccountabilityLedgerController(AppUserContextService users,A
             var row=await ledger.AccountAsync(user.UserId,clientId,CoachRole,ct);
             var name=await access.ClientNameAsync(clientId,ct)??"Client";
             var clock=await ledger.ClockAsync(clientId,ct);
-            if(row is null)return View(SimpleCoaching.Enabled(configuration)?"Simple":"Index",new AccountabilityLedgerPage(clientId,name,SimpleCoaching.Enabled(configuration)&&CoachRole&&await access.CanAssignSnapAsync(user.UserId,clientId,ct),0,false,[],clock.Today,clock.Zone));
+            if(row is null)return View(SimpleCoaching.Enabled(configuration)?"Simple":"Index",new AccountabilityLedgerPage(clientId,name,SimpleCoaching.Enabled(configuration)&&CoachRole&&await access.CanAssignSnapAsync(user.UserId,clientId,ct),0,false,[],clock.Today,clock.Zone){ThirtyDays=thirtyDays});
             try{await ledger.RefreshAsync(user.UserId,row,user,ct);}
             catch(AccountabilityConflictException){TempData["LedgerStatus"]="Another window updated the account. Reload to see the latest automatic assessments.";return RedirectToAction(nameof(Index),new{clientId});}
-            return View(SimpleCoaching.Enabled(configuration)?"Simple":"Index",new AccountabilityLedgerPage(clientId,name,CoachRole&&await access.CanAssignSnapAsync(user.UserId,clientId,ct),row.Revision,await ledger.ApprovedAsync(row,ct),await ledger.ReadAsync(row,ct),clock.Today,clock.Zone,user.UserId==row.CoachUserId||await access.IsOwnerAsync(user.UserId,clientId,ct)));
+            return View(SimpleCoaching.Enabled(configuration)?"Simple":"Index",new AccountabilityLedgerPage(clientId,name,CoachRole&&await access.CanAssignSnapAsync(user.UserId,clientId,ct),row.Revision,await ledger.ApprovedAsync(row,ct),await ledger.ReadAsync(row,ct),clock.Today,clock.Zone,user.UserId==row.CoachUserId||await access.IsOwnerAsync(user.UserId,clientId,ct)){ThirtyDays=thirtyDays});
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }
