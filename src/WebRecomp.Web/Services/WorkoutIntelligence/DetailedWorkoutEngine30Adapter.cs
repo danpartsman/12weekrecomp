@@ -55,6 +55,16 @@ public static class DetailedWorkoutEngine30Adapter
         string normalizedWorkoutCode,
         CancellationToken cancellationToken = default)
     {
+        if(stored.EntrySourceCode==WebRecomp.Web.Services.Coaching.SnapWorkoutEngine.Source)
+        {
+            var json=await db.CoachAccountabilityAgreements.AsNoTracking().Where(x=>x.ClientId==stored.ClientId).Select(x=>x.StateJson).SingleOrDefaultAsync(cancellationToken);
+            var state=WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(json??"{}");
+            var workout=state.SnapWorkouts.SingleOrDefault(x=>x.Id==stored.SourceRecordId);
+            if(workout is not null&&state.SnapResults.TryGetValue(workout.Id,out var result))
+                return WebRecomp.Web.Services.Coaching.SnapWorkoutEngine.Input(workout,result,profile,stored.DurationMin,stored.SessionRpe);
+            throw new InvalidOperationException("Snap workout source details are missing.");
+        }
+
         // B2.35.5.1 POSITIVE ACTUAL DURATION FALLBACK
         // Detailed hard-set analysis requires a positive duration.
         // Preserve the stored value; use the Engine workout-type default only

@@ -5,7 +5,7 @@
     form.querySelector('[data-add-exercise]').addEventListener('click',()=>{
         if(list.children.length>=15)return;
         const copy=list.firstElementChild.cloneNode(true);
-        copy.querySelectorAll('input').forEach(n=>{n.value=n.name.endsWith('.Name')?'':n.name.endsWith('.Sets')?'3':n.name.endsWith('.Reps')?'10':'0';});
+        copy.querySelectorAll('input').forEach(n=>{n.value=(n.name.endsWith('.Name')||n.name.endsWith('.MuscleFocus')||n.name.endsWith('.Rpe'))?'':n.name.endsWith('.Sets')?'3':n.name.endsWith('.Reps')?'10':'0';});
         copy.querySelectorAll('details').forEach(n=>n.open=false);list.append(copy);renumber();copy.querySelector('input').focus();
     });
     list.addEventListener('click',event=>{if(event.target.closest('[data-remove-exercise]')&&list.children.length>1){event.target.closest('[data-exercise]').remove();renumber();}});

@@ -10,7 +10,7 @@
 @if(Model.Coach)
 {
 <details class="card" open><summary>Assign a Snap Workout</summary>
-<form asp-action="Assign" asp-route-clientId="@Model.ClientId" method="post" data-simple-assignment>
+<form asp-action="Assign" asp-route-clientId="@Model.ClientId" method="post" data-estimate-url="@Url.Action("Estimate",new{clientId=Model.ClientId})" data-simple-assignment>
 <input type="hidden" name="Revision" value="@Model.Revision" /><input type="hidden" name="RequestId" value="@Model.Draft.RequestId" />
 <div class="simple-fields snap-assignment-row"><label>Workout name<input name="Name" value="@Model.Draft.Name" maxlength="100" required /></label><label>Date<input name="Date" type="date" min="@Model.Today.ToString("yyyy-MM-dd")" value="@Model.Draft.Date.ToString("yyyy-MM-dd")" required /></label><label>Time Allowed (hours)<input name="TimeAllowed" type="number" min="0.0166666667" max="168" step="any" value="@Model.Draft.TimeAllowed" required /></label><label>Required Completion Time<output data-required-completion data-time-zone="@Model.ClientTimeZone" data-client-today="@Model.Today.ToString("yyyy-MM-dd")" data-server-now="@DateTimeOffset.UtcNow.ToString("O")">Calculated when assigned</output></label></div>
 <div class="simple-fields snap-assignment-row"><label>Late Fee ($)<input name="LatePenalty" type="number" min="0" max="10000" step=".01" value="@Model.Draft.LatePenalty" required /></label><label>Incomplete Exercise Fee ($)<input name="IncompleteExerciseFee" type="number" min="0" max="10000" step=".01" value="@Model.Draft.IncompleteExerciseFee" required /></label><label>Coach Incentive Per Rep ($)<input name="CoachIncentivePerRep" type="number" min="0" max="100" step=".01" value="@Model.Draft.CoachIncentivePerRep" required /></label><label>Maximum total charges ($)<input name="Cap" type="number" min="0" max="10000" step=".01" value="@Model.Draft.Cap" required /></label></div>
@@ -19,9 +19,10 @@
 @for(var i=0;i<Model.Draft.Exercises.Count;i++){
  var exercise=Model.Draft.Exercises[i];
  <section class="simple-exercise" data-exercise><div class="simple-fields snap-exercise-row"><label>Exercise<input name="Exercises[@i].Name" value="@exercise.Name" maxlength="250" required /></label><label>Sets<input name="Exercises[@i].Sets" type="number" min="1" max="10" value="@exercise.Sets" required /></label><label>Reps per set<input name="Exercises[@i].Reps" type="number" min="1" max="100" value="@exercise.Reps" required /></label><label>Max weight (lb)<input name="Exercises[@i].MaxWeight" type="number" min="0" max="2000" step=".01" value="@exercise.MaxWeight" required /></label>
- <button class="secondary" type="button" data-remove-exercise>Remove exercise</button></div></section>
+ <label>RPE (optional)<input name="Exercises[@i].Rpe" type="number" min="1" max="10" step=".1" value="@exercise.Rpe" /></label><label class="snap-muscle-focus">Muscle focus<input name="Exercises[@i].MuscleFocus" value="@exercise.MuscleFocus" maxlength="250" placeholder="chest, shoulders, triceps" /></label><button class="secondary" type="button" data-remove-exercise>Remove exercise</button></div></section>
 }
 </div>
+<p class="snap-engine-estimate" data-snap-estimate role="status">Enter the exercises to preview estimated calories and glycogen.</p><p class="muted">Muscles: chest, shoulders, back, lats, biceps, triceps, abs, quads, hamstrings, glutes, calves and more. Separate muscles with commas. Blank RPE uses the engine default. Time estimates use 3 seconds per rep and 90 seconds between working sets, not the completion deadline.</p>
 <div class="snap-form-actions"><button type="button" class="secondary" data-add-exercise>Add exercise</button><button type="submit">Assign workout</button></div>
 </form></details>
 }
@@ -33,10 +34,17 @@
  <div class="snap-charge-summary"><span>Maximum total charges <strong>@w.Cap.ToString("C2")</strong></span>@if(w.DeadlineUtc.HasValue){<span>Required Completion Time <strong data-snap-deadline="@w.DeadlineUtc.Value.ToString("O")" data-time-zone="@Model.ClientTimeZone">@TimeZoneInfo.ConvertTime(w.DeadlineUtc.Value,TimeZoneInfo.FindSystemTimeZoneById(Model.ClientTimeZone)).ToString("MMM d, yyyy h:mm tt") (@Model.ClientTimeZone)</strong></span>}</div>
  @if(w.CompletionReward>0){<p>Previously assigned whole-workout completion fee: @w.CompletionReward.Value.ToString("C2").</p>}
  @if(w.DeadlineUtc.HasValue){<p data-snap-countdown data-workout-id="@w.Id" data-deadline="@w.DeadlineUtc.Value.ToString("O")" data-server-now="@DateTimeOffset.UtcNow.ToString("O")" data-finished="@((previous?.Finalized==true).ToString().ToLowerInvariant())">@if(previous?.Finalized==true){<span>Finished @(previous.CompletedAtUtc<=w.DeadlineUtc?"on time":"after the deadline")</span>}else{<span data-time-remaining>Loading time remaining…</span>}</p><p>Late-completion fine: @((w.LatePenalty??0).ToString("C2")), applied once if not finished by the deadline.</p>}
+ @if(Model.Estimates.TryGetValue(w.Id,out var estimate)){
+ if(estimate is not null){<p class="snap-engine-estimate">@(estimate.Actual?"Recorded work estimate":"Assigned work estimate"): <strong>@estimate.Calories.ToString("0") active calories</strong> · <strong>@estimate.Glycogen.ToString("0.0") g glycogen</strong> · @estimate.Minutes.ToString("0.#") minutes @(previous?.DurationMinutes is null?"(estimated duration)":"(reported duration)").</p>}
+ else{<p class="muted">Energy estimate needs the client’s weight, height, date of birth and sex.</p>}
+ }
  <form asp-action="Result" asp-route-clientId="@Model.ClientId" method="post"><input name="Revision" type="hidden" value="@Model.Revision" /><input name="WorkoutId" type="hidden" value="@w.Id" />
+ <label class="snap-duration">Workout duration (minutes, optional)<input name="DurationMinutes" type="number" min="1" max="360" step=".1" value="@previous?.DurationMinutes" placeholder="Leave blank to estimate from reps and sets" /></label>
  @for(var e=0;e<w.Exercises.Count;e++){
  var exercise=w.Exercises[e];var records=previous?.Sets.GetValueOrDefault(exercise.Id);
  <h3>@exercise.Name</h3><p>@exercise.Sets × @exercise.Reps reps · max @exercise.MaxWeight lb. @if(exercise.CompletionReward>0){<span>Completion fee @exercise.CompletionReward.Value.ToString("C2") · </span>}Incomplete exercise fee @((exercise.Penalty??exercise.Rate).ToString("C2"))@(exercise.Penalty.HasValue?"":" per "+exercise.Basis.Replace('-',' ')) · extra-rep incentive @((exercise.ExtraRepRate??0).ToString("C2")) per rep. Paid by the client to the coach.</p>
+ <p class="muted">Muscle focus: @(string.IsNullOrWhiteSpace(exercise.MuscleFocus)?"Engine default":exercise.MuscleFocus) · Coach RPE: @(exercise.Rpe?.ToString("0.#")??"Engine default")</p>
+ <label class="snap-rpe">Actual RPE (optional)<input name="Exercises[@e].Rpe" type="number" min="1" max="10" step=".1" value="@(records?.FirstOrDefault()?.Rpe)" placeholder="1–10" disabled="@(!canRecord)" /></label>
  <input name="Exercises[@e].Id" type="hidden" value="@exercise.Id" />
  <div class="simple-table-scroll"><table><thead><tr><th>Set</th><th>Completed reps</th><th>Weight used (lb)</th></tr></thead><tbody>
  @for(var n=0;n<Math.Max(exercise.Sets,records?.Count??0);n++){
@@ -58,3 +66,5 @@
 <script src="~/js/snap-countdown.js" asp-append-version="true" defer></script>
 
 <script src="~/js/snap-assignment-time.js" asp-append-version="true" defer></script>
+
+<script src="~/js/snap-engine-estimate.js" asp-append-version="true" defer></script>

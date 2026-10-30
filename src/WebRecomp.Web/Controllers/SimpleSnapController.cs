@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.RateLimiting;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.Controllers;
-public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone);
+public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];}
 [Authorize,Route("clients/{clientId:guid}/snap"),ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
-public sealed class SimpleSnapController(AppUserContextService users,SimpleCoachingService simple,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,IConfiguration configuration):Controller
+public sealed class SimpleSnapController(AppUserContextService users,SimpleCoachingService simple,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,IConfiguration configuration,SnapWorkoutEstimateService? estimates=null):Controller
 {
     private bool Coach=>User.IsInRole("Coach")||User.IsInRole("Administrator");
     [HttpGet("")]
@@ -24,15 +24,17 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var retryWorkout=state.SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==retry?.WorkoutId);
             if(retryWorkout is not null&&retry is not null)
             {
-                var result=new AccountabilityResult();
+                var result=new AccountabilityResult{DurationMinutes=retry.DurationMinutes};
                 foreach(var exercise in retryWorkout.Exercises)
                 {
                     var entered=retry.Exercises.FirstOrDefault(e=>e.Id==exercise.Id)?.Sets;
-                    result.Sets[exercise.Id]=Enumerable.Range(0,Math.Max(exercise.Sets,Math.Min(20,entered?.Count??0))).Select(i=>new AccountabilitySet{Reps=entered is not null&&i<entered.Count?entered[i].Reps:null,Weight=entered is not null&&i<entered.Count?entered[i].Weight:null}).ToList();
+                    result.Sets[exercise.Id]=Enumerable.Range(0,Math.Max(exercise.Sets,Math.Min(20,entered?.Count??0))).Select(i=>new AccountabilitySet{Reps=entered is not null&&i<entered.Count?entered[i].Reps:null,Rpe=retry.Exercises.FirstOrDefault(e=>e.Id==exercise.Id)?.Rpe,Weight=entered is not null&&i<entered.Count?entered[i].Weight:null}).ToList();
                 }
                 state.SnapResults[retryWorkout.Id]=result;
             }
-            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",Coach&&await access.CanAssignSnapAsync(user.UserId,clientId,ct),row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today},clock.Zone));
+            var readings=new Dictionary<string,SnapWorkoutEstimate?>();
+            if(estimates is not null)foreach(var workout in state.SnapWorkouts.Where(w=>w.Simple)){var actual=state.SnapResults.GetValueOrDefault(workout.Id);readings[workout.Id]=await estimates.EstimateAsync(clientId,workout,actual?.Finalized==true?actual:null,clock.Today,ct);}
+            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",Coach&&await access.CanAssignSnapAsync(user.UserId,clientId,ct),row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today},clock.Zone){Estimates=readings});
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }
@@ -49,6 +51,22 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }
+    [HttpPost("estimate"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(65536)]
+    public async Task<IActionResult> Estimate(Guid clientId,AssignmentInput input,CancellationToken ct)
+    {
+        if(!SimpleCoaching.Enabled(configuration)||!Coach||estimates is null)return NotFound();
+        var user=(await users.GetAsync(HttpContext,ct)).User;
+        if(!await access.CanAssignSnapAsync(user.UserId,clientId,ct))return NotFound();
+        if(!ModelState.IsValid||input.Exercises.Count is <1 or >15||input.Exercises.Any(e=>e.Sets is <1 or >10||e.Reps is <1 or >100))return BadRequest(new{message="Enter exercise names, sets and reps to estimate."});
+        try
+        {
+            foreach(var e in input.Exercises)SnapWorkoutEngine.ValidateFocus(e.MuscleFocus);
+            var workout=new AccountabilityWorkout{Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus}).ToList()};
+            var reading=await estimates.EstimateAsync(clientId,workout,null,(await ledger.ClockAsync(clientId,ct)).Today,ct);
+            return Json(new{estimate=reading,message=reading is null?"Add the client's weight, height, date of birth and sex to calculate estimates.":null});
+        }
+        catch(ArgumentException e){return BadRequest(new{message=e.Message});}
+    }
     [HttpPost("assign"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(65536)]
     public async Task<IActionResult> Assign(Guid clientId,AssignmentInput input,CancellationToken ct)
     {
@@ -58,7 +76,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         {
             var user=(await users.GetAsync(HttpContext,ct)).User;
             await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,new(){Name=input.Name.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
-                TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
+                TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
             TempData["SimpleStatus"]="Workout assigned. Your client can open it in their portal.";return RedirectToAction(nameof(Index),new{clientId});
         }
         catch(UnauthorizedAccessException){return NotFound();}
@@ -73,7 +91,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             if(!ModelState.IsValid)throw new ArgumentException("Check the completed reps and weight.");
             var finish=input.SubmitMode=="finish"||(Request.HasFormContentType&&Request.Form["Action"]=="finish");
             var user=(await users.GetAsync(HttpContext,ct)).User;
-            await simple.ResultAsync(user.UserId,clientId,Coach,input.Revision,input.WorkoutId,new(){Finalized=finish,Sets=input.Exercises.ToDictionary(e=>e.Id,e=>e.Sets.Select(s=>new AccountabilitySet{Reps=s.Reps,Weight=s.Weight}).ToList())},ct);
+            await simple.ResultAsync(user.UserId,clientId,Coach,input.Revision,input.WorkoutId,new(){Finalized=finish,DurationMinutes=input.DurationMinutes,Sets=input.Exercises.ToDictionary(e=>e.Id,e=>e.Sets.Select(s=>new AccountabilitySet{Reps=s.Reps,Weight=s.Weight,Rpe=e.Rpe}).ToList())},ct);
             TempData["SimpleStatus"]=finish?"Workout finished. Your coach can see the results and calculated account entries.":"Progress saved.";
         }
         catch(UnauthorizedAccessException){return NotFound();}
@@ -97,15 +115,18 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
     public sealed class ExerciseInput
     {
         [Required,StringLength(250)]public string Name{get;set;}="";
+        [Range(typeof(decimal),"1","10")]public decimal? Rpe{get;set;}
+        [StringLength(250)]public string? MuscleFocus{get;set;}
         public int Sets{get;set;}=3;public int Reps{get;set;}=10;public decimal MaxWeight{get;set;}
         public string Type{get;set;}="fine";public string Basis{get;set;}="incomplete-reps";public decimal Rate{get;set;}
         public decimal? Penalty{get;set;}=0;public decimal CompletionReward{get;set;}public decimal ExtraRepRate{get;set;}
     }
     public sealed class ResultInput
     {
+        [Range(typeof(decimal),"1","360")]public decimal? DurationMinutes{get;set;}
         public int Revision{get;set;}public string WorkoutId{get;set;}="";public string SubmitMode{get;set;}="progress";
         public List<ExerciseResults> Exercises{get;set;}=[];
     }
-    public sealed class ExerciseResults{public string Id{get;set;}="";public List<SetInput> Sets{get;set;}=[];}
+    public sealed class ExerciseResults{[Range(typeof(decimal),"1","10")]public decimal? Rpe{get;set;}public string Id{get;set;}="";public List<SetInput> Sets{get;set;}=[];}
     public sealed class SetInput{public int? Reps{get;set;}public decimal? Weight{get;set;}}
 }

@@ -82,7 +82,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         row.StateJson=AccountabilityDocument.Serialize(state);Event(row,actor,"RESULT",JsonSerializer.Serialize(new{workoutId,result},AccountabilityDocument.Json));
         var current=Charges(state,AppUserContextService.GetClientToday(local),time.GetUtcNow());
         var changes=AccountabilityLedger.Delta(current,await ledger.ReadAsync(row,ct),row.TermsVersion,actor);
-        ledger.Append(row,actor,changes);await SaveAsync(ct);
+        ledger.Append(row,actor,changes);await SnapWorkoutEngine.SyncAsync(db,local,workout,result,ct);await SaveAsync(ct);
     }
     public static IReadOnlyList<AccountabilityCharge> Charges(AccountabilityState saved,DateOnly today,DateTimeOffset? asOf=null)
     {

@@ -33,6 +33,7 @@ builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.AccountabilityDefault
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapWorkoutLibrary>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.AccountabilityLedger>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SimpleCoachingService>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapWorkoutEstimateService>();
 builder.Services.AddHostedService<WebRecomp.Web.Services.Coaching.SimpleDeadlineWorker>();
 builder.Services.AddSingleton<WebRecomp.Web.Services.Notifications.NotificationFiles>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Notifications.CoachNotificationProcessor>();
