@@ -72,7 +72,7 @@
 </nav>
 @await Html.PartialAsync("_AccountabilityPreview", new AccountabilityPreviewViewModel(Model.ClientId, Model.ClientName))
 @inject Microsoft.Extensions.Configuration.IConfiguration AccountabilityConfig
-@if (AccountabilityPreview.Enabled(AccountabilityConfig)) { <p><a class="button" asp-controller="Coach" asp-action="Accountability" asp-route-clientId="@(Model.ClientId)">Fines &amp; incentives · Preview</a> <a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-fragment="snap-workout" asp-route-clientId="@(Model.ClientId)">Snap Workout · Client portal</a></p> }
+@if (AccountabilityPreview.Enabled(AccountabilityConfig)) { <p><a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@(Model.ClientId)">Fees &amp; payments</a> <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-fragment="snap-workout" asp-route-clientId="@(Model.ClientId)">Snap Workouts</a></p> }
 <details class="card coach-panel"><summary>Last 7 completed days</summary><div class="coach-panel-body">
     <p class="muted">@Model.CompletedWorkouts completed workouts · @Model.TrainingMinutes.ToString("0.#") minutes · @Model.NutritionDays / 7 days with nutrition. Today and tomorrow are excluded from all gauges and totals.</p>
     <div class="coach-summary-gauges">

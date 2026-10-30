@@ -3,7 +3,7 @@
 @model AccountabilityPreviewViewModel
 @inject Microsoft.Extensions.Configuration.IConfiguration PreviewConfiguration
 @inject WebRecomp.Web.Services.Coaching.AccountabilityDefaultsStore CoachDefaults
-@if (AccountabilityPreview.Enabled(PreviewConfiguration))
+@if (AccountabilityPreview.Enabled(PreviewConfiguration) && (!WebRecomp.Web.Services.Coaching.SimpleCoaching.Enabled(PreviewConfiguration) || ViewData["OldCoaching"] is true))
 {
     var initialDefaults = await CoachDefaults.ReadAsync(Context.RequestAborted);
 <link rel="stylesheet" href="~/css/accountability-preview.css" asp-append-version="true" />
