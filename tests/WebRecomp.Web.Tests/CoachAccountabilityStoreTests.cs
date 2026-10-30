@@ -364,10 +364,10 @@ public sealed class CoachAccountabilityStoreTests
         var row=await db.CoachAccountabilityAgreements.SingleAsync();var id="simple-"+request.ToString("N");var saved=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.Single();
         Assert.True(saved.Simple);Assert.Equal(f.OtherCoach,row.CoachUserId);Assert.Empty(await db.CoachAccountabilityApprovals.ToListAsync());
         var result=new AccountabilityResult{Finalized=true,Sets=new(){[saved.Exercises[0].Id]=[new(){Reps=20,Weight=35},new(){Reps=20,Weight=35},new(){Reps=20,Weight=35}]}};
-        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,id,result,default);Assert.Equal(-50,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
-        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,id,result,default);Assert.Equal(-50,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));Assert.Equal(2,(await ledger.ReadAsync(row,default)).Count);
-        result.Sets[saved.Exercises[0].Id].ForEach(x=>x.Reps=15);await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,id,result,default);Assert.Equal(-35,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
-        await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"payment-coach",today,35,"Paid incentive",default);Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,id,result,default);Assert.Equal(50,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,id,result,default);Assert.Equal(50,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));Assert.Equal(2,(await ledger.ReadAsync(row,default)).Count);
+        result.Sets[saved.Exercises[0].Id].ForEach(x=>x.Reps=15);await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,id,result,default);Assert.Equal(35,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"payment-client",today,35,"Paid incentive",default);Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>simple.AssignAsync(f.Owner,f.Client,row.Revision,Guid.NewGuid(),workout,default));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>simple.ResultAsync(Guid.NewGuid(),f.Client,false,row.Revision,id,result,default));
     }
@@ -415,6 +415,34 @@ public sealed class CoachAccountabilityStoreTests
         await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"fee",today,6,"3 occurrences at $2",default);
         Assert.Equal(6,Assert.Single(await ledger.ReadAsync(row,default)).Amount);Assert.Empty(AccountabilityDocument.Parse(row.StateJson).SnapWorkouts);Assert.Empty(await db.CoachAccountabilityApprovals.ToListAsync());
         await ledger.RecordAsync(f.OtherCoach,row,row.Revision,Guid.NewGuid(),"payment-client",today,6,"Payment received",default);Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+    }
+    [Fact]
+    public async Task ClientPaysCompletionAndExtraRepsOrFlatUnfinishedPenalty()
+    {
+        var f=await Fixture.Create();var workout=f.State.SnapWorkouts.Single();workout.Simple=true;workout.Cap=100;workout.CompletionReward=0;
+        var exercise=workout.Exercises.Single();exercise.Sets=3;exercise.Reps=10;exercise.CompletionReward=20;exercise.Penalty=15;exercise.ExtraRepRate=1;
+        var result=new AccountabilityResult{Finalized=true,Sets=new(){[exercise.Id]=[new(){Reps=20,Weight=20},new(){Reps=20,Weight=20},new(){Reps=20,Weight=20}]}};f.State.SnapResults[workout.Id]=result;
+        var charges=SimpleCoachingService.Charges(f.State,AccountabilityDocument.Date(workout.Date));Assert.Equal(50,charges.Sum(x=>x.Amount));
+        Assert.Equal(20,charges.Single(x=>x.Kind=="completion-fee"&&x.Key.Contains(exercise.Id)).Amount);Assert.Equal(30,charges.Single(x=>x.Kind=="incentive-client").Amount);Assert.Equal(0,charges.Single(x=>x.Kind=="penalty").Amount);
+        var entries=AccountabilityLedger.Delta(charges,[],1,Guid.NewGuid());Assert.Equal(50,entries.Sum(x=>x.Amount));Assert.All(entries,x=>Assert.True(x.Amount>0));
+        result.Sets[exercise.Id][0].Reps=9;charges=SimpleCoachingService.Charges(f.State,AccountabilityDocument.Date(workout.Date));Assert.Equal(15,charges.Sum(x=>x.Amount));Assert.Equal(15,charges.Single(x=>x.Kind=="penalty").Amount);
+        var correction=AccountabilityLedger.Delta(charges,entries,1,Guid.NewGuid());Assert.Equal(15,entries.Concat(correction).Sum(x=>x.Amount));
+        result.Sets[exercise.Id][0].Reps=20;workout.Cap=40;Assert.Equal(40,SimpleCoachingService.Charges(f.State,AccountabilityDocument.Date(workout.Date)).Sum(x=>x.Amount));
+    }
+    [Fact]
+    public async Task SimpleLedgerUsesClientPaysForOldEntriesAndBlocksCoachPayments()
+    {
+        var f=await Fixture.Create();using var db=f.Db();var row=await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+        var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);var legacy=new AccountabilityLedger(db,access);var today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        await legacy.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"incentive",today,10,"Old incentive entry",default);
+        await legacy.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"payment-coach",today,4,"Old payment entry",default);
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{["SimpleCoaching:Enabled"]="true"}).Build();var ledger=new AccountabilityLedger(db,access,config);
+        var entries=await ledger.ReadAsync(row,default);Assert.Equal(6,entries.Sum(x=>x.Amount));Assert.Equal(10,entries.Single(x=>x.Kind=="incentive-client").Amount);Assert.Equal(-4,entries.Single(x=>x.Kind=="payment-client").Amount);
+        Assert.Contains(await db.CoachAccountabilityEvents.ToListAsync(),x=>x.PayloadJson.Contains("\"amount\":-10"));
+        await Assert.ThrowsAsync<ArgumentException>(()=>ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"payment-coach",today,6,"Invalid direction",default));
+        await Assert.ThrowsAsync<ArgumentException>(()=>ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"incentive",today,6,"Old credit kind",default));
+        await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"incentive-client",today,2,"Extra reps",default);Assert.Equal(8,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"payment-client",today,8,"Payment received",default);Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
     }
     private sealed class Fixture
     {

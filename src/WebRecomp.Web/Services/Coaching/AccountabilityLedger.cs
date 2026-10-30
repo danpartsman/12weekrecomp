@@ -55,6 +55,16 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
                 entry.TermsKey=AccountabilityAssessment.RuleTermsKey(state,rule);
             }
         }
+        if(SimpleCoaching.Enabled(configuration))
+        {
+            // Preserve raw audit records while presenting the corrected client-pays convention.
+            // Flip adjustments and reversals with their original kinds as well as original entries.
+            foreach(var entry in entries)
+            {
+                if(entry.Kind=="incentive"){entry.Amount=-entry.Amount;entry.Kind="incentive-client";}
+                else if(entry.Kind=="payment-coach"){entry.Amount=-entry.Amount;entry.Kind="payment-client";}
+            }
+        }
         return entries;
     }
     public async Task<bool> ApprovedAsync(CoachAccountabilityAgreement row,CancellationToken ct)
@@ -92,7 +102,7 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
             if(delta==0)continue;
             var detail=charge.RawAmount>charge.Amount?$" · ${charge.RawAmount:0.00} before cap; ${charge.Amount:0.00} applied":"";
             if(!charge.Settle)detail+=" · Below this period's settlement threshold";
-            output.Add(new(){SourceKey=charge.Key,Date=charge.Date,Kind=charge.Kind=="incentive"?"incentive":"fee",Amount=delta,RawAmount=charge.RawAmount,
+            output.Add(new(){SourceKey=charge.Key,Date=charge.Date,Kind=charge.Kind is "completion-fee" or "penalty" or "incentive-client"?charge.Kind:charge.Kind=="incentive"?"incentive":"fee",Amount=delta,RawAmount=charge.RawAmount,
                 TermsVersion=version,TermsKey=charge.TermsKey,ActorUserId=actor,Automatic=true,Description=(old.Length>0?"Adjustment · ":"")+charge.Description+detail});
         }
         return output;
@@ -134,7 +144,8 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
     public async Task RecordAsync(Guid coach,CoachAccountabilityAgreement row,int expected,Guid requestId,string kind,DateOnly date,decimal amount,string description,CancellationToken ct)
     {
         if(!await access.CanAssignSnapAsync(coach,row.ClientId,ct))throw new UnauthorizedAccessException();
-        if(requestId==Guid.Empty||!new[]{"fee","incentive","payment-client","payment-coach"}.Contains(kind)||!AccountabilityDocument.Money(amount)||amount<=0||string.IsNullOrWhiteSpace(description)||description.Length>300)
+        var allowed=SimpleCoaching.Enabled(configuration)?new[]{"fee","completion-fee","penalty","incentive-client","payment-client"}:new[]{"fee","incentive","payment-client","payment-coach"};
+        if(requestId==Guid.Empty||!allowed.Contains(kind)||!AccountabilityDocument.Money(amount)||amount<=0||string.IsNullOrWhiteSpace(description)||description.Length>300)
             throw new ArgumentException("Enter a positive dollar amount and a short description.");
         var source="manual:"+requestId.ToString("N");var signed=kind is "incentive" or "payment-client"?-amount:amount;
         var existing=(await ReadAsync(row,ct)).SingleOrDefault(x=>x.SourceKey==source);

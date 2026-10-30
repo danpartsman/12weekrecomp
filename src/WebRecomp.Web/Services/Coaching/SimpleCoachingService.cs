@@ -61,7 +61,34 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         var simple=AccountabilityDocument.Parse(AccountabilityDocument.Serialize(saved));
         simple.SnapWorkouts=simple.SnapWorkouts.Where(w=>w.Simple).ToList();
         simple.Agreement=new(){Start="1900-01-01",Mode="open"};simple.Excused=[];
-        return AccountabilityAssessment.Snap(simple,today);
+        var charges=new List<AccountabilityCharge>();
+        foreach(var w in simple.SnapWorkouts)
+        {
+            if(AccountabilityDocument.Date(w.Date)>today||!simple.SnapResults.TryGetValue(w.Id,out var result)||!result.Finalized)continue;
+            decimal remaining=w.Cap;
+            void Add(string suffix,string kind,string description,decimal raw)
+            {
+                var amount=AccountabilityAssessment.Cents(Math.Min(raw,remaining));remaining-=amount;
+                charges.Add(new($"snap:{w.Id}:{suffix}",AccountabilityDocument.Date(w.Date),kind,$"{w.Name} · {description}",amount,AccountabilityAssessment.Cents(raw)));
+            }
+            var wholeComplete=SnapWorkoutLibrary.Completed(w,result);
+            Add("completion","completion-fee","Whole-workout completion fee",wholeComplete?w.CompletionReward??0:0);
+            foreach(var e in w.Exercises)
+            {
+                var sets=result.Sets.GetValueOrDefault(e.Id)??[];
+                bool Qualifies(AccountabilitySet set)=>set.Weight>=e.Weight&&(!e.MaxWeight.HasValue||set.Weight<=e.MaxWeight);
+                var qualifying=sets.Where(Qualifies).ToList();
+                var completedSets=qualifying.Count(s=>s.Reps>=e.Reps);var complete=completedSets>=e.Sets;
+                var doneReps=qualifying.Take(e.Sets).Sum(s=>Math.Min(s.Reps??0,e.Reps));
+                var oldQuantity=e.Basis switch{"completed-reps"=>doneReps,"completed-sets"=>Math.Min(completedSets,e.Sets),"incomplete-sets"=>Math.Max(0,e.Sets-completedSets),_=>Math.Max(0,e.Sets*e.Reps-doneReps)};
+                var penalty=e.Penalty.HasValue?(complete?0:e.Penalty.Value):oldQuantity*e.Rate;
+                Add(e.Id+":base",e.Type=="incentive"&&!e.Penalty.HasValue?"completion-fee":"penalty",e.Name+" · "+(e.Penalty.HasValue?"Unfinished exercise penalty":"Exercise charge"),penalty);
+                Add(e.Id+":completion","completion-fee",e.Name+" · Exercise completion fee",complete?e.CompletionReward??0:0);
+                var extra=complete?Math.Max(0,qualifying.Sum(s=>s.Reps??0)-e.Sets*e.Reps):0;
+                Add(e.Id+":reward","incentive-client",$"{e.Name} · {extra} extra reps × ${(e.ExtraRepRate??0):0.00}",extra*(e.ExtraRepRate??0));
+            }
+        }
+        return charges;
     }
     private void Event(CoachAccountabilityAgreement row,Guid actor,string kind,string payload)
     {

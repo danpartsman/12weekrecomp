@@ -44,7 +44,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         {
             var user=(await users.GetAsync(HttpContext,ct)).User;
             await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,new(){Name=input.Name.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
-                DeadlineUtc=input.DeadlineUtc,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,CompletionReward=e.CompletionReward,ExtraRepRate=e.ExtraRepRate}).ToList()},ct);
+                DeadlineUtc=input.DeadlineUtc,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=e.Penalty,CompletionReward=e.CompletionReward,ExtraRepRate=e.ExtraRepRate}).ToList()},ct);
             TempData["SimpleStatus"]="Workout assigned. Your client can open it in their portal.";return RedirectToAction(nameof(Index),new{clientId});
         }
         catch(UnauthorizedAccessException){return NotFound();}
@@ -81,7 +81,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         [Required,StringLength(250)]public string Name{get;set;}="";
         public int Sets{get;set;}=3;public int Reps{get;set;}=10;public decimal MaxWeight{get;set;}
         public string Type{get;set;}="fine";public string Basis{get;set;}="incomplete-reps";public decimal Rate{get;set;}
-        public decimal CompletionReward{get;set;}public decimal ExtraRepRate{get;set;}
+        public decimal? Penalty{get;set;}=0;public decimal CompletionReward{get;set;}public decimal ExtraRepRate{get;set;}
     }
     public sealed class ResultInput
     {
