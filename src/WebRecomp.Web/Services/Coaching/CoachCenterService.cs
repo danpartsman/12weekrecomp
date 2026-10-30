@@ -35,7 +35,7 @@ public sealed class CoachCenterService(RecompDbContext db,IConfiguration? config
         var latest=ordered.FirstOrDefault();var result=latest is null?null:state.SnapResults.GetValueOrDefault(latest.Id);
         return new(state.SnapWorkouts.Count,state.SnapWorkouts.Count(w=>state.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true),
             state.SnapWorkouts.Count(w=>SnapWorkoutLibrary.Completed(w,state.SnapResults.GetValueOrDefault(w.Id))),latest?.Id,latest?.Name,
-            latest is null?null:SnapWorkoutLibrary.Completed(latest,result)?"Completed":result?.Finalized==true?"Submitted · targets incomplete":result is not null?"Progress saved":"Assigned");
+            latest is null?null:SnapWorkoutLibrary.Completed(latest,result)?"Completed":result?.Finalized==true?(latest.Simple?"Finished · penalties applied":"Submitted · targets incomplete"):result is not null?"Progress saved":"Assigned");
     }
     public async Task<CoachCenterViewModel> BuildAsync(UserAccount user, CancellationToken ct)
     {

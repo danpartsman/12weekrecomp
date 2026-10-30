@@ -35,5 +35,5 @@ public sealed class SnapWorkoutLibrary(RecompDbContext db, CoachCenterService co
     }
     public static bool Completed(AccountabilityWorkout workout, AccountabilityResult? result) => result is { Finalized: true }
         && workout.Exercises.All(e => result.Sets.TryGetValue(e.Id, out var sets)
-            && sets.Count(s => s.Reps >= e.Reps && s.Weight >= e.Weight && (!e.MaxWeight.HasValue || s.Weight <= e.MaxWeight)) >= e.Sets);
+            && sets.Count(s => s.WeightRecorded != false && s.Reps >= e.Reps && s.Weight >= e.Weight && (!e.MaxWeight.HasValue || s.Weight <= e.MaxWeight)) >= e.Sets);
 }

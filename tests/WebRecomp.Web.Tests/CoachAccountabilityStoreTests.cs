@@ -397,7 +397,7 @@ public sealed class CoachAccountabilityStoreTests
         }
         Actor("other");var token=await Token($"/clients/{f.Client}/snap");Assert.NotEmpty(token);var request=Guid.NewGuid();
         DateOnly today;using(var db=f.Db())today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
-        var response=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["RequestId"]=request.ToString(),["Revision"]="0",["Name"]="Quick test workout",["Date"]=today.ToString("yyyy-MM-dd"),["Cap"]="100",["CompletionReward"]="20",["Exercises[0].Name"]="Squat",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="0",["Exercises[0].ExtraRepRate"]="1"}));
+        var response=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["RequestId"]=request.ToString(),["Revision"]="0",["Name"]="Quick test workout",["Date"]=today.ToString("yyyy-MM-dd"),["Cap"]="100",["CompletionReward"]="20",["Exercises[0].Name"]="Squat",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="0",["Exercises[0].ExtraRepRate"]="1",["Exercises[0].Penalty"]="15"}));
         Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
         Actor("owner");token=await Token($"/clients/{f.Client}/snap");Assert.NotEmpty(token);
         string id,exercise;int revision;using(var db=f.Db()){var row=await db.CoachAccountabilityAgreements.SingleAsync();revision=row.Revision;var workout=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.Single();id=workout.Id;exercise=workout.Exercises[0].Id;}
@@ -406,6 +406,13 @@ public sealed class CoachAccountabilityStoreTests
         var account=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger");Assert.Contains("$50.00",account);Assert.DoesNotContain("waiting for the client's approval",account);
         using(var db=f.Db()){Assert.Empty(await db.CoachAccountabilityApprovals.ToListAsync());Assert.True(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapResults[id].Finalized);}
         Actor("other");Assert.Contains("Completed",await http.GetStringAsync("/coach"));Assert.Contains("Old coaching screens",await http.GetStringAsync("/coach/old"));
+        Actor("owner");token=await Token($"/clients/{f.Client}/snap");
+        using(var db=f.Db())revision=(await db.CoachAccountabilityAgreements.SingleAsync()).Revision;
+        response=await http.PostAsync($"/clients/{f.Client}/snap/result",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["Revision"]=revision.ToString(),["WorkoutId"]=id,["SubmitMode"]="finish",["Exercises[0].Id"]=exercise,["Exercises[0].Sets[0].Reps"]="",["Exercises[0].Sets[0].Weight"]=""}));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
+        using(var db=f.Db()){var row=await db.CoachAccountabilityAgreements.SingleAsync();Assert.True(AccountabilityDocument.Parse(row.StateJson).SnapResults[id].Finalized);}
+        Assert.Contains("$15.00",await http.GetStringAsync($"/clients/{f.Client}/coach-ledger"));
+        using(var pending=JsonDocument.Parse(await http.GetStringAsync("/my-coach/pending-snaps")))Assert.Equal(0,pending.RootElement.GetProperty("workouts").GetArrayLength());
     }
     [Fact]
     public async Task SimpleAccountAcceptsManualFeeBeforeAnyWorkoutOrAgreement()
@@ -444,6 +451,41 @@ public sealed class CoachAccountabilityStoreTests
         await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"incentive-client",today,2,"Extra reps",default);Assert.Equal(8,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
         await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"payment-client",today,8,"Payment received",default);Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
         await ledger.ReverseAsync(f.Coach,row,row.Revision,entries.Single(x=>x.Kind=="incentive-client").Id,"Correct old incentive",default);Assert.Equal(-10,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+    }
+    [Fact]
+    public async Task DeadlinePostsOnceWithoutSubmissionAndStaleClientCanFinishAfterLedgerPosting()
+    {
+        var f=await Fixture.Create();using var db=f.Db();var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{["SimpleCoaching:Enabled"]="true"}).Build();
+        var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);var ledger=new AccountabilityLedger(db,access,config);var clock=new DeadlineClock();var simple=new SimpleCoachingService(db,access,ledger,clock:clock);
+        var today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        await simple.AssignAsync(f.Coach,f.Client,0,Guid.NewGuid(),new(){Name="Timed workout",Date=today.ToString("yyyy-MM-dd"),LatePenalty=25,Exercises=[new(){Name="Press",Sets=1,Reps=10,MaxWeight=35,Penalty=15,CompletionReward=20}]},default);
+        var row=await db.CoachAccountabilityAgreements.SingleAsync();var state=AccountabilityDocument.Parse(row.StateJson);var workout=state.SnapWorkouts.Single();var revision=row.Revision;
+        Assert.Equal(120,workout.TimeLimitMinutes);Assert.Equal(clock.Now.AddHours(2),workout.DeadlineUtc);
+        clock.Now=clock.Now.AddMinutes(119);await simple.PostDueAsync(default);Assert.Empty(await ledger.ReadAsync(row,default));
+        clock.Now=clock.Now.AddMinutes(2);await simple.PostDueAsync(default);await simple.PostDueAsync(default);Assert.Equal(25,Assert.Single(await ledger.ReadAsync(row,default)).Amount);
+        await simple.ResultAsync(f.Owner,f.Client,false,revision,workout.Id,new(){Finalized=true,Sets=new(){[workout.Exercises[0].Id]=[new(){Reps=10,Weight=null}]}},default);
+        state=AccountabilityDocument.Parse(row.StateJson);var result=state.SnapResults[workout.Id];Assert.True(result.Finalized);Assert.False(result.Sets[workout.Exercises[0].Id][0].WeightRecorded);Assert.False(SnapWorkoutLibrary.Completed(workout,result));
+        Assert.Equal(40,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));Assert.Single((await ledger.ReadAsync(row,default)).Where(x=>x.Kind=="late-penalty"));
+        var finished=result.CompletedAtUtc;clock.Now=clock.Now.AddMinutes(5);
+        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,workout.Id,new(){Finalized=true,Sets=new(){[workout.Exercises[0].Id]=[new(){Reps=10,Weight=35}]}},default);
+        Assert.Equal(finished,AccountabilityDocument.Parse(row.StateJson).SnapResults[workout.Id].CompletedAtUtc);Assert.Equal(45,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+    }
+    [Fact]
+    public async Task FinishingWithMissedTargetsBeforeDeadlineKeepsOnlySetPenaltyAndCustomMinutesAreStored()
+    {
+        var f=await Fixture.Create();using var db=f.Db();var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);var ledger=new AccountabilityLedger(db,access);var clock=new DeadlineClock();var simple=new SimpleCoachingService(db,access,ledger,clock:clock);
+        var today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        await simple.AssignAsync(f.Coach,f.Client,0,Guid.NewGuid(),new(){Name="Quick workout",Date=today.ToString("yyyy-MM-dd"),TimeLimitMinutes=30,LatePenalty=25,Exercises=[new(){Name="Squat",Sets=2,Reps=10,MaxWeight=0,Penalty=15}]},default);
+        var row=await db.CoachAccountabilityAgreements.SingleAsync();var workout=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.Single();Assert.Equal(clock.Now.AddMinutes(30),workout.DeadlineUtc);
+        clock.Now=clock.Now.AddMinutes(10);await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,workout.Id,new(){Finalized=true},default);
+        var result=AccountabilityDocument.Parse(row.StateJson).SnapResults[workout.Id];Assert.True(result.Finalized);Assert.All(result.Sets.Single().Value,set=>Assert.Equal(0,set.Reps));
+        clock.Now=clock.Now.AddHours(1);await simple.PostDueAsync(default);Assert.Equal(15,Assert.Single(await ledger.ReadAsync(row,default)).Amount);
+        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,workout.Id,new(){Finalized=false},default);Assert.True(AccountabilityDocument.Parse(row.StateJson).SnapResults[workout.Id].Finalized);
+    }
+    private sealed class DeadlineClock:TimeProvider
+    {
+        public DateTimeOffset Now{get;set;}=DateTimeOffset.UtcNow;
+        public override DateTimeOffset GetUtcNow()=>Now;
     }
     private sealed class Fixture
     {

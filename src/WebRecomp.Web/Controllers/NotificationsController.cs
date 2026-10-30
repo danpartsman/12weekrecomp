@@ -72,7 +72,9 @@ public sealed class NotificationsController(AppUserContextService users, Notific
         var supplied = Request.Headers["X-12WR-Notification-Job"].ToString();
         var expected = files.Identity.JobKey;
         if (supplied.Length != expected.Length || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(supplied), Encoding.UTF8.GetBytes(expected))) return NotFound();
-        await processor.RunAsync(ct); return Ok(new { processed = true });
+        await processor.RunAsync(ct);
+        if(WebRecomp.Web.Services.Coaching.SimpleCoaching.Enabled(HttpContext.RequestServices.GetRequiredService<IConfiguration>()))await HttpContext.RequestServices.GetRequiredService<WebRecomp.Web.Services.Coaching.SimpleCoachingService>().PostDueAsync(ct);
+        return Ok(new { processed = true });
     }
     public sealed class SubscriptionInput
     {

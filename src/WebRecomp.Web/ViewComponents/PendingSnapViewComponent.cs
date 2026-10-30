@@ -16,7 +16,7 @@ public sealed class PendingSnapViewComponent(AppUserContextService users, CoachA
             var row = SimpleCoaching.Enabled(configuration)?await simple!.ReadAsync(context.User.UserId,context.Client.ClientId,false,ct):await store.ReadAsync(context.User.UserId, context.Client.ClientId, false, ct);
             if (row is null) return Content("");
             var state = AccountabilityDocument.Parse(row.StateJson);
-            var pending = state.SnapWorkouts.Where(w => (!SimpleCoaching.Enabled(configuration)||w.Simple)&&!SnapWorkoutLibrary.Completed(w, state.SnapResults.GetValueOrDefault(w.Id))).OrderBy(w => w.Date).ToList();
+            var pending = state.SnapWorkouts.Where(w => (!SimpleCoaching.Enabled(configuration)||w.Simple)&&!(SimpleCoaching.Enabled(configuration)?state.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true:SnapWorkoutLibrary.Completed(w,state.SnapResults.GetValueOrDefault(w.Id)))).OrderBy(w => w.Date).ToList();
             if (pending.Count == 0) return Content("");
             ViewData["ClientId"] = context.Client.ClientId;
             return View("~/Views/Shared/Components/PendingSnap/Default.cshtml", pending);

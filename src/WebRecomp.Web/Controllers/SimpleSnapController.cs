@@ -18,6 +18,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         var user=(await users.GetAsync(HttpContext,ct)).User;
         try
         {
+            await simple.RefreshAsync(user.UserId,clientId,Coach,ct);
             var row=await simple.ReadAsync(user.UserId,clientId,Coach,ct);var clock=await ledger.ClockAsync(clientId,ct);
             var state=row is null?new AccountabilityState():AccountabilityDocument.Parse(row.StateJson);
             var retryWorkout=state.SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==retry?.WorkoutId);
@@ -35,6 +36,19 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }
+    [HttpGet("status")]
+    public async Task<IActionResult> Status(Guid clientId,CancellationToken ct)
+    {
+        if(!SimpleCoaching.Enabled(configuration))return NotFound();
+        var user=(await users.GetAsync(HttpContext,ct)).User;
+        try
+        {
+            await simple.RefreshAsync(user.UserId,clientId,Coach,ct);var row=await simple.ReadAsync(user.UserId,clientId,Coach,ct);
+            var state=row is null?new AccountabilityState():AccountabilityDocument.Parse(row.StateJson);
+            return Json(new{nowUtc=DateTimeOffset.UtcNow,workouts=state.SnapWorkouts.Where(w=>w.Simple).Select(w=>new{w.Id,w.DeadlineUtc,finished=state.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true,finishedAtUtc=state.SnapResults.GetValueOrDefault(w.Id)?.CompletedAtUtc})});
+        }
+        catch(UnauthorizedAccessException){return NotFound();}
+    }
     [HttpPost("assign"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(65536)]
     public async Task<IActionResult> Assign(Guid clientId,AssignmentInput input,CancellationToken ct)
     {
@@ -44,7 +58,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         {
             var user=(await users.GetAsync(HttpContext,ct)).User;
             await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,new(){Name=input.Name.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
-                DeadlineUtc=input.DeadlineUtc,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=e.Penalty,CompletionReward=e.CompletionReward,ExtraRepRate=e.ExtraRepRate}).ToList()},ct);
+                TimeLimitMinutes=input.TimeUnit=="hours"?checked(input.TimeAllowed*60):input.TimeAllowed,LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=e.Penalty,CompletionReward=e.CompletionReward,ExtraRepRate=e.ExtraRepRate}).ToList()},ct);
             TempData["SimpleStatus"]="Workout assigned. Your client can open it in their portal.";return RedirectToAction(nameof(Index),new{clientId});
         }
         catch(UnauthorizedAccessException){return NotFound();}
@@ -57,9 +71,10 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         try
         {
             if(!ModelState.IsValid)throw new ArgumentException("Check the completed reps and weight.");
+            var finish=input.SubmitMode=="finish"||(Request.HasFormContentType&&Request.Form["Action"]=="finish");
             var user=(await users.GetAsync(HttpContext,ct)).User;
-            await simple.ResultAsync(user.UserId,clientId,Coach,input.Revision,input.WorkoutId,new(){Finalized=input.Action=="finish",Sets=input.Exercises.ToDictionary(e=>e.Id,e=>e.Sets.Select(s=>new AccountabilitySet{Reps=s.Reps,Weight=s.Weight}).ToList())},ct);
-            TempData["SimpleStatus"]=input.Action=="finish"?"Workout finished. Your coach can see the results and calculated account entries.":"Progress saved.";
+            await simple.ResultAsync(user.UserId,clientId,Coach,input.Revision,input.WorkoutId,new(){Finalized=finish,Sets=input.Exercises.ToDictionary(e=>e.Id,e=>e.Sets.Select(s=>new AccountabilitySet{Reps=s.Reps,Weight=s.Weight}).ToList())},ct);
+            TempData["SimpleStatus"]=finish?"Workout finished. Your coach can see the results and calculated account entries.":"Progress saved.";
         }
         catch(UnauthorizedAccessException){return NotFound();}
         catch(Exception e)when(e is ArgumentException or AccountabilityConflictException){ModelState.AddModelError("",e.Message);return await Page(clientId,null,ct,input);}
@@ -71,7 +86,9 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         public Guid RequestId{get;set;}=Guid.NewGuid();
         [Required,StringLength(100)]public string Name{get;set;}="Snap Workout";
         public DateOnly Date{get;set;}
-        public DateTimeOffset? DeadlineUtc{get;set;}
+        [Range(1,10080)]public int TimeAllowed{get;set;}=2;
+        [RegularExpression("^(hours|minutes)$")]public string TimeUnit{get;set;}="hours";
+        public decimal LatePenalty{get;set;}
         public decimal Cap{get;set;}=100;
         public decimal CompletionReward{get;set;}
         public List<ExerciseInput> Exercises{get;set;}=[new()];
@@ -85,7 +102,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
     }
     public sealed class ResultInput
     {
-        public int Revision{get;set;}public string WorkoutId{get;set;}="";public string Action{get;set;}="progress";
+        public int Revision{get;set;}public string WorkoutId{get;set;}="";public string SubmitMode{get;set;}="progress";
         public List<ExerciseResults> Exercises{get;set;}=[];
     }
     public sealed class ExerciseResults{public string Id{get;set;}="";public List<SetInput> Sets{get;set;}=[];}

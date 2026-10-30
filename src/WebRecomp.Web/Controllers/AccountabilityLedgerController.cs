@@ -18,6 +18,7 @@ public sealed class AccountabilityLedgerController(AppUserContextService users,A
         var user=(await users.GetAsync(HttpContext,ct)).User;
         try
         {
+            if(SimpleCoaching.Enabled(configuration))await simple!.RefreshAsync(user.UserId,clientId,CoachRole,ct);
             var row=await ledger.AccountAsync(user.UserId,clientId,CoachRole,ct);
             var name=await access.ClientNameAsync(clientId,ct)??"Client";
             var clock=await ledger.ClockAsync(clientId,ct);

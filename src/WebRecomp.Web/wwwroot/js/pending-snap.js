@@ -16,7 +16,7 @@
             if (!data.workouts.length) { host.replaceChildren(); return; }
             const banner = document.createElement('aside'); banner.className = 'pending-snap-banner'; banner.setAttribute('aria-label', 'Assigned Snap Workouts');
             const title = document.createElement('strong'); title.textContent = `${data.workouts.length} Snap Workout${data.workouts.length === 1 ? '' : 's'} to complete`;
-            const text = document.createElement('p'); text.textContent = 'Your coach has assigned a workout. This notice stays until you save completed results for the prescribed sets, reps and weight.';
+            const text = document.createElement('p'); text.textContent = 'Your coach has assigned a workout. Record your results and press Finish workout to submit them to your coach.';
             const list = document.createElement('ul');
             for (const w of data.workouts) {
                 const item = document.createElement('li'); item.dataset.pendingWorkout = w.id;

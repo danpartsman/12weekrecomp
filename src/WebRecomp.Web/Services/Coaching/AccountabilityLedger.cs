@@ -102,7 +102,7 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
             if(delta==0)continue;
             var detail=charge.RawAmount>charge.Amount?$" · ${charge.RawAmount:0.00} before cap; ${charge.Amount:0.00} applied":"";
             if(!charge.Settle)detail+=" · Below this period's settlement threshold";
-            output.Add(new(){SourceKey=charge.Key,Date=charge.Date,Kind=charge.Kind is "completion-fee" or "penalty" or "incentive-client"?charge.Kind:charge.Kind=="incentive"?"incentive":"fee",Amount=delta,RawAmount=charge.RawAmount,
+            output.Add(new(){SourceKey=charge.Key,Date=charge.Date,Kind=charge.Kind is "completion-fee" or "penalty" or "late-penalty" or "incentive-client"?charge.Kind:charge.Kind=="incentive"?"incentive":"fee",Amount=delta,RawAmount=charge.RawAmount,
                 TermsVersion=version,TermsKey=charge.TermsKey,ActorUserId=actor,Automatic=true,Description=(old.Length>0?"Adjustment · ":"")+charge.Description+detail});
         }
         return output;
