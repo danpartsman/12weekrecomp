@@ -28,7 +28,7 @@ public sealed class SnapWorkoutEngineTests
         async Task<Engine30WorkoutRuntimeResult> Calculate(AccountabilityResult? result=null)=>await engine.CalculateAsync(new(SnapWorkoutEngine.Input(w,result,profile),1900,200,160,.528m,23));
         var original=await Calculate();Assert.True(original.Energy.EngineNetWorkoutEnergyKcal>0);Assert.True(original.Glycogen.EstimatedGlycogenDepletedG>0);
         w.Exercises[0].Rpe=9;var harder=await Calculate();Assert.True(harder.Energy.EngineNetWorkoutEnergyKcal>original.Energy.EngineNetWorkoutEnergyKcal);
-        w.Exercises[0].MuscleFocus="quads, glutes";var lower=await Calculate();Assert.NotEqual(harder.Glycogen.EstimatedGlycogenDepletedG,lower.Glycogen.EstimatedGlycogenDepletedG);
+        w.Exercises[0].MuscleFocus="quads, glutes";var lower=await Calculate();Assert.True(lower.Glycogen.Regions!.Single(x=>x.MuscleGroupCode=="LOWER_BODY").EstimatedGlycogenDepletedG>0);Assert.Equal(0,lower.Glycogen.Regions!.Single(x=>x.MuscleGroupCode=="UPPER_BODY").EstimatedGlycogenDepletedG);Assert.True(harder.Glycogen.Regions!.Single(x=>x.MuscleGroupCode=="UPPER_BODY").EstimatedGlycogenDepletedG>0);
         w.Exercises[0].Reps=30;Assert.True(SnapWorkoutEngine.Duration(w,null)>4);var moreReps=await Calculate();Assert.NotEqual(lower.Energy.EngineNetWorkoutEnergyKcal,moreReps.Energy.EngineNetWorkoutEnergyKcal);
         var zero=await Calculate(new(){Finalized=true,Sets=new(){["one"]=[new(){Reps=0},new(){Reps=0},new(){Reps=0}]}});Assert.Equal(0,zero.Energy.EngineNetWorkoutEnergyKcal);Assert.Equal(0,zero.Glycogen.EstimatedGlycogenDepletedG);
     }
@@ -41,12 +41,12 @@ public sealed class SnapWorkoutEngineTests
     {
         using var db=new RecompDbContext(new DbContextOptionsBuilder<RecompDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         var client=new Client{ClientId=Guid.NewGuid(),ClientName="Test",TimeZone="America/Los_Angeles"};db.Clients.Add(client);db.Programs.Add(new(){ProgramId=Guid.NewGuid(),ClientId=client.ClientId,SelectedPlanCode="TEST",GoalCode="TEST"});await db.SaveChangesAsync();
-        var w=new AccountabilityWorkout{Id="snap-one",Name="Evening",Date="2026-10-29",Exercises=[new(){Id="one",Sets=1,Reps=10,Rpe=6,MuscleFocus="chest"}]};
-        var r=new AccountabilityResult{Sets=new(){["one"]=[new(){Reps=10,Rpe=8}]}};await SnapWorkoutEngine.SyncAsync(db,client,w,r,default);Assert.Empty(db.WorkoutSessions);
+        var w=new AccountabilityWorkout{Simple=true,Id="snap-one",Name="Evening",Date="2026-10-29",Exercises=[new(){Id="one",MaxWeight=0,Sets=1,Reps=10,Rpe=6,MuscleFocus="chest"}]};
+        var r=new AccountabilityResult{Sets=new(){["one"]=[new(){Reps=10,Weight=0,Rpe=8}]}};await SnapWorkoutEngine.SyncAsync(db,client,w,r,default);Assert.Empty(db.WorkoutSessions);
         r.Finalized=true;r.CompletedAtUtc=DateTimeOffset.Parse("2026-10-31T06:00:00Z");await SnapWorkoutEngine.SyncAsync(db,client,w,r,default);await db.SaveChangesAsync();var session=Assert.Single(db.WorkoutSessions);var id=session.WorkoutSessionId;
         Assert.Equal(new DateOnly(2026,10,30),session.WorkoutDate);Assert.Equal(8,session.SessionRpe);Assert.Equal("3000.0",session.CalculationEngineVersion);
         r.Sets["one"][0].Reps=20;r.DurationMinutes=15;await SnapWorkoutEngine.SyncAsync(db,client,w,r,default);await db.SaveChangesAsync();Assert.Equal(id,Assert.Single(db.WorkoutSessions).WorkoutSessionId);Assert.Equal(15,session.DurationMin);
-        db.CoachAccountabilityAgreements.Add(new(){ClientId=client.ClientId,StateJson=AccountabilityDocument.Serialize(new(){SnapWorkouts=[w],SnapResults=new(){[w.Id]=r}}),TermsJson="{}",TermsHash="test"});await db.SaveChangesAsync();
+        db.CoachAccountabilityAgreements.Add(new(){ClientId=client.ClientId,StateJson=AccountabilityDocument.Serialize(new(){Rules=AccountabilityDocument.RuleIds.Select(id=>new AccountabilityRule{Id=id}).ToList(),Agreement=new(){Start="2026-10-01"},SnapWorkouts=[w],SnapResults=new(){[w.Id]=r}}),TermsJson="{}",TermsHash="test"});await db.SaveChangesAsync();
         var input=await WebRecomp.Web.Services.WorkoutIntelligence.DetailedWorkoutEngine30Adapter.BuildActualInputAsync(db,null!,session,Profile(),SnapWorkoutEngine.WorkoutCode);
         Assert.Equal(15,input.ActualDurationMinutes);Assert.Equal(8,input.ActualRpe);Assert.Equal(20,Assert.Single(input.Segments!).Resistance!.AverageRepsPerSet);
     }

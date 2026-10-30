@@ -25,8 +25,9 @@ public static class SnapWorkoutEngine
     // Explicit estimate for uncaptured time: 3 seconds per rep and 90 seconds between working sets.
     public static decimal Duration(AccountabilityWorkout workout,AccountabilityResult? result)
     {
+        var work=Work(workout,result);if(work.Count==0)return 0;
         if(result?.DurationMinutes is >0)return result.DurationMinutes.Value;
-        var work=Work(workout,result);return Math.Min(360,Math.Max(1,Math.Round(work.Sum(x=>(x.Set.Reps??0)*.05m)+Math.Max(0,work.Count-1)*1.5m,1)));
+        return Math.Min(360,Math.Max(1,Math.Round(work.Sum(x=>(x.Set.Reps??0)*.05m)+Math.Max(0,work.Count-1)*1.5m,1)));
     }
     public static decimal? Rpe(AccountabilityWorkout workout,AccountabilityResult? result)
     {
