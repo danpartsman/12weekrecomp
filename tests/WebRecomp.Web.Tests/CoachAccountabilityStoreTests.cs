@@ -421,7 +421,7 @@ public sealed class CoachAccountabilityStoreTests
     {
         var f=await Fixture.Create();var workout=f.State.SnapWorkouts.Single();workout.Simple=true;workout.Cap=100;workout.CompletionReward=0;
         var exercise=workout.Exercises.Single();exercise.Sets=3;exercise.Reps=10;exercise.CompletionReward=20;exercise.Penalty=15;exercise.ExtraRepRate=1;
-        var result=new AccountabilityResult{Finalized=true,Sets=new(){[exercise.Id]=[new(){Reps=20,Weight=20},new(){Reps=20,Weight=20},new(){Reps=20,Weight=20}]}};f.State.SnapResults[workout.Id]=result;
+        var result=new AccountabilityResult{Finalized=true,CompletedAtUtc=DateTimeOffset.UtcNow,Sets=new(){[exercise.Id]=[new(){Reps=20,Weight=20},new(){Reps=20,Weight=20},new(){Reps=20,Weight=20}]}};f.State.SnapResults[workout.Id]=result;
         var charges=SimpleCoachingService.Charges(f.State,AccountabilityDocument.Date(workout.Date));Assert.Equal(50,charges.Sum(x=>x.Amount));
         Assert.Equal(20,charges.Single(x=>x.Kind=="completion-fee"&&x.Key.Contains(exercise.Id)).Amount);Assert.Equal(30,charges.Single(x=>x.Kind=="incentive-client").Amount);Assert.Equal(0,charges.Single(x=>x.Kind=="penalty").Amount);
         var entries=AccountabilityLedger.Delta(charges,[],1,Guid.NewGuid());Assert.Equal(50,entries.Sum(x=>x.Amount));Assert.All(entries,x=>Assert.True(x.Amount>0));
@@ -443,6 +443,7 @@ public sealed class CoachAccountabilityStoreTests
         await Assert.ThrowsAsync<ArgumentException>(()=>ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"incentive",today,6,"Old credit kind",default));
         await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"incentive-client",today,2,"Extra reps",default);Assert.Equal(8,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
         await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"payment-client",today,8,"Payment received",default);Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        await ledger.ReverseAsync(f.Coach,row,row.Revision,entries.Single(x=>x.Kind=="incentive-client").Id,"Correct old incentive",default);Assert.Equal(-10,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
     }
     private sealed class Fixture
     {
