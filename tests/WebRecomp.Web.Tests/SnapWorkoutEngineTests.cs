@@ -41,7 +41,7 @@ public sealed class SnapWorkoutEngineTests
     {
         using var db=new RecompDbContext(new DbContextOptionsBuilder<RecompDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         var client=new Client{ClientId=Guid.NewGuid(),ClientName="Test",TimeZone="America/Los_Angeles"};db.Clients.Add(client);db.Programs.Add(new(){ProgramId=Guid.NewGuid(),ClientId=client.ClientId,SelectedPlanCode="TEST",GoalCode="TEST"});await db.SaveChangesAsync();
-        var w=new AccountabilityWorkout{Simple=true,Id="snap-one",Name="Evening",Date="2026-10-29",Exercises=[new(){Id="one",MaxWeight=0,Sets=1,Reps=10,Rpe=6,MuscleFocus="chest"}]};
+        var w=new AccountabilityWorkout{Simple=true,Id="snap-one",Name="Evening",Date="2026-10-29",Exercises=[new(){Id="one",Name="Pushups",MaxWeight=0,Sets=1,Reps=10,Rpe=6,MuscleFocus="chest"}]};
         var r=new AccountabilityResult{Sets=new(){["one"]=[new(){Reps=10,Weight=0,Rpe=8}]}};await SnapWorkoutEngine.SyncAsync(db,client,w,r,default);Assert.Empty(db.WorkoutSessions);
         r.Finalized=true;r.CompletedAtUtc=DateTimeOffset.Parse("2026-10-31T06:00:00Z");await SnapWorkoutEngine.SyncAsync(db,client,w,r,default);await db.SaveChangesAsync();var session=Assert.Single(db.WorkoutSessions);var id=session.WorkoutSessionId;
         Assert.Equal(new DateOnly(2026,10,30),session.WorkoutDate);Assert.Equal(8,session.SessionRpe);Assert.Equal("3000.0",session.CalculationEngineVersion);
