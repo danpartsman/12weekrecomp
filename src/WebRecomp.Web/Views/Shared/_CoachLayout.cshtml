@@ -50,6 +50,8 @@
           asp-append-version="true" />
 <link rel="stylesheet" href="~/css/free-stamps.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/coach-center.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/app-navigation.css" asp-append-version="true" />
+<script src="~/js/app-navigation.js" asp-append-version="true" defer></script>
 <partial name="_AppInstallMetadata" />
 </head>
 
@@ -70,26 +72,7 @@
         <a class="free-stamp free-stamp--brand" href="/recomp/why-free" aria-label="Completely free — read why">FREE</a>
     </div>
 
-    <nav class="public-nav"
-         aria-label="Coach navigation">
-
-        <a asp-controller="Coach"
-           asp-action="Index">
-            Coach Center
-        </a>
-
-        <a asp-controller="CommandCenter"
-           asp-action="Index">
-            My Recomp
-        </a>
-
-        <a class="nav-signout"
-           asp-controller="Account"
-           asp-action="Logout">
-            Sign Out
-        </a>
-
-    </nav>
+    @await Html.PartialAsync("_AppNavigation", false)
 
 </header>
 
