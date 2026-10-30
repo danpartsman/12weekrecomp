@@ -24,7 +24,7 @@ function navigation({admin=false,demo=false}={}) {
   assert.deepEqual(await page.locator('.app-nav-primary').allTextContents(),['Command Center','Daily Entries','Recomp Tips','Profile']);
   assert.equal(await page.locator('.app-nav-group[open]').count(),0);
   const expected=[['Dashboard','Progress'],['Recomp Tracking','Nutrition','Workout','Weekly Plan'],['How It Works','Evidence'],['Settings','My Coach','Notifications','Coach Center','Administration','Sign Out']];
-  const paths=['/CommandCenter','/DailyEntry','/RecompTips','/Profile'];
+  const paths=['/CommandCenter','/DailyEntry','/tips','/Profile'];
   async function navigate(i){await Promise.all([page.waitForNavigation(),groups.nth(i).locator('.app-nav-primary').click()]);assert.equal(new URL(page.url()).pathname,paths[i]);await page.waitForFunction(()=>document.querySelectorAll('.app-nav-group[open]').length===1);}
   for(let i=0;i<4;i++){
    await navigate(i);assert.deepEqual(await groups.nth(i).locator('.app-nav-panel a').allTextContents(),expected[i]);assert.equal(await groups.nth(i).locator('.app-nav-panel').isVisible(),true);
