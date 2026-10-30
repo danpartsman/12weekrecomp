@@ -30,7 +30,8 @@ jobs:
           import urllib.request
           base='https://12weekrecomp.com'
           for path,required in [('/release-version.txt',['source_sha=7db146fcdc839864a64de590236a25b0cebf8f63']),('/js/app-navigation.js',['location.assign','destination.searchParams']),('/js/snap-wake-lock.js',['navigator.wakeLock']),('/js/snap-countdown.js',['data-snap-countdown']),('/css/app-navigation.css',['app-nav-toggle'])]:
-              with urllib.request.urlopen(base+path+'?release-verification=7db146f',timeout=45) as response:
+              request=urllib.request.Request(base+path+'?release-verification=7db146f',headers={'Cache-Control':'no-cache','User-Agent':'12WR-Release-Check'})
+              with urllib.request.urlopen(request,timeout=45) as response:
                   body=response.read().decode('utf-8-sig')
                   assert response.status==200 and all(token in body for token in required), path+' did not match the promoted release'
                   print(path+' verified')
