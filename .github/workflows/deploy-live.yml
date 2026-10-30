@@ -445,11 +445,17 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $base = "https://12weekrecomp.com"
-          $manifestResponse = Invoke-WebRequest -Uri "$base/manifest.webmanifest?v=${{ github.sha }}" -TimeoutSec 45
-          $manifest = $manifestResponse.Content | ConvertFrom-Json
-          if ($manifest.name -ne '12 Week Recomp' -or $manifest.short_name -ne '12WR' -or $manifest.icons[0].src -ne '/favicon.svg') {
-              throw "LIVE installed-app identity is incorrect."
+          $identityReady = $false
+          for ($attempt = 1; $attempt -le 6; $attempt++) {
+              try {
+                  $manifestResponse = Invoke-WebRequest -Uri "$base/manifest.webmanifest?v=${{ github.sha }}&attempt=$attempt" -Headers @{ 'Cache-Control'='no-cache'; Accept='application/manifest+json' } -TimeoutSec 45
+                  $manifest = $manifestResponse.Content | ConvertFrom-Json
+                  if ($manifest.name -eq '12 Week Recomp' -and $manifest.short_name -eq '12WR' -and $manifest.icons[0].src -eq '/favicon.svg') { $identityReady = $true; break }
+                  Write-Host "LIVE app identity is not ready ($attempt/6): name=$($manifest.name), short_name=$($manifest.short_name), icon=$($manifest.icons[0].src)"
+              } catch { Write-Host "LIVE app identity probe retry ($attempt/6): $($_.Exception.Message)" }
+              Start-Sleep -Seconds 5
           }
+          if (-not $identityReady) { throw "LIVE installed-app identity is incorrect." }
           $navigation = Invoke-WebRequest -Uri "$base/js/app-navigation.js?v=${{ github.sha }}" -TimeoutSec 30
           $snap = Invoke-WebRequest -Uri "$base/js/snap-wake-lock.js?v=${{ github.sha }}" -TimeoutSec 30
           $countdown = Invoke-WebRequest -Uri "$base/js/snap-countdown.js?v=${{ github.sha }}" -TimeoutSec 30

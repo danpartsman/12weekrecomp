@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  id-token: write
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -22,3 +23,26 @@ jobs:
                   assert data.get('name')=='12 Week Recomp', 'Wrong LIVE name'
                   assert data.get('short_name')=='12WR', 'Wrong LIVE short name'
                   assert data['icons'][0]['src']=='/favicon.svg', 'Wrong LIVE icon'
+
+      - name: Verify deployed release and workout assets
+        shell: python
+        run: |
+          import urllib.request
+          base='https://12weekrecomp.com'
+          for path,required in [('/release-version.txt',['source_sha=7db146fcdc839864a64de590236a25b0cebf8f63']),('/js/app-navigation.js',['location.assign','destination.searchParams']),('/js/snap-wake-lock.js',['navigator.wakeLock']),('/js/snap-countdown.js',['data-snap-countdown']),('/css/app-navigation.css',['app-nav-toggle'])]:
+              with urllib.request.urlopen(base+path+'?release-verification=7db146f',timeout=45) as response:
+                  body=response.read().decode('utf-8-sig')
+                  assert response.status==200 and all(token in body for token in required), path+' did not match the promoted release'
+                  print(path+' verified')
+      - name: Login to Azure for release setting verification
+        uses: azure/login@v2
+        with:
+          client-id: a81057ec-568b-4cec-9a95-1d4d3ff549a0
+          tenant-id: e5e2dff4-ed49-4038-95d0-63d75304d52e
+          subscription-id: 14564a14-42f9-4d2e-8a0b-a7c844dfb5c0
+      - name: Verify simplified coaching is active
+        shell: bash
+        run: |
+          enabled=$(az webapp config appsettings list --resource-group recomp_group --name recomp-live --query "[?name=='SimpleCoaching__Enabled'].value | [0]" -o tsv)
+          test "$enabled" = "true"
+          echo "Simplified coaching is enabled on LIVE."
