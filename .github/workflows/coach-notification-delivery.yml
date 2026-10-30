@@ -21,12 +21,28 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 6
     steps:
+      - name: Wake TEST so its server-side deadline worker runs
+        if: matrix.site == 'recomp-test'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $ready=$false
+          for($attempt=1;$attempt -le 3;$attempt++) {
+              try {
+                  $response=Invoke-WebRequest -Uri 'https://recomp-test.azurewebsites.net/health' -TimeoutSec 60
+                  if($response.StatusCode -eq 200){$ready=$true;break}
+              } catch { Write-Host "TEST warm-up attempt $attempt will retry." }
+          }
+          if(!$ready){throw 'TEST did not wake for deadline processing.'}
+          Write-Host 'TEST is awake; its deadline worker reconciles due fines automatically.'
       - uses: azure/login@v2
+        if: matrix.site == 'recomp-live' 
         with:
           client-id: a81057ec-568b-4cec-9a95-1d4d3ff549a0
           tenant-id: e5e2dff4-ed49-4038-95d0-63d75304d52e
           subscription-id: 14564a14-42f9-4d2e-8a0b-a7c844dfb5c0
       - name: Wake app and process authorized maintenance without exporting its private job token
+        if: matrix.site == 'recomp-live'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
