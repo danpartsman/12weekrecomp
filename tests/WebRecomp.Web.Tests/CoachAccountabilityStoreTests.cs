@@ -407,6 +407,15 @@ public sealed class CoachAccountabilityStoreTests
         using(var db=f.Db()){Assert.Empty(await db.CoachAccountabilityApprovals.ToListAsync());Assert.True(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapResults[id].Finalized);}
         Actor("other");Assert.Contains("Completed",await http.GetStringAsync("/coach"));Assert.Contains("Old coaching screens",await http.GetStringAsync("/coach/old"));
     }
+    [Fact]
+    public async Task SimpleAccountAcceptsManualFeeBeforeAnyWorkoutOrAgreement()
+    {
+        var f=await Fixture.Create();using var db=f.Db();var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);var ledger=new AccountabilityLedger(db,access);var simple=new SimpleCoachingService(db,access,ledger);
+        var row=await simple.EnsureAsync(f.Coach,f.Client,default);var today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"fee",today,6,"3 occurrences at $2",default);
+        Assert.Equal(6,Assert.Single(await ledger.ReadAsync(row,default)).Amount);Assert.Empty(AccountabilityDocument.Parse(row.StateJson).SnapWorkouts);Assert.Empty(await db.CoachAccountabilityApprovals.ToListAsync());
+        await ledger.RecordAsync(f.OtherCoach,row,row.Revision,Guid.NewGuid(),"payment-client",today,6,"Payment received",default);Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+    }
     private sealed class Fixture
     {
         public Guid Coach=Guid.NewGuid(),OtherCoach=Guid.NewGuid(),Owner=Guid.NewGuid(),Client=Guid.NewGuid();
