@@ -25,3 +25,5 @@ A missing key does not disable statistical analysis. The page clearly reports th
 ## Validation
 
 Automated tests cover isolated outliers, missing weeks, uncertainty expansion, sustained reversal, causality, date-aligned correlation pairs, latest daily reading, tenant isolation, completed workouts, unknown targets and no database writes. Deployment uses each environment's existing branch and CI; do not reset TEST to MAIN or include unrelated TEST work in LIVE.
+
+LIVE release verification decodes byte-array manifest responses as UTF-8 before parsing JSON. PowerShell may return `application/manifest+json` as bytes; piping those bytes directly into `ConvertFrom-Json` does not validate the manifest object.
