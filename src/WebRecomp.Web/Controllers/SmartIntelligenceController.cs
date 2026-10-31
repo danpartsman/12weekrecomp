@@ -27,20 +27,12 @@ public sealed class SmartIntelligenceController(AppUserContextService users,Inte
         if(context.Client is null||context.Program is null)return Forbid();
         var provider=providers.SingleOrDefault(x=>x.Id==input.Provider);
         if(provider is null)return BadRequest(new {message="This analysis provider is not available."});
-        if(!provider.Ready)return StatusCode(503,new {message="OpenAI needs an API connection. An administrator can connect it on this page."});
+        if(!provider.Ready)return StatusCode(503,new {message="OpenAI needs an API connection. An administrator can connect it in Admin → Manage Connections."});
         var report=await data.LoadAsync(context.Client.ClientId,AppUserContextService.GetClientToday(context.Client),input.Days,input.Sensitivity,ct);
         try{return Json(await provider.AnalyzeAsync(context.Client.ClientId,report,input.Context??"",input.IncludeNotes,ct));}
         catch(OperationCanceledException) when(!ct.IsCancellationRequested){return StatusCode(504,new {message="The analysis timed out. Your trends remain available; try the analysis again."});}
         catch(Exception ex) when(ex is HttpRequestException or System.Text.Json.JsonException or InvalidOperationException)
         {return StatusCode(502,new {message=ex is HttpRequestException or InvalidOperationException?ex.Message:"OpenAI returned an incomplete analysis. Please retry."});}
-    }
-    [Authorize(Roles="Administrator"),HttpPost("Connection"),ValidateAntiForgeryToken,EnableRateLimiting("smart-analysis"),RequestSizeLimit(4096)]
-    public IActionResult Connection([FromForm] ConnectionInput input)
-    {
-        if(!ModelState.IsValid){TempData["SmartConnection"]="Enter a valid API key and model.";return RedirectToAction(nameof(Index));}
-        try{connection.Save(input.ApiKey,input.Model);TempData["SmartConnection"]="OpenAI connection saved. Run an analysis to verify access.";}
-        catch(ArgumentException ex){TempData["SmartConnection"]=ex.Message;}
-        return RedirectToAction(nameof(Index));
     }
     public sealed class AnalysisInput
     {
@@ -49,10 +41,5 @@ public sealed class SmartIntelligenceController(AppUserContextService users,Inte
         [Required,StringLength(40)]public string Provider {get;set;}="openai";
         [StringLength(1500)]public string? Context {get;set;}
         public bool IncludeNotes {get;set;}=true;
-    }
-    public sealed class ConnectionInput
-    {
-        [Required,StringLength(500)]public string ApiKey {get;set;}="";
-        [Required,StringLength(100)]public string Model {get;set;}="gpt-5-mini";
     }
 }
