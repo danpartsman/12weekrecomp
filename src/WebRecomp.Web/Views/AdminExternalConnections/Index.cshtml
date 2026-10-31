@@ -1,9 +1,23 @@
 @model WebRecomp.Web.Controllers.ProviderSettingsModel
-@{ViewData["Title"]="External connections administration";}
+@{ViewData["Title"]="Manage Connections"; Layout="_AdminLayout";}
 <link rel="stylesheet" href="~/css/fitdays-preview.css" asp-append-version="true" />
 <div class="fitdays-page">
-<header class="page-head"><div><div class="eyebrow">ADMINISTRATION · EXTERNAL CONNECTIONS · TEST</div><h1>External connections</h1><p class="lede">Manage supported providers, page-open checks, and account connection status.</p></div><a class="button" asp-controller="Admin" asp-action="Index">Administration</a></header>
+<header class="page-head"><div><div class="eyebrow">ADMINISTRATION · CONNECTIONS</div><h1>Manage Connections</h1><p class="lede">Manage supported providers, page-open checks, and account connection status.</p></div><a class="button" asp-controller="Admin" asp-action="Index">Administration</a></header>
 @if(TempData["DeviceMessage"] is string message){<div class="status-card" role="status">@message</div>}
+<section class="card" id="openai"><h2>OpenAI · AI services</h2>
+<p><strong>@(Model.OpenAiReady ? "Connection configured" : "Not connected")</strong> · Current model: @Model.OpenAiModel</p>
+<p>One application connection enables Smart Intelligence analysis and dated Orangetheory workout lookup. An API key is a private credential from your OpenAI developer account. API usage is billed separately from ChatGPT subscriptions.</p>
+<p><a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Create or manage an OpenAI API key</a>. Enter it here; do not send it through chat or email.</p>
+<form asp-action="OpenAi" method="post" class="fitdays-connect" autocomplete="off">
+@Html.AntiForgeryToken()
+<label>OpenAI API key<input type="password" name="ApiKey" maxlength="500" autocomplete="new-password" required /></label>
+<label>OpenAI model<input type="text" name="Model" value="@Model.OpenAiModel" maxlength="100" required /></label>
+<button type="submit" class="primary">Save OpenAI connection</button>
+</form>
+<p class="small">The key is stored encrypted on this server and is never displayed back. Saving replaces the saved key. Server-managed settings take precedence. Access is verified when an analysis or workout lookup runs. TEST and LIVE have separate connection settings.</p>
+</section>
+@if(Model.DeviceConnectionsEnabled)
+{
 <section class="card"><h2>Fitdays · Smart scales</h2><p>Server connection to the existing Fitdays cloud. No developer API key or additional phone app is needed. Users connect their own accounts in Profile → Device integrations.</p>
 <form method="post" class="fitdays-connect">
 <div asp-validation-summary="All" role="alert"></div>
@@ -24,5 +38,6 @@ else {<div class="fitdays-table" tabindex="0" role="region" aria-label="User dev
 @foreach(var row in Model.Connections){<tr><td>@row.UserName</td><td>@row.PersonName</td><td>@row.Status</td><td>@(row.Automatic?"On":"Off")</td><td>@(row.LastSuccess?.ToString("yyyy-MM-dd HH:mm")??"—")</td><td><form asp-action="Pause" method="post"><input type="hidden" name="connectionId" value="@row.Id"/><button type="submit" disabled="@(!row.Automatic)">Pause auto sync</button></form></td></tr><tr><td colspan="6" class="small">@row.Message</td></tr>}
 </tbody></table></div>}
 <p class="small">Saved passwords and tokens are never displayed here. Pausing a connection preserves its saved sign-in and imported measurements.</p></section>
-<section class="card"><h2>Provider modules</h2><p>Fitdays is the first supported adapter. This module is separate from the fitness engine. Additional providers can share these management screens, account connections, and page-open syncing once their adapter is added.</p></section>
+}
+<section class="card"><h2>Provider modules</h2><p>OpenAI supports AI analysis and workout lookup. Fitdays supports scale synchronization. Connections are managed here by administrators; users manage their own scale sign-in through their profile.</p></section>
 </div>

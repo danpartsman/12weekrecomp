@@ -8,7 +8,7 @@ Imported movements preserve order, names, published workload descriptions, estim
 
 Configuration:
 
-- Reuses Smart Intelligence's server-side OpenAI connection and configured model. Configure that connection on the Smart Intelligence page if absent.
+- Reuses Smart Intelligence's server-side OpenAI connection and configured model. Configure that connection in Admin → Manage Connections if absent.
 - `OtfWorkouts:Model`: optional model override supporting Responses web search and structured output.
 - `OtfWorkouts:Enabled`: defaults true; false disables external lookup.
 - `OtfWorkouts:DataPath`: optional persistent public-recipe directory. Default is the App Service HOME/data/otf-workouts directory.

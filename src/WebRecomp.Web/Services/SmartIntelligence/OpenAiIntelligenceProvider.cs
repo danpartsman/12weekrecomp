@@ -20,7 +20,7 @@ public sealed class OpenAiIntelligenceProvider(IHttpClientFactory clients, Intel
     public bool Ready=>connection.Ready;
     public async Task<IntelligenceAiResult> AnalyzeAsync(Guid clientId,IntelligenceReport report,string context,bool includeNotes,CancellationToken ct)
     {
-        var key=connection.ApiKey;if(string.IsNullOrWhiteSpace(key))throw new InvalidOperationException("OpenAI is not connected. An administrator can connect it on this page.");
+        var key=connection.ApiKey;if(string.IsNullOrWhiteSpace(key))throw new InvalidOperationException("OpenAI is not connected. An administrator can connect it in Admin → Manage Connections.");
         var cacheKey=$"smart-ai:{clientId}:{report.Fingerprint}:{Model}:{includeNotes}:{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(context)))}";
         if(cache.TryGetValue<IntelligenceAiResult>(cacheKey,out var cached))return cached!;
         var days=report.Days.Select(d=>d with {RecoveryNote=includeNotes?d.RecoveryNote:null,FoodNote=includeNotes?d.FoodNote:null,

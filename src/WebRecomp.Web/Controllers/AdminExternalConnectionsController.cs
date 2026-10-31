@@ -5,15 +5,22 @@ using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services.ExternalConnections;
+using WebRecomp.Web.Services.SmartIntelligence;
+using Microsoft.AspNetCore.RateLimiting;
 namespace WebRecomp.Web.Controllers;
 [Authorize(Roles="Administrator")]
 [ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
-public sealed class AdminExternalConnectionsController(RecompDbContext db,DeviceConnectionStore connections) : Controller
+public sealed class AdminExternalConnectionsController(RecompDbContext db,DeviceConnectionStore connections,IntelligenceConnection openAi) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        if(!ExternalConnectionFeatures.IsEnabled)return NotFound();
+        if(!ExternalConnectionFeatures.IsEnabled)
+        {
+            var disabled = new ProviderSettingsModel();
+            await Populate(disabled,ct);
+            return View(disabled);
+        }
         var p=await connections.ProviderAsync(ct);
         var model=new ProviderSettingsModel {Enabled=p.Enabled,AutomaticSyncEnabled=p.AutomaticSyncEnabled,SyncIntervalMinutes=p.SyncIntervalMinutes,HistoryDays=p.HistoryDays,AppVersion=p.AppVersion,BodyCompositionEnabled=p.BodyCompositionEnabled,SkeletalMuscleUnit=p.SkeletalMuscleUnit,BodyWaterUnit=p.BodyWaterUnit};
         await Populate(model,ct);return View(model);
@@ -33,16 +40,48 @@ public sealed class AdminExternalConnectionsController(RecompDbContext db,Device
         await connections.PauseAsync(connectionId,ct);
         TempData["DeviceMessage"]="Automatic sync paused for this connection.";return RedirectToAction(nameof(Index));
     }
+    [HttpPost,ValidateAntiForgeryToken,EnableRateLimiting("smart-analysis"),RequestSizeLimit(4096)]
+    public IActionResult OpenAi(OpenAiConnectionInput input)
+    {
+        if(!ModelState.IsValid)
+        {
+            TempData["DeviceMessage"]="Enter a valid OpenAI API key and model.";
+            return RedirectToAction(nameof(Index));
+        }
+        try
+        {
+            openAi.Save(input.ApiKey,input.Model);
+            TempData["DeviceMessage"]="OpenAI connection saved. Run an analysis or OTF lookup to verify access. Server-managed settings take precedence.";
+        }
+        catch(ArgumentException)
+        {
+            TempData["DeviceMessage"]="Enter a valid OpenAI API key and model.";
+        }
+        return RedirectToAction(nameof(Index));
+    }
+
     private async Task Populate(ProviderSettingsModel model,CancellationToken ct)
     {
+        model.OpenAiReady=openAi.Ready;
+        model.OpenAiModel=openAi.Model;
+        model.DeviceConnectionsEnabled=ExternalConnectionFeatures.IsEnabled;
+        if(!model.DeviceConnectionsEnabled)return;
         var rows=(await connections.ListAsync(ct)).Take(200).ToList();
         var ids=rows.Select(c=>c.UserId).Distinct().ToList();
         var users=await db.UserAccounts.AsNoTracking().Where(u=>ids.Contains(u.UserId)).ToDictionaryAsync(u=>u.UserId,ct);
         model.Connections=rows.Select(c=>new DeviceAdminRow(c.DeviceConnectionId,users.TryGetValue(c.UserId,out var u)?u.PreferredDisplayName??u.DisplayName??"Recomp user":"Recomp user",c.PersonName,c.StatusCode,c.AutomaticSync,c.LastSuccessAtUtc,c.LastMessage)).ToList();
     }
 }
+public sealed class OpenAiConnectionInput
+{
+    [Required,StringLength(500)]public string ApiKey {get;set;}="";
+    [Required,StringLength(100)]public string Model {get;set;}="gpt-5-mini";
+}
 public sealed class ProviderSettingsModel
 {
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]public bool OpenAiReady {get;set;}
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]public string OpenAiModel {get;set;}="gpt-5-mini";
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]public bool DeviceConnectionsEnabled {get;set;}
     public bool Enabled {get;set;}
     public bool AutomaticSyncEnabled {get;set;}
     [Range(15,1440)]public int SyncIntervalMinutes {get;set;}=15;

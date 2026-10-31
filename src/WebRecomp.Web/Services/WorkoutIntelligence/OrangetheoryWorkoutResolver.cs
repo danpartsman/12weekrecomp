@@ -148,7 +148,7 @@ public sealed class OrangetheoryWorkoutResolver(IOrangetheoryWorkoutSource sourc
                 catch (Exception ex) when ((ex is HttpRequestException or JsonException or OperationCanceledException or InvalidOperationException or KeyNotFoundException) && !ct.IsCancellationRequested)
                 { reason = "Lookup temporarily unavailable."; logger.LogWarning("OTF lookup unavailable for {Date} {ClassType} ({ErrorType})", date, classType, ex.GetType().Name); }
             }
-            else if (published is null) reason = "Connect OpenAI on Smart Intelligence to enable web lookup.";
+            else if (published is null) reason = "Connect OpenAI in Admin → Manage Connections to enable web lookup.";
             var recipe = published is null ? Generic(code, date, reason) : Published(code, date, published);
             // A connection can be configured after a previous unconfigured request.
             if (source.Ready || published is not null) cache.Set(key, recipe, published is null ? TimeSpan.FromMinutes(15) : TimeSpan.FromHours(12));
