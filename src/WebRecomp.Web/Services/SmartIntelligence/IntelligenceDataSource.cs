@@ -47,7 +47,7 @@ public sealed class IntelligenceDataSource(RecompDbContext db)
                     e.Notes?.Contains("estimate",StringComparison.OrdinalIgnoreCase)==true||e.Notes?.Contains("not specified",StringComparison.OrdinalIgnoreCase)==true)).ToArray())).ToArray();
             history.Add(new(){Date=date,CompletedDay=date<today,Weight=N(m?.WeightLb),Fat=m?.WeightLb is {} weight&&m.BodyFatPct is {} bf?N(weight*bf):null,
                 Muscle=N(skeletal?m?.SkeletalMuscleMassLb:m?.MuscleMassLb),Water=N(m?.BodyWaterLb),Waist=N(m?.WaistIn),SubcutaneousFat=N(m?.SubcutaneousFatPct*100),VisceralFat=N(m?.VisceralFatRating),
-                Calories=N(f?.ActualCalories),Protein=N(f?.ActualProteinG),Carbs=N(f?.ActualCarbsG),DietaryFat=N(f?.ActualFatG),PossiblePartialFoodDay=partial,
+                Calories=N(f?.ActualCalories),Protein=N(f?.ActualProteinG),Carbs=N(f?.ActualCarbsG),DietaryFat=N(f?.ActualFatG),PossiblePartialFoodDay=partial,FlexibleItems=target?.FlexibleItems,
                 TargetCalories=target is not null?N(target.EnergyTarget):N(r?.RecommendedCalories),TargetProtein=target is not null?N(target.ProteinTarget):N(r?.RecommendedProteinG),
                 TargetCarbs=target is not null?N(target.CarbsTarget):N(r?.RecommendedCarbsG),TargetFat=target is not null?N(target.FatTarget):N(r?.RecommendedFatG),
                 TargetSource=target is not null?"Captured same-day target":r is not null?"Latest stored recommendation (may differ from original)":null,

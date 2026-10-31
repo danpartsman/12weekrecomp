@@ -76,6 +76,7 @@ public static class IntelligenceStatistics
         Add("Water","Muscle",0,"Same-day levels",x=>x.Water,x=>x.Muscle);
         Add("Water change","Muscle change",0,"Daily differences",x=>Delta(x,d=>d.Water),x=>Delta(x,d=>d.Muscle));
         Add("Water change","Fat change",0,"Daily differences",x=>Delta(x,d=>d.Water),x=>Delta(x,d=>d.Fat));
+        Add("Recorded flexible items","Calories minus prescription",0,"Same-day saved count",x=>x.CompletedDay&&!x.PossiblePartialFoodDay?x.FlexibleItems:null,x=>x.CompletedDay&&!x.PossiblePartialFoodDay?x.Calories-x.TargetCalories:null);
         foreach(var lag in new[]{1,2,3})
         {
             Add("Carbs","Weight change",lag,"Intake → subsequent daily difference",x=>x.CompletedDay&&!x.PossiblePartialFoodDay?x.Carbs:null,x=>Delta(x,d=>d.Weight));

@@ -14,7 +14,7 @@ public sealed class IntelligenceConnection(IConfiguration config, IWebHostEnviro
         lock(gate) { try { return File.Exists(PathName)?JsonSerializer.Deserialize<Saved>(protector.Unprotect(File.ReadAllText(PathName))):null; }
             catch(Exception ex) when(ex is IOException or System.Security.Cryptography.CryptographicException or JsonException){return null;} }
     }
-    public string? ApiKey=>config["SmartIntelligence:OpenAI:ApiKey"]??config["OpenAI:ApiKey"]??config["OPENAI_API_KEY"]??Read()?.Key;
+    public string? ApiKey=>new[]{config["SmartIntelligence:OpenAI:ApiKey"],config["OpenAI:ApiKey"],config["OPENAI_API_KEY"],Read()?.Key}.FirstOrDefault(x=>!string.IsNullOrWhiteSpace(x));
     public string Model=>config["SmartIntelligence:OpenAI:Model"]??Read()?.Model??"gpt-5-mini";
     public bool Ready=>!string.IsNullOrWhiteSpace(ApiKey);
     public void Save(string key,string model)

@@ -16,6 +16,7 @@ public sealed record IntelligenceDay
     public double? Carbs { get; init; }
     public double? DietaryFat { get; init; }
     public bool PossiblePartialFoodDay { get; init; }
+    public int? FlexibleItems { get; init; }
     public double? TargetCalories { get; init; }
     public double? TargetProtein { get; init; }
     public double? TargetCarbs { get; init; }
