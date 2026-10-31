@@ -1797,6 +1797,29 @@
                                             StringComparison.OrdinalIgnoreCase);
                                 }
 
+                                @if (selectedIsOrangetheory)
+                                {
+                                    <form asp-action="SelectOrangetheory" method="post" class="wi-workout-block">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="returnContext" value="@Model.ReturnContext" />
+                                        <label>Class date <input type="date" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" required /></label>
+                                        <label>Class
+                                            <select name="systemCode">
+                                                <option value="ORANGETHEORY" selected="@(Model.SelectedSystemWorkout.WorkoutTypeCode == "ORANGETHEORY")">Orangetheory 2G</option>
+                                                <option value="SYS_OTF_STRENGTH_50" selected="@(Model.SelectedSystemWorkout.WorkoutTypeCode != "ORANGETHEORY")">Strength 50</option>
+                                            </select>
+                                        </label>
+                                        <label><input type="checkbox" name="automaticLookup" value="true" checked="@Model.OtfAutomaticLookup" /> Automatically retrieve the dated workout</label>
+                                        <input type="hidden" name="automaticLookup" value="false" />
+                                        <p class="small">Uses the generic class when the dated workout is unavailable. Lookup can take about a minute. Muscle assignments are estimates; review what you actually did after class.</p>
+                                        <button class="button" type="submit">Load workout</button>
+                                    </form>
+                                    @if (Model.SelectedSystemWorkout.SourceUrl is not null)
+                                    {
+                                        <p><a href="@Model.SelectedSystemWorkout.SourceUrl" target="_blank" rel="noopener noreferrer">View published workout source</a></p>
+                                    }
+                                }
+
                                 @if (!string.IsNullOrWhiteSpace(
                                     selectedSystemTargets))
                                 {
@@ -1829,7 +1852,7 @@
                                 @if (Model.SelectedSystemWorkout.Exercises.Count > 0)
                                 {
                                     <p class="small">
-                                        Exercise fit comes first. Initial choices are seeded from public evidence-oriented trainer recommendations; as 12WR heart data grows, platform favorites can rotate equally appropriate exercises. Your own favorites and prior use still help.
+                                        @(selectedIsOrangetheory ? "Published movements stay in their original order. Marked rounds, timed rep placeholders, and muscle assignments are estimates; adjust studio substitutions after class." : "Exercise fit comes first. Your favorites and prior use help choose suitable exercises.")
                                     </p>
 
                                     <div class="wi-preview-list wi-block-preview-list">

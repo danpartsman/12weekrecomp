@@ -112,6 +112,7 @@ public sealed class DetailedWorkoutController(
             {
                 FeatureEnabled =
                     context.Program.DetailedWorkoutEntryEnabled,
+                OtfAutomaticLookup = Request.Cookies["12wr-otf-auto-" + context.Client.ClientId.ToString("N")] != "off",
                 Date = targetDate,
                 PendingExerciseId = addExerciseId,
                 WorkspaceMode = normalizedMode,
@@ -273,7 +274,7 @@ public sealed class DetailedWorkoutController(
                     context.Program.ConfigVersionId,
                     systemCode,
                     model.DefaultLoadUnitCode,
-                    cancellationToken);
+                    cancellationToken, targetDate);
 
             if (model.SelectedSystemWorkout is null)
                 return NotFound();
@@ -3976,7 +3977,7 @@ public sealed class DetailedWorkoutController(
                     StringComparison.OrdinalIgnoreCase)
                     ? "KG"
                     : "LB",
-                cancellationToken);
+                cancellationToken, date);
 
         if (preview is null)
             return NotFound();
@@ -4060,9 +4061,9 @@ public sealed class DetailedWorkoutController(
                                             null,
                                             null,
                                             null,
-                                            null,
+                                            input.Reps == 1 && input.Sets == 1 ? input.DurationSeconds : null,
                                             treatSystemSetsAsRecovery,
-                                            null))
+                                            input.IsEstimated ? "Estimated template workload; review after class." : null))
                                 .ToArray(),
                             input.MaxWeight,
                             NormalizeLoadUnit(
@@ -5082,9 +5083,31 @@ public sealed class DetailedWorkoutController(
         };
     }
 
-    private Task<SystemWorkoutPreviewViewModel?> BuildSystemWorkoutPreviewAsync(
-        Guid clientId, Guid configVersionId, string systemCode, string defaultLoadUnitCode, CancellationToken cancellationToken)
-        => new SystemWorkoutPreviewService(db).BuildAsync(clientId, configVersionId, systemCode, defaultLoadUnitCode, cancellationToken);
+    private async Task<SystemWorkoutPreviewViewModel?> BuildSystemWorkoutPreviewAsync(
+        Guid clientId, Guid configVersionId, string systemCode, string defaultLoadUnitCode, CancellationToken cancellationToken, DateOnly? lookupDate = null)
+    {
+        SystemWorkoutRecipe? resolved = null;
+        if (lookupDate.HasValue && OrangetheoryWorkoutResolver.IsGeneric(systemCode))
+            resolved = await HttpContext.RequestServices.GetRequiredService<OrangetheoryWorkoutResolver>()
+                .ResolveAsync(systemCode, lookupDate.Value,
+                    Request.Cookies["12wr-otf-auto-" + clientId.ToString("N")] != "off", cancellationToken);
+        return await new SystemWorkoutPreviewService(db).BuildAsync(clientId, configVersionId, systemCode,
+            defaultLoadUnitCode, cancellationToken, recipeOverride: resolved);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SelectOrangetheory(string systemCode, DateOnly date, bool automaticLookup,
+        string? returnContext, CancellationToken cancellationToken)
+    {
+        var context = await userContext.GetAsync(HttpContext, cancellationToken);
+        if (context.Client is null || context.Program is null) return RedirectToAction("Index", "Intake");
+        if (!context.Program.DetailedWorkoutEntryEnabled) return StatusCode(403);
+        if (!OrangetheoryWorkoutResolver.IsGeneric(systemCode) || date == default) return BadRequest();
+        Response.Cookies.Append("12wr-otf-auto-" + context.Client.ClientId.ToString("N"), automaticLookup ? "on" : "off",
+            new CookieOptions { HttpOnly = true, Secure = Request.IsHttps, SameSite = SameSiteMode.Lax, MaxAge = TimeSpan.FromDays(365), Path = "/" });
+        return RedirectToAction(nameof(Index), new { mode = "system", systemCode, date = date.ToString("yyyy-MM-dd"), returnContext });
+    }
 
 
     private async Task PopulateWorkoutTypesAsync(
