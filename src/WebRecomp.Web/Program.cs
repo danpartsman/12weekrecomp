@@ -47,6 +47,12 @@ builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.ICoachSummaryPrescrip
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachWorkoutPlanService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.WorkoutIntelligence.SystemWorkoutPreviewService>();
 
+builder.Services.AddScoped<WebRecomp.Web.Services.SmartIntelligence.IntelligenceDataSource>();
+builder.Services.AddSingleton<WebRecomp.Web.Services.SmartIntelligence.IntelligenceConnection>();
+builder.Services.AddScoped<WebRecomp.Web.Services.SmartIntelligence.ISmartAnalysisProvider, WebRecomp.Web.Services.SmartIntelligence.OpenAiIntelligenceProvider>();
+builder.Services.AddHttpClient("SmartIntelligenceOpenAI", client => client.Timeout = TimeSpan.FromSeconds(100))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+
 var connectionString = builder.Configuration.GetConnectionString("RecompDatabase")
     ?? throw new InvalidOperationException(
         "ConnectionStrings:RecompDatabase is not configured.");
@@ -138,6 +144,10 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("accountability-approval", context => RateLimitPartition.GetFixedWindowLimiter(
         context.User.FindFirst("oid")?.Value ?? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0, AutoReplenishment = true }));
+
+    options.AddPolicy("smart-analysis", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst("oid")?.Value ?? context.User.FindFirst("sub")?.Value ?? context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 4, Window = TimeSpan.FromMinutes(5), QueueLimit = 0, AutoReplenishment = true }));
 
     options.AddPolicy("local-auth", httpContext =>
     {
