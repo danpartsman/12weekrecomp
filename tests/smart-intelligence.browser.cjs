@@ -17,6 +17,7 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   assert.equal(await page.locator('#si-ai-result img').count(),0);assert.match(await page.locator('#si-ai-result').innerText(),/<img/);
   assert.deepEqual(await page.evaluate(()=>window.analysisRequest),{days:42,sensitivity:'balanced',provider:'openai',context:'Felt tired',includeNotes:false});
   for(const width of [1440,390,320]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
+  for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.dataset.theme=t,theme);const palette=await page.locator('.si-stat').first().evaluate(n=>({bg:getComputedStyle(n).backgroundColor,ink:getComputedStyle(n.querySelector('strong')).color}));assert.equal(palette.bg,'rgb(16, 33, 48)');assert.equal(palette.ink,'rgb(230, 237, 244)');}
   assert.deepEqual(errors,[]);console.log('Smart Intelligence four charts, missing readings, averaging comparison, responsive table, structured analysis request and safe output rendering passed.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
