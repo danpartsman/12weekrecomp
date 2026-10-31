@@ -449,7 +449,8 @@ jobs:
           for ($attempt = 1; $attempt -le 6; $attempt++) {
               try {
                   $manifestResponse = Invoke-WebRequest -Uri "$base/manifest.webmanifest?v=${{ github.sha }}&attempt=$attempt" -Headers @{ 'Cache-Control'='no-cache'; Accept='application/manifest+json' } -TimeoutSec 45
-                  $manifest = $manifestResponse.Content | ConvertFrom-Json
+                  $manifestText = if ($manifestResponse.Content -is [byte[]]) { [Text.Encoding]::UTF8.GetString($manifestResponse.Content) } else { [string]$manifestResponse.Content }
+                  $manifest = $manifestText | ConvertFrom-Json
                   if ($manifest.name -eq '12 Week Recomp' -and $manifest.short_name -eq '12WR' -and $manifest.icons[0].src -eq '/favicon.svg') { $identityReady = $true; break }
                   Write-Host "LIVE app identity is not ready ($attempt/6): name=$($manifest.name), short_name=$($manifest.short_name), icon=$($manifest.icons[0].src)"
               } catch { Write-Host "LIVE app identity probe retry ($attempt/6): $($_.Exception.Message)" }
