@@ -50,8 +50,10 @@ public sealed class CoachCenterService(RecompDbContext db,IConfiguration? config
             var last = await db.WorkoutSessions.Where(x => x.ClientId == client.ClientId && x.CompletedFlag).OrderByDescending(x => x.WorkoutDate).Select(x => (DateOnly?)x.WorkoutDate).FirstOrDefaultAsync(ct);
             roster.Add(new(client.ClientId, client.ClientName, goal, last){Snap=snaps.GetValueOrDefault(client.ClientId)??new()});
         }
+        var formerIds=db.CoachClientRelationships.Where(x=>x.CoachUserId==user.UserId&&x.ClientId!=null&&(x.StatusCode=="REVOKED"||x.RevokedAtUtc!=null)).Select(x=>x.ClientId);
+        var former=await db.Clients.AsNoTracking().Where(x=>formerIds.Contains(x.ClientId)&&!ids.Contains(x.ClientId)).OrderBy(x=>x.ClientName).Select(x=>new FormerCoachClient(x.ClientId,x.ClientName)).ToListAsync(ct);
         return new(new() { DisplayName = profile?.DisplayName ?? user.PreferredDisplayName ?? user.DisplayName ?? "Coach", Bio = profile?.Bio, Specialties = profile?.Specialties }, roster,
-            await db.CoachClientRelationships.CountAsync(x => x.CoachUserId == user.UserId && x.StatusCode == "INVITED" && x.InviteExpiresAtUtc > DateTime.UtcNow, ct));
+            await db.CoachClientRelationships.CountAsync(x => x.CoachUserId == user.UserId && x.StatusCode == "INVITED" && x.InviteExpiresAtUtc > DateTime.UtcNow, ct)){FormerClients=former};
     }
 
     public async Task<string> InviteAsync(Guid coachUserId, CancellationToken ct)

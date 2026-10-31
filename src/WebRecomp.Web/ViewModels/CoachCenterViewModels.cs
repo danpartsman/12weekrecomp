@@ -10,7 +10,11 @@ public sealed class CoachProfileInput
 }
 public sealed record CoachSnapStatus(int Assigned=0,int Submitted=0,int Completed=0,string? LatestWorkoutId=null,string? LatestName=null,string? Status=null);
 public sealed record CoachRosterClient(Guid ClientId, string Name, string? Goal, DateOnly? LastWorkout) { public CoachSnapStatus Snap {get;init;}=new(); }
-public sealed record CoachCenterViewModel(CoachProfileInput Profile, IReadOnlyList<CoachRosterClient> Clients, int PendingInvites);
+public sealed record FormerCoachClient(Guid ClientId,string Name);
+public sealed record CoachCenterViewModel(CoachProfileInput Profile, IReadOnlyList<CoachRosterClient> Clients, int PendingInvites)
+{
+    public IReadOnlyList<FormerCoachClient> FormerClients{get;init;}=[];
+}
 public sealed record CoachClientDetailViewModel(Client Client, ProgramRecord? Program, Measurement? Measurement, IReadOnlyList<WorkoutSession> Workouts)
 {
     public CoachClientPlan? Plan { get; init; }

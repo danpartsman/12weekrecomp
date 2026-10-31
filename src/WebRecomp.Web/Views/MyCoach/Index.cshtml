@@ -3,7 +3,7 @@
 <h1>My Coach</h1>
 @foreach (var coach in Model.Coaches) { <section class="card"><h2>@coach.Name</h2><p>@coach.Specialties</p><p>@coach.Bio</p><form asp-action="Disconnect" asp-route-relationshipId="@coach.RelationshipId" method="post"><button type="submit">Disconnect coach</button></form></section> }
 @inject Microsoft.Extensions.Configuration.IConfiguration AccountabilityConfiguration
-@if (AccountabilityPreview.Enabled(AccountabilityConfiguration) && Model.Coaches.Count > 0 && Model.ClientId is Guid agreementClientId)
+@if (AccountabilityPreview.Enabled(AccountabilityConfiguration) && Model.ClientId is Guid agreementClientId)
 {
 <section class="card"><h2>Workouts &amp; account</h2><a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@agreementClientId">Snap Workouts</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@agreementClientId">Fees &amp; payments</a></section>
 }

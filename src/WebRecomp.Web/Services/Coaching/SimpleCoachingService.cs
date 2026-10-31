@@ -84,6 +84,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         row.StateJson=AccountabilityDocument.Serialize(state);Event(row,actor,"RESULT",JsonSerializer.Serialize(new{workoutId,result},AccountabilityDocument.Json));
         var current=Charges(state,AppUserContextService.GetClientToday(local),time.GetUtcNow());
         var changes=AccountabilityLedger.Delta(current,await ledger.ReadAsync(row,ct),row.TermsVersion,actor);
+        await ledger.PrepareAutomaticAsync(row,changes,ct);
         ledger.Append(row,actor,changes);await SaveAsync(ct);
     }
     public static IReadOnlyList<AccountabilityCharge> Charges(AccountabilityState saved,DateOnly today,DateTimeOffset? asOf=null)
@@ -143,6 +144,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         var state=AccountabilityDocument.Parse(row.StateJson);var local=await db.Clients.AsNoTracking().SingleAsync(x=>x.ClientId==row.ClientId,ct);
         var changes=AccountabilityLedger.Delta(Charges(state,AppUserContextService.GetClientToday(local),time.GetUtcNow()),await ledger.ReadAsync(row,ct),row.TermsVersion,actor);
         if(changes.Count==0)return;
+        await ledger.PrepareAutomaticAsync(row,changes,ct);
         ledger.Append(row,actor,changes);await SaveAsync(ct);
     }
     public async Task PostDueAsync(CancellationToken ct)

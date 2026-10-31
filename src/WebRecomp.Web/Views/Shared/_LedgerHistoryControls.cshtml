@@ -1,6 +1,6 @@
 @model WebRecomp.Web.Controllers.AccountabilityLedgerPage
 <p class="ledger-links">
-@if(Model.ThirtyDays){<a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId">Show latest 5 entries</a>}
-else{<a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-thirtyDays="true">View 30 days of transactions</a>}
+@if(Model.ThirtyDays){<a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachUserId">Show latest 5 entries</a>}
+else{<a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachUserId" asp-route-thirtyDays="true">View 30 days of transactions</a>}
 </p>
 <p class="muted">@(Model.ThirtyDays?"Transactions posted in the last 30 days":"Latest 5 entries") · Running balances include all earlier transactions.</p>
