@@ -115,7 +115,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
             foreach(var e in w.Exercises)
             {
                 var sets=result.Sets.GetValueOrDefault(e.Id)??[];
-                bool Qualifies(AccountabilitySet set)=>set.WeightRecorded!=false&&set.Weight>=e.Weight&&(!e.MaxWeight.HasValue||set.Weight<=e.MaxWeight);
+                bool Qualifies(AccountabilitySet set)=>set.WeightRecorded!=false&&set.Weight>=e.Weight&&(!e.MaxWeight.HasValue||e.MaxWeight<=0||set.Weight<=e.MaxWeight);
                 var qualifying=sets.Where(Qualifies).ToList();
                 var completedSets=qualifying.Count(s=>s.Reps>=e.Reps);var complete=completedSets>=e.Sets;
                 var doneReps=qualifying.Take(e.Sets).Sum(s=>Math.Min(s.Reps??0,e.Reps));
