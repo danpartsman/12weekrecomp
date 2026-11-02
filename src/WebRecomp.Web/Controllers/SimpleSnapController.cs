@@ -36,7 +36,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             }
             var readings=new Dictionary<string,SnapWorkoutEstimate?>();
             if(estimates is not null)foreach(var workout in state.SnapWorkouts.Where(w=>w.Simple)){var actual=state.SnapResults.GetValueOrDefault(workout.Id);readings[workout.Id]=await estimates.EstimateAsync(clientId,workout,actual?.Finalized==true?actual:null,clock.Today,ct);}
-            var assessed=SimpleCoachingService.Charges(state,clock.Today).Where(x=>x.Ready).GroupBy(x=>x.Key.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount));
+            var assessed=state.Rules.Count==AccountabilityDocument.RuleIds.Length?SimpleCoachingService.Charges(state,clock.Today).Where(x=>x.Ready).GroupBy(x=>x.Key.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount)):new Dictionary<string,decimal>();
             var posted=new Dictionary<string,decimal>();
             if(row is not null){var entries=await ledger.ReadAsync(row,ct);posted=entries.Where(x=>x.SourceKey.StartsWith("snap:")&&(!assignedCoach||x.CoachUserId==user.UserId)).GroupBy(x=>x.SourceKey.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount));}
             return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today},clock.Zone){Estimates=readings,AssessedCharges=assessed,PostedCharges=posted});
