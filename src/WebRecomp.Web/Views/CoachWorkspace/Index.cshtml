@@ -10,7 +10,7 @@
 <p>@offer.Reason</p>
 <h3>System recommendations</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">@offer.EngineJson</pre>
 <h3>Coach-adjusted daily targets</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">@offer.AdjustedJson</pre>
-<h3>Coach limits and rules</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">@offer.RulesJson</pre>
+<p>Financial accountability requested: <strong>@(offer.FinancialOptIn?"Yes — requires approved agreement":"No")</strong></p><h3>Coach limits and rules</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">@offer.RulesJson</pre>
 @if(offer.Accepted){<p>Accepted @offer.AcceptedUtc</p>}
 else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post"><input type="hidden" name="versionId" value="@offer.VersionId" /><input type="hidden" name="fingerprint" value="@offer.Fingerprint" /><button type="submit">Accept coach prescription</button></form>}
 else{<p>Awaiting client acceptance.</p>}
