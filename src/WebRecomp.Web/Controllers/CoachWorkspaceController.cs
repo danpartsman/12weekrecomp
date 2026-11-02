@@ -1,5 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net.Mail;
+using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -13,7 +16,9 @@ namespace WebRecomp.Web.Controllers;
 
 public sealed record CoachConversationItem(Guid Id, DateTime CreatedUtc, Guid AuthorId, string AuthorName, string Kind, string? WorkoutId, string Body);
 public sealed record CoachActivityItem(DateTime CreatedUtc, string Description);
-public sealed record CoachWorkspacePage(Guid ClientId, Guid CoachId, string CoachName, bool IsCoach, IReadOnlyList<CoachConversationItem> Messages, IReadOnlyList<CoachActivityItem> Activity, IReadOnlyList<(string Id,string Name)> Workouts);
+public sealed record CoachMacroOffer(Guid VersionId, DateOnly EffectiveWeek, string Reason, string? EngineJson, string? AdjustedJson, string RulesJson, string Fingerprint, bool Accepted, DateTime? AcceptedUtc);
+public sealed record CoachMacroAcceptance(Guid VersionId, Guid ClientId, Guid CoachId, Guid OwnerId, string Fingerprint, DateTime AcceptedUtc);
+public sealed record CoachWorkspacePage(Guid ClientId, Guid CoachId, string CoachName, bool IsCoach, IReadOnlyList<CoachConversationItem> Messages, IReadOnlyList<CoachActivityItem> Activity, IReadOnlyList<(string Id,string Name)> Workouts, IReadOnlyList<CoachMacroOffer> MacroOffers);
 
 [Authorize, Route("coach-workspace"), ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
 public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextService users, NotificationFiles files, IEmailService email) : Controller
@@ -35,19 +40,45 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         var messages=files.Read<List<CoachConversationItem>>(Key(client,coach))??[];
         var events=await db.CoachAccountabilityEvents.AsNoTracking().Where(x=>x.ClientId==client&&x.ActorUserId==coach).OrderByDescending(x=>x.CreatedAtUtc).Take(40).Select(x=>new{x.CreatedAtUtc,x.Kind}).ToListAsync(ct);
         var activity=events.Select(x=>new CoachActivityItem(x.CreatedAtUtc,x.Kind=="CONFIG"?"Coaching plan or Snap Workout updated":x.Kind=="RESULT"?"Workout results or ledger updated":"Coaching activity: "+x.Kind)).ToList();
+        var ownerId=await db.UserClientAccess.AsNoTracking().Where(x=>x.ClientId==client&&x.AccessRoleCode=="OWNER"&&x.RevokedAtUtc==null).Select(x=>x.UserId).SingleAsync(ct);
+        var versions=await db.CoachPrescriptionRuleVersions.AsNoTracking().Where(x=>x.ClientId==client&&x.CoachUserId==coach).OrderByDescending(x=>x.CreatedAtUtc).Take(20).ToListAsync(ct);
+        var offers=new List<CoachMacroOffer>();
+        foreach(var version in versions)
+        {
+            var fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(version.CoachPrescriptionRuleVersionId+"|"+version.RulesJson+"|"+version.PreviewJson)));
+            var receipt=files.Read<CoachMacroAcceptance>($"macro-acceptance/{client:N}-{coach:N}-{version.CoachPrescriptionRuleVersionId:N}");
+            string? engineJson=null,adjustedJson=null;
+            try {using var preview=JsonDocument.Parse(version.PreviewJson);if(preview.RootElement.TryGetProperty("Engine",out var engine))engineJson=engine.GetRawText();if(preview.RootElement.TryGetProperty("Adjusted",out var adjusted))adjustedJson=adjusted.GetRawText();}catch(JsonException){}
+            offers.Add(new(version.CoachPrescriptionRuleVersionId,version.EffectiveWeek,version.Reason,engineJson,adjustedJson,version.RulesJson,fingerprint,receipt?.Fingerprint==fingerprint&&receipt.OwnerId==ownerId,receipt?.Fingerprint==fingerprint?receipt.AcceptedUtc:null));
+        }
         var agreement=await db.CoachAccountabilityAgreements.AsNoTracking().Where(x=>x.ClientId==client).Select(x=>x.StateJson).FirstOrDefaultAsync(ct);
         var workouts=new List<(string Id,string Name)>();
         if(agreement is not null)try {
             var state=WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(agreement);
             workouts=state.SnapWorkouts.Where(w=>w.Simple&&messages.Any(m=>m.WorkoutId==w.Id)||w.Simple&&events.Count>0).Select(w=>(w.Id,w.Name)).ToList();
         }catch(ArgumentException){}
-        return new(client,coach,coachName,isCoach,messages.OrderByDescending(x=>x.CreatedUtc).Take(100).Reverse().ToList(),activity,workouts);
+        return new(client,coach,coachName,isCoach,messages.OrderByDescending(x=>x.CreatedUtc).Take(100).Reverse().ToList(),activity,workouts,offers);
     }
     [HttpGet("{clientId:guid}/{coachId:guid}")]
     public async Task<IActionResult> Index(Guid clientId,Guid coachId,CancellationToken ct)
     {
         var auth=await Allowed(clientId,coachId,ct);
         return auth is null?NotFound():View(await Build(clientId,coachId,auth.Value.IsCoach,ct));
+    }
+    [HttpPost("{clientId:guid}/{coachId:guid}/accept-macros"),ValidateAntiForgeryToken]
+    public async Task<IActionResult> AcceptMacros(Guid clientId,Guid coachId,Guid versionId,string fingerprint,CancellationToken ct)
+    {
+        var auth=await Allowed(clientId,coachId,ct);
+        if(auth is null)return NotFound();
+        if(auth.Value.IsCoach)return Forbid();
+        var version=await db.CoachPrescriptionRuleVersions.AsNoTracking().SingleOrDefaultAsync(x=>x.CoachPrescriptionRuleVersionId==versionId&&x.ClientId==clientId&&x.CoachUserId==coachId,ct);
+        if(version is null)return NotFound();
+        var current=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(version.CoachPrescriptionRuleVersionId+"|"+version.RulesJson+"|"+version.PreviewJson)));
+        if(!string.Equals(current,fingerprint,StringComparison.Ordinal))return Conflict("The prescription changed. Review the latest proposal.");
+        var key=$"macro-acceptance/{clientId:N}-{coachId:N}-{versionId:N}";
+        using(files.Lease(key))files.Write(key,new CoachMacroAcceptance(versionId,clientId,coachId,auth.Value.Owner,current,DateTime.UtcNow));
+        TempData["CoachWorkspaceStatus"]="Coach macro prescription accepted and recorded. Fee rules remain unchanged unless separately agreed.";
+        return RedirectToAction(nameof(Index),new{clientId,coachId});
     }
     public sealed class MessageInput
     {
