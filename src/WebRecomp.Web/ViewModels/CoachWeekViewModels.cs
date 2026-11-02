@@ -17,7 +17,7 @@ public sealed class CoachWeekPage
     public string ClientName { get; init; } = "";
     public CoachWeekInput Input { get; init; } = new();
     public IReadOnlyList<CoachWeekWorkoutOption> Options { get; init; } = [];
-    public IReadOnlyList<Engine30DashboardDayProjection> Engine { get; init; } = [];
+    public IReadOnlyList<Engine30DashboardDayProjection> Engine { get; set; } = [];
     public IReadOnlyList<Engine30DashboardDayProjection> Assigned { get; init; } = [];
     public IReadOnlyList<Engine30DashboardDayProjection>? Preview { get; set; }
     public IReadOnlyList<PlannedWorkout> Proposed { get; set; } = [];

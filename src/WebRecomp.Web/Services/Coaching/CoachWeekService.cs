@@ -74,7 +74,8 @@ public sealed class CoachWeekService(RecompDbContext db, Engine30DashboardProjec
         }
         var planCode=await plans.GetPlanCodeForDateAsync(program,week,ct);
         var engineDays=await engine.BuildPlanningWeekAsync(context,week,planCode,ct,includeCoachRules:false,plannedWorkoutOverrides:proposed);
-        var evaluation=CoachPrescriptionAllocator.Evaluate(engineDays.Values.ToArray(),input.Rules);
+        page.Engine=engineDays.Values.OrderBy(x=>x.Date).ToArray();
+        var evaluation=CoachPrescriptionAllocator.Evaluate(page.Engine,input.Rules);
         page.Errors=evaluation.Errors;page.Preview=evaluation.Days;page.Proposed=proposed;
         // Candidate IDs/timestamps are deliberately excluded: preview and save reconstruct independently.
         var inputCopy=JsonSerializer.Deserialize<CoachWeekInput>(JsonSerializer.Serialize(input))!;inputCopy.PreviewToken=null;inputCopy.Rules.PreviewToken=null;

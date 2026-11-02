@@ -1,12 +1,29 @@
 @inject WebRecomp.Web.Data.RecompDbContext NavigationDb
 @inject WebRecomp.Web.Services.AppUserContextService NavigationUsers
+@inject WebRecomp.Web.Services.Notifications.NotificationFiles NavigationFiles
+@using System.Security.Cryptography
+@using System.Text
 @using Microsoft.EntityFrameworkCore
 @{
 bool hasCoach=false;
+bool coachHasNew=false;
 if(!Model){
 var current=(await NavigationUsers.GetAsync(Context,Context.RequestAborted)).User;
-hasCoach=await NavigationDb.UserClientAccess.AsNoTracking().Where(x=>x.UserId==current.UserId&&x.AccessRoleCode=="OWNER"&&x.RevokedAtUtc==null)
-.Join(NavigationDb.CoachClientRelationships.AsNoTracking().Where(x=>x.StatusCode=="ACTIVE"&&x.RevokedAtUtc==null),owner=>owner.ClientId,link=>link.ClientId,(owner,link)=>link).AnyAsync();
+var relationships=await NavigationDb.UserClientAccess.AsNoTracking().Where(x=>x.UserId==current.UserId&&x.AccessRoleCode=="OWNER"&&x.RevokedAtUtc==null)
+.Join(NavigationDb.CoachClientRelationships.AsNoTracking().Where(x=>x.StatusCode=="ACTIVE"&&x.RevokedAtUtc==null),owner=>owner.ClientId,link=>link.ClientId,(owner,link)=>new{link.ClientId,link.CoachUserId}).ToListAsync();
+hasCoach=relationships.Count>0;
+if(hasCoach){
+var clientIds=relationships.Select(x=>x.ClientId).Distinct().ToArray();
+var coachIds=relationships.Select(x=>x.CoachUserId).Distinct().ToArray();
+var latest=await NavigationDb.CoachPrescriptionRuleVersions.AsNoTracking().Where(x=>clientIds.Contains(x.ClientId)&&coachIds.Contains(x.CoachUserId)).OrderByDescending(x=>x.CreatedAtUtc).Take(40).ToListAsync();
+foreach(var version in latest){
+if(!relationships.Any(x=>x.ClientId==version.ClientId&&x.CoachUserId==version.CoachUserId))continue;
+var key=$"macro-acceptance/{version.ClientId:N}-{version.CoachUserId:N}-{version.CoachPrescriptionRuleVersionId:N}";
+var receipt=NavigationFiles.Read<WebRecomp.Web.Controllers.CoachMacroAcceptance>(key);
+var fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(version.CoachPrescriptionRuleVersionId+"|"+version.RulesJson+"|"+version.PreviewJson)));
+if(receipt?.Fingerprint!=fingerprint){coachHasNew=true;break;}
+}
+}
 }
 }
 @model bool
@@ -37,7 +54,7 @@ hasCoach=await NavigationDb.UserClientAccess.AsNoTracking().Where(x=>x.UserId==c
             <a asp-controller="Home" asp-action="Evidence">Evidence</a>
         </div>
     </details>
-    @if(hasCoach){<a class="app-nav-primary" asp-controller="MyCoach" asp-action="Index" style="font-weight:700">My Coach</a>}
+    @if(hasCoach){<details class="app-nav-group"><summary><a class="app-nav-primary" asp-controller="MyCoach" asp-action="Index">My Coach @if(coachHasNew){<span aria-label="New coach assignments" style="color:#ffdf70">● New</span>}</a></summary><div class="app-nav-panel"><a asp-controller="MyCoach" asp-action="Index">Coach workspaces</a></div></details>}
     <details class="app-nav-group">
         <summary><a class="app-nav-primary" href="/Profile?nav=profile">Profile</a></summary>
         <div class="app-nav-panel">

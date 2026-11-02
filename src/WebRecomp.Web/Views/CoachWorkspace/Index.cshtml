@@ -6,7 +6,7 @@
 @using System.Text.Json
 <section class="card">
 <h2>Coach assignments and macro targets</h2>
-<p>Review the system recommendation alongside your coach's prescription. Values are grams per day; calories are calculated from protein, carbohydrates and fat.</p>
+<p>Review the system recommendation alongside your coach's prescription. Values are grams per day; calories are calculated from protein, carbohydrates and fat. Targets depend on the saved weekly workouts; a week of rest or unscheduled days may have identical targets.</p>
 @if(Model.MacroOffers.Count==0){<p>This coach has not saved a macro prescription yet.</p>}
 @foreach(var offer in Model.MacroOffers){
 <details class="card" open="@(!offer.Accepted)">
@@ -24,7 +24,7 @@ var s=engineDays[i];var a=coachDays[i];
 decimal number(JsonElement x,string name){return x.TryGetProperty(name,out var v)&&v.ValueKind==JsonValueKind.Number?v.GetDecimal():0m;}
 var sp=number(s,"ProteinG");var sc=number(s,"RecommendedCarbsG");var sf=number(s,"FatG");
 var cp=number(a,"ProteinG");var cc=number(a,"RecommendedCarbsG");var cf=number(a,"FatG");
-<tr><td>@(s.TryGetProperty("Date",out var d)?d.GetString():"Day "+(i+1))</td><td>@sp.ToString("0.#") g</td><td><strong>@cp.ToString("0.#") g</strong></td><td>@sc.ToString("0.#") g</td><td><strong>@cc.ToString("0.#") g</strong></td><td>@sf.ToString("0.#") g</td><td><strong>@cf.ToString("0.#") g</strong></td><td>@(sp*4+sc*4+sf*9).ToString("0")</td><td><strong>@(cp*4+cc*4+cf*9).ToString("0")</strong></td></tr>
+<tr><td>@(s.TryGetProperty("Date",out var d)?d.GetString():"Day "+(i+1))</td><td>@sp.ToString("0.#") g</td><td><strong>@cp.ToString("0.#") g</strong></td><td>@sc.ToString("0.#") g</td><td><strong>@cc.ToString("0.#") g</strong></td><td>@sf.ToString("0.#") g</td><td><strong>@cf.ToString("0.#") g</strong></td><td>@((sp*4+sc*4+sf*9).ToString("0"))</td><td><strong>@((cp*4+cc*4+cf*9).ToString("0"))</strong></td></tr>
 }
 </tbody></table></div>
 }catch(JsonException){<p>The saved prescription could not be displayed. Please contact support.</p>}
