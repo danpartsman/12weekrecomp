@@ -16,7 +16,7 @@ namespace WebRecomp.Web.Controllers;
 
 public sealed record CoachConversationItem(Guid Id, DateTime CreatedUtc, Guid AuthorId, string AuthorName, string Kind, string? WorkoutId, string Body);
 public sealed record CoachActivityItem(DateTime CreatedUtc, string Description);
-public sealed record CoachMacroOffer(Guid VersionId, DateOnly EffectiveWeek, string Reason, string? EngineJson, string? AdjustedJson, string RulesJson, string Fingerprint, bool Accepted, DateTime? AcceptedUtc);
+public sealed record CoachMacroOffer(Guid VersionId, DateOnly EffectiveWeek, string Reason, string? EngineJson, string? AdjustedJson, string RulesJson, string Fingerprint, bool Accepted, DateTime? AcceptedUtc, bool FinancialOptIn);
 public sealed record CoachMacroAcceptance(Guid VersionId, Guid ClientId, Guid CoachId, Guid OwnerId, string Fingerprint, DateTime AcceptedUtc);
 public sealed record CoachWorkspacePage(Guid ClientId, Guid CoachId, string CoachName, bool IsCoach, IReadOnlyList<CoachConversationItem> Messages, IReadOnlyList<CoachActivityItem> Activity, IReadOnlyList<(string Id,string Name)> Workouts, IReadOnlyList<CoachMacroOffer> MacroOffers);
 
@@ -47,9 +47,9 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         {
             var fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(version.CoachPrescriptionRuleVersionId+"|"+version.RulesJson+"|"+version.PreviewJson)));
             var receipt=files.Read<CoachMacroAcceptance>($"macro-acceptance/{client:N}-{coach:N}-{version.CoachPrescriptionRuleVersionId:N}");
-            string? engineJson=null,adjustedJson=null;
-            try {using var preview=JsonDocument.Parse(version.PreviewJson);if(preview.RootElement.TryGetProperty("Engine",out var engine))engineJson=engine.GetRawText();if(preview.RootElement.TryGetProperty("Adjusted",out var adjusted))adjustedJson=adjusted.GetRawText();}catch(JsonException){}
-            offers.Add(new(version.CoachPrescriptionRuleVersionId,version.EffectiveWeek,version.Reason,engineJson,adjustedJson,version.RulesJson,fingerprint,receipt?.Fingerprint==fingerprint&&receipt.OwnerId==ownerId,receipt?.Fingerprint==fingerprint?receipt.AcceptedUtc:null));
+            string? engineJson=null,adjustedJson=null;bool financialOptIn=false;
+            try {using var preview=JsonDocument.Parse(version.PreviewJson);if(preview.RootElement.TryGetProperty("Engine",out var engine))engineJson=engine.GetRawText();if(preview.RootElement.TryGetProperty("Adjusted",out var adjusted))adjustedJson=adjusted.GetRawText();if(preview.RootElement.TryGetProperty("ApplyPenaltiesAndIncentives",out var financial))financialOptIn=financial.ValueKind==JsonValueKind.True;}catch(JsonException){}
+            offers.Add(new(version.CoachPrescriptionRuleVersionId,version.EffectiveWeek,version.Reason,engineJson,adjustedJson,version.RulesJson,fingerprint,receipt?.Fingerprint==fingerprint&&receipt.OwnerId==ownerId,receipt?.Fingerprint==fingerprint?receipt.AcceptedUtc:null,financialOptIn));
         }
         var agreement=await db.CoachAccountabilityAgreements.AsNoTracking().Where(x=>x.ClientId==client).Select(x=>x.StateJson).FirstOrDefaultAsync(ct);
         var workouts=new List<(string Id,string Name)>();
