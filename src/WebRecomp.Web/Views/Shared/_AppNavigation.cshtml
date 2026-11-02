@@ -1,3 +1,14 @@
+@inject WebRecomp.Web.Data.RecompDbContext NavigationDb
+@inject WebRecomp.Web.Services.AppUserContextService NavigationUsers
+@using Microsoft.EntityFrameworkCore
+@{
+bool hasCoach=false;
+if(!Model){
+var current=(await NavigationUsers.GetAsync(Context,Context.RequestAborted)).User;
+hasCoach=await NavigationDb.UserClientAccess.AsNoTracking().Where(x=>x.UserId==current.UserId&&x.AccessRoleCode=="OWNER"&&x.RevokedAtUtc==null)
+.Join(NavigationDb.CoachClientRelationships.AsNoTracking().Where(x=>x.StatusCode=="ACTIVE"&&x.RevokedAtUtc==null),owner=>owner.ClientId,link=>link.ClientId,(owner,link)=>link).AnyAsync();
+}
+}
 @model bool
 <nav class="app-grouped-nav" aria-label="Application navigation" data-app-navigation>
     <button type="button" class="app-nav-toggle" aria-expanded="false" aria-controls="app-nav-items">☰ <span>Menu</span></button>
@@ -26,6 +37,7 @@
             <a asp-controller="Home" asp-action="Evidence">Evidence</a>
         </div>
     </details>
+    @if(hasCoach){<a class="app-nav-primary" asp-controller="MyCoach" asp-action="Index" style="font-weight:700">My Coach</a>}
     <details class="app-nav-group">
         <summary><a class="app-nav-primary" href="/Profile?nav=profile">Profile</a></summary>
         <div class="app-nav-panel">
