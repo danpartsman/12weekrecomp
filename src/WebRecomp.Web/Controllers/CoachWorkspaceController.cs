@@ -14,7 +14,7 @@ using WebRecomp.Web.Services.Notifications;
 
 namespace WebRecomp.Web.Controllers;
 
-public sealed record CoachConversationItem(Guid Id, DateTime CreatedUtc, Guid AuthorId, string AuthorName, string Kind, string? WorkoutId, string Body);
+public sealed record CoachConversationItem(Guid Id, DateTime CreatedUtc, Guid AuthorId, string AuthorName, string Kind, string? WorkoutId, string Body, Guid? ThreadId=null, string? Subject=null);
 public sealed record CoachActivityItem(DateTime CreatedUtc, string Description);
 public sealed record CoachMacroOffer(Guid VersionId, DateOnly EffectiveWeek, string Reason, string? EngineJson, string? AdjustedJson, string RulesJson, string Fingerprint, bool Accepted, DateTime? AcceptedUtc, bool FinancialOptIn);
 public sealed record CoachMacroAcceptance(Guid VersionId, Guid ClientId, Guid CoachId, Guid OwnerId, string Fingerprint, DateTime AcceptedUtc);
@@ -85,6 +85,8 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         [Required,StringLength(2000,MinimumLength=1)]public string Body{get;set;}="";
         [Required]public string Kind{get;set;}="message";
         [StringLength(64)]public string? WorkoutId{get;set;}
+        public Guid? ThreadId{get;set;}
+        [StringLength(120)]public string? Subject{get;set;}
     }
     [HttpPost("{clientId:guid}/{coachId:guid}/send"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(8192)]
     public async Task<IActionResult> Send(Guid clientId,Guid coachId,MessageInput input,CancellationToken ct)
@@ -92,6 +94,7 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         var auth=await Allowed(clientId,coachId,ct);
         if(auth is null)return NotFound();
         if(!ModelState.IsValid||string.IsNullOrWhiteSpace(input.Body)||input.Kind is not ("message" or "snap-note"))return BadRequest("Enter a message of up to 2,000 characters.");
+        if(input.Kind=="message"&&input.ThreadId is null&&string.IsNullOrWhiteSpace(input.Subject))return BadRequest("Enter a thread subject.");
         if(input.Kind=="snap-note"&&string.IsNullOrWhiteSpace(input.WorkoutId))return BadRequest("Choose a Snap Workout.");
         if(input.Kind=="message"&&input.WorkoutId is not null)return BadRequest("Workout references are for Snap notes only.");
         if(input.Kind=="snap-note")
@@ -104,7 +107,9 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         using(files.Lease(key))
         {
             var messages=files.Read<List<CoachConversationItem>>(key)??[];
-            messages.Add(new(Guid.NewGuid(),DateTime.UtcNow,auth.Value.Actor,sender,input.Kind,input.WorkoutId,input.Body.Trim()));
+            if(input.Kind=="message"&&input.ThreadId is Guid thread&&!messages.Any(m=>m.Kind=="message"&&(m.ThreadId??m.Id)==thread))return BadRequest("Thread not found.");
+            var threadId=input.Kind=="message"?(input.ThreadId??Guid.NewGuid()):(Guid?)null;
+            messages.Add(new(Guid.NewGuid(),DateTime.UtcNow,auth.Value.Actor,sender,input.Kind,input.WorkoutId,input.Body.Trim(),threadId,input.Kind=="message"&&input.ThreadId is null?input.Subject?.Trim():null));
             if(messages.Count>1000)messages=messages.TakeLast(1000).ToList();
             files.Write(key,messages);
         }
