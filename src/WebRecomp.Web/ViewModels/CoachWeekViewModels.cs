@@ -7,6 +7,7 @@ public sealed class CoachWeekInput
     public CoachPrescriptionRules Rules { get; set; } = new();
     public List<string> Workouts { get; set; } = [];
     public string? PreviewToken { get; set; }
+    public bool ApplyPenaltiesAndIncentives { get; set; }
 }
 public sealed record CoachWeekWorkoutOption(string Code,string Name,string Group);
 public sealed class CoachWeekPage

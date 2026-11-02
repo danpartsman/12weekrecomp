@@ -3,6 +3,19 @@
 <h1>@Model.CoachName · Coach workspace</h1>
 <p><a class="button" asp-controller="MyCoach" asp-action="Index">My Coach</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">This coach's fees &amp; payments</a> <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId">Snap Workouts</a></p>
 @if(TempData["CoachWorkspaceStatus"] is string status){<p role="status">@status</p>}
+<section class="card"><h2>Coach macro prescription</h2><p>Compare the coach's proposed macro goals with the engine recommendation. Accepting records your agreement to this version. Financial terms do not change automatically.</p>
+@if(Model.MacroOffers.Count==0){<p>No coach macro prescriptions yet.</p>}
+@foreach(var offer in Model.MacroOffers){
+<details class="card"><summary>Effective @offer.EffectiveWeek · @(offer.Accepted?"Accepted":"Review and accept")</summary>
+<p>@offer.Reason</p>
+<h3>System recommendations</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">@offer.EngineJson</pre>
+<h3>Coach-adjusted daily targets</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">@offer.AdjustedJson</pre>
+<p>Financial accountability requested: <strong>@(offer.FinancialOptIn?"Yes — requires approved agreement":"No")</strong></p><h3>Coach limits and rules</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">@offer.RulesJson</pre>
+@if(offer.Accepted){<p>Accepted @offer.AcceptedUtc</p>}
+else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post"><input type="hidden" name="versionId" value="@offer.VersionId" /><input type="hidden" name="fingerprint" value="@offer.Fingerprint" /><button type="submit">Accept coach prescription</button></form>}
+else{<p>Awaiting client acceptance.</p>}
+</details>}
+</section>
 <section class="card"><h2>Send a message</h2><p>Messages stay in this coach/client conversation. A copy is emailed to the recipient when email delivery is available.</p>
 <form asp-action="Send" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
 @Html.AntiForgeryToken()
