@@ -1,4 +1,7 @@
 @model WebRecomp.Web.Controllers.CoachWorkspacePage
+<style>
+.coach-macro-table-scroll{overflow-x:auto;max-width:100%;margin:1rem 0}.coach-macro-table{width:100%;min-width:900px;border-collapse:collapse;table-layout:fixed}.coach-macro-table th,.coach-macro-table td{text-align:center!important;vertical-align:middle;padding:.65rem .35rem;white-space:nowrap;font-variant-numeric:tabular-nums}.coach-macro-table th:first-child,.coach-macro-table td:first-child{text-align:left!important;width:110px;padding-left:.75rem}.coach-limits-panel{margin:1rem 0}.coach-limits-table{width:min(100%,440px)!important;max-width:440px;table-layout:fixed;margin:0!important}.coach-limits-table th,.coach-limits-table td{text-align:left!important;padding:.5rem .75rem!important}.coach-limits-table th:first-child,.coach-limits-table td:first-child{width:70%}.coach-limits-table th:last-child,.coach-limits-table td:last-child{width:30%;text-align:left!important}.coach-accept-button{display:inline-flex!important;align-items:center;justify-content:center;min-height:44px;padding:12px 20px!important;font-size:1rem!important;font-weight:700!important;border-radius:12px!important;cursor:pointer}
+</style>
 @{ViewData["Title"]="Coach workspace";}
 <h1>@Model.CoachName · Coach workspace</h1>
 <p><a class="button" asp-controller="MyCoach" asp-action="Index">My Coach</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">This coach's fees &amp; payments</a> <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId">Snap Workouts</a></p>
@@ -18,7 +21,7 @@ using var engine=JsonDocument.Parse(offer.EngineJson);
 using var adjusted=JsonDocument.Parse(offer.AdjustedJson);
 var engineDays=engine.RootElement.EnumerateArray().ToArray();
 var coachDays=adjusted.RootElement.EnumerateArray().ToArray();
-<div style="overflow-x:auto"><table><thead><tr><th>Day</th><th>System protein</th><th>Coach protein</th><th>System carbs</th><th>Coach carbs</th><th>System fat</th><th>Coach fat</th><th>System calories</th><th>Coach calories</th></tr></thead><tbody>
+<div class="coach-macro-table-scroll"><table class="coach-macro-table"><thead><tr><th>Day</th><th>System protein</th><th>Coach protein</th><th>System carbs</th><th>Coach carbs</th><th>System fat</th><th>Coach fat</th><th>System calories</th><th>Coach calories</th></tr></thead><tbody>
 @for(var i=0;i<Math.Min(engineDays.Length,coachDays.Length);i++){
 var s=engineDays[i];var a=coachDays[i];
 decimal number(JsonElement x,string name){return x.TryGetProperty(name,out var v)&&v.ValueKind==JsonValueKind.Number?v.GetDecimal():0m;}
@@ -30,14 +33,14 @@ var cp=number(a,"ProteinG");var cc=number(a,"RecommendedCarbsG");var cf=number(a
 }catch(JsonException){<p>The saved prescription could not be displayed. Please contact support.</p>}
 }
 @{var limits=JsonDocument.Parse(offer.RulesJson);}
-<details><summary>Coach limits and detailed rules</summary><table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<details class="coach-limits-panel"><summary>Coach limits and detailed rules</summary><table class="coach-limits-table"><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
 @foreach(var rule in limits.RootElement.EnumerateObject().Where(x=>x.Name.EndsWith("Min")||x.Name.EndsWith("Max")||x.Name.EndsWith("Target"))){
 <tr><td>@System.Text.RegularExpressions.Regex.Replace(rule.Name,"([a-z])([A-Z])","$1 $2")</td><td>@rule.Value.ToString()</td></tr>
 }</tbody></table></details>
 @{limits.Dispose();}
 <p><strong>Penalties and incentives:</strong> @(offer.FinancialOptIn?"Requested by coach; subject to a separately accepted financial agreement":"Not requested for this prescription")</p>
 @if(offer.Accepted){<p>Accepted @offer.AcceptedUtc?.ToString("MMM d, yyyy h:mm tt") UTC</p>}
-else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">@Html.AntiForgeryToken()<input type="hidden" name="versionId" value="@offer.VersionId" /><input type="hidden" name="fingerprint" value="@offer.Fingerprint" /><button type="submit">Accept this prescription</button></form>}
+else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">@Html.AntiForgeryToken()<input type="hidden" name="versionId" value="@offer.VersionId" /><input type="hidden" name="fingerprint" value="@offer.Fingerprint" /><button class="button coach-accept-button" type="submit">Accept this prescription</button></form>}
 else{<p>Waiting for client acceptance.</p>}
 </details>}
 </section>
