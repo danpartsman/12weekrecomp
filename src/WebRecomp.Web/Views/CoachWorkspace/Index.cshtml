@@ -3,17 +3,42 @@
 <h1>@Model.CoachName · Coach workspace</h1>
 <p><a class="button" asp-controller="MyCoach" asp-action="Index">My Coach</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">This coach's fees &amp; payments</a> <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId">Snap Workouts</a></p>
 @if(TempData["CoachWorkspaceStatus"] is string status){<p role="status">@status</p>}
-<section class="card"><h2>Coach macro prescription</h2><p>Compare the coach's proposed macro goals with the engine recommendation. Accepting records your agreement to this version. Financial terms do not change automatically.</p>
-@if(Model.MacroOffers.Count==0){<p>No coach macro prescriptions yet.</p>}
+@using System.Text.Json
+<section class="card">
+<h2>Coach assignments and macro targets</h2>
+<p>Review the system recommendation alongside your coach's prescription. Values are grams per day; calories are calculated from protein, carbohydrates and fat.</p>
+@if(Model.MacroOffers.Count==0){<p>This coach has not saved a macro prescription yet.</p>}
 @foreach(var offer in Model.MacroOffers){
-<details class="card"><summary>Effective @offer.EffectiveWeek · @(offer.Accepted?"Accepted":"Review and accept")</summary>
-<p>@offer.Reason</p>
-<h3>System recommendations</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">@offer.EngineJson</pre>
-<h3>Coach-adjusted daily targets</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">@offer.AdjustedJson</pre>
-<p>Financial accountability requested: <strong>@(offer.FinancialOptIn?"Yes — requires approved agreement":"No")</strong></p><h3>Coach limits and rules</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">@offer.RulesJson</pre>
-@if(offer.Accepted){<p>Accepted @offer.AcceptedUtc</p>}
-else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post"><input type="hidden" name="versionId" value="@offer.VersionId" /><input type="hidden" name="fingerprint" value="@offer.Fingerprint" /><button type="submit">Accept coach prescription</button></form>}
-else{<p>Awaiting client acceptance.</p>}
+<details class="card" open="@(!offer.Accepted)">
+<summary><strong>Effective @offer.EffectiveWeek.ToString("MMM d, yyyy")</strong> · @(offer.Accepted?"Accepted":"Review and accept")</summary>
+@if(!string.IsNullOrWhiteSpace(offer.Reason)){<p>@offer.Reason</p>}
+@if(offer.EngineJson is not null && offer.AdjustedJson is not null){
+try{
+using var engine=JsonDocument.Parse(offer.EngineJson);
+using var adjusted=JsonDocument.Parse(offer.AdjustedJson);
+var engineDays=engine.RootElement.EnumerateArray().ToArray();
+var coachDays=adjusted.RootElement.EnumerateArray().ToArray();
+<div style="overflow-x:auto"><table><thead><tr><th>Day</th><th>System protein</th><th>Coach protein</th><th>System carbs</th><th>Coach carbs</th><th>System fat</th><th>Coach fat</th><th>System calories</th><th>Coach calories</th></tr></thead><tbody>
+@for(var i=0;i<Math.Min(engineDays.Length,coachDays.Length);i++){
+var s=engineDays[i];var a=coachDays[i];
+decimal number(JsonElement x,string name){return x.TryGetProperty(name,out var v)&&v.ValueKind==JsonValueKind.Number?v.GetDecimal():0m;}
+var sp=number(s,"ProteinG");var sc=number(s,"RecommendedCarbsG");var sf=number(s,"FatG");
+var cp=number(a,"ProteinG");var cc=number(a,"RecommendedCarbsG");var cf=number(a,"FatG");
+<tr><td>@(s.TryGetProperty("Date",out var d)?d.GetString():"Day "+(i+1))</td><td>@sp.ToString("0.#") g</td><td><strong>@cp.ToString("0.#") g</strong></td><td>@sc.ToString("0.#") g</td><td><strong>@cc.ToString("0.#") g</strong></td><td>@sf.ToString("0.#") g</td><td><strong>@cf.ToString("0.#") g</strong></td><td>@(sp*4+sc*4+sf*9).ToString("0")</td><td><strong>@(cp*4+cc*4+cf*9).ToString("0")</strong></td></tr>
+}
+</tbody></table></div>
+}catch(JsonException){<p>The saved prescription could not be displayed. Please contact support.</p>}
+}
+@{var limits=JsonDocument.Parse(offer.RulesJson);}
+<details><summary>Coach limits and detailed rules</summary><table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+@foreach(var rule in limits.RootElement.EnumerateObject().Where(x=>x.Name.EndsWith("Min")||x.Name.EndsWith("Max")||x.Name.EndsWith("Target"))){
+<tr><td>@System.Text.RegularExpressions.Regex.Replace(rule.Name,"([a-z])([A-Z])","$1 $2")</td><td>@rule.Value.ToString()</td></tr>
+}</tbody></table></details>
+@{limits.Dispose();}
+<p><strong>Penalties and incentives:</strong> @(offer.FinancialOptIn?"Requested by coach; subject to a separately accepted financial agreement":"Not requested for this prescription")</p>
+@if(offer.Accepted){<p>Accepted @offer.AcceptedUtc?.ToString("MMM d, yyyy h:mm tt") UTC</p>}
+else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">@Html.AntiForgeryToken()<input type="hidden" name="versionId" value="@offer.VersionId" /><input type="hidden" name="fingerprint" value="@offer.Fingerprint" /><button type="submit">Accept this prescription</button></form>}
+else{<p>Waiting for client acceptance.</p>}
 </details>}
 </section>
 <section class="card"><h2>Send a message</h2><p>Messages stay in this coach/client conversation. A copy is emailed to the recipient when email delivery is available.</p>
