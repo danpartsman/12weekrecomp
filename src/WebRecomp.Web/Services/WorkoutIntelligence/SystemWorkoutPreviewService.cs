@@ -16,11 +16,12 @@ public sealed class SystemWorkoutPreviewService(RecompDbContext db)
         Guid configVersionId,
         string systemCode,
         string defaultLoadUnitCode,
-        CancellationToken cancellationToken, bool allowCatalogWrites = true)
+        CancellationToken cancellationToken, bool allowCatalogWrites = true, SystemWorkoutRecipe? recipeOverride = null)
     {
         SystemWorkoutRecipeCatalog.TryGet(
             systemCode,
             out var recipe);
+        recipe = recipeOverride ?? recipe;
 
         var engineWorkoutTypeCode =
             recipe?.EngineWorkoutTypeCode
@@ -78,6 +79,7 @@ public sealed class SystemWorkoutPreviewService(RecompDbContext db)
             return new SystemWorkoutPreviewViewModel
             {
                 SystemCode = systemCode,
+                SourceUrl = recipe?.SourceUrl,
                 WorkoutTypeCode =
                     engineWorkoutTypeCode,
                 DisplayName =
@@ -219,12 +221,32 @@ public sealed class SystemWorkoutPreviewService(RecompDbContext db)
                                 publishedName,
                                 StringComparison.OrdinalIgnoreCase)
                             && candidate.SourceCode
-                                != CsvUnmappedExerciseSourceCode);
+                                != CsvUnmappedExerciseSourceCode
+                            && candidate.MuscleTargets.Count > 0);
 
                 var exercise =
                     exact
                     ?? (allowCatalogWrites ? await ResolveCsvUnmappedExerciseAsync(clientId, publishedName, cancellationToken) : null);
                 if (exercise is null) continue;
+
+                // Imported identities carry actual muscle-role rows so both the
+                // recovery view and Engine adapter can use the same mapping.
+                if (allowCatalogWrites && exercise.SourceCode == CsvUnmappedExerciseSourceCode)
+                {
+                    var targets = await db.ExerciseMuscleTargets.Where(x => x.ExerciseCatalogItemId == exercise.ExerciseCatalogItemId).ToListAsync(cancellationToken);
+                    if (targets.Count == 0)
+                    {
+                        short muscleOrder = 0;
+                        foreach (var (muscle, role) in OtfMuscleMapping.ForSlot(slot))
+                            db.ExerciseMuscleTargets.Add(new ExerciseMuscleTargetRecord {
+                                ExerciseMuscleTargetId = Guid.NewGuid(), ExerciseCatalogItemId = exercise.ExerciseCatalogItemId,
+                                ExternalId = "otf-estimated:" + muscle, MuscleSlug = muscle,
+                                MuscleName = muscle.Replace('-', ' '), RoleCode = role, DisplayOrder = muscleOrder++ });
+                    }
+                    if (targets.Count > 0 || OtfMuscleMapping.ForSlot(slot).Any())
+                        exercise.Mechanics = "OTF_MAPPED_ESTIMATED";
+                    await db.SaveChangesAsync(cancellationToken);
+                }
 
                 selected.Add((exercise, slot));
             }
@@ -298,7 +320,7 @@ public sealed class SystemWorkoutPreviewService(RecompDbContext db)
                                 item.Exercise.Name,
                             Mechanics =
                                 item.Exercise.Mechanics,
-                            Notes = null, // Personal notes stay blank for system recipes.
+                            Notes = recipe?.GroupName == "Orangetheory" ? item.Slot.Notes : null,
                             BlockName =
                                 item.Slot.BlockName,
                             BlockType =
@@ -348,6 +370,7 @@ public sealed class SystemWorkoutPreviewService(RecompDbContext db)
         return new SystemWorkoutPreviewViewModel
         {
             SystemCode = systemCode,
+                SourceUrl = recipe?.SourceUrl,
             WorkoutTypeCode =
                 engineWorkoutTypeCode,
             DisplayName =

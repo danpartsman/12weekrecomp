@@ -13,6 +13,12 @@ else { <div style="overflow-x:auto"><table><thead><tr><th>Client</th><th>Goal</t
 <form asp-action="Invite" method="post"><button type="submit">Create client connection code</button></form>
 @if (TempData["CoachInviteCode"] is string code) { <p>Give this code to your client. They enter it under My Coach and choose to connect.</p><textarea readonly aria-label="Client connection code" rows="1" style="width:10em;font-size:1.5rem;letter-spacing:0.12em">@code</textarea> }
 </div></details>
+@if(Model.FormerClients.Count>0)
+{
+<details class="card coach-panel"><summary>Previous client accounts · @Model.FormerClients.Count</summary><div class="coach-panel-body"><p>Review your previous account history and record final payments. New fees and client progress access end when the coaching relationship is disconnected.</p>
+@foreach(var client in Model.FormerClients){<p><a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@client.ClientId">@client.Name · fees &amp; payments</a></p>}
+</div></details>
+}
 <details class="card coach-panel" open="@(!ViewData.ModelState.IsValid)"><summary>Coach profile</summary><div class="coach-panel-body"><form asp-action="Profile" method="post"><div asp-validation-summary="All"></div>
 <label for="DisplayName">Coach name</label><input id="DisplayName" name="DisplayName" value="@Model.Profile.DisplayName" maxlength="100" required />
 <label for="Specialties">Specialties</label><input id="Specialties" name="Specialties" value="@Model.Profile.Specialties" maxlength="500" />

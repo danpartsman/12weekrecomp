@@ -13,3 +13,5 @@
 .ledger-table td:last-child,.ledger-table td:nth-last-child(2),.ledger-table td:nth-last-child(3){white-space:nowrap;font-variant-numeric:tabular-nums;}
 .ledger-table td:nth-child(4){min-width:260px;overflow-wrap:anywhere;}
 @media(max-width:650px){.ledger-summary,.ledger-fields{grid-template-columns:minmax(0,1fr);}.ledger-summary{gap:12px;}.ledger-summary strong{font-size:1.5rem;}}
+
+.coach-account-selector .button{max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left;}

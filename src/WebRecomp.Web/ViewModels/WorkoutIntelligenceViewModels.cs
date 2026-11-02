@@ -42,6 +42,7 @@ public sealed class DetailedWorkoutSessionChoiceViewModel
 
 public sealed class DetailedWorkoutEditorViewModel
 {
+    public bool OtfAutomaticLookup { get; set; } = true;
     public bool FeatureEnabled { get; set; }
     public DateOnly Date { get; set; }
     public Guid? WorkoutSessionId { get; set; }
@@ -156,6 +157,7 @@ public sealed class WorkoutTemplateDetailViewModel
 
 public sealed class SystemWorkoutPreviewViewModel
 {
+    public string? SourceUrl { get; set; }
     public string SystemCode { get; set; } = "";
     public string WorkoutTypeCode { get; set; } = "";
     public string DisplayName { get; set; } = "";
