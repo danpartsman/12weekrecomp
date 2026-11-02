@@ -46,6 +46,10 @@ builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachWeeklySummarySer
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.ICoachSummaryPrescriptionSource, WebRecomp.Web.Services.Coaching.CoachSummaryPrescriptionSource>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachWorkoutPlanService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.WorkoutIntelligence.SystemWorkoutPreviewService>();
+builder.Services.AddSingleton<WebRecomp.Web.Services.WorkoutIntelligence.IOrangetheoryWorkoutSource, WebRecomp.Web.Services.WorkoutIntelligence.OpenAiOrangetheoryWorkoutSource>();
+builder.Services.AddSingleton<WebRecomp.Web.Services.WorkoutIntelligence.OrangetheoryWorkoutResolver>();
+builder.Services.AddHttpClient("OrangetheoryLookup", client => client.Timeout = TimeSpan.FromSeconds(75))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
 builder.Services.AddScoped<WebRecomp.Web.Services.SmartIntelligence.IntelligenceDataSource>();
 builder.Services.AddSingleton<WebRecomp.Web.Services.SmartIntelligence.IntelligenceConnection>();

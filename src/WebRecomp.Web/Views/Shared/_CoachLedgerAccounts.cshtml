@@ -1,0 +1,16 @@
+@model WebRecomp.Web.Controllers.AccountabilityLedgerPage
+<section class="card coach-account-selector" aria-label="Coach accounts">
+<h2>@Model.CoachName · account</h2>
+@if(Model.Accounts.Count>1)
+{
+<p>Choose a coach to see their balance and transactions. A payment applies only to that coach.</p>
+<div class="ledger-links">
+@foreach(var account in Model.Accounts)
+{
+<a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@account.CoachUserId" asp-route-thirtyDays="@Model.ThirtyDays" aria-current="@(account.CoachUserId==Model.CoachUserId?"page":null)">@account.Name · @(account.Active?"Current":"Previous") · @account.Balance.ToString("C2",System.Globalization.CultureInfo.GetCultureInfo("en-US"))</a>
+}
+</div>
+}
+@if(Model.CoachUserId==Guid.Empty){<p>These earlier shared transactions do not have enough saved information to confirm a coach. They are kept here rather than assigned to your current coach.</p>}
+else if(!Model.ActiveCoach){<p>This coaching relationship has ended. Its balance and history stay separate. Payments can still be recorded to settle this account; new fees cannot be added.</p>}
+</section>

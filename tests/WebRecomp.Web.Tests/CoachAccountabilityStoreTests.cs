@@ -214,7 +214,7 @@ public sealed class CoachAccountabilityStoreTests
         Assert.Equal(f.Client,page.ClientId);Assert.Equal(asCoach,page.CanRecord);Assert.Equal(canReviewAgreement,page.CanReviewAgreement);Assert.Empty(page.Entries);
     }
     [Fact]
-    public async Task SecondAssignedCoachCanRecordSharedPaymentsButRevokedCoachCannot()
+    public async Task SecondCoachHasOwnPaymentsAndFormerCoachCanSettleButCannotAddFees()
     {
         var f=await Fixture.Create();using var db=f.Db();
         var row=await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
@@ -227,9 +227,9 @@ public sealed class CoachAccountabilityStoreTests
         await ledger.ReverseAsync(f.OtherCoach,row,row.Revision,entry.Id,"Correction",default);
         Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
         var link=await db.CoachClientRelationships.SingleAsync(x=>x.CoachUserId==f.OtherCoach);link.RevokedAtUtc=DateTime.UtcNow;await db.SaveChangesAsync();
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.AccountAsync(f.OtherCoach,f.Client,true,default));
+        Assert.NotNull(await ledger.AccountAsync(f.OtherCoach,f.Client,true,default));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.RecordAsync(f.OtherCoach,row,row.Revision,Guid.NewGuid(),"fee",entry.Date,10,"No longer assigned",default));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.ReverseAsync(f.OtherCoach,row,row.Revision,entry.Id,"No longer assigned",default));
+        await ledger.ReverseAsync(f.OtherCoach,row,row.Revision,entry.Id,"Payment correction after disconnect",default);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>f.Store(db).ReadAsync(f.OtherCoach,f.Client,true,default));
     }
     [Theory]
@@ -483,6 +483,101 @@ public sealed class CoachAccountabilityStoreTests
         var result=AccountabilityDocument.Parse(row.StateJson).SnapResults[workout.Id];Assert.True(result.Finalized);Assert.All(result.Sets.Single().Value,set=>Assert.Equal(0,set.Reps));
         clock.Now=clock.Now.AddHours(1);await simple.PostDueAsync(default);Assert.Equal(15,Assert.Single(await ledger.ReadAsync(row,default)).Amount);
         await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,workout.Id,new(){Finalized=false},default);Assert.True(AccountabilityDocument.Parse(row.StateJson).SnapResults[workout.Id].Finalized);
+    }
+    [Fact]
+    public async Task TwoCoachesKeepIndependentBalancesAndCannotReverseEachOthersEntries()
+    {
+        var f=await Fixture.Create();using var db=f.Db();var row=await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+        var ledger=new AccountabilityLedger(db,new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!));
+        var day=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());var request=Guid.NewGuid();
+        await ledger.RecordAsync(f.Coach,row,row.Revision,request,"fee",day,40,"Coach A fee",default);
+        await ledger.RecordAsync(f.OtherCoach,row,row.Revision,request,"fee",day,75,"Coach B fee",default);
+        await ledger.RecordAsync(f.OtherCoach,row,row.Revision,Guid.NewGuid(),"payment-client",day,25,"Coach B payment",default);
+        var accounts=await ledger.AccountsAsync(f.Owner,f.Client,false,default);
+        Assert.Equal(40,accounts.Single(x=>x.CoachUserId==f.Coach).Balance);Assert.Equal(50,accounts.Single(x=>x.CoachUserId==f.OtherCoach).Balance);
+        Assert.Equal(f.Coach,Assert.Single(await ledger.AccountsAsync(f.Coach,f.Client,true,default)).CoachUserId);
+        var otherEntry=(await ledger.ReadAsync(row,default)).First(x=>x.CoachUserId==f.OtherCoach);
+        await Assert.ThrowsAsync<ArgumentException>(()=>ledger.ReverseAsync(f.Coach,row,row.Revision,otherEntry.Id,"Wrong account",default));
+        await ledger.RecordAsync(f.Coach,row,0,request,"fee",day,40,"Coach A fee",default); // Retry is isolated and idempotent.
+        Assert.Equal(3,(await ledger.ReadAsync(row,default)).Count);
+    }
+    [Fact]
+    public async Task ClientCompletionAndDeadlineWorkerAttributeEachWorkoutToItsAssigningCoach()
+    {
+        var f=await Fixture.Create();using var db=f.Db();var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{["SimpleCoaching:Enabled"]="true"}).Build();
+        var ledger=new AccountabilityLedger(db,access,config);var clock=new DeadlineClock();var simple=new SimpleCoachingService(db,access,ledger,clock:clock);
+        var today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        foreach(var coach in new[]{f.Coach,f.OtherCoach})
+        {
+            var revision=(await db.CoachAccountabilityAgreements.SingleOrDefaultAsync())?.Revision??0;
+            await simple.AssignAsync(coach,f.Client,revision,Guid.NewGuid(),new(){Name="Timed workout",Date=today.ToString("yyyy-MM-dd"),LatePenalty=10,CompletionReward=20,Exercises=[new(){Name="Press",Sets=1,Reps=10,MaxWeight=0}]},default);
+        }
+        var row=await db.CoachAccountabilityAgreements.SingleAsync();var workouts=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts;
+        var second=workouts[1];await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,second.Id,new(){Finalized=true,Sets=new(){[second.Exercises[0].Id]=[new(){Reps=10,Weight=0}]}},default);
+        clock.Now=clock.Now.AddHours(3);await simple.PostDueAsync(default);await simple.PostDueAsync(default);
+        var accounts=await ledger.AccountsAsync(f.Owner,f.Client,false,default);
+        Assert.Equal(10,accounts.Single(x=>x.CoachUserId==f.Coach).Balance);Assert.Equal(20,accounts.Single(x=>x.CoachUserId==f.OtherCoach).Balance);
+        Assert.All((await ledger.ReadAsync(row,default)).Where(x=>x.SourceKey.Contains(second.Id)),x=>Assert.Equal(f.OtherCoach,x.CoachUserId));
+        var firstEntry=(await ledger.ReadAsync(row,default)).Single(x=>x.CoachUserId==f.Coach);Assert.Equal("late-penalty",firstEntry.Kind);
+    }
+    [Fact]
+    public async Task DisconnectPreservesOldBalanceAllowsSettlementAndStopsNewAutomaticCharges()
+    {
+        var f=await Fixture.Create();using var db=f.Db();var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);
+        var ledger=new AccountabilityLedger(db,access);var clock=new DeadlineClock();var simple=new SimpleCoachingService(db,access,ledger,clock:clock);
+        var today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        await simple.AssignAsync(f.Coach,f.Client,0,Guid.NewGuid(),new(){Name="Old coach workout",Date=today.ToString("yyyy-MM-dd"),LatePenalty=50,Exercises=[new(){Name="Squat",Sets=1,Reps=10,MaxWeight=0}]},default);
+        var row=await db.CoachAccountabilityAgreements.SingleAsync();await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"fee",today,40,"Before disconnect",default);
+        var link=await db.CoachClientRelationships.SingleAsync(x=>x.CoachUserId==f.Coach);link.RevokedAtUtc=DateTime.UtcNow;link.StatusCode="REVOKED";await db.SaveChangesAsync();
+        clock.Now=clock.Now.AddHours(3);await simple.PostDueAsync(default);
+        var accounts=await ledger.AccountsAsync(f.Owner,f.Client,false,default);Assert.Equal(40,accounts.Single(x=>x.CoachUserId==f.Coach).Balance);Assert.False(accounts.Single(x=>x.CoachUserId==f.Coach).Active);Assert.Equal(0,accounts.Single(x=>x.CoachUserId==f.OtherCoach).Balance);
+        await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"payment-client",today,40,"Final settlement",default);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"fee",today,5,"After disconnect",default));
+        foreach(var relationship in await db.CoachClientRelationships.ToListAsync()){relationship.StatusCode="REVOKED";relationship.RevokedAtUtc=DateTime.UtcNow;}await db.SaveChangesAsync();
+        Assert.Equal(0,(await ledger.AccountsAsync(f.Owner,f.Client,false,default)).Single(x=>x.CoachUserId==f.Coach).Balance);
+        Assert.Equal(2,(await ledger.ReadAsync(row,default)).Count);
+        var formerRoster=await new CoachCenterService(db).BuildAsync(await db.UserAccounts.SingleAsync(x=>x.UserId==f.Coach),default);
+        Assert.Equal(f.Client,Assert.Single(formerRoster.FormerClients).ClientId);Assert.Empty(formerRoster.Clients);
+        // Reconnecting the same coach finds the same history rather than transferring or resetting it.
+        db.CoachClientRelationships.Add(new(){CoachClientRelationshipId=Guid.NewGuid(),CoachUserId=f.Coach,ClientId=f.Client,StatusCode="ACTIVE",AcceptedAtUtc=DateTime.UtcNow.AddMinutes(1)});await db.SaveChangesAsync();
+        Assert.True((await ledger.AccountsAsync(f.Owner,f.Client,false,default)).Single(x=>x.CoachUserId==f.Coach).Active);
+        await simple.PostDueAsync(default);Assert.Equal(2,(await ledger.ReadAsync(row,default)).Count);
+    }
+    [Fact]
+    public async Task LegacyEntriesUseAssignmentAuthorAndReversalOriginalWithoutRewritingAudit()
+    {
+        var f=await Fixture.Create();using var db=f.Db();var row=await f.Store(db).SaveCoachAsync(f.OtherCoach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+        var original=new AccountabilityLedgerEntry{Automatic=true,SourceKey="snap:workout-1:completion",ActorUserId=f.Owner,Amount=20};
+        var manual=new AccountabilityLedgerEntry{SourceKey="manual:old",ActorUserId=f.Coach,Amount=15};
+        var reverse=new AccountabilityLedgerEntry{SourceKey="reverse:"+manual.Id.ToString("N"),ActorUserId=f.OtherCoach,Amount=-15};
+        var unknown=new AccountabilityLedgerEntry{Automatic=true,SourceKey="snap:missing:completion",ActorUserId=f.Owner,Amount=7};
+        var payload=JsonSerializer.Serialize(new{ledgerEntries=new[]{original,manual,reverse,unknown}},AccountabilityDocument.Json);
+        db.CoachAccountabilityEvents.Add(new(){EventId=Guid.NewGuid(),ClientId=f.Client,Kind="RESULT",Revision=2,PayloadJson=payload});await db.SaveChangesAsync();
+        var ledger=new AccountabilityLedger(db,new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!));var entries=await ledger.ReadAsync(row,default);
+        Assert.Equal(f.OtherCoach,entries.Single(x=>x.Id==original.Id).CoachUserId);Assert.Equal(f.Coach,entries.Single(x=>x.Id==reverse.Id).CoachUserId);Assert.Equal(Guid.Empty,entries.Single(x=>x.Id==unknown.Id).CoachUserId);
+        Assert.Equal(payload,(await db.CoachAccountabilityEvents.SingleAsync(x=>x.Kind=="RESULT")).PayloadJson);
+        Assert.Equal(7,(await ledger.AccountsAsync(f.Owner,f.Client,false,default)).Single(x=>x.CoachUserId==Guid.Empty).Balance);
+    }
+    [Fact]
+    public async Task LedgerHttpSelectionCannotExposeAnotherCoachsTransactions()
+    {
+        var f=await Fixture.Create();using(var db=f.Db())
+        {
+            var row=await f.Store(db).SaveCoachAsync(f.Coach,f.Client,true,0,AccountabilityDocument.Serialize(f.State),AccountabilityDocument.ExpectedTerms(f.State),default);
+            var ledger=new AccountabilityLedger(db,new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!));var day=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+            await ledger.RecordAsync(f.Coach,row,row.Revision,Guid.NewGuid(),"fee",day,40,"ONLY_A_TRANSACTION",default);
+            await ledger.RecordAsync(f.OtherCoach,row,row.Revision,Guid.NewGuid(),"fee",day,75,"ONLY_B_TRANSACTION",default);
+        }
+        using var server=CreateServer(f,true);using var http=server.CreateClient();http.DefaultRequestHeaders.Add("X-Test-Actor","coach");
+        var html=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger");Assert.Contains("ONLY_A_TRANSACTION",html);Assert.DoesNotContain("ONLY_B_TRANSACTION",html);
+        Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync($"/clients/{f.Client}/coach-ledger?coachUserId={f.OtherCoach}")).StatusCode);
+        http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","owner");
+        html=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger?coachUserId={f.OtherCoach}&thirtyDays=true");Assert.Contains("ONLY_B_TRANSACTION",html);Assert.DoesNotContain("ONLY_A_TRANSACTION",html);Assert.Contains("coachUserId="+f.OtherCoach,html);
+        using(var db=f.Db()){foreach(var link in await db.CoachClientRelationships.ToListAsync()){link.StatusCode="REVOKED";link.RevokedAtUtc=DateTime.UtcNow;}await db.SaveChangesAsync();}
+        html=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger?coachUserId={f.Coach}");Assert.Contains("ONLY_A_TRANSACTION",html);Assert.Contains("relationship has ended",html);
+        http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","coach");
+        html=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger");Assert.Contains("ONLY_A_TRANSACTION",html);Assert.DoesNotContain("ONLY_B_TRANSACTION",html);Assert.DoesNotContain("value=\"fee\"",html);
     }
     private sealed class DeadlineClock:TimeProvider
     {

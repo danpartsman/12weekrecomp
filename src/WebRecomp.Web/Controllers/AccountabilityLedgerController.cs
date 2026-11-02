@@ -8,6 +8,10 @@ namespace WebRecomp.Web.Controllers;
 public sealed record AccountabilityLedgerPage(Guid ClientId,string ClientName,bool CanRecord,int Revision,bool Approved,IReadOnlyList<AccountabilityLedgerEntry> Entries,DateOnly Today,string TimeZone,bool CanReviewAgreement=true)
 {
     public bool ThirtyDays{get;init;}
+    public Guid? CoachUserId{get;init;}
+    public string CoachName{get;init;}="Coach";
+    public bool ActiveCoach{get;init;}=true;
+    public IReadOnlyList<CoachLedgerAccount> Accounts{get;init;}=[];
     public IReadOnlyList<AccountabilityLedgerHistoryRow> History
     {
         get
@@ -27,20 +31,32 @@ public sealed class AccountabilityLedgerController(AppUserContextService users,A
 {
     private bool CoachRole=>User.IsInRole("Coach")||User.IsInRole("Administrator");
     [HttpGet("")]
-    public async Task<IActionResult> Index(Guid clientId,CancellationToken ct,bool thirtyDays=false)
+    public async Task<IActionResult> Index(Guid clientId,CancellationToken ct,bool thirtyDays=false,Guid? coachUserId=null)
     {
         if(!WebRecomp.Web.ViewModels.AccountabilityPreview.Enabled(configuration))return NotFound();
         var user=(await users.GetAsync(HttpContext,ct)).User;
         try
         {
-            if(SimpleCoaching.Enabled(configuration))await simple!.RefreshAsync(user.UserId,clientId,CoachRole,ct);
             var row=await ledger.AccountAsync(user.UserId,clientId,CoachRole,ct);
-            var name=await access.ClientNameAsync(clientId,ct)??"Client";
+            var owner=await access.IsOwnerAsync(user.UserId,clientId,ct);
+            var active=await access.CanAssignSnapAsync(user.UserId,clientId,ct);
+            // Former coaches have settlement access only; opening their history cannot create assessments.
+            if(await access.CanViewAsync(user.UserId,clientId,CoachRole,ct))
+            {
+                if(SimpleCoaching.Enabled(configuration))await simple!.RefreshAsync(user.UserId,clientId,CoachRole,ct);
+                if(row is not null)try{await ledger.RefreshAsync(user.UserId,row,user,ct);}
+                catch(AccountabilityConflictException){TempData["LedgerStatus"]="Another window updated the account. Reload to see the latest automatic assessments.";return RedirectToAction(nameof(Index),new{clientId,coachUserId,thirtyDays});}
+            }
+            row=await ledger.AccountAsync(user.UserId,clientId,CoachRole,ct);
+            var accounts=await ledger.AccountsAsync(user.UserId,clientId,CoachRole,ct);
+            var selected=coachUserId.HasValue?accounts.FirstOrDefault(x=>x.CoachUserId==coachUserId):accounts.FirstOrDefault(x=>x.CoachUserId==user.UserId)??accounts.FirstOrDefault();
+            if(coachUserId.HasValue&&selected is null)return NotFound();
+            var entries=row is null||selected is null?[]:(await ledger.ReadAsync(row,ct)).Where(x=>x.CoachUserId==selected.CoachUserId).ToList();
             var clock=await ledger.ClockAsync(clientId,ct);
-            if(row is null)return View(SimpleCoaching.Enabled(configuration)?"Simple":"Index",new AccountabilityLedgerPage(clientId,name,SimpleCoaching.Enabled(configuration)&&CoachRole&&await access.CanAssignSnapAsync(user.UserId,clientId,ct),0,false,[],clock.Today,clock.Zone){ThirtyDays=thirtyDays});
-            try{await ledger.RefreshAsync(user.UserId,row,user,ct);}
-            catch(AccountabilityConflictException){TempData["LedgerStatus"]="Another window updated the account. Reload to see the latest automatic assessments.";return RedirectToAction(nameof(Index),new{clientId});}
-            return View(SimpleCoaching.Enabled(configuration)?"Simple":"Index",new AccountabilityLedgerPage(clientId,name,CoachRole&&await access.CanAssignSnapAsync(user.UserId,clientId,ct),row.Revision,await ledger.ApprovedAsync(row,ct),await ledger.ReadAsync(row,ct),clock.Today,clock.Zone,user.UserId==row.CoachUserId||await access.IsOwnerAsync(user.UserId,clientId,ct)){ThirtyDays=thirtyDays});
+            var canRecord=CoachRole&&selected?.CoachUserId==user.UserId;
+            return View(SimpleCoaching.Enabled(configuration)?"Simple":"Index",new AccountabilityLedgerPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",canRecord,row?.Revision??0,row is not null&&await ledger.ApprovedAsync(row,ct),entries,clock.Today,clock.Zone,
+                (owner||active)&&row is not null&&selected?.CoachUserId==row.CoachUserId&&(owner||user.UserId==row.CoachUserId))
+                {ThirtyDays=thirtyDays,CoachUserId=selected?.CoachUserId,CoachName=selected?.Name??"Coach",ActiveCoach=selected?.Active??false,Accounts=accounts});
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }

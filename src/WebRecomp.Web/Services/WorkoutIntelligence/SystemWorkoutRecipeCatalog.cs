@@ -33,7 +33,8 @@ public sealed record SystemWorkoutExerciseSlot(
     decimal? InclinePercent = null,
     int? EstimatedRounds = null,
     bool IsEstimated = false,
-    string? WorkloadText = null);
+    string? WorkloadText = null,
+    IReadOnlyList<string>? SecondaryMuscleTerms = null);
 
 public sealed record SystemWorkoutRecipe(
     string SystemCode,
@@ -45,7 +46,8 @@ public sealed record SystemWorkoutRecipe(
     string GroupName = "Standard",
     decimal DurationMultiplier = 1m,
     decimal RpeOffset = 0m,
-    decimal? PlannedMinutes = null);
+    decimal? PlannedMinutes = null,
+    string? SourceUrl = null);
 
 public static class SystemWorkoutRecipeCatalog
 {
