@@ -44,12 +44,28 @@ else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Mod
 else{<p>Waiting for client acceptance.</p>}
 </details>}
 </section>
-<section class="card"><h2>Send a message</h2><p>Messages stay in this coach/client conversation. A copy is emailed to the recipient when email delivery is available.</p>
-<form asp-action="Send" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
-@Html.AntiForgeryToken()
+<section class="card"><h2>Start a discussion</h2><p>Either person can start a topic, and replies stay together in the same conversation. The recipient receives an email notification when available.</p>
+<form asp-action="Send" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">@Html.AntiForgeryToken()
 <input type="hidden" name="Kind" value="message" />
-<label for="message-body">Message</label><textarea id="message-body" name="Body" maxlength="2000" rows="4" required></textarea><button type="submit">Send message</button>
-</form></section>
+<label>Subject<input name="Subject" maxlength="120" required placeholder="What would you like to discuss?" /></label>
+<label>Message<textarea name="Body" maxlength="2000" rows="4" required></textarea></label>
+<button class="button" type="submit">Start discussion</button></form></section>
+<section class="card"><h2>Discussions</h2>
+@{var discussions=Model.Messages.Where(m=>m.Kind=="message").GroupBy(m=>m.ThreadId??m.Id).OrderByDescending(g=>g.Max(m=>m.CreatedUtc)).ToList();}
+@if(discussions.Count==0){<p>No discussions yet. Start one above.</p>}
+@foreach(var thread in discussions){
+var first=thread.OrderBy(m=>m.CreatedUtc).First();
+var last=thread.OrderByDescending(m=>m.CreatedUtc).First();
+<details class="card" id="thread-@thread.Key">
+<summary><strong>@(first.Subject??"Earlier conversation")</strong> · @thread.Count() @(thread.Count()==1?"message":"messages") · Last reply @last.CreatedUtc.ToString("MMM d, yyyy")</summary>
+@foreach(var m in thread.OrderBy(m=>m.CreatedUtc)){
+<article style="border-bottom:1px solid #ffffff22;padding:.8rem 0"><strong>@m.AuthorName</strong> <small>@m.CreatedUtc.ToString("MMM d, yyyy h:mm tt") UTC</small><p style="white-space:pre-wrap;overflow-wrap:anywhere">@m.Body</p></article>
+}
+<form asp-action="Send" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">@Html.AntiForgeryToken()
+<input type="hidden" name="Kind" value="message" /><input type="hidden" name="ThreadId" value="@thread.Key" />
+<label>Reply<textarea name="Body" maxlength="2000" rows="3" required></textarea></label><button class="button" type="submit">Post reply</button></form>
+</details>}
+</section>
 <section class="card"><h2>Snap Workout notes</h2><p>Both coach and client can add notes associated with a specific workout. Notes do not change completed results or fees.</p>
 @if(Model.Workouts.Count==0){<p>No Snap Workouts available.</p>}else{
 <form asp-action="Send" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
@@ -59,9 +75,10 @@ else{<p>Waiting for client acceptance.</p>}
 <label for="note-body">@(Model.IsCoach?"Coach's note to client":"Client's note to coach")</label><textarea id="note-body" name="Body" maxlength="2000" rows="3" required></textarea>
 <button type="submit">Save note and notify</button></form>}
 </section>
-<section class="card"><h2>Conversation &amp; workout notes</h2>
-@if(Model.Messages.Count==0){<p>No messages yet.</p>}
-@foreach(var m in Model.Messages){<article style="border-bottom:1px solid var(--border-color,#8884);padding:.75rem 0"><strong>@m.AuthorName</strong> <small>@m.CreatedUtc.ToString("MMM d, yyyy h:mm tt") UTC</small> @if(m.Kind=="snap-note"){<span> · Snap note</span>}<p style="white-space:pre-wrap;overflow-wrap:anywhere">@m.Body</p></article>}
+<section class="card"><h2>Snap Workout note history</h2>
+@{var notes=Model.Messages.Where(m=>m.Kind=="snap-note").OrderByDescending(m=>m.CreatedUtc).ToList();}
+@if(notes.Count==0){<p>No workout notes yet.</p>}
+@foreach(var note in notes){<article style="border-bottom:1px solid #ffffff22;padding:.75rem 0"><strong>@note.AuthorName</strong> · <small>@note.CreatedUtc.ToString("MMM d, yyyy h:mm tt") UTC</small> · Workout @note.WorkoutId<p style="white-space:pre-wrap;overflow-wrap:anywhere">@note.Body</p></article>}
 </section>
 <section class="card"><h2>Coach activity history</h2>
 @if(Model.Activity.Count==0){<p>No coaching activity recorded yet.</p>}
