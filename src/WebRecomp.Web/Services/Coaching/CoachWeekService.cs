@@ -110,7 +110,7 @@ public sealed class CoachWeekService(RecompDbContext db, Engine30DashboardProjec
             }
             db.CoachPrescriptionRuleVersions.Add(new() {CoachPrescriptionRuleVersionId=versionId,ClientId=client.ClientId,ProgramId=program.ProgramId,CoachUserId=context.User.UserId,
                 EffectiveWeek=week,IsEnabled=true,RulesJson=JsonSerializer.Serialize(page.Input.Rules),Reason=page.Input.Rules.Reason.Trim(),CreatedAtUtc=now,
-                PreviewJson=JsonSerializer.Serialize(new {Engine=page.Engine,Adjusted=page.Preview,Workouts=page.Proposed})});
+                PreviewJson=JsonSerializer.Serialize(new {Engine=page.Engine,Adjusted=page.Preview,Workouts=page.Proposed,ApplyPenaltiesAndIncentives=page.Input.ApplyPenaltiesAndIncentives})});
             await db.SaveChangesAsync(ct);if(transaction is not null) await transaction.CommitAsync(ct);return true;
         });
     }
