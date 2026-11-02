@@ -1,6 +1,6 @@
 @inject WebRecomp.Web.Data.RecompDbContext NavigationDb
 @inject WebRecomp.Web.Services.AppUserContextService NavigationUsers
-@inject WebRecomp.Web.Services.Notifications.NotificationFiles NavigationFiles
+@using Microsoft.Extensions.DependencyInjection
 @using System.Security.Cryptography
 @using System.Text
 @using Microsoft.EntityFrameworkCore
@@ -19,7 +19,7 @@ var latest=await NavigationDb.CoachPrescriptionRuleVersions.AsNoTracking().Where
 foreach(var version in latest){
 if(!relationships.Any(x=>x.ClientId==version.ClientId&&x.CoachUserId==version.CoachUserId))continue;
 var key=$"macro-acceptance/{version.ClientId:N}-{version.CoachUserId:N}-{version.CoachPrescriptionRuleVersionId:N}";
-var receipt=NavigationFiles.Read<WebRecomp.Web.Controllers.CoachMacroAcceptance>(key);
+var receipt=Context.RequestServices.GetService<WebRecomp.Web.Services.Notifications.NotificationFiles>()?.Read<WebRecomp.Web.Controllers.CoachMacroAcceptance>(key);
 var fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(version.CoachPrescriptionRuleVersionId+"|"+version.RulesJson+"|"+version.PreviewJson)));
 if(receipt?.Fingerprint!=fingerprint){coachHasNew=true;break;}
 }
