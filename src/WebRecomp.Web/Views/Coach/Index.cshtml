@@ -1,11 +1,13 @@
 @model CoachCenterViewModel
+@inject WebRecomp.Web.Services.AppUserContextService CurrentUsers
+@{var currentCoachId=(await CurrentUsers.GetAsync(Context,Context.RequestAborted)).User.UserId;}
 @{ Layout = "_CoachLayout"; ViewData["Title"] = "Coach Center"; }
 <section class="page-header"><p class="eyebrow">12 WEEK RECOMP · COACH CENTER</p><h1>Your coaching workspace</h1><p>Connect your clients and review their progress in one place.</p></section>
 @if (TempData["CoachStatus"] is string status) { <div class="app-message success">@status</div> }
 <details class="card coach-panel" open><summary>Clients · @Model.Clients.Count</summary><div class="coach-panel-body">
 @if (Model.Clients.Count == 0) { <p>No clients connected yet. Create a connection code below; your client accepts it from My Coach.</p> }
 else { <div style="overflow-x:auto"><table><thead><tr><th>Client</th><th>Goal</th><th>Last regular workout</th><th>Snap Workouts</th><th>Review</th></tr></thead><tbody>
-@foreach (var client in Model.Clients) { <tr><td><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">@client.Name</a></td><td>@client.Goal</td><td>@(client.LastWorkout?.ToString("MMM d, yyyy") ?? "No completed workouts")</td><td data-snap-client="@client.ClientId">@await Html.PartialAsync("_CoachSnapStatus", client)</td><td><div class="coach-review-actions"><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">Weekly summary</a> <a class="button" asp-action="Client" asp-route-clientId="@client.ClientId">Plan &amp; controls</a>
+@foreach (var client in Model.Clients) { <tr><td><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">@client.Name</a></td><td>@client.Goal</td><td>@(client.LastWorkout?.ToString("MMM d, yyyy") ?? "No completed workouts")</td><td data-snap-client="@client.ClientId">@await Html.PartialAsync("_CoachSnapStatus", client)</td><td><div class="coach-review-actions"><a class="button" asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@client.ClientId" asp-route-coachId="@currentCoachId">Messages &amp; notes</a> <a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">Weekly summary</a> <a class="button" asp-action="Client" asp-route-clientId="@client.ClientId">Plan &amp; controls</a>
 @{ var previewConfig = Context.RequestServices.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>(); }
 @if (AccountabilityPreview.Enabled(previewConfig)) { <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@client.ClientId" asp-fragment="snap-workout">Snap Workout</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@client.ClientId" aria-label="Fees and payments for @client.Name">Fees &amp; payments</a> }</div></td></tr> }
 </tbody></table></div> }

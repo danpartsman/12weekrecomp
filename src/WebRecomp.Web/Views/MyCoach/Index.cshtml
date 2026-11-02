@@ -1,7 +1,7 @@
 @model MyCoachesViewModel
 @{ ViewData["Title"] = "My Coach"; }
 <h1>My Coach</h1>
-@foreach (var coach in Model.Coaches) { <section class="card"><h2>@coach.Name</h2><p>@coach.Specialties</p><p>@coach.Bio</p><form asp-action="Disconnect" asp-route-relationshipId="@coach.RelationshipId" method="post"><button type="submit">Disconnect coach</button></form></section> }
+@foreach (var coach in Model.Coaches) { <section class="card"><h2><a asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachId="@coach.CoachUserId">@coach.Name</a></h2><p>@coach.Specialties</p><p>@coach.Bio</p><form asp-action="Disconnect" asp-route-relationshipId="@coach.RelationshipId" method="post"><button type="submit">Disconnect coach</button></form></section> }
 @inject Microsoft.Extensions.Configuration.IConfiguration AccountabilityConfiguration
 @if (AccountabilityPreview.Enabled(AccountabilityConfiguration) && Model.ClientId is Guid agreementClientId)
 {

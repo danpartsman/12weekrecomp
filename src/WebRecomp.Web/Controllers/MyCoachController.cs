@@ -26,7 +26,7 @@ public sealed class MyCoachController(RecompDbContext db, AppUserContextService 
             join profile in db.CoachProfiles on user.UserId equals profile.UserId into profiles
             from profile in profiles.DefaultIfEmpty()
             where link.ClientId == clientId && link.StatusCode == "ACTIVE" && link.RevokedAtUtc == null
-            select new CoachConnection(link.CoachClientRelationshipId, profile == null ? (user.PreferredDisplayName ?? user.DisplayName ?? "Coach") : profile.DisplayName,
+            select new CoachConnection(link.CoachClientRelationshipId, link.CoachUserId, profile == null ? (user.PreferredDisplayName ?? user.DisplayName ?? "Coach") : profile.DisplayName,
                 profile == null ? null : profile.Bio, profile == null ? null : profile.Specialties)).ToListAsync(ct);
         return new(connections, input) { ClientId = clientId };
     }
