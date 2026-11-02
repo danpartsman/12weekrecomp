@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.Controllers;
-public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];public Dictionary<string,decimal> AssessedCharges{get;init;}=[];public Dictionary<string,decimal> PostedCharges{get;init;}=[];}
+public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];public Dictionary<string,decimal> AssessedCharges{get;init;}=[];public Dictionary<string,decimal> PostedCharges{get;init;}=[];public List<(string Id,string Name,string Date)> RecentTemplates{get;init;}=[];}
 [Authorize,Route("clients/{clientId:guid}/snap"),ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
 public sealed class SimpleSnapController(AppUserContextService users,SimpleCoachingService simple,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,IConfiguration configuration,SnapWorkoutEstimateService? estimates=null):Controller
 {
@@ -39,16 +39,39 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var assessed=state.Rules.Count==AccountabilityDocument.RuleIds.Length?SimpleCoachingService.Charges(state,clock.Today).Where(x=>x.Ready).GroupBy(x=>x.Key.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount)):new Dictionary<string,decimal>();
             var posted=new Dictionary<string,decimal>();
             if(row is not null){var entries=await ledger.ReadAsync(row,ct);posted=entries.Where(x=>x.SourceKey.StartsWith("snap:")&&(!assignedCoach||x.CoachUserId==user.UserId)).GroupBy(x=>x.SourceKey.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount));}
-            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today},clock.Zone){Estimates=readings,AssessedCharges=assessed,PostedCharges=posted});
+            var recent=assignedCoach?state.SnapWorkouts.Where(w=>w.Simple&&AccountabilityDocument.Date(w.Date)>=clock.Today.AddDays(-30)&&AccountabilityDocument.Date(w.Date)<=clock.Today).OrderByDescending(w=>w.Date).Select(w=>(w.Id,w.Name,w.Date)).ToList():new List<(string Id,string Name,string Date)>();
+            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today},clock.Zone){Estimates=readings,AssessedCharges=assessed,PostedCharges=posted,RecentTemplates=recent});
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }
     private static AssignmentInput FromWorkout(AccountabilityWorkout w,int revision,DateOnly today)=>new(){
-        Revision=revision,RequestId=Guid.NewGuid(),Name=w.Name,Date=today,TimeAllowed=(w.TimeLimitMinutes??120)/60m,
+        Revision=revision,RequestId=Guid.NewGuid(),Name=BaseName(w.Name),Date=today,TimeAllowed=(w.TimeLimitMinutes??120)/60m,
         LatePenalty=w.LatePenalty??0,Cap=w.Cap,CompletionReward=w.CompletionReward??0,
         IncompleteExerciseFee=w.Exercises.FirstOrDefault()?.Penalty??0,CoachIncentivePerRep=w.Exercises.FirstOrDefault()?.ExtraRepRate??0,
         Exercises=w.Exercises.Select(e=>new ExerciseInput{Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,Type=e.Type,Basis=e.Basis,Rate=e.Rate}).ToList()
     };
+    [HttpGet("template")]
+    public async Task<IActionResult> Template(Guid clientId,string workoutId,CancellationToken ct)
+    {
+        if(!SimpleCoaching.Enabled(configuration))return NotFound();
+        var actor=(await users.GetAsync(HttpContext,ct)).User.UserId;
+        if(!await IsAssignedCoachAsync(actor,clientId,ct))return NotFound();
+        var row=await simple.ReadAsync(actor,clientId,true,ct);
+        if(row is null)return NotFound();
+        var clock=await ledger.ClockAsync(clientId,ct);
+        var workout=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==workoutId&&AccountabilityDocument.Date(w.Date)>=clock.Today.AddDays(-30)&&AccountabilityDocument.Date(w.Date)<=clock.Today);
+        if(workout is null)return NotFound();
+        return await Page(clientId,FromWorkout(workout,row.Revision,clock.Today),ct);
+    }
+    private static string BaseName(string name)=>System.Text.RegularExpressions.Regex.Replace(name,@"\s+\d{4}-\d{2}-\d{2}\s+\d{4}(?:/\d+)?$","").Trim();
+    private static string UniqueName(string name,IReadOnlyList<AccountabilityWorkout> workouts,DateTimeOffset now)
+    {
+        var root=BaseName(name);
+        if(string.IsNullOrWhiteSpace(root))root="Snap Workout";
+        var count=workouts.Count(w=>w.Simple&&string.Equals(BaseName(w.Name),root,StringComparison.OrdinalIgnoreCase));
+        var suffix=now.ToString("yyyy-MM-dd HHmm")+(count>0?"/"+(count+1):"");
+        return root[..Math.Min(root.Length,Math.Max(1,100-suffix.Length-1))]+" "+suffix;
+    }
     [HttpGet("reuse/{workoutId}")]
     public async Task<IActionResult> Reuse(Guid clientId,string workoutId,CancellationToken ct)
     {
@@ -112,7 +135,12 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         try
         {
             var user=(await users.GetAsync(HttpContext,ct)).User;
-            await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,new(){Name=input.Name.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
+            var current=await simple.ReadAsync(user.UserId,clientId,true,ct);
+            var prior=current is null?new List<AccountabilityWorkout>():AccountabilityDocument.Parse(current.StateJson).SnapWorkouts;
+            var zone=(await ledger.ClockAsync(clientId,ct)).Zone;
+            var now=TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(zone));
+            var uniqueName=UniqueName(input.Name,prior,now);
+            await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,new(){Name=uniqueName,Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
                 TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
             TempData["SimpleStatus"]="Workout assigned. Your client can open it in their portal.";return RedirectToAction(nameof(Index),new{clientId});
         }
