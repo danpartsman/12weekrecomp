@@ -1,0 +1,28 @@
+@model WebRecomp.Web.Controllers.CoachWorkspacePage
+@{ViewData["Title"]="Coach workspace";}
+<h1>@Model.CoachName · Coach workspace</h1>
+<p><a class="button" asp-controller="MyCoach" asp-action="Index">My Coach</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">This coach's fees &amp; payments</a> <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId">Snap Workouts</a></p>
+@if(TempData["CoachWorkspaceStatus"] is string status){<p role="status">@status</p>}
+<section class="card"><h2>Send a message</h2><p>Messages stay in this coach/client conversation. A copy is emailed to the recipient when email delivery is available.</p>
+<form asp-action="Send" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
+@Html.AntiForgeryToken()
+<input type="hidden" name="Kind" value="message" />
+<label for="message-body">Message</label><textarea id="message-body" name="Body" maxlength="2000" rows="4" required></textarea><button type="submit">Send message</button>
+</form></section>
+<section class="card"><h2>Snap Workout notes</h2><p>Both coach and client can add notes associated with a specific workout. Notes do not change completed results or fees.</p>
+@if(Model.Workouts.Count==0){<p>No Snap Workouts available.</p>}else{
+<form asp-action="Send" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
+@Html.AntiForgeryToken()
+<input type="hidden" name="Kind" value="snap-note" />
+<label for="workout-id">Workout</label><select id="workout-id" name="WorkoutId" required>@foreach(var w in Model.Workouts){<option value="@w.Id">@w.Name</option>}</select>
+<label for="note-body">@(Model.IsCoach?"Coach's note to client":"Client's note to coach")</label><textarea id="note-body" name="Body" maxlength="2000" rows="3" required></textarea>
+<button type="submit">Save note and notify</button></form>}
+</section>
+<section class="card"><h2>Conversation &amp; workout notes</h2>
+@if(Model.Messages.Count==0){<p>No messages yet.</p>}
+@foreach(var m in Model.Messages){<article style="border-bottom:1px solid var(--border-color,#8884);padding:.75rem 0"><strong>@m.AuthorName</strong> <small>@m.CreatedUtc.ToString("MMM d, yyyy h:mm tt") UTC</small> @if(m.Kind=="snap-note"){<span> · Snap note</span>}<p style="white-space:pre-wrap;overflow-wrap:anywhere">@m.Body</p></article>}
+</section>
+<section class="card"><h2>Coach activity history</h2>
+@if(Model.Activity.Count==0){<p>No coaching activity recorded yet.</p>}
+@foreach(var a in Model.Activity){<p><small>@a.CreatedUtc.ToString("MMM d, yyyy h:mm tt") UTC</small> · @a.Description</p>}
+</section>
