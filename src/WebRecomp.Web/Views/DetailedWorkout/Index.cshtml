@@ -1,10 +1,4 @@
-<style>
-.wi-search-emphasized { border: 2px solid #348ad5; border-radius: 12px; padding: 12px; margin: 12px 0; background: rgba(52,138,213,.08); }
-.wi-search-emphasized #wi-search-input { min-height: 50px; width: 100%; font-size: 1.08rem; border: 2px solid #348ad5; border-radius: 8px; padding: 10px 12px; }
-.wi-search-emphasized #wi-search-input:focus { outline: 3px solid rgba(52,138,213,.35); outline-offset: 2px; }
-.wi-csv-import-card { margin: 12px 0; padding: 10px; }
-.wi-csv-import-card summary { cursor: pointer; font-weight: 600; padding: 8px; }
-</style>
+
 @model DetailedWorkoutEditorViewModel
 @* B2.35.1 WORKOUT UX SEPARATION *@
 @* B2.35.2 WORKOUT UX CLEANUP *@
@@ -914,6 +908,13 @@
                     </form>
                 }
 
+<style>
+.wi-search-emphasized { border: 2px solid #348ad5; border-radius: 12px; padding: 12px; margin: 12px 0; background: rgba(52,138,213,.08); }
+.wi-search-emphasized #wi-search-input { min-height: 50px; width: 100%; font-size: 1.08rem; border: 2px solid #348ad5; border-radius: 8px; padding: 10px 12px; }
+.wi-search-emphasized #wi-search-input:focus { outline: 3px solid rgba(52,138,213,.35); outline-offset: 2px; }
+.wi-csv-import-card { margin: 12px 0; padding: 10px; }
+.wi-csv-import-card summary { cursor: pointer; font-weight: 600; padding: 8px; }
+</style>
 <form id="wi-csv-upload-form" asp-controller="DetailedWorkout" asp-action="ImportWorkoutCsv" method="post" enctype="multipart/form-data">
     @Html.AntiForgeryToken()
     <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
