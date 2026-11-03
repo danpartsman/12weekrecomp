@@ -28,7 +28,8 @@ public sealed class WorkoutPreparationTests
         var controller = new DetailedWorkoutController(db,new AppUserContextService(db,new ConfigurationBuilder().Build()),null!,null!,null!,null!,null!,null!,NullLogger<DetailedWorkoutController>.Instance) {ControllerContext=new(){HttpContext=http},TempData=new TempDataDictionary(http,new MemoryTempData())};
         var input = new DetailedWorkoutEditorViewModel {Date=new DateOnly(2026,10,24),TemplateOnlyMode=true,WorkoutName="My new workout",Exercises=[new(){ExerciseId=exercise.ExerciseCatalogItemId,ExerciseName=exercise.Name,Sets=3,Reps=10,SetReps=[10,10,10]}]};
         var result=Assert.IsType<RedirectToActionResult>(await controller.Save(input,true,false,false,0,default));
-        Assert.Equal("saved",result.RouteValues!["mode"]);
+        Assert.Equal("start", result.RouteValues!["mode"]);
+        Assert.Equal("my", result.RouteValues["startCategory"]);
         Assert.Equal("My new workout",(await db.WorkoutTemplates.SingleAsync()).TemplateName);
         Assert.Empty(await db.WorkoutSessions.ToListAsync());
     }
