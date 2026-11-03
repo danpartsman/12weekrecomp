@@ -1,3 +1,10 @@
+<style>
+.wi-search-emphasized { border: 2px solid #348ad5; border-radius: 12px; padding: 12px; margin: 12px 0; background: rgba(52,138,213,.08); }
+.wi-search-emphasized #wi-search-input { min-height: 50px; width: 100%; font-size: 1.08rem; border: 2px solid #348ad5; border-radius: 8px; padding: 10px 12px; }
+.wi-search-emphasized #wi-search-input:focus { outline: 3px solid rgba(52,138,213,.35); outline-offset: 2px; }
+.wi-csv-import-card { margin: 12px 0; padding: 10px; }
+.wi-csv-import-card summary { cursor: pointer; font-weight: 600; padding: 8px; }
+</style>
 @model DetailedWorkoutEditorViewModel
 @* B2.35.1 WORKOUT UX SEPARATION *@
 @* B2.35.2 WORKOUT UX CLEANUP *@
@@ -907,56 +914,10 @@
                     </form>
                 }
 
-                                @if (isNew && !isLive)
-                {
-                    <section class="wi-csv-import-card"
-                             aria-label="Import workout from CSV">
-                        <div class="wi-csv-import-copy">
-                            <strong>Import a CSV workout</strong>
-                            <span>
-                                Upload a comma-separated workout and 12WR will
-                                create it in My Workouts. This does not start
-                                the workout.
-                            </span>
-                            <span class="wi-csv-format">
-                                Required: Exercise, Sets, Reps.
-                                Optional: WorkoutName, Weight, Technique,
-                                MusclesWorked, ExerciseType, Notes
-                            </span>
-                        </div>
-
-                        <div class="wi-csv-import-actions">
-                            <a class="button"
-                               asp-action="DownloadWorkoutCsvTemplate">
-                                Download CSV template
-                            </a>
-
-                            <form asp-action="ImportWorkoutCsv"
-                                  method="post"
-                                  enctype="multipart/form-data"
-                                  class="wi-csv-upload-form">
-                                @Html.AntiForgeryToken()
-
-                                <input type="hidden"
-                                       name="date"
-                                       value="@Model.Date.ToString("yyyy-MM-dd")" />
-
-                                <label class="wi-csv-file-link">
-                                    <span>Choose CSV file</span>
-                                    <input type="file"
-                                           name="csvFile"
-                                           accept=".csv,text/csv"
-                                           required />
-                                </label>
-
-                                <button class="primary"
-                                        type="submit">
-                                    Upload CSV &amp; Create Workout
-                                </button>
-                            </form>
-                        </div>
-                    </section>
-                }
+<form id="wi-csv-upload-form" asp-controller="DetailedWorkout" asp-action="ImportWorkoutCsv" method="post" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+</form>
 <form asp-controller="DetailedWorkout" asp-action="Save"
                       method="post"
                       id="wi-detailed-workout-form"
@@ -991,7 +952,7 @@
                     </label>
 
                     <div id="wi-exercise-search"
-                         class="wi-search-simple"
+                         class="wi-search-simple wi-search-emphasized"
                          data-search-url="@Url.Action("SearchExercises", "DetailedWorkout")"
                          data-favorite-url="@Url.Action("SetFavorite", "DetailedWorkout")">
 
@@ -1010,6 +971,52 @@
                              class="wi-search-results"
                              hidden></div>
                     </div>
+
+                                                    @if (isNew && !isLive)
+                {
+                    <details class="wi-csv-import-card"
+                             aria-label="Import workout from CSV">\n                        <summary>Import workout from CSV (optional)</summary>
+                        <div class="wi-csv-import-copy">
+                            <strong>Import a CSV workout</strong>
+                            <span>
+                                Upload a comma-separated workout and 12WR will
+                                create it in My Workouts. This does not start
+                                the workout.
+                            </span>
+                            <span class="wi-csv-format">
+                                Required: Exercise, Sets, Reps.
+                                Optional: WorkoutName, Weight, Technique,
+                                MusclesWorked, ExerciseType, Notes
+                            </span>
+                        </div>
+
+                        <div class="wi-csv-import-actions">
+                            <a class="button"
+                               asp-action="DownloadWorkoutCsvTemplate">
+                                Download CSV template
+                            </a>
+
+                            <div class="wi-csv-upload-form">
+                                
+
+                                
+
+                                <label class="wi-csv-file-link">
+                                    <span>Choose CSV file</span>
+                                    <input type="file"
+                                           name="csvFile"\n                                           form="wi-csv-upload-form"
+                                           accept=".csv,text/csv"
+                                           required />
+                                </label>
+
+                                <button class="primary"
+                                        type="submit" form="wi-csv-upload-form">
+                                    Upload CSV &amp; Create Workout
+                                </button>
+                            </div>
+                        </div>
+                    </details>
+                }
 
                     <div id="wi-exercise-list"
                          class="wi-selected-exercises"
@@ -1473,7 +1480,7 @@
                                 </label>
 
                                 <div id="wi-exercise-search"
-                                     class="wi-search-simple"
+                                     class="wi-search-simple wi-search-emphasized"
                                      data-search-url="@Url.Action("SearchExercises", "DetailedWorkout")"
                                      data-favorite-url="@Url.Action("SetFavorite", "DetailedWorkout")">
 
@@ -2099,7 +2106,7 @@
                                 </label>
 
                                 <div id="wi-exercise-search"
-                                     class="wi-search-simple"
+                                     class="wi-search-simple wi-search-emphasized"
                                      data-search-url="@Url.Action("SearchExercises", "DetailedWorkout")"
                                      data-favorite-url="@Url.Action("SetFavorite", "DetailedWorkout")">
 
