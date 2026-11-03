@@ -1371,9 +1371,9 @@ public sealed class DetailedWorkoutController(
                             out var detail);
 
                         var nameMatch =
-                            TextMatchPriority(
-                                x.Name,
-                                normalized);
+                            ExerciseNameSearch.Score(
+                                normalized,
+                                x.Name);
 
                         var rolePriority =
                             muscleMatch is null
@@ -1420,6 +1420,8 @@ public sealed class DetailedWorkoutController(
                                         : 0;
                         }
 
+                        // Favorites and usage may order equally relevant names,
+                        // but must not outrank a substantially better name match.
                         if (preference?.IsFavorite == true)
                             relevanceScore += 40;
 
