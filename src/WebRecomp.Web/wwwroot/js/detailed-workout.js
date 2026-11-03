@@ -797,7 +797,10 @@ const technique =
                 moveButton.dataset.cardMoveHandle =
                     "";
 
-                moveButton.textContent = "Move";
+                const upButton = card.querySelector('[data-move-exercise="up"]');
+            const downButton = card.querySelector('[data-move-exercise="down"]');
+            if (upButton) upButton.disabled = !card.previousElementSibling?.matches("[data-exercise-card]");
+            if (downButton) downButton.disabled = !card.nextElementSibling?.matches("[data-exercise-card]");
 
                 moveButton.setAttribute(
                     "aria-label",
@@ -815,6 +818,22 @@ const technique =
                 else {
                     card.appendChild(
                         moveButton);
+                }
+            }
+
+            // Mobile-friendly tap controls replace drag-and-drop.
+            moveButton.remove();
+            for (const direction of ["up", "down"]) {
+                let button = card.querySelector('[data-move-exercise="' + direction + '"]');
+                if (!button) {
+                    button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "button wi-move-exercise-" + direction;
+                    button.dataset.moveExercise = direction;
+                    button.textContent = direction === "up" ? "↑" : "↓";
+                    button.setAttribute("aria-label", "Move exercise " + direction);
+                    button.title = "Move exercise " + direction;
+                    card.appendChild(button);
                 }
             }
 
@@ -840,7 +859,8 @@ const technique =
             // Keep the compact action row in the requested order on desktop and mobile.
             if (exchangeButton.parentElement !== actionStack) actionStack.appendChild(exchangeButton);
             if (remove && remove.parentElement !== actionStack) actionStack.appendChild(remove);
-            if (moveButton.parentElement !== actionStack) actionStack.appendChild(moveButton);
+            if (upButton && upButton.parentElement !== actionStack) actionStack.appendChild(upButton);
+            if (downButton && downButton.parentElement !== actionStack) actionStack.appendChild(downButton);
 
             card.querySelectorAll(
                 'input[type="number"]'
@@ -1268,6 +1288,25 @@ const technique =
     root.addEventListener(
         "click",
         event => {
+            const orderButton = event.target.closest("[data-move-exercise]");
+            if (orderButton) {
+                event.preventDefault();
+                const card = orderButton.closest("[data-exercise-card]");
+                if (!card) return;
+                const sibling = orderButton.dataset.moveExercise === "up"
+                    ? card.previousElementSibling
+                    : card.nextElementSibling;
+                if (!sibling?.matches("[data-exercise-card]")) return;
+                if (orderButton.dataset.moveExercise === "up") {
+                    root.insertBefore(card, sibling);
+                } else {
+                    root.insertBefore(sibling, card);
+                }
+                renumber();
+                orderButton.focus();
+                return;
+            }
+
 
             const technique =
                 event.target.closest(
