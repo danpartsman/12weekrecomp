@@ -17,7 +17,13 @@
                 { method: 'POST', body, credentials: 'same-origin' });
             if (!response.ok) throw new Error('Scale pull unavailable');
             const result = await response.json();
+            // A Fitdays import happens after the initial page status was rendered.
+            // When there are no unsaved edits, reload the DB-backed page. When
+            // there are edits, preserve them and refresh just the progress badges.
             if (result.updated && !edited) { window.location.reload(); return; }
+            if (typeof window.refreshDailyEntryCompletion === 'function') {
+                void window.refreshDailyEntryCompletion();
+            }
             if (status && (manual || result.updated)) {
                 status.textContent = result.updated && edited
                     ? 'New scale readings synced. Your changes save automatically. Refresh after they finish to see the new reading.'
