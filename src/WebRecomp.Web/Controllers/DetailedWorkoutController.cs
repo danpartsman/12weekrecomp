@@ -2056,16 +2056,15 @@ public sealed class DetailedWorkoutController(
                 TempData["StatusMessage"] =
                     $"{template.TemplateName} was saved to My Workouts.";
 
+                // Return to the established workout library rather than
+                // depending on a newly created template detail route.
                 return RedirectToAction(
                     nameof(Index),
                     new
                     {
-                        mode = "saved",
-                        templateId =
-                            template.WorkoutTemplateId,
-                        date =
-                            model.Date.ToString(
-                                "yyyy-MM-dd")
+                        mode = "start",
+                        startCategory = "my",
+                        date = model.Date.ToString("yyyy-MM-dd")
                     });
             }
 
