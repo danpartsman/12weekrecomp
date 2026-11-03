@@ -1068,9 +1068,8 @@ const technique =
                             '[name="stopWorkout"]'));
         }
 
-        if (!actions) {
-            return;
-        }
+        // The builder also needs a persistent Add Exercise control.
+        // Do not depend on live-session stop buttons being present.
 
         let addButton =
             form.querySelector(
@@ -1127,7 +1126,7 @@ const technique =
         }
 
         const complete =
-            actions.querySelector(
+            actions?.querySelector(
                 '[name="stopWorkout"]');
 
         if (complete) {
@@ -1139,7 +1138,7 @@ const technique =
         }
 
         const save =
-            actions.querySelector(
+            actions?.querySelector(
                 '[name="saveTemplate"]');
 
         if (save) {
