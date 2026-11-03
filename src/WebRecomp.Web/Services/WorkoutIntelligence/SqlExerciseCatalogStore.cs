@@ -192,6 +192,7 @@ public sealed class SqlExerciseCatalogStore(RecompDbContext db) : IExerciseCatal
             .Select(x => new
             {
                 Row = x,
+                NameScore = ExerciseNameSearch.Score(normalized, x.Name),
                 Score = FuzzySearch.Score(
                     normalized,
                     x.Name,
@@ -207,8 +208,13 @@ public sealed class SqlExerciseCatalogStore(RecompDbContext db) : IExerciseCatal
                         x.Equipment.Select(e =>
                             $"{e.EquipmentName} {e.EquipmentType}")))
             })
-            .Where(x => x.Score >= 48)
-            .OrderByDescending(x => x.Score)
+            // For multi-word exercise queries, do not return entries that only
+            // match equipment/muscle metadata (e.g. any dumbbell movement).
+            // Single-word muscle/equipment discovery remains available.
+            .Where(x => x.NameScore >= 200
+                || (!normalized.Contains(' ') && x.Score >= 60))
+            .OrderByDescending(x => x.NameScore)
+            .ThenByDescending(x => x.Score)
             .ThenBy(x => x.Row.Name)
             .Take(take)
             .Select(x => ToSearchItem(x.Row))
