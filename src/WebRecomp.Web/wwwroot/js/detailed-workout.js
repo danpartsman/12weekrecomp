@@ -1506,6 +1506,11 @@ const technique =
                     }
 
                     exchangeMode && exchangeCard ? replaceExercise(exchangeCard, item) : addExercise(item);
+                    // Dismiss stale results immediately after selection.
+                    clearTimeout(searchTimer);
+                    if (searchInput) searchInput.value = "";
+                    clearSearch("Exercise selected. Search again to add another.");
+                    exchangeCard = null;
                 });
 
             row.addEventListener(
