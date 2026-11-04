@@ -48,7 +48,7 @@ else{<p>Waiting for client acceptance.</p>}
 <h2>Penalties, incentives &amp; agreement</h2>
 <p>Each coach and client have a separate agreement. Amounts are USD. Rules are proposals until the client accepts them; existing ledger entries remain unchanged.</p>
 @{var financial=Model.FinancialAgreement!;}
-<p><strong>Status:</strong> @financial.Status.Replace("-", " ") · Revision @financial.Revision</p>
+<p><strong>Status:</strong> @financial.Status.Replace("-", " ") · Revision @financial.Revision @if(financial.AcceptedUtc is DateTime accepted){<span> · Accepted @accepted.ToString("MMM d, yyyy h:mm tt") UTC</span>}</p>
 @if(!string.IsNullOrWhiteSpace(financial.ClientNote)){<p><strong>Client response:</strong> @financial.ClientNote</p>}
 @if(Model.IsCoach)
 {
@@ -114,7 +114,12 @@ else{
 @Html.AntiForgeryToken()
 <input type="hidden" name="expectedRevision" value="@financial.Revision" />
 <label>Comments or requested changes<textarea name="note" rows="3" maxlength="2000" placeholder="Explain what you would like changed (required if not accepting)"></textarea></label>
-<button type="submit" name="decision" value="accepted">Accept agreement</button>
+<fieldset><legend>One-time agreement verification</legend>
+<p>To accept this version of the coach's fees, enter your account username and password. A revised agreement requires another acceptance.</p>
+<label>Account username (email)<input type="email" name="username" maxlength="320" autocomplete="username" /></label>
+<label>Current password<input type="password" name="password" maxlength="1024" autocomplete="current-password" /></label>
+</fieldset>
+<button type="submit" name="decision" value="accepted">Verify and accept agreement</button>
 <button type="submit" name="decision" value="changes-requested" class="secondary" formnovalidate>Request changes</button>
 <button type="submit" name="decision" value="declined" class="secondary" formnovalidate>Decline</button>
 </form>
