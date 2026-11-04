@@ -60,7 +60,7 @@ else{<p>Waiting for client acceptance.</p>}
 @for(var i=0;i<financial.Rules.Count;i++){
 var rule=financial.Rules[i];
 <tr>
-<td><input type="hidden" name="Enabled[@i]" value="false" /><input type="checkbox" name="Enabled[@i]" value="true" checked="@rule.Enabled" aria-label="Enable @rule.Name" /></td>
+<td><select name="Enabled[@i]" aria-label="Enable @rule.Name"><option value="false" selected="@(!rule.Enabled)">Off</option><option value="true" selected="@rule.Enabled">On</option></select></td>
 <td><strong>@rule.Name</strong><small style="display:block">@rule.Criterion</small></td>
 <td><input type="number" name="Amount[@i]" value="@rule.Amount" min="0" max="10000" step=".01" required style="width:90px" /></td>
 <td><select name="Frequency[@i]"><option value="daily" selected="@(rule.Frequency=="daily")">Daily</option><option value="weekly" selected="@(rule.Frequency=="weekly")">Weekly</option><option value="monthly" selected="@(rule.Frequency=="monthly")">Monthly</option></select></td>
