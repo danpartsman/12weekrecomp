@@ -19,6 +19,7 @@ public sealed class PendingSnapViewComponent(AppUserContextService users, CoachA
             var pending = state.SnapWorkouts.Where(w => (!SimpleCoaching.Enabled(configuration)||w.Simple)&&!(SimpleCoaching.Enabled(configuration)?state.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true:SnapWorkoutLibrary.Completed(w,state.SnapResults.GetValueOrDefault(w.Id)))).OrderBy(w => w.Date).ToList();
             if (pending.Count == 0) return Content("");
             ViewData["ClientId"] = context.Client.ClientId;
+            ViewData["ClientTimeZone"] = context.Client.TimeZone;
             return View("~/Views/Shared/Components/PendingSnap/Default.cshtml", pending);
         }
         catch (UnauthorizedAccessException) { return Content(""); }
