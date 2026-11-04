@@ -95,8 +95,8 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         var charges=new List<AccountabilityCharge>();
         foreach(var w in simple.SnapWorkouts)
         {
-            if(AccountabilityDocument.Date(w.Date)>today)continue;
             simple.SnapResults.TryGetValue(w.Id,out var result);
+            if(AccountabilityDocument.Date(w.Date)>today && result?.Finalized!=true)continue;
             decimal remaining=w.Cap;
             void Add(string suffix,string kind,string description,decimal raw)
             {
