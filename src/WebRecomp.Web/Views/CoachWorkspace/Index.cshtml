@@ -62,13 +62,40 @@ var rule=financial.Rules[i];
 <tr>
 <td><select name="Enabled[@i]" aria-label="Enable @rule.Name"><option value="false" selected="@(!rule.Enabled)">Off</option><option value="true" selected="@rule.Enabled">On</option></select></td>
 <td><strong>@rule.Name</strong><small style="display:block">@rule.Criterion</small></td>
-<td><input type="number" name="Amount[@i]" value="@rule.Amount" min="0" max="10000" step=".01" required style="width:90px" /></td>
+<td><input type="number" name="Amount[@i]" value="@rule.Amount" min="0" max="10000" step="1" required style="width:90px" /></td>
 <td><select name="Frequency[@i]"><option value="daily" selected="@(rule.Frequency=="daily")">Daily</option><option value="weekly" selected="@(rule.Frequency=="weekly")">Weekly</option><option value="monthly" selected="@(rule.Frequency=="monthly")">Monthly</option></select></td>
-<td><input type="number" name="Minimum[@i]" value="@rule.Minimum" min="0" max="10000" step=".01" required style="width:90px" /></td>
-<td><input type="number" name="Maximum[@i]" value="@rule.Maximum" min="0" max="10000" step=".01" required style="width:90px" /></td>
+<td><input type="number" name="Minimum[@i]" value="@rule.Minimum" min="0" max="10000" step="1" required style="width:90px" /></td>
+<td><input type="number" name="Maximum[@i]" value="@rule.Maximum" min="0" max="10000" step="1" required style="width:90px" /></td>
 </tr>
 }
 </tbody></table></div>
+<p>Financial minimums and maximums above are dollar settlement thresholds and caps, not nutrition targets. The compliance thresholds below follow the coach's prescribed minimum and maximum where present; otherwise they default to 90%–110% of the system's daily target.</p>
+@{
+    var latestPrescription = Model.MacroOffers.OrderByDescending(x=>x.EffectiveWeek).FirstOrDefault();
+}
+@if(latestPrescription is not null)
+{
+    try
+    {
+        using var prescriptionRules = JsonDocument.Parse(latestPrescription.RulesJson);
+        <details><summary>Nutrition compliance limits used for penalties</summary>
+        <table><thead><tr><th>Metric</th><th>Lower limit</th><th>Upper limit</th></tr></thead><tbody>
+        @foreach(var metric in new[]{("Protein","ProteinMin","ProteinMax"),("Carbs","CarbsMin","CarbsMax"),("Fat","FatMin","FatMax"),("Daily calories","DailyCaloriesMin","DailyCaloriesMax")})
+        {
+            var lower=prescriptionRules.RootElement.TryGetProperty(metric.Item2,out var low)&&low.ValueKind==JsonValueKind.Number?low.ToString():null;
+            var upper=prescriptionRules.RootElement.TryGetProperty(metric.Item3,out var high)&&high.ValueKind==JsonValueKind.Number?high.ToString():null;
+            <tr><td>@metric.Item1</td><td>@(lower??"90% of system target")</td><td>@(upper??"110% of system target")</td></tr>
+        }
+        </tbody></table>
+        <p>Coach limits take precedence independently for each bound. A missing lower or upper bound uses the corresponding ±10% system fallback. These limits are displayed for review; automatic financial assessments remain disabled until the assessment engine is integrated.</p>
+        </details>
+    }
+    catch(JsonException){<p>Nutrition prescription limits could not be read.</p>}
+}
+else
+{
+    <p>No coach nutrition prescription found: default compliance range is 90%–110% of the system target for protein, carbs, fat and calories.</p>
+}
 <p>Minimum is a settlement threshold, not a minimum charge. Maximum is a cap for the selected assessment period. Excused days should not generate adherence penalties. A changed proposal requires fresh client approval.</p>
 <button type="submit">Send proposal for client approval</button>
 </form></details>
