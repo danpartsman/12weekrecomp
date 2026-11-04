@@ -63,7 +63,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         }
         var state=AccountabilityDocument.Parse(row.StateJson);var workout=state.SnapWorkouts.SingleOrDefault(w=>w.Id==workoutId&&w.Simple)??throw new ArgumentException("Choose an active Snap Workout.");
         var local=await db.Clients.AsNoTracking().SingleAsync(x=>x.ClientId==client,ct);
-        if(AccountabilityDocument.Date(workout.Date)>AppUserContextService.GetClientToday(local))throw new ArgumentException("Results can be entered on or after the workout date.");
+        // Allow results for an already assigned workout before its scheduled date.
         var previous=state.SnapResults.GetValueOrDefault(workoutId);
         result.Finalized=result.Finalized||previous?.Finalized==true;
         result.CompletedAtUtc=result.Finalized?(previous?.Finalized==true?previous.CompletedAtUtc??time.GetUtcNow():time.GetUtcNow()):null;
