@@ -44,7 +44,59 @@ else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Mod
 else{<p>Waiting for client acceptance.</p>}
 </details>}
 </section>
-<section class="card"><h2>Start a discussion</h2><p>Either person can start a topic, and replies stay together in the same conversation. The recipient receives an email notification when available.</p>
+<section class="card">
+<h2>Penalties, incentives &amp; agreement</h2>
+<p>Each coach and client have a separate agreement. Amounts are USD. Rules are proposals until the client accepts them; existing ledger entries remain unchanged.</p>
+@{var financial=Model.FinancialAgreement!;}
+<p><strong>Status:</strong> @financial.Status.Replace("-", " ") · Revision @financial.Revision</p>
+@if(!string.IsNullOrWhiteSpace(financial.ClientNote)){<p><strong>Client response:</strong> @financial.ClientNote</p>}
+@if(Model.IsCoach)
+{
+<details open="@(financial.Status!="accepted")"><summary>Edit and send financial proposal</summary>
+<form asp-action="FinancialProposal" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
+@Html.AntiForgeryToken()
+<input type="hidden" name="ExpectedRevision" value="@financial.Revision" />
+<div style="overflow-x:auto"><table><thead><tr><th>Enable</th><th>Rule</th><th>Amount ($)</th><th>Assess</th><th>Minimum per period ($)</th><th>Maximum per period ($)</th></tr></thead><tbody>
+@for(var i=0;i<financial.Rules.Count;i++){
+var rule=financial.Rules[i];
+<tr>
+<td><input type="hidden" name="Enabled[@i]" value="false" /><input type="checkbox" name="Enabled[@i]" value="true" checked="@rule.Enabled" aria-label="Enable @rule.Name" /></td>
+<td><strong>@rule.Name</strong><small style="display:block">@rule.Criterion</small></td>
+<td><input type="number" name="Amount[@i]" value="@rule.Amount" min="0" max="10000" step=".01" required style="width:90px" /></td>
+<td><select name="Frequency[@i]"><option value="daily" selected="@(rule.Frequency=="daily")">Daily</option><option value="weekly" selected="@(rule.Frequency=="weekly")">Weekly</option><option value="monthly" selected="@(rule.Frequency=="monthly")">Monthly</option></select></td>
+<td><input type="number" name="Minimum[@i]" value="@rule.Minimum" min="0" max="10000" step=".01" required style="width:90px" /></td>
+<td><input type="number" name="Maximum[@i]" value="@rule.Maximum" min="0" max="10000" step=".01" required style="width:90px" /></td>
+</tr>
+}
+</tbody></table></div>
+<p>Minimum is a settlement threshold, not a minimum charge. Maximum is a cap for the selected assessment period. Excused days should not generate adherence penalties. A changed proposal requires fresh client approval.</p>
+<button type="submit">Send proposal for client approval</button>
+</form></details>
+}
+else
+{
+<h3>Proposed rules</h3>
+@if(financial.Status=="draft"){<p>Your coach has not sent a financial proposal.</p>}
+else{
+<div style="overflow-x:auto"><table><thead><tr><th>Rule</th><th>Amount</th><th>Period</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>
+@foreach(var rule in financial.Rules.Where(x=>x.Enabled)){
+<tr><td>@rule.Name <small>@rule.Criterion</small></td><td>@rule.Amount.ToString("C")</td><td>@rule.Frequency</td><td>@rule.Minimum.ToString("C")</td><td>@rule.Maximum.ToString("C")</td></tr>
+}</tbody></table></div>
+@if(financial.Status=="pending"){
+<form asp-action="FinancialResponse" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
+@Html.AntiForgeryToken()
+<input type="hidden" name="expectedRevision" value="@financial.Revision" />
+<label>Comments or requested changes<textarea name="note" rows="3" maxlength="2000" placeholder="Explain what you would like changed (required if not accepting)"></textarea></label>
+<button type="submit" name="decision" value="accepted">Accept agreement</button>
+<button type="submit" name="decision" value="changes-requested" class="secondary" formnovalidate>Request changes</button>
+<button type="submit" name="decision" value="declined" class="secondary" formnovalidate>Decline</button>
+</form>
+}
+}
+}
+<p><a class="button" asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" asp-fragment="agreement-discussion">Discuss agreement with coach</a></p>
+</section>
+<section class="card" id="agreement-discussion"><h2>Start a discussion</h2><p>Either person can start a topic, and replies stay together in the same conversation. The recipient receives an email notification when available.</p>
 <form asp-action="Send" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">@Html.AntiForgeryToken()
 <input type="hidden" name="Kind" value="message" />
 <label>Subject<input name="Subject" maxlength="120" required placeholder="What would you like to discuss?" /></label>
