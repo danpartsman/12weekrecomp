@@ -18,11 +18,32 @@ public sealed record CoachConversationItem(Guid Id, DateTime CreatedUtc, Guid Au
 public sealed record CoachActivityItem(DateTime CreatedUtc, string Description);
 public sealed record CoachMacroOffer(Guid VersionId, DateOnly EffectiveWeek, string Reason, string? EngineJson, string? AdjustedJson, string RulesJson, string Fingerprint, bool Accepted, DateTime? AcceptedUtc, bool FinancialOptIn);
 public sealed record CoachMacroAcceptance(Guid VersionId, Guid ClientId, Guid CoachId, Guid OwnerId, string Fingerprint, DateTime AcceptedUtc);
-public sealed record CoachWorkspacePage(Guid ClientId, Guid CoachId, string CoachName, bool IsCoach, IReadOnlyList<CoachConversationItem> Messages, IReadOnlyList<CoachActivityItem> Activity, IReadOnlyList<(string Id,string Name)> Workouts, IReadOnlyList<CoachMacroOffer> MacroOffers);
+public sealed record CoachFinancialRule(string Name, bool Enabled, string Frequency, decimal Amount, decimal Minimum, decimal Maximum, string Criterion);
+public sealed record CoachFinancialAgreement(int Revision, string Status, DateTime UpdatedUtc, Guid UpdatedBy, string? ClientNote, IReadOnlyList<CoachFinancialRule> Rules);
+public sealed record CoachWorkspacePage(Guid ClientId, Guid CoachId, string CoachName, bool IsCoach, IReadOnlyList<CoachConversationItem> Messages, IReadOnlyList<CoachActivityItem> Activity, IReadOnlyList<(string Id,string Name)> Workouts, IReadOnlyList<CoachMacroOffer> MacroOffers)
+{
+    public CoachFinancialAgreement? FinancialAgreement { get; init; }
+}
 
 [Authorize, Route("coach-workspace"), ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
 public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextService users, NotificationFiles files, IEmailService email) : Controller
 {
+    private string FinancialKey(Guid client, Guid coach) => $"financial-agreements/{client:N}-{coach:N}";
+    private static readonly (string Name, string Criterion, string Frequency)[] FinancialCategories =
+    [
+        ("Protein outside target", "Outside -5% to +15% of prescribed protein", "daily"),
+        ("Carbohydrates outside target", "Outside ±5% of prescribed carbohydrates", "daily"),
+        ("Fat outside target", "Outside ±5% of prescribed fat", "daily"),
+        ("Calories outside prescribed range", "Outside coach-assigned calorie limits", "daily"),
+        ("Missed planned workout", "Scheduled workout not completed without excuse", "weekly"),
+        ("Missing nutrition tracking", "Required daily nutrition log incomplete", "daily"),
+        ("Missing scale check-in", "Required scale or recovery entry incomplete", "daily"),
+        ("Cheat-food occurrence", "Each reviewed cheat-food occurrence", "daily"),
+        ("Nutrition compliance bonus", "All agreed nutrition criteria met", "weekly"),
+        ("Workout completion bonus", "All planned workouts completed", "weekly")
+    ];
+    private static CoachFinancialAgreement DefaultFinancial(Guid coach) => new(0, "draft", DateTime.UtcNow, coach, null,
+        FinancialCategories.Select(c => new CoachFinancialRule(c.Name, false, c.Frequency, 0m, 0m, 0m, c.Criterion)).ToList());
     private string Key(Guid client,Guid coach) => $"conversations/{client:N}-{coach:N}";
     private async Task<(Guid Actor,bool IsCoach,Guid Owner)?> Allowed(Guid client,Guid coach,CancellationToken ct)
     {
@@ -57,7 +78,8 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
             var state=WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(agreement);
             workouts=state.SnapWorkouts.Where(w=>w.Simple&&messages.Any(m=>m.WorkoutId==w.Id)||w.Simple&&events.Count>0).Select(w=>(w.Id,w.Name)).ToList();
         }catch(ArgumentException){}
-        return new(client,coach,coachName,isCoach,messages.OrderByDescending(x=>x.CreatedUtc).Take(100).Reverse().ToList(),activity,workouts,offers);
+        return new(client,coach,coachName,isCoach,messages.OrderByDescending(x=>x.CreatedUtc).Take(100).Reverse().ToList(),activity,workouts,offers)
+        { FinancialAgreement = files.Read<CoachFinancialAgreement>(FinancialKey(client,coach)) ?? DefaultFinancial(coach) };
     }
     [HttpGet("{clientId:guid}/{coachId:guid}")]
     public async Task<IActionResult> Index(Guid clientId,Guid coachId,CancellationToken ct)
@@ -78,6 +100,62 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         var key=$"macro-acceptance/{clientId:N}-{coachId:N}-{versionId:N}";
         using(files.Lease(key))files.Write(key,new CoachMacroAcceptance(versionId,clientId,coachId,auth.Value.Owner,current,DateTime.UtcNow));
         TempData["CoachWorkspaceStatus"]="Coach macro prescription accepted and recorded. Fee rules remain unchanged unless separately agreed.";
+        return RedirectToAction(nameof(Index),new{clientId,coachId});
+    }
+    public sealed class FinancialInput
+    {
+        public int ExpectedRevision { get; set; }
+        public List<bool> Enabled { get; set; } = [];
+        public List<decimal> Amount { get; set; } = [];
+        public List<decimal> Minimum { get; set; } = [];
+        public List<decimal> Maximum { get; set; } = [];
+        public List<string> Frequency { get; set; } = [];
+    }
+    [HttpPost("{clientId:guid}/{coachId:guid}/financial-proposal"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> FinancialProposal(Guid clientId, Guid coachId, FinancialInput input, CancellationToken ct)
+    {
+        var auth = await Allowed(clientId, coachId, ct);
+        if(auth is null) return NotFound();
+        if(!auth.Value.IsCoach) return Forbid();
+        var n=FinancialCategories.Length;
+        if(input.Enabled.Count!=n || input.Amount.Count!=n || input.Minimum.Count!=n || input.Maximum.Count!=n || input.Frequency.Count!=n)
+            return BadRequest("Review all accountability criteria.");
+        var rules=new List<CoachFinancialRule>();
+        for(var i=0;i<n;i++)
+        {
+            var amount=input.Amount[i];var min=input.Minimum[i];var max=input.Maximum[i];
+            if(amount<0 || amount>10000 || min<0 || max<0 || max>10000 || min>max || (input.Enabled[i] && (amount<=0 || max<=0)))
+                return BadRequest("Amounts must be nonnegative, enabled rules need an amount and cap, and minimum cannot exceed maximum.");
+            if(input.Frequency[i] is not ("daily" or "weekly" or "monthly"))return BadRequest("Choose daily, weekly, or monthly.");
+            var c=FinancialCategories[i];
+            rules.Add(new(c.Name,input.Enabled[i],input.Frequency[i],amount,min,max,c.Criterion));
+        }
+        var key=FinancialKey(clientId,coachId);
+        using(files.Lease(key))
+        {
+            var current=files.Read<CoachFinancialAgreement>(key)??DefaultFinancial(coachId);
+            if(current.Revision!=input.ExpectedRevision)return Conflict("The agreement changed. Reload and review before saving.");
+            files.Write(key,new CoachFinancialAgreement(current.Revision+1,"pending",DateTime.UtcNow,auth.Value.Actor,null,rules));
+        }
+        TempData["CoachWorkspaceStatus"]="Financial proposal sent for client review. No new automatic fees are authorized until acceptance.";
+        return RedirectToAction(nameof(Index),new{clientId,coachId});
+    }
+    [HttpPost("{clientId:guid}/{coachId:guid}/financial-response"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> FinancialResponse(Guid clientId, Guid coachId, int expectedRevision, string decision, [StringLength(2000)] string? note, CancellationToken ct)
+    {
+        var auth=await Allowed(clientId,coachId,ct);
+        if(auth is null)return NotFound();
+        if(auth.Value.IsCoach)return Forbid();
+        if(decision is not ("accepted" or "changes-requested" or "declined"))return BadRequest("Choose a valid response.");
+        if(decision!="accepted" && string.IsNullOrWhiteSpace(note))return BadRequest("Please explain the changes you request or why you decline.");
+        var key=FinancialKey(clientId,coachId);
+        using(files.Lease(key))
+        {
+            var current=files.Read<CoachFinancialAgreement>(key);
+            if(current is null || current.Revision!=expectedRevision || current.Status!="pending")return Conflict("This proposal has changed. Reload to review it.");
+            files.Write(key,current with {Revision=current.Revision+1,Status=decision,UpdatedUtc=DateTime.UtcNow,UpdatedBy=auth.Value.Actor,ClientNote=note?.Trim()});
+        }
+        TempData["CoachWorkspaceStatus"]=decision=="accepted"?"Financial agreement accepted.":"Your response was saved for the coach.";
         return RedirectToAction(nameof(Index),new{clientId,coachId});
     }
     public sealed class MessageInput
