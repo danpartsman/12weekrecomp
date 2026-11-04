@@ -19,14 +19,14 @@ public sealed record CoachActivityItem(DateTime CreatedUtc, string Description);
 public sealed record CoachMacroOffer(Guid VersionId, DateOnly EffectiveWeek, string Reason, string? EngineJson, string? AdjustedJson, string RulesJson, string Fingerprint, bool Accepted, DateTime? AcceptedUtc, bool FinancialOptIn);
 public sealed record CoachMacroAcceptance(Guid VersionId, Guid ClientId, Guid CoachId, Guid OwnerId, string Fingerprint, DateTime AcceptedUtc);
 public sealed record CoachFinancialRule(string Name, bool Enabled, string Frequency, decimal Amount, decimal Minimum, decimal Maximum, string Criterion);
-public sealed record CoachFinancialAgreement(int Revision, string Status, DateTime UpdatedUtc, Guid UpdatedBy, string? ClientNote, IReadOnlyList<CoachFinancialRule> Rules);
+public sealed record CoachFinancialAgreement(int Revision, string Status, DateTime UpdatedUtc, Guid UpdatedBy, string? ClientNote, IReadOnlyList<CoachFinancialRule> Rules, DateTime? AcceptedUtc = null, Guid? AcceptedBy = null);
 public sealed record CoachWorkspacePage(Guid ClientId, Guid CoachId, string CoachName, bool IsCoach, IReadOnlyList<CoachConversationItem> Messages, IReadOnlyList<CoachActivityItem> Activity, IReadOnlyList<(string Id,string Name)> Workouts, IReadOnlyList<CoachMacroOffer> MacroOffers)
 {
     public CoachFinancialAgreement? FinancialAgreement { get; init; }
 }
 
 [Authorize, Route("coach-workspace"), ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
-public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextService users, NotificationFiles files, IEmailService email) : Controller
+public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextService users, NotificationFiles files, IEmailService email, LocalAuthService authService) : Controller
 {
     private string FinancialKey(Guid client, Guid coach) => $"financial-agreements/{client:N}-{coach:N}";
     private static readonly (string Name, string Criterion, string Frequency)[] FinancialCategories =
@@ -140,20 +140,27 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         TempData["CoachWorkspaceStatus"]="Financial proposal sent for client review. No new automatic fees are authorized until acceptance.";
         return RedirectToAction(nameof(Index),new{clientId,coachId});
     }
-    [HttpPost("{clientId:guid}/{coachId:guid}/financial-response"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> FinancialResponse(Guid clientId, Guid coachId, int expectedRevision, string decision, [StringLength(2000)] string? note, CancellationToken ct)
+    [HttpPost("{clientId:guid}/{coachId:guid}/financial-response"), ValidateAntiForgeryToken, EnableRateLimiting("accountability-approval")]
+    public async Task<IActionResult> FinancialResponse(Guid clientId, Guid coachId, int expectedRevision, string decision, [StringLength(2000)] string? note, [StringLength(320)] string? username, [StringLength(1024)] string? password, CancellationToken ct)
     {
         var auth=await Allowed(clientId,coachId,ct);
         if(auth is null)return NotFound();
         if(auth.Value.IsCoach)return Forbid();
         if(decision is not ("accepted" or "changes-requested" or "declined"))return BadRequest("Choose a valid response.");
         if(decision!="accepted" && string.IsNullOrWhiteSpace(note))return BadRequest("Please explain the changes you request or why you decline.");
+        if(decision=="accepted")
+        {
+            var user=(await users.GetAsync(HttpContext,ct)).User;
+            if(string.IsNullOrWhiteSpace(username)||string.IsNullOrWhiteSpace(password)
+                ||!await authService.VerifyCurrentPasswordReadOnlyAsync(user,username,password,ct))
+                return BadRequest("Enter the signed-in client's username and password to accept.");
+        }
         var key=FinancialKey(clientId,coachId);
         using(files.Lease(key))
         {
             var current=files.Read<CoachFinancialAgreement>(key);
             if(current is null || current.Revision!=expectedRevision || current.Status!="pending")return Conflict("This proposal has changed. Reload to review it.");
-            files.Write(key,current with {Revision=current.Revision+1,Status=decision,UpdatedUtc=DateTime.UtcNow,UpdatedBy=auth.Value.Actor,ClientNote=note?.Trim()});
+            files.Write(key,current with {Revision=current.Revision+1,Status=decision,UpdatedUtc=DateTime.UtcNow,UpdatedBy=auth.Value.Actor,ClientNote=note?.Trim(),AcceptedUtc=decision=="accepted"?DateTime.UtcNow:null,AcceptedBy=decision=="accepted"?auth.Value.Actor:null});
         }
         TempData["CoachWorkspaceStatus"]=decision=="accepted"?"Financial agreement accepted.":"Your response was saved for the coach.";
         return RedirectToAction(nameof(Index),new{clientId,coachId});
