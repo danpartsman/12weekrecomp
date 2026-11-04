@@ -111,6 +111,18 @@ else
 @foreach(var day in Enum.GetValues<DayOfWeek>()){<option value="@day" selected="@(financial.PaymentDay==day)">@day</option>}
 </select></label>
 </fieldset>
+<details><summary>Preview agreement the client will receive</summary>
+<p><strong>Coach:</strong> @Model.CoachName · <strong>Agreement revision:</strong> @(financial.Revision+1)</p>
+<p>The client agrees to the enabled penalties and incentives below, subject to coach-prescribed nutrition limits (or ±10% of system targets where no coach limit is set), excused days, and the agreed payment schedule.</p>
+<table><thead><tr><th>Rule</th><th>Amount</th><th>Assessment</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>
+@for(var previewIndex=0;previewIndex<financial.Rules.Count;previewIndex++){
+var previewRule=financial.Rules[previewIndex];
+var previewTitle=previewIndex<8?(previewRule.Name.EndsWith(" penalty")?previewRule.Name:previewRule.Name+" penalty"):(previewRule.Name.EndsWith(" coaches incentive")?previewRule.Name:previewRule.Name.Replace(" bonus","")+" coaches incentive");
+<tr><td>@previewTitle</td><td colspan="4">Use the amounts and enabled selections in the editable table above; the client sees the saved values after submission.</td></tr>
+}
+</tbody></table>
+<p>The client will see Accept, Request Changes and Decline options. Accept requires their account email and password.</p>
+</details>
 <button type="submit">Send proposal for client approval</button>
 </form></details>
 }
