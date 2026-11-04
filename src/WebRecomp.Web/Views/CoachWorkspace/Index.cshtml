@@ -48,6 +48,7 @@ else{<p>Waiting for client acceptance.</p>}
 <h2>Penalties, incentives &amp; agreement</h2>
 <p>Each coach and client have a separate agreement. Amounts are USD. Rules are proposals until the client accepts them; existing ledger entries remain unchanged.</p>
 @{var financial=Model.FinancialAgreement!;}
+<p><strong>Payment terms:</strong> @(financial.PaymentSchedule=="next-day"?"Due the following day":financial.PaymentSchedule=="monthly"?"Due on the first day of the following month":$"Due every {financial.PaymentDay}")</p>
 <p><strong>Status:</strong> @financial.Status.Replace("-", " ") · Revision @financial.Revision @if(financial.AcceptedUtc is DateTime accepted){<span> · Accepted @accepted.ToString("MMM d, yyyy h:mm tt") UTC</span>}</p>
 @if(!string.IsNullOrWhiteSpace(financial.ClientNote)){<p><strong>Client response:</strong> @financial.ClientNote</p>}
 @if(Model.IsCoach)
@@ -59,9 +60,10 @@ else{<p>Waiting for client acceptance.</p>}
 <div style="overflow-x:auto"><table><thead><tr><th>Enable</th><th>Rule</th><th>Amount ($)</th><th>Assess</th><th>Minimum per period ($)</th><th>Maximum per period ($)</th></tr></thead><tbody>
 @for(var i=0;i<financial.Rules.Count;i++){
 var rule=financial.Rules[i];
+var ruleTitle=i<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"):(rule.Name.EndsWith(" coaches incentive")?rule.Name:rule.Name.Replace(" bonus","")+" coaches incentive");
 <tr>
-<td><select name="Enabled[@i]" aria-label="Enable @rule.Name"><option value="false" selected="@(!rule.Enabled)">Off</option><option value="true" selected="@rule.Enabled">On</option></select></td>
-<td><strong>@rule.Name</strong><small style="display:block">@rule.Criterion</small></td>
+<td><select name="Enabled[@i]" aria-label="Enable @ruleTitle"><option value="false" selected="@(!rule.Enabled)">Off</option><option value="true" selected="@rule.Enabled">On</option></select></td>
+<td><strong>@ruleTitle</strong><small style="display:block">@rule.Criterion</small></td>
 <td><input type="number" name="Amount[@i]" value="@rule.Amount" min="0" max="10000" step="1" required style="width:90px" /></td>
 <td><select name="Frequency[@i]"><option value="daily" selected="@(rule.Frequency=="daily")">Daily</option><option value="weekly" selected="@(rule.Frequency=="weekly")">Weekly</option><option value="monthly" selected="@(rule.Frequency=="monthly")">Monthly</option></select></td>
 <td><input type="number" name="Minimum[@i]" value="@rule.Minimum" min="0" max="10000" step="1" required style="width:90px" /></td>
@@ -69,7 +71,7 @@ var rule=financial.Rules[i];
 </tr>
 }
 </tbody></table></div>
-<p>Financial minimums and maximums above are dollar settlement thresholds and caps, not nutrition targets. The compliance thresholds below follow the coach's prescribed minimum and maximum where present; otherwise they default to 90%–110% of the system's daily target.</p>
+<p>For macro penalties, coach-defined nutrition minimums and maximums override the default system thresholds. Financial minimums and maximums above are dollar settlement thresholds and caps, not nutrition targets. The compliance thresholds below follow the coach's prescribed minimum and maximum where present; otherwise they default to 90%–110% of the system's daily target.</p>
 @{
     var latestPrescription = Model.MacroOffers.OrderByDescending(x=>x.EffectiveWeek).FirstOrDefault();
 }
@@ -97,17 +99,32 @@ else
     <p>No coach nutrition prescription found: default compliance range is 90%–110% of the system target for protein, carbs, fat and calories.</p>
 }
 <p>Minimum is a settlement threshold, not a minimum charge. Maximum is a cap for the selected assessment period. Excused days should not generate adherence penalties. A changed proposal requires fresh client approval.</p>
+<fieldset><legend>Payment schedule</legend>
+<label>Payment due
+<select name="PaymentSchedule">
+<option value="next-day" selected="@(financial.PaymentSchedule=="next-day")">Next day</option>
+<option value="weekly" selected="@(financial.PaymentSchedule=="weekly")">Weekly</option>
+<option value="monthly" selected="@(financial.PaymentSchedule=="monthly")">Monthly (first day of following month)</option>
+</select></label>
+<label>Weekly due day
+<select name="PaymentDay">
+@foreach(var day in Enum.GetValues<DayOfWeek>()){<option value="@day" selected="@(financial.PaymentDay==day)">@day</option>}
+</select></label>
+</fieldset>
 <button type="submit">Send proposal for client approval</button>
 </form></details>
 }
 else
 {
-<h3>Proposed rules</h3>
+<h3>Financial agreement presented to the client</h3>
+<p>The following rules and payment terms are the agreement the client reviews and accepts with their account credentials. Acceptance authorizes only the displayed version.</p>
 @if(financial.Status=="draft"){<p>Your coach has not sent a financial proposal.</p>}
 else{
 <div style="overflow-x:auto"><table><thead><tr><th>Rule</th><th>Amount</th><th>Period</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>
 @foreach(var rule in financial.Rules.Where(x=>x.Enabled)){
-<tr><td>@rule.Name <small>@rule.Criterion</small></td><td>@rule.Amount.ToString("C")</td><td>@rule.Frequency</td><td>@rule.Minimum.ToString("C")</td><td>@rule.Maximum.ToString("C")</td></tr>
+var ruleIndex=financial.Rules.ToList().IndexOf(rule);
+var ruleTitle=ruleIndex<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"):(rule.Name.EndsWith(" coaches incentive")?rule.Name:rule.Name.Replace(" bonus","")+" coaches incentive");
+<tr><td>@ruleTitle <small>@rule.Criterion</small></td><td>@rule.Amount.ToString("C")</td><td>@rule.Frequency</td><td>@rule.Minimum.ToString("C")</td><td>@rule.Maximum.ToString("C")</td></tr>
 }</tbody></table></div>
 @if(financial.Status=="pending"){
 <form asp-action="FinancialResponse" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
