@@ -207,6 +207,18 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         {
             var json=await db.CoachAccountabilityAgreements.AsNoTracking().Where(x=>x.ClientId==clientId).Select(x=>x.StateJson).FirstOrDefaultAsync(ct);
             if(json is null||!WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(json).SnapWorkouts.Any(w=>w.Simple&&w.Id==input.WorkoutId))return BadRequest("Unknown Snap Workout.");
+            var history=await db.CoachAccountabilityEvents.AsNoTracking().Where(x=>x.ClientId==clientId&&x.Kind=="CONFIG")
+                .OrderBy(x=>x.Revision).Select(x=>new{x.ActorUserId,x.PayloadJson}).ToListAsync(ct);
+            Guid? assignedBy=null;
+            foreach(var evt in history)
+            {
+                try
+                {
+                    if(WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(evt.PayloadJson).SnapWorkouts.Any(w=>w.Simple&&w.Id==input.WorkoutId))
+                    {assignedBy=evt.ActorUserId;break;}
+                }catch(ArgumentException){}
+            }
+            if(assignedBy!=coachId)return BadRequest("This Snap Workout was not assigned by the selected coach.");
         }
         var sender=await db.UserAccounts.AsNoTracking().Where(x=>x.UserId==auth.Value.Actor).Select(x=>x.PreferredDisplayName??x.DisplayName??"Member").SingleAsync(ct);
         var key=Key(clientId,coachId);
