@@ -29,7 +29,7 @@
 <section class="card"><h2>@(Model.Coach?"Assigned workouts & results":"Your assigned workouts")</h2>
 @if(workouts.Count==0){<p>No active Snap Workouts yet.</p>}
 @foreach(var w in workouts){
- var previous=Model.State.SnapResults.GetValueOrDefault(w.Id);var completed=SnapWorkoutLibrary.Completed(w,previous);var canRecord=AccountabilityDocument.Date(w.Date)<=Model.Today;
+ var previous=Model.State.SnapResults.GetValueOrDefault(w.Id);var completed=SnapWorkoutLibrary.Completed(w,previous);var canRecord=true;
  <details class="simple-workout" id="snap-@w.Id" open="@(Context.Request.Query["assignment"]==w.Id)"><summary>@w.Name · @w.Date · @(completed?"Completed":previous?.Finalized==true?"Finished · penalties applied":previous is null?"Assigned":"Progress saved")</summary>
  @if(Model.Coach){
 <div class="snap-review-actions" style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:center;margin:.8rem 0">
