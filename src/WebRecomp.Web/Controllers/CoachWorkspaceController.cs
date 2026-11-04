@@ -19,7 +19,7 @@ public sealed record CoachActivityItem(DateTime CreatedUtc, string Description);
 public sealed record CoachMacroOffer(Guid VersionId, DateOnly EffectiveWeek, string Reason, string? EngineJson, string? AdjustedJson, string RulesJson, string Fingerprint, bool Accepted, DateTime? AcceptedUtc, bool FinancialOptIn);
 public sealed record CoachMacroAcceptance(Guid VersionId, Guid ClientId, Guid CoachId, Guid OwnerId, string Fingerprint, DateTime AcceptedUtc);
 public sealed record CoachFinancialRule(string Name, bool Enabled, string Frequency, decimal Amount, decimal Minimum, decimal Maximum, string Criterion);
-public sealed record CoachFinancialAgreement(int Revision, string Status, DateTime UpdatedUtc, Guid UpdatedBy, string? ClientNote, IReadOnlyList<CoachFinancialRule> Rules, DateTime? AcceptedUtc = null, Guid? AcceptedBy = null);
+public sealed record CoachFinancialAgreement(int Revision, string Status, DateTime UpdatedUtc, Guid UpdatedBy, string? ClientNote, IReadOnlyList<CoachFinancialRule> Rules, DateTime? AcceptedUtc = null, Guid? AcceptedBy = null, string PaymentSchedule = "weekly", DayOfWeek PaymentDay = DayOfWeek.Friday);
 public sealed record CoachWorkspacePage(Guid ClientId, Guid CoachId, string CoachName, bool IsCoach, IReadOnlyList<CoachConversationItem> Messages, IReadOnlyList<CoachActivityItem> Activity, IReadOnlyList<(string Id,string Name)> Workouts, IReadOnlyList<CoachMacroOffer> MacroOffers)
 {
     public CoachFinancialAgreement? FinancialAgreement { get; init; }
@@ -31,16 +31,16 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
     private string FinancialKey(Guid client, Guid coach) => $"financial-agreements/{client:N}-{coach:N}";
     private static readonly (string Name, string Criterion, string Frequency)[] FinancialCategories =
     [
-        ("Protein outside target", "Outside -5% to +15% of prescribed protein", "daily"),
-        ("Carbohydrates outside target", "Outside ±5% of prescribed carbohydrates", "daily"),
-        ("Fat outside target", "Outside ±5% of prescribed fat", "daily"),
-        ("Calories outside prescribed range", "Outside coach-assigned calorie limits", "daily"),
-        ("Missed planned workout", "Scheduled workout not completed without excuse", "weekly"),
-        ("Missing nutrition tracking", "Required daily nutrition log incomplete", "daily"),
-        ("Missing scale check-in", "Required scale or recovery entry incomplete", "daily"),
-        ("Cheat-food occurrence", "Each reviewed cheat-food occurrence", "daily"),
-        ("Nutrition compliance bonus", "All agreed nutrition criteria met", "weekly"),
-        ("Workout completion bonus", "All planned workouts completed", "weekly")
+        ("Protein outside target penalty", "Outside coach protein minimum/maximum; otherwise ±10% of system target", "daily"),
+        ("Carbohydrates outside target penalty", "Outside coach carbs minimum/maximum; otherwise ±10% of system target", "daily"),
+        ("Fat outside target penalty", "Outside coach fat minimum/maximum; otherwise ±10% of system target", "daily"),
+        ("Calories outside prescribed range penalty", "Outside coach calorie minimum/maximum; otherwise ±10% of system target", "daily"),
+        ("Missed planned workout penalty", "Scheduled workout not completed without excuse", "weekly"),
+        ("Missing nutrition tracking penalty", "Required daily nutrition log incomplete", "daily"),
+        ("Missing scale check-in penalty", "Required scale or recovery entry incomplete", "daily"),
+        ("Cheat-food occurrence penalty", "Each reviewed cheat-food occurrence", "daily"),
+        ("Nutrition compliance coaches incentive", "All agreed nutrition criteria met", "weekly"),
+        ("Workout completion coaches incentive", "All planned workouts completed", "weekly")
     ];
     private static CoachFinancialAgreement DefaultFinancial(Guid coach) => new(0, "draft", DateTime.UtcNow, coach, null,
         FinancialCategories.Select(c => new CoachFinancialRule(c.Name, false, c.Frequency, 0m, 0m, 0m, c.Criterion)).ToList());
@@ -76,7 +76,24 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         var workouts=new List<(string Id,string Name)>();
         if(agreement is not null)try {
             var state=WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(agreement);
-            workouts=state.SnapWorkouts.Where(w=>w.Simple&&messages.Any(m=>m.WorkoutId==w.Id)||w.Simple&&events.Count>0).Select(w=>(w.Id,w.Name)).ToList();
+            var configEvents=await db.CoachAccountabilityEvents.AsNoTracking()
+                .Where(x=>x.ClientId==client&&x.Kind=="CONFIG")
+                .OrderBy(x=>x.Revision)
+                .Select(x=>new{x.ActorUserId,x.PayloadJson}).ToListAsync(ct);
+            var assigned=new HashSet<string>();
+            foreach(var evt in configEvents)
+            {
+                try
+                {
+                    var historical=WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(evt.PayloadJson);
+                    foreach(var workout in historical.SnapWorkouts.Where(w=>w.Simple))
+                        if(assigned.Add(workout.Id)&&evt.ActorUserId==coach)
+                        {
+                            var current=state.SnapWorkouts.FirstOrDefault(w=>w.Id==workout.Id);
+                            if(current is not null)workouts.Add((current.Id,current.Name));
+                        }
+                }catch(ArgumentException){/* Skip malformed historical event. */}
+            }
         }catch(ArgumentException){}
         return new(client,coach,coachName,isCoach,messages.OrderByDescending(x=>x.CreatedUtc).Take(100).Reverse().ToList(),activity,workouts,offers)
         { FinancialAgreement = files.Read<CoachFinancialAgreement>(FinancialKey(client,coach)) ?? DefaultFinancial(coach) };
@@ -104,6 +121,8 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
     }
     public sealed class FinancialInput
     {
+        public string PaymentSchedule { get; set; } = "weekly";
+        public DayOfWeek PaymentDay { get; set; } = DayOfWeek.Friday;
         public int ExpectedRevision { get; set; }
         public List<bool> Enabled { get; set; } = [];
         public List<decimal> Amount { get; set; } = [];
@@ -117,6 +136,8 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         var auth = await Allowed(clientId, coachId, ct);
         if(auth is null) return NotFound();
         if(!auth.Value.IsCoach) return Forbid();
+        if(input.PaymentSchedule is not ("next-day" or "weekly" or "monthly"))return BadRequest("Choose a valid payment schedule.");
+        if(!Enum.IsDefined(input.PaymentDay))return BadRequest("Choose a valid weekly due day.");
         var n=FinancialCategories.Length;
         if(input.Enabled.Count!=n || input.Amount.Count!=n || input.Minimum.Count!=n || input.Maximum.Count!=n || input.Frequency.Count!=n)
             return BadRequest("Review all accountability criteria.");
@@ -135,7 +156,7 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         {
             var current=files.Read<CoachFinancialAgreement>(key)??DefaultFinancial(coachId);
             if(current.Revision!=input.ExpectedRevision)return Conflict("The agreement changed. Reload and review before saving.");
-            files.Write(key,new CoachFinancialAgreement(current.Revision+1,"pending",DateTime.UtcNow,auth.Value.Actor,null,rules));
+            files.Write(key,new CoachFinancialAgreement(current.Revision+1,"pending",DateTime.UtcNow,auth.Value.Actor,null,rules,PaymentSchedule:input.PaymentSchedule,PaymentDay:input.PaymentDay));
         }
         TempData["CoachWorkspaceStatus"]="Financial proposal sent for client review. No new automatic fees are authorized until acceptance.";
         return RedirectToAction(nameof(Index),new{clientId,coachId});
