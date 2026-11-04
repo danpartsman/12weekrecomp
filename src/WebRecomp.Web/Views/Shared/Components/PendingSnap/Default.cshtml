@@ -1,5 +1,21 @@
 @model IReadOnlyList<WebRecomp.Web.Services.Coaching.AccountabilityWorkout>
+@using System.Globalization
+@{
+    var zoneId = ViewData["ClientTimeZone"] as string ?? "UTC";
+    TimeZoneInfo zone;
+    try { zone = TimeZoneInfo.FindSystemTimeZoneById(zoneId); }
+    catch (TimeZoneNotFoundException) { zone = TimeZoneInfo.Utc; }
+    catch (InvalidTimeZoneException) { zone = TimeZoneInfo.Utc; }
+}
 <aside class="pending-snap-banner" aria-label="Assigned Snap Workouts">
     <div><strong>@Model.Count @(Model.Count == 1 ? "Snap Workout to complete" : "Snap Workouts to complete")</strong><p>Your coach has assigned a workout. Record your results and press Finish workout to submit them to your coach.</p></div>
-    <ul>@foreach (var workout in Model) { <li data-pending-workout="@workout.Id"><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@ViewData["ClientId"]" asp-route-assignment="@workout.Id" asp-fragment="snap-@workout.Id">Open @workout.Name · @workout.Date</a></li> }</ul>
+    <ul>
+    @foreach (var workout in Model)
+    {
+        var assigned = workout.CreatedAtUtc.HasValue
+            ? TimeZoneInfo.ConvertTime(workout.CreatedAtUtc.Value, zone).ToString("MM-dd-yy h:mm tt", CultureInfo.InvariantCulture)
+            : DateOnly.TryParse(workout.Date, out var date) ? date.ToString("MM-dd-yy", CultureInfo.InvariantCulture) : workout.Date;
+        <li data-pending-workout="@workout.Id"><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@ViewData["ClientId"]" asp-route-assignment="@workout.Id" asp-fragment="snap-@workout.Id">Open Snap Workout · @assigned</a></li>
+    }
+    </ul>
 </aside>
