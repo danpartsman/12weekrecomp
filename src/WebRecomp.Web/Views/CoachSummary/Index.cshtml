@@ -108,27 +108,28 @@
     <p class="muted">Body changes compare the first three days’ average with the last three days’ average within this same seven-day window. Scale estimates can fluctuate. Nutrition gauges sum those seven days’ individual prescriptions; rings stop at 100%, while the number shows any overage.</p>
     @if(Model.PrescriptionNotice is {} notice) {<p class="app-message">@notice</p>}
 </div></details>
-<details class="card coach-panel"><summary>Daily detail · 9 days</summary><div class="coach-panel-body">
-    <p class="muted">Seven completed days, then today and tomorrow’s prescriptions. Scroll sideways to see all nine days. “—” means not recorded. Prescribed and logged nutrition are separate rows.</p>
-    <div class="coach-summary-table-scroll" tabindex="0" role="region" aria-label="Nine-day client detail; scroll horizontally">
+@{var detailDays=Model.Days.Where(d=>d.Date>=Model.ReferenceDate.AddDays(-6)&&d.Date<=Model.ReferenceDate).ToArray();}
+<details class="card coach-panel"><summary>Daily detail · 7 days</summary><div class="coach-panel-body">
+    <p class="muted">Seven days including today (or the selected day). Scroll sideways to see all seven days. “—” means not recorded. Prescribed and logged nutrition are separate rows.</p>
+    <div class="coach-summary-table-scroll" tabindex="0" role="region" aria-label="Seven-day client detail; scroll horizontally">
     <table class="coach-summary-table">
-        <caption class="cws-visually-hidden">Aligned scale, training, nutrition, and check-in information for nine days</caption>
-        <thead><tr><th scope="col">Daily entry</th>@foreach(var day in Model.Days) {
+        <caption class="cws-visually-hidden">Aligned scale, training, nutrition, and check-in information for seven days</caption>
+        <thead><tr><th scope="col">Daily entry</th>@foreach(var day in detailDays) {
             <th scope="col" class="@DayClass(day)"><span class="cws-day-label">@DayLabel(day)</span><strong>@day.Date.ToString("ddd")</strong><span>@day.Date.ToString("MMM d")</span></th>
         }</tr></thead>
         <tbody>
-        <tr class="cws-section"><th colspan="10">Scale entries</th></tr>
-        @foreach(var row in scaleRows) {<tr><th scope="row">@row.Label</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">@row.Value(day)</td>}</tr>}
-        <tr><th scope="row">Scale notes</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">
+        <tr class="cws-section"><th colspan="8">Scale entries</th></tr>
+        @foreach(var row in scaleRows) {<tr><th scope="row">@row.Label</th>@foreach(var day in detailDays) {<td class="@DayClass(day)">@row.Value(day)</td>}</tr>}
+        <tr><th scope="row">Scale notes</th>@foreach(var day in detailDays) {<td class="@DayClass(day)">
             @if(day.Scale is {} scale) {
                 @if(day.ScaleCount > 1) {<p class="muted">Latest of @day.ScaleCount readings</p>}
                 @if(!string.IsNullOrWhiteSpace(scale.Notes)) {<details><summary>Notes</summary><p class="coach-summary-note">@Note(scale.Notes)</p></details>}
             } else {<span>—</span>}
         </td>}</tr>
-        <tr class="cws-section"><th colspan="10">Training</th></tr>
-        <tr><th scope="row">Workout prescription</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">@(day.Prescription?.WorkoutName ?? (day.PlannedWorkout is {} planned ? WorkoutName(planned) : "Not scheduled"))</td>}</tr>
-        <tr><th scope="row">Prescribed min / RPE</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">@Number(day.Prescription?.Minutes) / @Number(day.Prescription?.Rpe)</td>}</tr>
-        <tr><th scope="row">Completed workouts</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">
+        <tr class="cws-section"><th colspan="8">Training</th></tr>
+        <tr><th scope="row">Workout prescription</th>@foreach(var day in detailDays) {<td class="@DayClass(day)">@(day.Prescription?.WorkoutName ?? (day.PlannedWorkout is {} planned ? WorkoutName(planned) : "Not scheduled"))</td>}</tr>
+        <tr><th scope="row">Prescribed min / RPE</th>@foreach(var day in detailDays) {<td class="@DayClass(day)">@Number(day.Prescription?.Minutes) / @Number(day.Prescription?.Rpe)</td>}</tr>
+        <tr><th scope="row">Completed workouts</th>@foreach(var day in detailDays) {<td class="@DayClass(day)">
             @if(day.Workouts.Count == 0) {<span class="muted">No completed workout logged</span>}
             @foreach(var workout in day.Workouts) {
                 var session = workout.Session;
@@ -146,15 +147,15 @@
                 }</div>
             }
         </td>}</tr>
-        <tr class="cws-section"><th colspan="10">Nutrition · individual daily prescription versus logged intake</th></tr>
-        @foreach(var row in nutritionRows) {<tr class="@(row.Target ? "cws-prescription-row" : "")"><th scope="row">@row.Label</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">@row.Value(day)</td>}</tr>}
-        <tr><th scope="row">Prescription source</th>@foreach(var day in Model.Days) {<td class="@DayClass(day) cws-small">@(day.Prescription?.Source ?? "Unavailable")</td>}</tr>
-        <tr><th scope="row">Nutrition notes</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">
+        <tr class="cws-section"><th colspan="8">Nutrition · individual daily prescription versus logged intake</th></tr>
+        @foreach(var row in nutritionRows) {<tr class="@(row.Target ? "cws-prescription-row" : "")"><th scope="row">@row.Label</th>@foreach(var day in detailDays) {<td class="@DayClass(day)">@row.Value(day)</td>}</tr>}
+        <tr><th scope="row">Prescription source</th>@foreach(var day in detailDays) {<td class="@DayClass(day) cws-small">@(day.Prescription?.Source ?? "Unavailable")</td>}</tr>
+        <tr><th scope="row">Nutrition notes</th>@foreach(var day in detailDays) {<td class="@DayClass(day)">
             @if(!string.IsNullOrWhiteSpace(day.Nutrition?.Notes)) {<details><summary>Notes</summary><p class="coach-summary-note">@Note(day.Nutrition.Notes)</p></details>} else {<span>—</span>}
         </td>}</tr>
-        <tr class="cws-section"><th colspan="10">Daily check-in</th></tr>
-        @foreach(var row in checkRows) {<tr><th scope="row">@row.Label</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">@row.Value(day)</td>}</tr>}
-        <tr><th scope="row">Recovery &amp; notes</th>@foreach(var day in Model.Days) {<td class="@DayClass(day)">
+        <tr class="cws-section"><th colspan="8">Daily check-in</th></tr>
+        @foreach(var row in checkRows) {<tr><th scope="row">@row.Label</th>@foreach(var day in detailDays) {<td class="@DayClass(day)">@row.Value(day)</td>}</tr>}
+        <tr><th scope="row">Recovery &amp; notes</th>@foreach(var day in detailDays) {<td class="@DayClass(day)">
             @if(day.Checkin is {} checkin) {
                 var body = BodyCheckinCodec.Read(checkin.Notes);
                 @if(checkin.IllnessFlag) {<p class="coach-summary-alert">Illness reported</p>}

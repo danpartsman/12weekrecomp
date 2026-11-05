@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using WebRecomp.Web.Data;
+using WebRecomp.WorkoutIntelligence.Persistence;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -102,6 +105,20 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         var today=(await ledger.ClockAsync(clientId,ct)).Today;
         var input=FromWorkout(original,row.Revision,today);
         return await Assign(clientId,input,ct);
+    }
+    [HttpGet("exercises")]
+    public async Task<IActionResult> Exercises(Guid clientId,string? q,[FromServices] IExerciseCatalogStore catalog,[FromServices] RecompDbContext db,CancellationToken ct)
+    {
+        if(!SimpleCoaching.Enabled(configuration))return NotFound();
+        var actor=(await users.GetAsync(HttpContext,ct)).User.UserId;
+        if(!await IsAssignedCoachAsync(actor,clientId,ct))return NotFound();
+        var term=q?.Trim();
+        if(string.IsNullOrEmpty(term)||term.Length<2)return Json(Array.Empty<object>());
+        if(term.Length>250)return BadRequest();
+        var rows=await catalog.SearchAsync(term,12,ct);
+        var ids=rows.Select(x=>x.ExerciseId).ToArray();
+        var muscles=await db.ExerciseMuscleTargets.AsNoTracking().Where(x=>ids.Contains(x.ExerciseCatalogItemId)).OrderBy(x=>x.DisplayOrder).ToListAsync(ct);
+        return Json(rows.Select(x=>new{name=x.Name,muscles=string.Join(", ",muscles.Where(m=>m.ExerciseCatalogItemId==x.ExerciseId).Select(m=>m.MuscleName).Distinct())}));
     }
     [HttpGet("status")]
     public async Task<IActionResult> Status(Guid clientId,CancellationToken ct)

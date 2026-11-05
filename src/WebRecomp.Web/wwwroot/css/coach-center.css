@@ -70,7 +70,7 @@ html[data-theme="dark"] .coach-shell button:not([hidden]),html[data-theme="dark"
 .cws-change-scale {display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-bottom:22px;}
 .coach-summary-table-scroll {overflow:auto;max-height:80vh;border:1px solid var(--line);border-radius:14px;}
 .coach-summary-table-scroll:focus-visible {outline:3px solid var(--teal);outline-offset:3px;}
-.coach-shell .coach-summary-table {table-layout:fixed;min-width:1760px;font-size:.82rem;background:var(--surface);border-collapse:separate;border-spacing:0;}
+.coach-shell .coach-summary-table {table-layout:fixed;min-width:1440px;font-size:.82rem;background:var(--surface);border-collapse:separate;border-spacing:0;}
 .coach-shell .coach-summary-table th,.coach-shell .coach-summary-table td {padding:10px 12px;border-right:1px solid var(--line);overflow-wrap:anywhere;}
 .coach-summary-table thead th {position:sticky;top:0;z-index:3;background:var(--surface);}
 .coach-summary-table th:first-child {width:170px;position:sticky;left:0;z-index:2;background:var(--surface);}

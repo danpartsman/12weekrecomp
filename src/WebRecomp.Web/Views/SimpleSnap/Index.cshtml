@@ -10,20 +10,20 @@
 @if(Model.Coach)
 {
 <details class="card" id="snap-assignment-form" open><summary>Assign a Snap Workout</summary>
-<form asp-action="Assign" asp-route-clientId="@Model.ClientId" method="post" data-estimate-url="@Url.Action("Estimate",new{clientId=Model.ClientId})" data-simple-assignment>
+<form asp-action="Assign" asp-route-clientId="@Model.ClientId" method="post" data-estimate-url="@Url.Action("Estimate",new{clientId=Model.ClientId})" data-simple-assignment data-exercise-search-url="@Url.Action("Exercises",new{clientId=Model.ClientId})">
 <input type="hidden" name="Revision" value="@Model.Revision" /><input type="hidden" name="RequestId" value="@Model.Draft.RequestId" />
 <div class="simple-fields snap-assignment-row">
 <div class="snap-workout-picker"><label for="snap-workout-name">Workout</label><div class="snap-workout-input"><input id="snap-workout-name" name="Name" value="@Model.Draft.Name" maxlength="100" required /><button type="button" data-workout-toggle aria-label="Show previous Snap Workouts" aria-expanded="false" aria-controls="snap-workout-history">▾</button></div><div id="snap-workout-history" class="snap-workout-history" hidden>@foreach(var template in Model.RecentTemplates){<a href="@Url.Action("Template",new{clientId=Model.ClientId,workoutId=template.Id})#snap-assignment-form">@template.Name</a>}@if(Model.RecentTemplates.Count==0){<span>No previous Snap Workouts yet.</span>}</div></div><label>Date<input name="Date" type="date" min="@Model.Today.ToString("yyyy-MM-dd")" value="@Model.Draft.Date.ToString("yyyy-MM-dd")" required /></label><label>Time Allowed (hours)<input name="TimeAllowed" type="number" min="0.0166666667" max="168" step="any" value="@Model.Draft.TimeAllowed" required /></label><label>Required Completion Time<output data-required-completion data-time-zone="@Model.ClientTimeZone" data-client-today="@Model.Today.ToString("yyyy-MM-dd")" data-server-now="@DateTimeOffset.UtcNow.ToString("O")">Calculated when assigned</output></label></div>
 <div class="simple-fields snap-assignment-row"><label>Late Fee ($)<input name="LatePenalty" type="number" min="0" max="10000" step=".01" value="@Model.Draft.LatePenalty" required /></label><label>Incomplete Exercise Fee ($)<input name="IncompleteExerciseFee" type="number" min="0" max="10000" step=".01" value="@Model.Draft.IncompleteExerciseFee" required /></label><label>Coach Incentive Per Rep ($)<input name="CoachIncentivePerRep" type="number" min="0" max="100" step=".01" value="@Model.Draft.CoachIncentivePerRep" required /></label><label>Maximum total charges ($)<input name="Cap" type="number" min="0" max="10000" step=".01" value="@Model.Draft.Cap" required /></label></div>
-<p class="muted">All fees, penalties and extra-rep incentives are paid by the client to the coach. The cap limits their combined total for this workout, including the late fee. Shared exercise fees apply to each incomplete exercise; the incentive applies to each qualifying extra rep. The timer starts when assigned; a future workout date starts at midnight in the client’s time zone. The completion time shown is an estimate until you assign the workout.</p>
+<p class="muted">All fees, penalties and extra-rep incentives are paid by the client to the coach. The cap limits their combined total for this workout, including the late fee. Shared exercise fees apply to each incomplete exercise; the incentive applies to each qualifying extra rep.</p>
 <div data-simple-exercises>
 @for(var i=0;i<Model.Draft.Exercises.Count;i++){
  var exercise=Model.Draft.Exercises[i];
  <section class="simple-exercise" data-exercise><div class="simple-fields snap-exercise-row"><label>Exercise<input name="Exercises[@i].Name" value="@exercise.Name" maxlength="250" required /></label><label>Sets<input name="Exercises[@i].Sets" type="number" min="1" max="10" value="@exercise.Sets" required /></label><label>Reps per set<input name="Exercises[@i].Reps" type="number" min="1" max="100" value="@exercise.Reps" required /></label><label>Max weight (lb)<input name="Exercises[@i].MaxWeight" type="number" min="0" max="2000" step=".01" value="@exercise.MaxWeight" required /></label>
- <label>RPE (optional)<input name="Exercises[@i].Rpe" type="number" min="1" max="10" step=".1" value="@exercise.Rpe" /></label><label class="snap-muscle-focus">Muscle focus<input name="Exercises[@i].MuscleFocus" value="@exercise.MuscleFocus" maxlength="250" placeholder="chest, shoulders, triceps" /></label><button class="secondary" type="button" data-remove-exercise>Remove exercise</button></div></section>
+ <label>RPE (optional)<input name="Exercises[@i].Rpe" type="number" min="1" max="10" step=".1" value="@exercise.Rpe" /></label><label class="snap-muscle-focus">Muscle focus (optional)<input name="Exercises[@i].MuscleFocus" value="@exercise.MuscleFocus" maxlength="250" placeholder="chest, shoulders, triceps" /></label><button class="secondary" type="button" data-remove-exercise>Remove exercise</button></div></section>
 }
 </div>
-<p class="snap-engine-estimate" data-snap-estimate role="status">Enter the exercises to preview estimated calories and glycogen.</p><p class="muted">Muscles: chest, shoulders, back, lats, biceps, triceps, abs, quads, hamstrings, glutes, calves and more. Separate muscles with commas. Blank RPE uses the engine default. Time estimates use 3 seconds per rep and 90 seconds between working sets, not the completion deadline.</p>
+<p class="snap-engine-estimate" data-snap-estimate role="status">Enter the exercises to preview estimated calories and glycogen.</p>
 <div class="snap-form-actions"><button type="button" class="secondary" data-add-exercise>Add exercise</button><button type="submit">Assign workout</button></div>
 </form></details>
 }
@@ -84,3 +84,5 @@ Payments are tracked at the coach/client account level rather than allocated to 
 <script src="~/js/snap-engine-estimate.js" asp-append-version="true" defer></script>
 
 <script src="~/js/snap-wake-lock.js" asp-append-version="true" defer></script>
+
+<script src="~/js/snap-exercise-search.js" asp-append-version="true" defer></script>
