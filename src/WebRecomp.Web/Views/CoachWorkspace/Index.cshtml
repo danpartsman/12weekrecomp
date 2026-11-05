@@ -1,5 +1,6 @@
 @model WebRecomp.Web.Controllers.CoachWorkspacePage
 <style>
+@media(max-width:700px){.coach-financial-editor{overflow:visible!important}.coach-financial-table,.coach-financial-table tbody,.coach-financial-table tr,.coach-financial-table td{display:block;width:100%;box-sizing:border-box}.coach-financial-table thead{display:none}.coach-financial-table tr{border:1px solid var(--line,#475569);border-radius:12px;padding:12px;margin:12px 0;background:var(--surface,#111827)}.coach-financial-table td{display:flex;align-items:center;justify-content:space-between;gap:12px;border:0!important;padding:7px 0!important;text-align:left!important;white-space:normal!important}.coach-financial-table td:before{content:attr(data-label);font-size:.85rem;font-weight:700;flex:0 0 42%;color:var(--muted,#94a3b8)}.coach-financial-table td.coach-financial-rule{display:block;padding:8px 0!important}.coach-financial-table td.coach-financial-rule:before{display:none}.coach-financial-table td.coach-financial-rule strong{font-size:1.05rem}.coach-financial-table td input,.coach-financial-table td select{width:100%!important;min-width:0;max-width:56%;min-height:46px;box-sizing:border-box;font-size:16px}.coach-financial-table td.coach-financial-rule small{white-space:normal}.coach-macro-table-scroll{overscroll-behavior-x:contain}.coach-macro-table{min-width:760px}.coach-limits-table{width:100%!important}.coach-accept-button{width:100%;min-height:48px}}
 .coach-macro-table-scroll{overflow-x:auto;max-width:100%;margin:1rem 0}.coach-macro-table{width:100%;min-width:900px;border-collapse:collapse;table-layout:fixed}.coach-macro-table th,.coach-macro-table td{text-align:center!important;vertical-align:middle;padding:.65rem .35rem;white-space:nowrap;font-variant-numeric:tabular-nums}.coach-macro-table th:first-child,.coach-macro-table td:first-child{text-align:left!important;width:110px;padding-left:.75rem}.coach-limits-panel{margin:1rem 0}.coach-limits-table{width:min(100%,440px)!important;max-width:440px;table-layout:fixed;margin:0!important}.coach-limits-table th,.coach-limits-table td{text-align:left!important;padding:.5rem .75rem!important}.coach-limits-table th:first-child,.coach-limits-table td:first-child{width:70%}.coach-limits-table th:last-child,.coach-limits-table td:last-child{width:30%;text-align:left!important}.coach-accept-button{display:inline-flex!important;align-items:center;justify-content:center;min-height:44px;padding:12px 20px!important;font-size:1rem!important;font-weight:700!important;border-radius:12px!important;cursor:pointer}
 </style>
 @{ViewData["Title"]="Coach workspace";}
@@ -57,17 +58,17 @@ else{<p>Waiting for client acceptance.</p>}
 <form asp-action="FinancialProposal" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
 @Html.AntiForgeryToken()
 <input type="hidden" name="ExpectedRevision" value="@financial.Revision" />
-<div style="overflow-x:auto"><table><thead><tr><th>Enable</th><th>Rule</th><th>Amount ($)</th><th>Assess</th><th>Minimum per period ($)</th><th>Maximum per period ($)</th></tr></thead><tbody>
+<div class="coach-financial-editor"><table class="coach-financial-table"><thead><tr><th>Enable</th><th>Rule</th><th>Amount ($)</th><th>Assess</th><th>Minimum per period ($)</th><th>Maximum per period ($)</th></tr></thead><tbody>
 @for(var i=0;i<financial.Rules.Count;i++){
 var rule=financial.Rules[i];
 var ruleTitle=i<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"):(rule.Name.EndsWith(" coaches incentive")?rule.Name:rule.Name.Replace(" bonus","")+" coaches incentive");
 <tr>
-<td><select name="Enabled[@i]" aria-label="Enable @ruleTitle"><option value="false" selected="@(!rule.Enabled)">Off</option><option value="true" selected="@rule.Enabled">On</option></select></td>
-<td><strong>@ruleTitle</strong><small style="display:block">@rule.Criterion</small></td>
-<td><input type="number" name="Amount[@i]" value="@rule.Amount" min="0" max="10000" step="1" required style="width:90px" /></td>
-<td><select name="Frequency[@i]"><option value="daily" selected="@(rule.Frequency=="daily")">Daily</option><option value="weekly" selected="@(rule.Frequency=="weekly")">Weekly</option><option value="monthly" selected="@(rule.Frequency=="monthly")">Monthly</option></select></td>
-<td><input type="number" name="Minimum[@i]" value="@rule.Minimum" min="0" max="10000" step="1" required style="width:90px" /></td>
-<td><input type="number" name="Maximum[@i]" value="@rule.Maximum" min="0" max="10000" step="1" required style="width:90px" /></td>
+<td data-label="Enabled"><select name="Enabled[@i]" aria-label="Enable @ruleTitle"><option value="false" selected="@(!rule.Enabled)">Off</option><option value="true" selected="@rule.Enabled">On</option></select></td>
+<td class="coach-financial-rule"><strong>@ruleTitle</strong><small style="display:block">@rule.Criterion</small></td>
+<td data-label="Amount ($)"><input type="number" name="Amount[@i]" value="@rule.Amount" min="0" max="10000" step="1" required style="width:90px" /></td>
+<td data-label="Assess"><select name="Frequency[@i]"><option value="daily" selected="@(rule.Frequency=="daily")">Daily</option><option value="weekly" selected="@(rule.Frequency=="weekly")">Weekly</option><option value="monthly" selected="@(rule.Frequency=="monthly")">Monthly</option></select></td>
+<td data-label="Minimum ($)"><input type="number" name="Minimum[@i]" value="@rule.Minimum" min="0" max="10000" step="1" required style="width:90px" /></td>
+<td data-label="Maximum ($)"><input type="number" name="Maximum[@i]" value="@rule.Maximum" min="0" max="10000" step="1" required style="width:90px" /></td>
 </tr>
 }
 </tbody></table></div>
