@@ -54,7 +54,7 @@ jobs:
         run: dotnet test tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj --configuration Release --no-restore
 
       - name: Verify accountability preview calculations
-        run: node --test tests/accountability-preview.test.cjs
+        run: node --test tests/accountability-preview.test.cjs tests/nutrition-label-parser.test.cjs
 
       - name: Verify native nutrition quantity controls and capture previews
         shell: pwsh
@@ -81,6 +81,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Pending Snap notice check failed." }
           node tests/coach-portal.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Coach portal assignment check failed." }
+          node tests/nutrition-scanner.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Food scanner check failed." }
           node tests/coach-notifications.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Phone notification setup check failed." }
 

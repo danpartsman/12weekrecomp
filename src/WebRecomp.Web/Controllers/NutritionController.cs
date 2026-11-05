@@ -1286,7 +1286,8 @@ public sealed class NutritionController(
         decimal? fiberG,
         bool addToToday,
         string mealSlotCode,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? scanSource=null,string? scanBarcode=null)
     {
         var context =
             await userContext.GetAsync(
@@ -1355,7 +1356,7 @@ public sealed class NutritionController(
                             : brandName.Trim(),
                         servingSize,
                         NormalizeUnit(servingUnitCode),
-                        HouseholdServingText: "1 serving",
+                        HouseholdServingText: scanSource=="OPEN_FOOD_FACTS"&&FoodBarcode.Normalize(scanBarcode) is not null?"Open Food Facts (ODbL), barcode "+scanBarcode+", per 100 g":"1 serving",
                         Nutrients: nutrients),
                     cancellationToken);
 

@@ -629,6 +629,7 @@
             </form>
         </dialog>
 
+        <partial name="_FoodScanner" />
         <dialog id="nutrition-food-picker-dialog"
                 class="nutrition-picker-dialog"
                 data-picker-data-url="@Url.Action("FoodPickerData", "Nutrition")"
@@ -669,6 +670,7 @@
                     </label>
                 </div>
 
+                <div class="nutrition-scan-actions"><button type="button" data-food-scan="barcode">Scan barcode</button><button type="button" data-food-scan="label">Scan label</button></div>
                 <div class="nutrition-picker-results"
                      data-picker-results>
                     <div class="nutrition-picker-scroll"
@@ -692,7 +694,7 @@
                             <div class="nutrition-picker-results-heading">
                                 <div>
                                     <strong>Foods</strong>
-                                    <span class="small">Most-used matching foods appear first</span>
+                                    <span class="small">Closest matches across your foods and the food library</span>
                                 </div>
 
                                 <div class="nutrition-picker-action-links">
@@ -843,6 +845,7 @@
                   method="post"
                   class="nutrition-picker-shell nutrition-custom-food-shell"
                   data-custom-food-form>
+                <input type="hidden" name="scanSource" /><input type="hidden" name="scanBarcode" />
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="date" value="@manual.Date.ToString("yyyy-MM-dd")" />
                 <input type="hidden" name="addToToday" value="true" />
@@ -2013,6 +2016,13 @@
                 button);
         }
     };
+
+    dialog.addEventListener('nutrition-barcode-selected',event=>{
+        const food=event.detail;
+        // Provider descriptions are displayed as markup by the existing selection view.
+        const safe=document.createElement('span');safe.textContent=food.description;
+        selectChoice(document.createElement('button'),{kind:'provider',providerCode:food.providerCode,sourceFoodId:food.sourceFoodId,description:safe.innerHTML});
+    });
 
     const renderFoods = foods => {
         foodsHost.replaceChildren();
