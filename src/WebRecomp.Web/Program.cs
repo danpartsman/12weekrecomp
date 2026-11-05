@@ -195,7 +195,11 @@ builder.Services.AddHttpClient<FatSecretFoodProvider>(client =>
 builder.Services.AddTransient<IFoodCompositionProvider>(
     services => services.GetRequiredService<FatSecretFoodProvider>());
 
-builder.Services.AddSingleton(_ => UsdaFoodDataCentralOptions.FromEnvironment());
+builder.Services.AddSingleton<WebRecomp.Web.Services.Nutrition.UsdaConnection>();
+builder.Services.AddTransient(services => new UsdaFoodDataCentralOptions
+{
+    ApiKey=services.GetRequiredService<WebRecomp.Web.Services.Nutrition.UsdaConnection>().ApiKey??string.Empty
+});
 builder.Services.AddHttpClient<UsdaFoodDataCentralProvider>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using WebRecomp.Web.Services.Nutrition;
 using Microsoft.AspNetCore.Mvc;
 using WebRecomp.NutritionIntelligence.Contracts;
 using WebRecomp.NutritionIntelligence.Persistence;
@@ -10,12 +11,31 @@ namespace WebRecomp.Web.Controllers;
 [Route("admin/nutrition-providers")]
 public sealed class AdminNutritionProvidersController(
     INutritionFoodLogStore nutritionStore,
-    IEnumerable<IFoodCompositionProvider> providers) : Controller
+    IEnumerable<IFoodCompositionProvider> providers,UsdaConnection usda) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(
         CancellationToken cancellationToken)
         => View(await BuildModelAsync(cancellationToken));
+
+    [HttpPost("usda-key"),ValidateAntiForgeryToken]
+    public IActionResult SaveUsdaKey(string? apiKey)
+    {
+        if(string.IsNullOrWhiteSpace(apiKey))
+        {
+            TempData["NutritionProviderSuccess"]="USDA key left unchanged.";
+            return RedirectToAction(nameof(Index));
+        }
+        try
+        {
+            usda.Save(apiKey);
+            TempData["NutritionProviderSuccess"]="USDA key saved securely. Use Test saved USDA key to verify it. No restart is needed.";
+        }
+        catch(ArgumentException){TempData["NutritionProviderError"]="Enter a valid USDA API key (8–128 letters, numbers, underscores or hyphens).";}
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        {TempData["NutritionProviderError"]="Could not save the USDA key securely. Check the server credential storage configuration.";}
+        return RedirectToAction(nameof(Index));
+    }
 
     [HttpPost("settings")]
     [ValidateAntiForgeryToken]
@@ -133,7 +153,7 @@ public sealed class AdminNutritionProvidersController(
         catch (Exception ex)
         {
             TempData["NutritionProviderError"] =
-                $"{providerCode} test failed: {SafeMessage(ex)}";
+                $"{providerCode} test failed: {(providerCode=="USDA_FDC"?"Check that the saved API key is correct and USDA is available.":SafeMessage(ex))}";
         }
 
         return RedirectToAction(nameof(Index));
@@ -155,6 +175,8 @@ public sealed class AdminNutritionProvidersController(
         return new AdminNutritionProvidersViewModel
         {
             Providers = policies,
+            UsdaKeyConfigured=usda.Ready,
+            UsdaKeySource=usda.Source,
             PrimaryProviderCode =
                 enabled.ElementAtOrDefault(0)?.ProviderCode
                 ?? policies.ElementAtOrDefault(0)?.ProviderCode

@@ -31,6 +31,23 @@
         <div class="alert error" asp-validation-summary="All"></div>
     }
 
+    <section class="card" id="usda-key-setup">
+        <h2>USDA FoodData Central API key</h2>
+        <p role="status"><strong>@(Model.UsdaKeyConfigured?"Key configured":"Key needed")</strong> · @Model.UsdaKeySource</p>
+        <p><a href="https://fdc.nal.usda.gov/api-key-signup/" target="_blank" rel="noopener">Get a free USDA API key</a>. Saving a key here makes it available to food search and barcode lookup in this environment.</p>
+        <form asp-action="SaveUsdaKey" method="post" autocomplete="off">
+            @Html.AntiForgeryToken()
+            <label for="usda-api-key">USDA API key</label>
+            <input id="usda-api-key" name="apiKey" type="password" value="" maxlength="128" autocomplete="new-password" spellcheck="false" placeholder="Paste a new key; leave blank to keep the current key" style="width:100%;max-width:640px;box-sizing:border-box;font-size:16px;min-height:44px" />
+            <p class="muted">The key is encrypted on the server and is never displayed. A saved administration key takes precedence over the Azure setting. TEST and LIVE keep separate credentials.</p>
+            <button type="submit" class="button primary">Save USDA key</button>
+        </form>
+        <form asp-action="TestProvider" method="post" style="margin-top:12px">
+            @Html.AntiForgeryToken()<input type="hidden" name="providerCode" value="USDA_FDC" />
+            <button type="submit" class="button" disabled="@(!Model.UsdaKeyConfigured)">Test saved USDA key</button>
+        </form>
+    </section>
+
     <section class="card">
         <h2>Provider Order</h2>
 
@@ -69,9 +86,7 @@
             </div>
 
             <p class="muted">
-                The primary provider is ranked ahead of the secondary provider.
-                Past/frequent foods and your custom foods still remain ahead of
-                external-provider search results in the Nutrition picker.
+                Food matches are ranked by relevance across history, custom foods, and external providers. Provider priority breaks ties between equally relevant external matches.
             </p>
 
             <button type="submit" class="button primary">
