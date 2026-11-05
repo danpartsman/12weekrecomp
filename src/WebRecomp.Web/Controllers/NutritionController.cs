@@ -239,8 +239,8 @@ public sealed class NutritionController(
             await history.GetFrequentFoodsAsync(
                 context.Client.ClientId,
                 date,
-                query: null,
-                take: 80,
+                query: query,
+                take: 100,
                 cancellationToken: cancellationToken);
 
         var normalizedQuery =
@@ -278,52 +278,7 @@ public sealed class NutritionController(
             string queryText,
             params string?[] candidateParts)
         {
-            // Preserve the existing fuzzy behavior.
-            var fuzzy =
-                FuzzySearch.Score(
-                    queryText,
-                    candidateParts);
-
-            var queryWords =
-                FoodSearchWords(queryText);
-
-            if (queryWords.Length == 0)
-                return fuzzy;
-
-            var candidateWords =
-                candidateParts
-                    .Where(x =>
-                        !string.IsNullOrWhiteSpace(x))
-                    .SelectMany(x =>
-                        FoodSearchWords(x!))
-                    .ToHashSet(
-                        StringComparer.OrdinalIgnoreCase);
-
-            var matched =
-                queryWords.Count(
-                    word =>
-                        candidateWords.Contains(word));
-
-            if (matched == 0)
-                return fuzzy;
-
-            var coverage =
-                (decimal)matched
-                / queryWords.Length;
-
-            // ALL words in any order should rank very highly.
-            // A partial word hit is allowed, but ranks lower.
-            var wordScore =
-                matched == queryWords.Length
-                    ? 96
-                    : 52
-                      + (int)Math.Round(
-                          38m * coverage,
-                          MidpointRounding.AwayFromZero);
-
-            return Math.Max(
-                fuzzy,
-                wordScore);
+            return FoodSearchRanking.Score(queryText,candidateParts.ElementAtOrDefault(0),candidateParts.ElementAtOrDefault(1));
         }
 
         static IReadOnlyList<string>
@@ -399,7 +354,7 @@ public sealed class NutritionController(
                             x.Description,
                             x.BrandName)
                     })
-                    .Where(x => x.Score >= 48)
+                    .Where(x => x.Score >= 500)
                     .OrderByDescending(x => x.Score)
                     .ThenByDescending(x => x.Item.UseCount)
                     .ThenBy(x => x.Item.Description)
@@ -469,7 +424,7 @@ public sealed class NutritionController(
                 })
                 .Where(x =>
                     normalizedQuery is null
-                    || x.Score >= 48)
+                    || x.Score >= 500)
                 .OrderByDescending(x => x.Score)
                 .ThenBy(x => x.Food.FoodName)
                 .Take(12)
@@ -537,9 +492,9 @@ public sealed class NutritionController(
             // fallbacks and fuzzy-rank the merged candidates against the
             // user's full query. This catches common typos and word-order
             // differences without fabricating nutrition records.
-            if (queryVariants.Count > 1)
+            if (queryVariants.Count > 1 && providerCandidates.Where(x=>FoodSearchRanking.Score(normalizedQuery,x.Description,x.BrandOwner)>=1000).Select(x=>x.ProviderCode+"|"+x.SourceFoodId).Distinct().Count()<8)
             {
-                foreach (var variant in queryVariants.Skip(1))
+                foreach (var variant in queryVariants.Skip(1).Take(3))
                 {
                     var fallback =
                         await foodSearch.SearchAsync(
@@ -553,7 +508,7 @@ public sealed class NutritionController(
                     providerWarnings.AddRange(
                         fallback.Warnings);
 
-                    if (providerCandidates.Count >= 36)
+                    if (providerCandidates.Where(x=>FoodSearchRanking.Score(normalizedQuery,x.Description,x.BrandOwner)>=1000).Select(x=>x.ProviderCode+"|"+x.SourceFoodId).Distinct().Count()>=8)
                         break;
                 }
             }
@@ -593,11 +548,6 @@ public sealed class NutritionController(
                             $"{x.ProviderCode}|{x.SourceFoodId}",
                         StringComparer.OrdinalIgnoreCase)
                     .Select(x => x.First())
-                    .GroupBy(
-                        x =>
-                            $"{x.Description}|{x.BrandOwner}|{x.DataType}",
-                        StringComparer.OrdinalIgnoreCase)
-                    .Select(x => x.First())
                     .Select(x => new
                     {
                         Food = x,
@@ -607,9 +557,9 @@ public sealed class NutritionController(
                             x.BrandOwner,
                             x.DataType)
                     })
-                    .Where(x => x.Score >= 48)
-                    .OrderBy(x => x.Food.ProviderPriority)
-                    .ThenByDescending(x => x.Score)
+                    .Where(x => x.Score >= 500)
+                    .OrderByDescending(x => x.Score)
+                    .ThenBy(x => x.Food.ProviderPriority)
                     .ThenBy(x => x.Food.Description)
                     .Take(maxProviderCandidates)
                     .Select(x => x.Food))
@@ -698,6 +648,13 @@ public sealed class NutritionController(
                 warning =
                     "No foods with complete calories, protein, carbohydrates, and fat were found. Try a different search.";
             }
+        }
+
+        if(normalizedQuery is not null)
+        {
+            foods=foods.Select(food=>new {Food=food,Json=System.Text.Json.JsonSerializer.SerializeToElement(food)})
+                .Select(x=>new {x.Food,Score=FoodSearchRanking.Score(normalizedQuery,x.Json.GetProperty("description").GetString(),x.Json.TryGetProperty("brandName",out var brand)?brand.GetString():null),Usage=x.Json.TryGetProperty("usageCount",out var usage)?usage.GetInt32():0})
+                .OrderByDescending(x=>x.Score).ThenByDescending(x=>x.Usage).Select(x=>x.Food).ToList();
         }
 
         return Json(

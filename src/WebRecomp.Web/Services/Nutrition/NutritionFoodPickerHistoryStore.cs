@@ -150,13 +150,7 @@ public sealed class NutritionFoodPickerHistoryStore(
                   AND li.protein_g IS NOT NULL
                   AND li.carbohydrate_g IS NOT NULL
                   AND li.fat_g IS NOT NULL
-                  AND
-                  (
-                      @query IS NULL
-                      OR li.description_snapshot LIKE @like
-                      OR ef.brand_owner LIKE @like
-                      OR cf.brand_name LIKE @like
-                  )
+                  /*SEARCH_TERMS*/
             )
             SELECT TOP (@take)
                 daily_log_item_id,
@@ -186,15 +180,15 @@ public sealed class NutritionFoodPickerHistoryStore(
             "@before_date",
             SqlDbType.Date,
             beforeDate.ToDateTime(TimeOnly.MinValue));
-        Add(command, "@query", SqlDbType.NVarChar, normalizedQuery, 200);
-        Add(
-            command,
-            "@like",
-            SqlDbType.NVarChar,
-            normalizedQuery is null
-                ? null
-                : $"%{normalizedQuery}%",
-            210);
+        var terms=FoodSearchRanking.Words(normalizedQuery).Take(12).ToArray();
+        var clauses=new List<string>();
+        for(var i=0;i<terms.Length;i++)
+        {
+            var parameter="@food_term_"+i;
+            clauses.Add("AND CONCAT(li.description_snapshot, ' ', ef.brand_owner, ' ', cf.brand_name) LIKE "+parameter);
+            Add(command,parameter,SqlDbType.NVarChar,"%"+terms[i]+"%",300);
+        }
+        command.CommandText=command.CommandText.Replace("/*SEARCH_TERMS*/",string.Join("\n",clauses));
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);

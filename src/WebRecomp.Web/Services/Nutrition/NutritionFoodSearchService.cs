@@ -131,6 +131,10 @@ public sealed class NutritionFoodSearchService(
                         });
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 warnings.Add(
@@ -141,7 +145,7 @@ public sealed class NutritionFoodSearchService(
         return new NutritionFoodSearchResponse(
             ApplySort(
                 results,
-                NutritionFoodSortCodes.Normalize(sortCode)),
+                NutritionFoodSortCodes.Normalize(sortCode),query),
             warnings);
     }
 
@@ -217,7 +221,7 @@ public sealed class NutritionFoodSearchService(
 
     private static IReadOnlyList<NutritionFoodSearchResultViewModel> ApplySort(
         IReadOnlyList<NutritionFoodSearchResultViewModel> source,
-        string sortCode)
+        string sortCode,string query)
     {
         IEnumerable<NutritionFoodSearchResultViewModel> ordered =
             sortCode switch
@@ -256,7 +260,8 @@ public sealed class NutritionFoodSearchService(
                             StringComparer.OrdinalIgnoreCase),
 
                 _ => source
-                    .OrderBy(x => x.ProviderPriority)
+                    .OrderByDescending(x => FoodSearchRanking.Score(query,x.Description,x.BrandOwner))
+                    .ThenBy(x => x.ProviderPriority)
             };
 
         return ordered.ToArray();
