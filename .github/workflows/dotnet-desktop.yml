@@ -59,7 +59,7 @@ jobs:
       - name: Verify native nutrition quantity controls and capture previews
         shell: pwsh
         run: |
-          npm install --prefix "$env:RUNNER_TEMP/nutrition-browser" --no-audit --no-fund playwright@1.62.1
+          npm install --prefix "$env:RUNNER_TEMP/nutrition-browser" --no-audit --no-fund playwright@1.62.1 @zxing/browser@0.1.5
           if ($LASTEXITCODE -ne 0) { throw "Could not prepare the browser check." }
           $env:NUTRITION_PLAYWRIGHT_MODULE = "$env:RUNNER_TEMP/nutrition-browser/node_modules/playwright"
           $env:NUTRITION_CHROME_PATH = "$env:ProgramFiles/Google/Chrome/Application/chrome.exe"

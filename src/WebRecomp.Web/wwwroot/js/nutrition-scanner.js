@@ -5,7 +5,7 @@
     let video=dialog.querySelector('[data-scan-video]');
     const retry=dialog.querySelector('[data-scan-start]'),add=dialog.querySelector('[data-scan-add]'),resultPanel=dialog.querySelector('[data-scan-result]');
     let mode='barcode',session=0,cameraAttempt=0,requestId=0,worker=null,controller=null,stream=null,cameraControls=null,lookupBusy=false,adding=false,pendingFood=null;
-    const loaders=new Map();
+    const loaders=new Map();let decoderStartup=Promise.resolve();
     function load(src){if(loaders.has(src))return loaders.get(src);const promise=new Promise((resolve,reject)=>{const tag=document.createElement('script');tag.src=src;tag.onload=resolve;tag.onerror=()=>{loaders.delete(src);tag.remove();reject(new Error('Could not download the scanning tools. Check your connection and try again.'));};document.head.append(tag);});loaders.set(src,promise);return promise;}
     function message(text){status.textContent=text;}
     function stopCamera(){cameraAttempt++;cameraControls?.stop();cameraControls=null;const old=stream;stream=null;old?.getTracks().forEach(track=>track.stop());video.srcObject=null;}
@@ -15,23 +15,33 @@
     dialog.addEventListener('close',()=>{if(!dialog.open)cleanup();});
     dialog.addEventListener('cancel',cleanup);
     dialog.querySelector('[data-scan-close]').addEventListener('click',close);
-    async function startCamera(){
+    function startCamera(){const previous=decoderStartup;const next=beginCamera(previous);decoderStartup=next.catch(()=>{});return next;}
+    async function beginCamera(previousStartup){
         if(lookupBusy||adding)return;
         stopCamera();const current=session,attempt=cameraAttempt;let detected=false;
-        // Old decoder cleanup must never clear a newly attached preview.
-        const preview=video.cloneNode(false);video.replaceWith(preview);video=preview;preview.muted=true;preview.playsInline=true;
+        // Finish old decoder startup/cleanup before binding a fresh stream to the preview.
+        const preview=video;preview.muted=true;preview.playsInline=true;
         pendingFood=null;resultPanel.hidden=true;add.disabled=true;video.hidden=false;retry.hidden=true;dialog.querySelector('[data-scan-detected]').textContent='';
         if(!navigator.mediaDevices?.getUserMedia){message('Live camera is unavailable. Enter the barcode manually.');return;}
         message('Starting camera…');
         let camera;
         try{
             // Request a NEW stream on every open/retry; never cache permission or a stopped stream.
-            camera=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+            camera=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
             if(current!==session||attempt!==cameraAttempt||!dialog.open||document.hidden){camera.getTracks().forEach(track=>track.stop());return;}
+            await previousStartup;
+            if(current!==session||attempt!==cameraAttempt||!dialog.open){camera.getTracks().forEach(track=>track.stop());return;}
             stream=camera;
+            const track=camera.getVideoTracks?.()[0];
+            try{if(track?.getCapabilities?.().focusMode?.includes('continuous'))await track.applyConstraints({advanced:[{focusMode:'continuous'}]});}catch{/* Camera defaults remain usable when focus control is unsupported. */}
+            preview.srcObject=camera;
+            await preview.play();
+            if(!preview.videoWidth||!preview.videoHeight||preview.readyState<2){
+                await new Promise((resolve,reject)=>{const done=()=>{if(preview.videoWidth&&preview.videoHeight&&preview.readyState>=2){clearTimeout(timer);preview.removeEventListener('loadeddata',done);preview.removeEventListener('canplay',done);resolve();}};const timer=setTimeout(()=>{preview.removeEventListener('loadeddata',done);preview.removeEventListener('canplay',done);reject(new Error('Camera frames are not ready.'));},8000);preview.addEventListener('loadeddata',done);preview.addEventListener('canplay',done);done();});
+            }
             await load('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js');
             if(current!==session||attempt!==cameraAttempt||!dialog.open||document.hidden){camera.getTracks().forEach(track=>track.stop());return;}
-            const reader=new window.ZXingBrowser.BrowserMultiFormatReader();
+            const reader=new window.ZXingBrowser.BrowserMultiFormatOneDReader();
             const controls=await reader.decodeFromStream(camera,preview,(result,error,controls)=>{
                 if(!result||detected||current!==session||attempt!==cameraAttempt||!dialog.open)return;
                 const value=result.getText();if(!/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(value))return;
