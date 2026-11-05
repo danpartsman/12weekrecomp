@@ -1,8 +1,11 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
-function navigation({admin=false,demo=false}={}) {
+function navigation({admin=false,demo=false,hasCoach=false}={}) {
  let html=fs.readFileSync('src/WebRecomp.Web/Views/Shared/_AppNavigation.cshtml','utf8').replace(/^@model.*$/m,'');
+ // Render only markup: the preamble queries the signed-in user's coach state.
+ html=html.slice(html.indexOf('<nav'));
+ html=html.replace(/^\s*@if\(hasCoach\).*$/m,hasCoach&&!demo?'<details class="app-nav-group"><summary><a class="app-nav-primary" href="/MyCoach">My Coach</a></summary><div class="app-nav-panel"><a href="/MyCoach">Coach workspaces</a></div></details>':'');
  html=html.replace(/@if \(([^\n]+)\)\s*\{([\s\S]*?)\n            \}/g,(_,condition,body)=>{
   const show=condition==='Model'?demo:condition==='!Model'?!demo:!demo&&admin;
   return show?body:'';
@@ -57,6 +60,9 @@ function navigation({admin=false,demo=false}={}) {
   assert.equal(await page.locator('.app-nav-toggle').isVisible(),true);await page.locator('.app-nav-toggle').click();
   assert.equal(await groups.first().isVisible(),true);await navigate(0);
   assert.deepEqual(errors,[]);assert.equal(navigation().includes('Coach Center'),false);assert.equal(navigation().includes('Administration'),false);assert.equal(navigation({demo:true}).includes('End Guided Demo'),true);assert.equal(navigation({demo:true}).includes('Sign Out'),false);
+  assert.match(navigation({hasCoach:true}),/class="app-nav-primary" href="\/MyCoach">My Coach/);
+  assert.equal(navigation({hasCoach:true,demo:true}).includes('Coach workspaces'),false);
+  assert.equal(navigation().includes('NavigationDb'),false);
   console.log('Primary navigation changes page and opens destination flyouts with storage blocked; timed dismissal, keyboard, mobile hamburger, viewport and roles passed.');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
