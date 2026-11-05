@@ -11,7 +11,7 @@
     document.querySelectorAll('[data-food-scan]').forEach(button=>button.addEventListener('click',()=>{
         stop();mode=button.dataset.foodScan;photo.value='';code.value='';message('');
         dialog.querySelector('[data-scan-title]').textContent=mode==='label'?'Scan nutrition label':'Scan barcode';
-        dialog.querySelector('[data-scan-instructions]').textContent=mode==='label'?'Photograph only the nutrition facts panel, straight on and in good light. You will review the serving size and macros before adding.':'Photograph the barcode clearly, or type its printed number. We will only select an exact USDA product match.';
+        dialog.querySelector('[data-scan-instructions]').textContent=mode==='label'?'Photograph only the nutrition facts panel, straight on and in good light. You will review the serving size and macros before adding.':'Photograph the barcode clearly, or type its printed number. Only an exact barcode match is accepted; review the product before adding.';
         dialog.querySelector('[data-scan-barcode-entry]').hidden=mode!=='barcode';dialog.showModal();
     }));
     async function findBarcode(value){

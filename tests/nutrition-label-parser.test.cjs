@@ -9,3 +9,6 @@ test('missing or less-than amounts stay blank rather than becoming invented zero
  assert.equal(result.proteinG,null);assert.equal(result.fatG,null);assert.equal(result.energyKcal,100);
 });
 test('liquid serving basis stays in ml',()=>{const result=parse('Serving size 1 cup (240 ml)\nCalories 90\nTotal Fat 0g\nTotal Carbohydrate 12g\nProtein 8g');assert.equal(result.servingSize,240);assert.equal(result.servingUnitCode,'ml');});
+
+test('actual OCR g-to-9 mistakes cannot prefill impossible mass or protein',()=>{const result=parse('Serving size 1 scoop (33 9g)\nCalories 130\nProtein 259g\nTotal Fat 2.59 3%');assert.equal(result.servingSize,null);assert.equal(result.proteinG,null);assert.equal(result.fatG,null);});
+test('macro mass cannot exceed the serving mass',()=>{assert.equal(parse('Serving size 1 scoop (33 g)\nProtein 259g').proteinG,null);});
