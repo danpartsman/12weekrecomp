@@ -1,5 +1,12 @@
 (() => {
     const form=document.querySelector('[data-simple-assignment]');if(!form)return;
+    const picker=form.querySelector('.snap-workout-picker');
+    const toggle=picker?.querySelector('[data-workout-toggle]');
+    const history=picker?.querySelector('.snap-workout-history');
+    function closeHistory(){if(history){history.hidden=true;toggle.setAttribute('aria-expanded','false');}}
+    toggle?.addEventListener('click',()=>{history.hidden=!history.hidden;toggle.setAttribute('aria-expanded',String(!history.hidden));});
+    document.addEventListener('click',event=>{if(picker&&!picker.contains(event.target))closeHistory();});
+    picker?.addEventListener('keydown',event=>{if(event.key==='Escape'){closeHistory();toggle.focus();}if(event.key==='ArrowDown'&&event.target===toggle){event.preventDefault();history.hidden=false;toggle.setAttribute('aria-expanded','true');history.querySelector('a')?.focus();}});
     const list=form.querySelector('[data-simple-exercises]');
     function renumber(){[...list.children].forEach((card,i)=>card.querySelectorAll('[name]').forEach(n=>n.name=n.name.replace(/Exercises\[\d+\]/,`Exercises[${i}]`)));}
     form.querySelector('[data-add-exercise]').addEventListener('click',()=>{
