@@ -27,10 +27,11 @@
 </form></details>
 }
 <section class="card"><h2>@(Model.Coach?"Assigned workouts & results":"Your assigned workouts")</h2>
+@if(Model.Coach){<p class="muted">Tap a workout to review its results. The assignment editor above can be collapsed when you are finished.</p>}
 @if(workouts.Count==0){<p>No active Snap Workouts yet.</p>}
 @foreach(var w in workouts){
  var previous=Model.State.SnapResults.GetValueOrDefault(w.Id);var completed=SnapWorkoutLibrary.Completed(w,previous);var canRecord=true;
- <details class="simple-workout" id="snap-@w.Id" open="@(Context.Request.Query["assignment"]==w.Id)"><summary>@w.Name · @w.Date · @(completed?"Completed":previous?.Finalized==true?"Finished · penalties applied":previous is null?"Assigned":"Progress saved")</summary>
+ <details class="simple-workout snap-mobile-workout" id="snap-@w.Id" open="@(Context.Request.Query["assignment"]==w.Id)"><summary>@w.Name · @w.Date · @(completed?"Completed":previous?.Finalized==true?"Finished · penalties applied":previous is null?"Assigned":"Progress saved")</summary>
  @if(Model.Coach){
 <div class="snap-review-actions" style="display:flex;flex-wrap:wrap;gap:.65rem;align-items:center;margin:.8rem 0">
 <a class="button" asp-action="Reuse" asp-route-clientId="@Model.ClientId" asp-route-workoutId="@w.Id" asp-fragment="snap-assignment-form">Edit &amp; reassign</a>
