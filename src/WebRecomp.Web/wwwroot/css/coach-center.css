@@ -95,3 +95,25 @@ html[data-theme="dark"] .coach-shell button:not([hidden]),html[data-theme="dark"
 .coach-shell .coach-panel > summary {font-size:1.2rem;padding:0;line-height:1.5;}
 .coach-panel-body {padding-top:18px;}
 .coach-shell .coach-panel > summary:focus-visible {outline:3px solid var(--teal);outline-offset:5px;border-radius:4px;}
+
+/* Coach mobile usability: replace the wide client roster with independent cards. */
+@media(max-width:700px){
+ .coach-shell .container{min-width:0;padding:16px 12px 36px}
+ .coach-shell .card{padding:14px;max-width:100%;min-width:0}
+ .coach-shell h1{font-size:1.55rem;line-height:1.25}
+ .coach-shell .coach-client-list{overflow:visible!important}
+ .coach-shell .coach-client-table,.coach-shell .coach-client-table tbody,.coach-shell .coach-client-table tr,.coach-shell .coach-client-table td{display:block;width:100%;box-sizing:border-box}
+ .coach-shell .coach-client-table thead{display:none}
+ .coach-shell .coach-client-table tr{border:1px solid var(--line);border-radius:14px;margin:12px 0;padding:12px;background:var(--surface)}
+ .coach-shell .coach-client-table td{padding:8px 0!important;border:0!important;overflow-wrap:anywhere}
+ .coach-shell .coach-client-table td[data-label]:before{content:attr(data-label);display:block;font-size:.78rem;color:var(--muted);font-weight:700;margin-bottom:5px}
+ .coach-shell .coach-client-table td:first-child .button{font-size:1.08rem}
+ .coach-shell .coach-review-actions{display:grid;grid-template-columns:1fr;gap:9px}
+ .coach-shell .coach-review-actions .button{width:100%;white-space:normal}
+ .coach-shell button:not([hidden]),.coach-shell .button{min-height:48px;white-space:normal}
+ .coach-shell input:not([type=checkbox]):not([type=radio]),.coach-shell select,.coach-shell textarea{max-width:100%;box-sizing:border-box;font-size:16px;min-height:44px}
+ .coach-shell textarea{min-height:90px}
+ .coach-shell .coach-summary-navigation form,.coach-shell .coach-summary-navigation form select{width:100%}
+ .coach-shell .coach-summary-table-scroll{max-width:100%;-webkit-overflow-scrolling:touch}
+ .coach-shell .coach-panel > summary{padding:10px 0}
+}
