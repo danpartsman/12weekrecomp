@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="~/css/dashboard3.css" asp-append-version="true" />
 <p><a class="button" asp-action="Index">← Coach Center</a></p><h1>@Model.Client.ClientName’s plan</h1>
 @if(TempData["CoachStatus"] is string status){<div class="app-message success">@status</div>}
-<p><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@Model.Client.ClientId">Weekly summary</a> <a class="button" asp-controller="CoachWeek" asp-action="Index" asp-route-clientId="@Model.Client.ClientId">Edit weekly workouts &amp; macro goals</a> <a class="button" asp-controller="CoachPrescription" asp-action="Index" asp-route-clientId="@Model.Client.ClientId">Adjust macro and calorie limits</a></p>
+<p class="coach-client-mobile-actions"><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@Model.Client.ClientId">Weekly summary</a> <a class="button" asp-controller="CoachWeek" asp-action="Index" asp-route-clientId="@Model.Client.ClientId">Edit weekly workouts &amp; macro goals</a> <a class="button" asp-controller="CoachPrescription" asp-action="Index" asp-route-clientId="@Model.Client.ClientId">Adjust macro and calorie limits</a></p>
 @await Html.PartialAsync("_AccountabilityPreview", new AccountabilityPreviewViewModel(Model.Client.ClientId, Model.Client.ClientName))
 @inject Microsoft.Extensions.Configuration.IConfiguration AccountabilityConfig
 @if (AccountabilityPreview.Enabled(AccountabilityConfig)) { <p><a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@(Model.Client.ClientId)">Fees &amp; payments</a> <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@(Model.Client.ClientId)">Snap Workouts</a></p> }
@@ -27,11 +27,11 @@ else {<p>No body measurements recorded.</p>}</div></details>
 <p>Scheduled: @(day.Plan?.PlannedDurationMin?.ToString("0.#") ?? day.Assigned.PlannedDurationMinutes.ToString("0.#")) minutes · Effort @(day.Plan?.PlannedRpe?.ToString("0.#") ?? day.Assigned.PlannedRpe?.ToString("0.#") ?? "—") / 10</p>
 @if(day.CanEdit){<p><a class="button" asp-controller="CoachWorkout" asp-action="Index" asp-route-clientId="@Model.Client.ClientId" asp-route-date="@day.Date.ToString("yyyy-MM-dd")">Adjust or schedule workout</a></p>}
 else {<p>Past, started and completed sessions remain locked.</p>}
-<div style="overflow-x:auto"><table><thead><tr><th>Nutrient</th><th>Engine</th><th>Assigned</th><th>Logged</th></tr></thead><tbody>
+<div style="overflow-x:auto"><table class="coach-client-data-table"><thead><tr><th>Nutrient</th><th>Engine</th><th>Assigned</th><th>Logged</th></tr></thead><tbody>
 @foreach(var row in new[]{("Protein (g)",day.Engine.ProteinG,day.Assigned.ProteinG,day.Intake?.ActualProteinG),("Carbs (g)",day.Engine.RecommendedCarbsG,day.Assigned.RecommendedCarbsG,day.Intake?.ActualCarbsG),("Fat (g)",day.Engine.FatG,day.Assigned.FatG,day.Intake?.ActualFatG),("Calories",day.Engine.PrescribedEnergyKcal,day.Assigned.PrescribedEnergyKcal,day.Intake?.ActualCalories)}){<tr><th>@row.Item1</th><td>@row.Item2.ToString("0.#")</td><td>@row.Item3.ToString("0.#")</td><td>@(row.Item4?.ToString("0.#") ?? "Not logged")</td></tr>}
 </tbody></table></div>
 @if(day.Assigned.CoachPrescriptionNotice is string notice){<p>@notice</p>}
-@if(day.Exercises.Count>0){<h3>Planned exercises</h3><p>System exercises are resolved with the client's current preferences; a custom coach routine preserves its saved exercises.</p><div style="overflow-x:auto"><table><thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Weight (lb)</th></tr></thead><tbody>@foreach(var exercise in day.Exercises){<tr><td>@exercise.Name</td><td>@exercise.Sets</td><td>@exercise.Reps</td><td>@(exercise.WeightLb?.ToString("0.#") ?? "—")</td></tr>}</tbody></table></div>}
+@if(day.Exercises.Count>0){<h3>Planned exercises</h3><p>System exercises are resolved with the client's current preferences; a custom coach routine preserves its saved exercises.</p><div style="overflow-x:auto"><table class="coach-client-data-table"><thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Weight (lb)</th></tr></thead><tbody>@foreach(var exercise in day.Exercises){<tr><td>@exercise.Name</td><td>@exercise.Sets</td><td>@exercise.Reps</td><td>@(exercise.WeightLb?.ToString("0.#") ?? "—")</td></tr>}</tbody></table></div>}
 else {<p>Duration-based, rest or unresolved exercise details. The training category and duration still drive the plan.</p>}
 @foreach(var actual in day.Actual){<h3>Completed · @(actual.Session.WorkoutName ?? actual.Session.WorkoutTypeCode)</h3><p>@actual.Session.DurationMin.ToString("0.#") min · RPE @(actual.Session.SessionRpe?.ToString("0.#") ?? "—")</p><ul>@foreach(var exercise in actual.Exercises){<li><strong>@exercise.ExerciseNameSnapshot</strong>: @string.Join("; ",exercise.Sets.OrderBy(x=>x.SetOrder).Select(x=>$"{x.Reps?.ToString() ?? "—"} reps × {CoachClientPlanService.Pounds(x.Load,x.LoadUnitCode)?.ToString("0.#") ?? "—"} lb"))</li>}</ul>}
 </details>}</div></details>
@@ -43,3 +43,13 @@ else {<p>Duration-based, rest or unresolved exercise details. The training categ
 }
 <details class="card coach-panel"><summary>Client connection</summary><div class="coach-panel-body"><p>Disconnecting removes your access to this client's plan.</p><form asp-action="Disconnect" asp-route-clientId="@Model.Client.ClientId" method="post"><button>Disconnect client</button></form></div></details>
 <script src="~/js/dashboard3.js" asp-append-version="true" defer></script>
+
+<style>
+@media(max-width:700px){
+ .coach-client-mobile-actions{display:grid;grid-template-columns:1fr;gap:8px}
+ .coach-client-mobile-actions .button{width:100%;box-sizing:border-box;min-height:48px;white-space:normal}
+ .coach-client-data-table{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+ .coach-panel-body{min-width:0;overflow-wrap:anywhere}
+ .coach-panel-body form input,.coach-panel-body form select,.coach-panel-body form textarea{max-width:100%;box-sizing:border-box;font-size:16px;min-height:44px}
+}
+</style>
