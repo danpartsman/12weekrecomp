@@ -59,7 +59,7 @@
         pendingFood=food;resultPanel.hidden=false;video.hidden=true;
         dialog.querySelector('[data-scan-food-name]').textContent=food.description||'Food details need completion';
         dialog.querySelector('[data-scan-food-brand]').textContent=food.brandName||'';
-        dialog.querySelector('[data-scan-food-serving]').textContent=food.hasServing?`1 serving · ${food.servingSize} ${food.servingUnitCode}`:food.scanSource?'Serving details need review':'1 listed serving';
+        dialog.querySelector('[data-scan-food-serving]').textContent=food.hasServing?`1 serving · ${food.servingSize} ${food.servingUnitCode}`:food.scanSource?`Per ${food.servingSize} ${food.servingUnitCode} · serving needs review`:'1 listed serving';
         dialog.querySelector('[data-scan-food-macros]').textContent=Number.isFinite(food.energyKcal)?`${food.energyKcal} kcal · P ${food.proteinG??'—'} g · C ${food.carbohydrateG??'—'} g · F ${food.fatG??'—'} g`:'';
         add.disabled=false;message('');retry.hidden=false;
     }
