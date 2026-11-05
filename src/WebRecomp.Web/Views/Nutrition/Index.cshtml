@@ -262,25 +262,6 @@
             <div class="nutrition-dashboard-head">
                 <div>
                     <h2>Today</h2>
-                    <p class="small">
-                        Food Log totals feed Daily Entry automatically unless
-                        Manual Override is active there.
-                    </p>
-                </div>
-
-                <div class="nutrition-daily-actions">
-                    @if (ViewData["NutritionToday"] is DateOnly today && manual.Date == today)
-                    {
-                        <form asp-action="CopyYesterdayToToday" method="post" onsubmit="this.querySelector('button').disabled = true">
-                            <button type="submit" class="button" title="Keeps yesterday's portions and meal slots. Skips matching entries already in today's log.">Copy yesterday's meals to today</button>
-                        </form>
-                    }
-                    <a asp-controller="DailyEntry"
-                       asp-action="Index"
-                       asp-route-date="@manual.Date.ToString("yyyy-MM-dd")"
-                       class="button secondary app-daily-entry-button">
-                        Daily Entry
-                    </a>
                 </div>
             </div>
 
@@ -670,7 +651,6 @@
                     </label>
                 </div>
 
-                <div class="nutrition-scan-actions"><button type="button" data-food-scan="barcode">Scan barcode</button><button type="button" data-food-scan="label">Scan label</button></div>
                 <div class="nutrition-picker-results"
                      data-picker-results>
                     <div class="nutrition-picker-scroll"
@@ -698,6 +678,8 @@
                                 </div>
 
                                 <div class="nutrition-picker-action-links">
+                                    <button type="button" class="nutrition-picker-custom-link" data-food-scan="barcode">Scan barcode</button>
+                                    <button type="button" class="nutrition-picker-custom-link" data-food-scan="label">Scan label</button>
                                     <button type="button"
                                             class="nutrition-picker-custom-link"
                                             data-picker-custom-open>+ Add custom food</button>
@@ -2017,11 +1999,12 @@
         }
     };
 
-    dialog.addEventListener('nutrition-barcode-selected',event=>{
+    dialog.addEventListener('nutrition-barcode-selected',async event=>{
         const food=event.detail;
         // Provider descriptions are displayed as markup by the existing selection view.
         const safe=document.createElement('span');safe.textContent=food.description;
-        selectChoice(document.createElement('button'),{kind:'provider',providerCode:food.providerCode,sourceFoodId:food.sourceFoodId,description:safe.innerHTML});
+        await selectChoice(document.createElement('button'),{kind:'provider',providerCode:food.providerCode,sourceFoodId:food.sourceFoodId,description:safe.innerHTML});
+        if(food.autoAdd&&!addButton.disabled&&/^(serving$|portion:)/i.test(measureSelect.value)){addButton.click();addButton.disabled=true;}
     });
 
     const renderFoods = foods => {

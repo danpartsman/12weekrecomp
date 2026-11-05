@@ -1356,7 +1356,7 @@ public sealed class NutritionController(
                             : brandName.Trim(),
                         servingSize,
                         NormalizeUnit(servingUnitCode),
-                        HouseholdServingText: scanSource=="OPEN_FOOD_FACTS"&&FoodBarcode.Normalize(scanBarcode) is not null?"Open Food Facts (ODbL), barcode "+scanBarcode+", per 100 g":"1 serving",
+                        HouseholdServingText: scanSource=="OPEN_FOOD_FACTS"&&FoodBarcode.Normalize(scanBarcode) is not null?"Open Food Facts (ODbL), barcode "+scanBarcode+", serving "+servingSize+" "+NormalizeUnit(servingUnitCode):"1 serving",
                         Nutrients: nutrients),
                     cancellationToken);
 

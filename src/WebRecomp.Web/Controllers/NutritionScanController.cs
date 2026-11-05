@@ -43,7 +43,7 @@ public sealed class NutritionScanController(AppUserContextService users,INutriti
         {
             using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);timeout.CancelAfter(TimeSpan.FromSeconds(15));
             var client=clients.CreateClient();
-            using var request=new HttpRequestMessage(HttpMethod.Get,"https://world.openfoodfacts.org/api/v3/product/"+code!.Trim()+"?fields=code,product_name,brands,nutriments,nutrition_data_per");
+            using var request=new HttpRequestMessage(HttpMethod.Get,"https://world.openfoodfacts.org/api/v3/product/"+code!.Trim()+"?fields=code,product_name,brands,nutriments,nutrition_data_per,serving_quantity,serving_quantity_unit,serving_size");
             request.Headers.UserAgent.ParseAdd("12WeekRecomp/1.0 (+https://12weekrecomp.com/contact)");
             using var response=await client.SendAsync(request,timeout.Token);
             if(response.StatusCode==System.Net.HttpStatusCode.NotFound)return NotFound(new{message="No exact product was found. Scan the nutrition label or use food search."});
@@ -55,7 +55,11 @@ public sealed class NutritionScanController(AppUserContextService users,INutriti
             product.TryGetProperty("nutriments",out var nutrients);
             decimal? Value(string name)=>nutrients.ValueKind==JsonValueKind.Object&&nutrients.TryGetProperty(name,out var item)&&item.ValueKind==JsonValueKind.Number&&item.TryGetDecimal(out var value)&&value>=0?value:null;
             string Text(string name)=>product.TryGetProperty(name,out var item)&&item.ValueKind==JsonValueKind.String?item.GetString()??"":"";
-            var resultOff=new{success=true,source="Open Food Facts",sourceUrl="https://world.openfoodfacts.org/product/"+code.Trim(),scanSource="OPEN_FOOD_FACTS",scanBarcode=code.Trim(),description=Text("product_name"),brandName=Text("brands"),servingSize=100,servingUnitCode="g",energyKcal=Value("energy-kcal_100g"),proteinG=Value("proteins_100g"),carbohydrateG=Value("carbohydrates_100g"),fatG=Value("fat_100g"),fiberG=Value("fiber_100g")};
+            var serving=FoodBarcode.Serving(product.TryGetProperty("serving_quantity",out var quantity)?quantity.ToString():null,Text("serving_quantity_unit"),Text("serving_size"));
+            var servingQuantity=serving.Size;var servingUnit=serving.Unit;var hasServing=servingQuantity.HasValue;
+            var factor=hasServing?servingQuantity!.Value/100m:1m;
+            decimal? PerServing(string name)=>Value(name) is decimal value?Math.Round(value*factor,1):null;
+            var resultOff=new{success=true,source="Open Food Facts",sourceUrl="https://world.openfoodfacts.org/product/"+code.Trim(),scanSource="OPEN_FOOD_FACTS",scanBarcode=code.Trim(),description=Text("product_name"),brandName=Text("brands"),hasServing,servingSize=hasServing?servingQuantity!.Value:100m,servingUnitCode=hasServing?servingUnit:"g",energyKcal=PerServing("energy-kcal_100g"),proteinG=PerServing("proteins_100g"),carbohydrateG=PerServing("carbohydrates_100g"),fatG=PerServing("fat_100g"),fiberG=PerServing("fiber_100g")};
             cache.Set("food-barcode:"+normalized,(object)resultOff,TimeSpan.FromHours(6));return Json(resultOff);
         }
         catch(OperationCanceledException) when(ct.IsCancellationRequested){throw;}
