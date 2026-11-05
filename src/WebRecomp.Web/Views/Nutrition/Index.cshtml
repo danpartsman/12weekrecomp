@@ -2004,7 +2004,7 @@
         // Provider descriptions are displayed as markup by the existing selection view.
         const safe=document.createElement('span');safe.textContent=food.description;
         await selectChoice(document.createElement('button'),{kind:'provider',providerCode:food.providerCode,sourceFoodId:food.sourceFoodId,description:safe.innerHTML});
-        if(food.autoAdd&&!addButton.disabled&&/^(serving$|portion:)/i.test(measureSelect.value)){addButton.click();addButton.disabled=true;}
+        if(food.autoAdd&&!addButton.disabled&&/^(serving$|portion:)/i.test(measureSelect.value)){food.onSubmit?.();addButton.click();addButton.disabled=true;}else if(food.autoAdd){food.onError?.();}
     });
 
     const renderFoods = foods => {
