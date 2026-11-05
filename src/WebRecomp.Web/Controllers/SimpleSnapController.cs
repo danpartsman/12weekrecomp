@@ -61,6 +61,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         var clock=await ledger.ClockAsync(clientId,ct);
         var workout=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==workoutId&&AccountabilityDocument.Date(w.Date)>=clock.Today.AddDays(-30)&&AccountabilityDocument.Date(w.Date)<=clock.Today);
         if(workout is null)return NotFound();
+        ViewData["LoadedTemplateId"]=workout.Id;
         return await Page(clientId,FromWorkout(workout,row.Revision,clock.Today),ct);
     }
     private static string BaseName(string name)=>System.Text.RegularExpressions.Regex.Replace(name,@"\s+\d{4}-\d{2}-\d{2}\s+\d{4}(?:/\d+)?$","").Trim();
@@ -82,6 +83,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         var workout=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==workoutId);
         if(workout is null)return NotFound();
         var clock=await ledger.ClockAsync(clientId,ct);
+        ViewData["LoadedTemplateId"]=workout.Id;
         return await Page(clientId,FromWorkout(workout,row.Revision,clock.Today),ct);
     }
     [HttpPost("repeat/{workoutId}"),ValidateAntiForgeryToken,EnableRateLimiting("access-code")]
