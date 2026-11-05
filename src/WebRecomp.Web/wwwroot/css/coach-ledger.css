@@ -15,3 +15,14 @@
 @media(max-width:650px){.ledger-summary,.ledger-fields{grid-template-columns:minmax(0,1fr);}.ledger-summary{gap:12px;}.ledger-summary strong{font-size:1.5rem;}}
 
 .coach-account-selector .button{max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left;}
+
+@media(max-width:700px){
+ .ledger-links{display:grid;grid-template-columns:1fr;gap:8px}
+ .ledger-links .button{width:100%;box-sizing:border-box;min-height:48px}
+ .coach-mobile-ledger-section{min-width:0;overflow:hidden}
+ .coach-mobile-ledger-section .coach-mobile-ledger{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+ .ledger-entry-form{padding:12px}
+ .ledger-entry-form .ledger-fields{display:grid;grid-template-columns:1fr;gap:10px}
+ .ledger-entry-form input,.ledger-entry-form select,.ledger-entry-form textarea{width:100%;max-width:100%;box-sizing:border-box;min-height:46px;font-size:16px}
+ .ledger-entry-form button{width:100%;min-height:48px}
+}
