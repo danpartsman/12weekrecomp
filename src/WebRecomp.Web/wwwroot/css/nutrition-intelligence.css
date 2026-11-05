@@ -983,15 +983,15 @@
     display: none !important;
 }
 
-/* Keep the three food picker actions together on one horizontal line. */
+/* Food picker actions wrap within the dialog on desktop and phones. */
 .nutrition-picker-results-heading > .nutrition-picker-action-links {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
-    gap: .8rem;
+    gap: .5rem .8rem;
     max-width: 100%;
-    overflow-x: auto;
-    white-space: nowrap;
+    min-width: 0;
+    white-space: normal;
     padding: .22rem 0;
 }
 .nutrition-picker-action-links .nutrition-picker-custom-link {
@@ -1058,3 +1058,5 @@
 }
 
 .nutrition-dashboard-head{flex-wrap:wrap}.nutrition-daily-actions{max-width:100%;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.nutrition-daily-actions form{margin:0}.nutrition-daily-actions button:disabled{opacity:.65;cursor:wait}@media(max-width:620px){.nutrition-daily-actions{width:100%}.nutrition-daily-actions form,.nutrition-daily-actions .button{width:100%}.nutrition-daily-actions .button{text-align:center;white-space:normal}}
+
+.nutrition-picker-scroll,.nutrition-picker-results-section,.nutrition-picker-results-heading,.nutrition-picker-results-heading>div{min-width:0;max-width:100%;box-sizing:border-box}.nutrition-picker-results-heading .small{white-space:normal;overflow-wrap:anywhere}.nutrition-picker-action-links .nutrition-picker-custom-link{white-space:normal;max-width:100%}

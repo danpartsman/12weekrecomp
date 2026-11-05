@@ -6,7 +6,7 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   const page=await browser.newPage({viewport:{width:390,height:844}});
   const scanner=fs.readFileSync('src/WebRecomp.Web/Views/Nutrition/_FoodScanner.cshtml','utf8').replace(/<link[^>]*>|<script[\s\S]*?<\/script>/g,'').replace(/data-barcode-url="[\s\S]*?">/,'data-barcode-url="/nutrition/scan/barcode">');
   const fields=['foodName','brandName','energyKcal','proteinG','carbohydrateG','fatG','fiberG','servingSize','scanSource','scanBarcode'].map(name=>`<label>${name}<input name="${name}"></label>`).join('');
-  const fixture=`<html><head><style>${fs.readFileSync('src/WebRecomp.Web/wwwroot/css/nutrition-scanner.css','utf8')}dialog{max-width:94vw;box-sizing:border-box}input{max-width:100%;box-sizing:border-box}</style></head><body><dialog id="nutrition-food-picker-dialog"><button data-food-scan="barcode">Scan barcode</button><button data-food-scan="label">Scan label</button><select data-picker-meal><option value="LUNCH">Lunch</option></select></dialog>${scanner}<dialog id="nutrition-custom-food-dialog"><form data-custom-food-form><div class="nutrition-custom-food-grid">${fields}<select name="servingUnitCode"><option>serving</option><option>g</option><option>ml</option></select><select name="mealSlotCode"><option>LUNCH</option></select></div></form></dialog></body></html>`;
+  const fixture=`<html><head><style>${fs.readFileSync('src/WebRecomp.Web/wwwroot/css/nutrition-scanner.css','utf8')} ${fs.readFileSync('src/WebRecomp.Web/wwwroot/css/nutrition-intelligence.css','utf8')}dialog{max-width:94vw;box-sizing:border-box}input{max-width:100%;box-sizing:border-box}</style></head><body><dialog id="nutrition-food-picker-dialog" class="nutrition-picker-dialog"><div class="nutrition-picker-scroll"><section class="nutrition-picker-results-section nutrition-picker-food-actions"><div class="nutrition-picker-results-heading"><div><strong>Foods</strong><span class="small">Closest matches across your foods and the food library</span></div><div class="nutrition-picker-action-links"><button class="nutrition-picker-custom-link" data-food-scan="barcode">Scan barcode</button><button class="nutrition-picker-custom-link" data-food-scan="label">Scan label</button><button class="nutrition-picker-custom-link">+ Add custom food</button><button class="nutrition-picker-custom-link">+ Add a previous meal</button><button class="nutrition-picker-custom-link">+ Add a prep meal</button></div></div></section></div><select data-picker-meal><option value="LUNCH">Lunch</option></select></dialog>${scanner}<dialog id="nutrition-custom-food-dialog"><form data-custom-food-form><div class="nutrition-custom-food-grid">${fields}<select name="servingUnitCode"><option>serving</option><option>g</option><option>ml</option></select><select name="mealSlotCode"><option>LUNCH</option></select></div></form></dialog></body></html>`;
   let barcodeRequests=0,barcodeResponse=null;
   await page.route('https://scanner.test/**',async route=>{
    const url=new URL(route.request().url());
@@ -51,6 +51,11 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   await page.getByText('Camera access was denied. Allow camera access and restart, or enter the barcode below.',{exact:true}).waitFor();
   const view=fs.readFileSync('src/WebRecomp.Web/Views/Nutrition/Index.cshtml','utf8');
   assert.equal(view.includes('Copy yesterday\'s meals to today'),false);assert.equal(view.includes('nutrition-daily-actions'),false);assert.equal(view.includes('nutrition-scan-actions'),false);
+  for(const width of [320,390,820]){
+    await page.setViewportSize({width,height:844});
+    assert.equal(await page.locator('.nutrition-picker-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
+    assert.equal(await page.locator('.nutrition-picker-action-links').evaluate(el=>getComputedStyle(el).flexWrap),'wrap');
+  }
   console.log('Live camera, one-shot detection and automatic meal submission, camera cleanup, permission fallback, label review and mobile layout passed.');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
