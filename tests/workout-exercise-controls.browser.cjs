@@ -49,7 +49,7 @@ const { chromium } = require(process.env.NUTRITION_PLAYWRIGHT_MODULE || 'playwri
                         const r = el.getBoundingClientRect();
                         return { top: r.top, left: r.left, right: r.right, height: r.height, clipped: el.scrollWidth > el.clientWidth + 1 };
                     }));
-                    assert.ok(boxes.every(box => Math.abs(box.top - boxes[0].top) < 1 && box.height >= 44 && !box.clipped), `One readable action row at ${width}px`);
+                    assert.ok(boxes.every(box => Math.abs(box.top - boxes[0].top) < 1 && box.height >= 44 && !box.clipped), `One readable action row at ${width}px (live=${live}): ${JSON.stringify(boxes)}`);
                     assert.ok(boxes[0].left >= 0 && boxes.at(-1).right <= width, `Actions fit viewport at ${width}px`);
                 }
             }
