@@ -6,6 +6,7 @@ using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Engine30;
 using WebRecomp.Web.Services.WorkoutIntelligence;
+using WebRecomp.Web.Services.WorkoutHistory;
 using WebRecomp.Web.Services.WorkoutTargeting;
 using WebRecomp.Web.ViewModels;
 using WebRecomp.WorkoutIntelligence;
@@ -459,6 +460,17 @@ public sealed class DetailedWorkoutController(
                                 preference?.LoadUnitCode,
                                 model.DefaultLoadUnitCode)
                     });
+            }
+        }
+
+        if (!selected.CompletedFlag && addExerciseId.HasValue)
+        {
+            var added = model.Exercises.FirstOrDefault(x => x.ExerciseId == addExerciseId.Value);
+            if (added is not null && detailed?.Exercises.All(x => x.ExerciseId != added.ExerciseId) != false)
+            {
+                var last = await LastCompletedExerciseDefaults.ReadAsync(db, context.Client.ClientId, [added.ExerciseId],
+                    AppUserContextService.GetClientToday(context.Client), cancellationToken);
+                if (last.TryGetValue(added.ExerciseId, out var defaults)) defaults.Apply(added);
             }
         }
 
@@ -1472,6 +1484,9 @@ public sealed class DetailedWorkoutController(
                         100))
                 .ToArray();
 
+        var lastCompleted = await LastCompletedExerciseDefaults.ReadAsync(db, context.Client.ClientId,
+            ranked.Select(x => x.Exercise.ExerciseId), AppUserContextService.GetClientToday(context.Client), cancellationToken);
+
         return Json(
             ranked.Select(
                 x =>
@@ -1505,17 +1520,15 @@ public sealed class DetailedWorkoutController(
                             x.Preference?.IsFavorite
                             ?? false,
                         defaultSets =
-                            x.Preference?.DefaultSets
-                            ?? 3,
+                            lastCompleted.TryGetValue(x.Exercise.ExerciseId, out var lastSets) ? lastSets.SetReps.Length : x.Preference?.DefaultSets ?? 3,
                         defaultReps =
-                            x.Preference?.DefaultReps
-                            ?? 10,
+                            lastCompleted.TryGetValue(x.Exercise.ExerciseId, out var lastReps) ? lastReps.SetReps[0] : x.Preference?.DefaultReps ?? 10,
                         defaultMaxWeight =
-                            x.Preference?.DefaultMaxWeight,
+                            lastCompleted.TryGetValue(x.Exercise.ExerciseId, out var lastWeight) ? lastWeight.WeightLb : x.Preference?.DefaultMaxWeight,
                         defaultLoadUnitCode =
-                            NormalizeLoadUnit(
-                                x.Preference?.LoadUnitCode,
-                                defaultUnit),
+                            lastCompleted.ContainsKey(x.Exercise.ExerciseId) ? "LB" : NormalizeLoadUnit(x.Preference?.LoadUnitCode, defaultUnit),
+                        defaultSetReps = lastCompleted.TryGetValue(x.Exercise.ExerciseId, out var lastSetReps) ? lastSetReps.SetReps : null,
+                        defaultNotes = lastCompleted.TryGetValue(x.Exercise.ExerciseId, out var lastNotes) ? lastNotes.Notes : null,
                         instructions =
                             x.Instructions
                     }));
@@ -3718,6 +3731,9 @@ public sealed class DetailedWorkoutController(
                                     "LB")))
                     .ToArray());
 
+        detailed = await LastCompletedExerciseDefaults.SeedAsync(db, context.Client.ClientId,
+            date < AppUserContextService.GetClientToday(context.Client) ? date : AppUserContextService.GetClientToday(context.Client), detailed, cancellationToken);
+
         await detailedWorkoutStore.ReplaceAsync(
             detailed,
             cancellationToken);
@@ -4183,11 +4199,10 @@ public sealed class DetailedWorkoutController(
         await db.SaveChangesAsync(
             cancellationToken);
 
-        await detailedWorkoutStore.ReplaceAsync(
-            new DetailedWorkoutSession(
-                session.WorkoutSessionId,
-                detailedExercises),
-            cancellationToken);
+        var seeded = await LastCompletedExerciseDefaults.SeedAsync(db, context.Client.ClientId,
+            date < AppUserContextService.GetClientToday(context.Client) ? date : AppUserContextService.GetClientToday(context.Client),
+            new DetailedWorkoutSession(session.WorkoutSessionId, detailedExercises), cancellationToken);
+        await detailedWorkoutStore.ReplaceAsync(seeded, cancellationToken);
 
         if (useSummary)
         {

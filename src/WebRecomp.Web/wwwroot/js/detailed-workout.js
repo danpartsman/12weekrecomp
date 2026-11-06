@@ -492,6 +492,31 @@
             });
     }
 
+    function setExerciseNotes(card, value) {
+        let notes = card.querySelector('[data-field="Notes"]');
+        if (!notes) {
+            const field = document.createElement("div");
+            field.className = "wi-notes-field";
+            const caption = document.createElement("span");
+            caption.textContent = "Notes";
+            notes = document.createElement("textarea");
+            notes.dataset.field = "Notes";
+            notes.rows = 1;
+            notes.maxLength = 1000;
+            notes.setAttribute("aria-label", "Exercise notes");
+            notes.placeholder = "Optional notes, setup, cues, or how the set felt";
+            field.append(caption, notes);
+            card.insertBefore(field, card.querySelector(".wi-exercise-action-stack"));
+        }
+        notes.value = value || "";
+    }
+
+    function exerciseWeight(item) {
+        if (item.defaultMaxWeight == null) return null;
+        const pounds = Number(item.defaultMaxWeight) * ((item.defaultLoadUnitCode || "LB").toUpperCase() === "KG" ? 2.2046226218 : 1);
+        return Math.round(pounds * 100) / 100;
+    }
+
     function createExerciseCard(item) {
         const card =
             document.createElement("article");
@@ -623,20 +648,17 @@
         renderSetRepFields(
             card,
             Number(setsInput.value) || 3,
-            [fallbackReps]);
+            item.defaultSetReps?.length ? item.defaultSetReps : [fallbackReps]);
 
         const heaviestLabel =
             makeLabel(
                 "Weight",
                 makeNumberInput(
                     "MaxWeight",
-                    item.defaultMaxWeight == null
-                        ? null
-                        : Math.round(
-                            Number(item.defaultMaxWeight) * ((item.defaultLoadUnitCode || "LB").toUpperCase() === "KG" ? 2.2046226218 : 1)),
+                    exerciseWeight(item),
                     0,
                     10000,
-                    1,
+                    0.01,
                     "Heaviest"));
 
         heaviestLabel.className =
@@ -644,6 +666,7 @@
 
         card.appendChild(
             heaviestLabel);
+        setExerciseNotes(card, item.defaultNotes);
 
         const remove =
             document.createElement("button");
@@ -1186,7 +1209,16 @@ const technique =
         if (title) title.textContent = item.name || "Exercise";
         card.dataset.exerciseId = item.exerciseId;
         const weight = card.querySelector('[data-field="MaxWeight"]');
-        if (weight && item.defaultMaxWeight != null) weight.value = Math.round(Number(item.defaultMaxWeight));
+        if (weight) weight.value = exerciseWeight(item) ?? "";
+        const sets = card.querySelector('[data-set-count]');
+        if (sets) sets.value = item.defaultSets ?? 3;
+        const reps = card.querySelector('[data-field="Reps"]');
+        if (reps) reps.value = item.defaultReps ?? 10;
+        if (card.querySelector('[data-set-reps]')) {
+            renderSetRepFields(card, item.defaultSets ?? 3,
+                item.defaultSetReps?.length ? item.defaultSetReps : [item.defaultReps ?? 10]);
+        }
+        setExerciseNotes(card, item.defaultNotes);
         exchangeCard = null;
         renumber();
         closeExerciseSearch();

@@ -1123,14 +1123,14 @@
                                     <input type="number"
                                            min="0"
                                            max="10000"
-                                           step="1"
+                                           step="0.01"
                                            name="Exercises[@i].MaxWeight"
                                            value="@(exercise.MaxWeight.HasValue
                                                ? Math.Round(
                                                    exercise.MaxWeight.Value,
-                                                   0,
+                                                   2,
                                                    MidpointRounding.AwayFromZero)
-                                                   .ToString("0")
+                                                   .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
                                                : null)"
                                            data-field="MaxWeight"
                                            placeholder="Heaviest" />
@@ -1590,14 +1590,14 @@
                                                 <input type="number"
                                                        min="0"
                                                        max="10000"
-                                                       step="1"
+                                                       step="0.01"
                                                        name="Exercises[@i].MaxWeight"
                                                        value="@(exercise.MaxWeight.HasValue
                                                ? Math.Round(
                                                    exercise.MaxWeight.Value,
-                                                   0,
+                                                   2,
                                                    MidpointRounding.AwayFromZero)
-                                                   .ToString("0")
+                                                   .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
                                                : null)"
                                                        data-field="MaxWeight"
                                                        placeholder="Heaviest" />
@@ -2216,14 +2216,14 @@
                                                 <input type="number"
                                                        min="0"
                                                        max="10000"
-                                                       step="1"
+                                                       step="0.01"
                                                        name="Exercises[@i].MaxWeight"
                                                        value="@(exercise.MaxWeight.HasValue
                                                ? Math.Round(
                                                    exercise.MaxWeight.Value,
-                                                   0,
+                                                   2,
                                                    MidpointRounding.AwayFromZero)
-                                                   .ToString("0")
+                                                   .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
                                                : null)"
                                                        data-field="MaxWeight"
                                                        placeholder="Heaviest" />

@@ -27,7 +27,7 @@ const { chromium } = require(process.env.NUTRITION_PLAYWRIGHT_MODULE || 'playwri
                 <div id="wi-exercise-list">${card('squat', 'Squat')}${card('press', 'Press')}${card('row', 'Row')}</div>
                 <p id="wi-empty-workout">No exercises</p>
                 </form></main></body></html>`;
-            let item = { exerciseId: 'curl', name: 'Curl', primaryMuscles: ['Biceps'] };
+            let item = { exerciseId: 'curl', name: 'Curl', primaryMuscles: ['Biceps'], defaultSets: 2, defaultReps: 12, defaultSetReps: [12, 9], defaultMaxWeight: 32.5, defaultLoadUnitCode: 'LB', defaultNotes: 'Controlled tempo' };
             await page.route('https://workout.test/**', route => {
                 if (/\/search|\/ExchangeExercises/.test(new URL(route.request().url()).pathname)) {
                     return route.fulfill({ contentType: 'application/json', body: JSON.stringify([item]) });
@@ -63,6 +63,12 @@ const { chromium } = require(process.env.NUTRITION_PLAYWRIGHT_MODULE || 'playwri
             await page.locator('#wi-search-input').fill('curl');
             await page.locator('.wi-search-result').click();
             assert.equal(await cards.count(), 4);
+            assert.equal(await cards.last().locator('[data-set-count]').inputValue(), '2');
+            assert.deepEqual(await cards.last().locator('[data-set-rep]').evaluateAll(inputs => inputs.map(input => input.value)), ['12', '9']);
+            assert.equal(await cards.last().locator('[data-field="MaxWeight"]').inputValue(), '32.5');
+            assert.equal(await cards.last().locator('[data-field="Notes"]').inputValue(), 'Controlled tempo');
+            await cards.last().locator('[data-field="Notes"]').fill('New workout notes');
+            await cards.last().locator('[data-field="MaxWeight"]').fill('35');
             assert.equal(await page.locator('#wi-exercise-search').isVisible(), false);
             assert.equal(await cards.last().locator('.wi-exercise-action-stack > button').count(), 4);
             // Editing any card closes the picker for keyboard selection too.
@@ -72,6 +78,8 @@ const { chromium } = require(process.env.NUTRITION_PLAYWRIGHT_MODULE || 'playwri
             await page.locator('.wi-search-result').press('Enter');
             assert.equal(await page.locator('#wi-exercise-search').isVisible(), false);
             assert.equal(await cards.nth(1).getAttribute('data-exercise-id'), 'lunge');
+            assert.equal(await cards.last().locator('[data-field="Notes"]').inputValue(), 'New workout notes');
+            assert.equal(await cards.last().locator('[data-field="MaxWeight"]').inputValue(), '35');
             // Add after edit must append a new exercise rather than replace the previous card.
             item = { exerciseId: 'plank', name: 'Plank', primaryMuscles: ['Abs'] };
             await add.click();
