@@ -4357,3 +4357,29 @@ body.test-live-preview
 }
 
 .workout-intelligence-page .wi-start-preview .wi-preview-exercise span { white-space: normal; min-width: 0; }
+
+/* Keep exercise actions on one row at every screen size. */
+.workout-intelligence-page #wi-exercise-list .wi-workout-exercise .wi-exercise-action-stack {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px 44px !important;
+    width: 100% !important;
+    max-width: 420px !important;
+    gap: .3rem !important;
+}
+.workout-intelligence-page #wi-exercise-list .wi-workout-exercise .wi-exercise-action-stack > button {
+    display: inline-flex !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    padding: .3rem .15rem !important;
+    white-space: nowrap !important;
+    font-size: clamp(.65rem, 2.7vw, .88rem) !important;
+}
+.workout-intelligence-page #wi-exercise-search[hidden] {
+    display: none !important;
+}

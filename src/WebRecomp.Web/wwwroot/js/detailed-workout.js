@@ -779,50 +779,8 @@ const technique =
             ).forEach(old =>
                 old.remove());
 
-            let moveButton =
-                card.querySelector(
-                    "[data-card-move-handle]");
-
-            if (!moveButton) {
-                moveButton =
-                    document.createElement(
-                        "button");
-
-                moveButton.type =
-                    "button";
-
-                moveButton.className =
-                    "button wi-card-move-handle";
-
-                moveButton.dataset.cardMoveHandle =
-                    "";
-
-                const upButton = card.querySelector('[data-move-exercise="up"]');
-            const downButton = card.querySelector('[data-move-exercise="down"]');
-            if (upButton) upButton.disabled = !card.previousElementSibling?.matches("[data-exercise-card]");
-            if (downButton) downButton.disabled = !card.nextElementSibling?.matches("[data-exercise-card]");
-
-                moveButton.setAttribute(
-                    "aria-label",
-                    "Move this exercise up or down");
-
-                const remove =
-                    card.querySelector(
-                        "[data-remove-exercise]");
-
-                if (remove) {
-                    card.insertBefore(
-                        moveButton,
-                        remove);
-                }
-                else {
-                    card.appendChild(
-                        moveButton);
-                }
-            }
-
-            // Mobile-friendly tap controls replace drag-and-drop.
-            moveButton.remove();
+            // Every card gets its own controls; no drag handle is needed.
+            card.querySelectorAll("[data-card-move-handle]").forEach(button => button.remove());
             for (const direction of ["up", "down"]) {
                 let button = card.querySelector('[data-move-exercise="' + direction + '"]');
                 if (!button) {
@@ -836,6 +794,12 @@ const technique =
                     card.appendChild(button);
                 }
             }
+            const upButton = card.querySelector('[data-move-exercise="up"]');
+            const downButton = card.querySelector('[data-move-exercise="down"]');
+            const cards = [...root.querySelectorAll("[data-exercise-card]")];
+            const position = cards.indexOf(card);
+            upButton.disabled = position === 0;
+            downButton.disabled = position === cards.length - 1;
 
             let exchangeButton =
                 card.querySelector("[data-exchange-exercise]");
@@ -855,7 +819,6 @@ const technique =
             }
             const remove = card.querySelector("[data-remove-exercise]");
             if (remove) remove.textContent = "Remove Exercise";
-            moveButton.textContent = "Move";
             // Keep the compact action row in the requested order on desktop and mobile.
             if (exchangeButton.parentElement !== actionStack) actionStack.appendChild(exchangeButton);
             if (remove && remove.parentElement !== actionStack) actionStack.appendChild(remove);
@@ -1119,6 +1082,9 @@ const technique =
                         return;
                     }
 
+                    exchangeCard = null;
+                    searchRoot.hidden = false;
+                    searchRoot.classList.remove("wi-exchange-search", "wi-edit-exercise-open");
                     root.insertAdjacentElement(
                         "afterend",
                         searchRoot);
@@ -1223,13 +1189,13 @@ const technique =
         if (weight && item.defaultMaxWeight != null) weight.value = Math.round(Number(item.defaultMaxWeight));
         exchangeCard = null;
         renumber();
-        if (searchRoot) searchRoot.classList.remove("wi-bottom-exercise-search");
-        clearSearch(`${item.name} exchanged.`);
+        closeExerciseSearch();
     }
 
     async function openExchange(card) {
         if (!card || !searchRoot || !searchResults || !searchStatus) return;
         exchangeCard = card;
+        searchRoot.hidden = false;
         const exerciseId = card.dataset.exerciseId || card.querySelector('[data-field="ExerciseId"]')?.value;
         // Put the editor immediately below the exercise being edited so the
         // action is obvious on a phone instead of moving it below the full list.
@@ -1279,9 +1245,19 @@ const technique =
 
         renumber();
 
-        if (searchStatus) {
-            searchStatus.textContent =
-                `${item.name} added. Results stay open so you can add more exercises from this search.`;
+        closeExerciseSearch();
+    }
+
+    function closeExerciseSearch() {
+        clearTimeout(searchTimer);
+        exchangeCard = null;
+        if (searchInput) searchInput.value = "";
+        clearSearch();
+        if (searchRoot) {
+            searchRoot.hidden = true;
+            searchRoot.classList.remove("wi-bottom-exercise-search", "wi-exchange-search", "wi-edit-exercise-open");
+            // Keep the search panel out of the exercise order when closed.
+            root.insertAdjacentElement("afterend", searchRoot);
         }
     }
 
@@ -1293,10 +1269,10 @@ const technique =
                 event.preventDefault();
                 const card = orderButton.closest("[data-exercise-card]");
                 if (!card) return;
-                const sibling = orderButton.dataset.moveExercise === "up"
-                    ? card.previousElementSibling
-                    : card.nextElementSibling;
-                if (!sibling?.matches("[data-exercise-card]")) return;
+                const cards = [...root.querySelectorAll("[data-exercise-card]")];
+                const index = cards.indexOf(card);
+                const sibling = cards[index + (orderButton.dataset.moveExercise === "up" ? -1 : 1)];
+                if (!sibling) return;
                 if (orderButton.dataset.moveExercise === "up") {
                     root.insertBefore(card, sibling);
                 } else {
@@ -1506,21 +1482,18 @@ const technique =
                     }
 
                     exchangeMode && exchangeCard ? replaceExercise(exchangeCard, item) : addExercise(item);
-                    // Dismiss stale results immediately after selection.
-                    clearTimeout(searchTimer);
-                    if (searchInput) searchInput.value = "";
-                    clearSearch("Exercise selected. Search again to add another.");
-                    exchangeCard = null;
+                    closeExerciseSearch();
                 });
 
             row.addEventListener(
                 "keydown",
                 event => {
-                    if (event.key === "Enter"
-                        || event.key === " ") {
+                    if (event.target === row && (event.key === "Enter"
+                        || event.key === " ")) {
 
                         event.preventDefault();
                         exchangeMode && exchangeCard ? replaceExercise(exchangeCard, item) : addExercise(item);
+                        closeExerciseSearch();
                     }
                 });
 
