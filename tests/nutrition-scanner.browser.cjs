@@ -10,6 +10,7 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   let barcodeRequests=0,barcodeResponse=null;
   await page.route('https://scanner.test/**',async route=>{
    const url=new URL(route.request().url());
+   if(url.pathname.includes('/lib/zxing/'))return route.fulfill({contentType:'application/javascript',body:fs.readFileSync('src/WebRecomp.Web/wwwroot/lib/zxing/zxing-browser-0.1.5.min.js','utf8')});
    if(url.pathname.includes('barcode')){barcodeRequests++;if(barcodeResponse)return route.fulfill({contentType:'application/json',body:JSON.stringify(barcodeResponse)});return route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({message:'No exact product was found. Scan the nutrition label.'})});}
    return route.fulfill({contentType:'text/html',body:fixture});
   });
@@ -19,8 +20,18 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   await page.evaluate(()=>{document.querySelector('#nutrition-food-picker-dialog').showModal();window.Tesseract={createWorker:async()=>({recognize:async()=>({data:{text:'Serving size 1 scoop (33 g)\nCalories 130\nTotal Fat 2.5g\nTotal Carbohydrate 3g\nProtein 25g'}}),terminate:async()=>{}})};});
   await page.evaluate(()=>{
     window.stopped=0;window.cameraDenied=false;window.scanSubmits=0;
-    Object.defineProperty(navigator.mediaDevices,'getUserMedia',{configurable:true,value:async constraints=>{window.cameraConstraints=constraints;if(window.cameraDenied)throw Object.assign(new Error('Denied'),{name:'NotAllowedError'});return{getTracks:()=>[{stop:()=>window.stopped++}]};}});
-    window.ZXingBrowser={BrowserMultiFormatReader:class{async decodeFromStream(stream,video,callback){window.scanCallback=callback;return{stop(){}};}}};
+    Object.defineProperty(navigator.mediaDevices,'getUserMedia',{configurable:true,value:async constraints=>{
+      window.cameraConstraints=constraints;if(window.cameraDenied)throw Object.assign(new Error('Denied'),{name:'NotAllowedError'});
+      const canvas=document.createElement('canvas');canvas.width=640;canvas.height=480;const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,640,480);
+      const repaint=setInterval(()=>ctx.fillRect(0,0,640,480),50),stream=canvas.captureStream(20);
+      stream.getTracks().forEach(track=>{const stop=track.stop.bind(track);track.stop=()=>{window.stopped++;clearInterval(repaint);stop();};});return stream;
+    }});
+    window.nativeResults=[];
+    window.BarcodeDetector=class{
+      static async getSupportedFormats(){return ['upc_a','ean_13'];}
+      constructor(){window.scanCallback=result=>{window.nativeResults=[{rawValue:result.getText()}];};}
+      async detect(){const result=window.nativeResults;window.nativeResults=[];return result;}
+    };
     document.querySelector('[data-custom-food-form]').addEventListener('submit',event=>{event.preventDefault();window.scanSubmits++;});
   });
   await page.getByRole('button',{name:'Scan barcode',exact:true}).click();await page.locator('[data-scan-code]').fill('012345678905');await page.getByRole('button',{name:'Look up barcode'}).click();await page.getByText('No exact product was found. Scan the nutrition label.',{exact:true}).waitFor();

@@ -87,6 +87,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Workout exercise controls check failed." }
           node tests/coach-agreement-limits.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Coach agreement limit modes check failed." }
+          node tests/nutrition-scanner-frames.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Real barcode video-frame decoding check failed." }
           node tests/coach-notifications.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Phone notification setup check failed." }
 

@@ -8,28 +8,92 @@
     function message(text){status.textContent=text;}
     function stopCamera(){cameraControls?.stop();cameraControls=null;if(stream){stream.getTracks().forEach(track=>track.stop());stream=null;}if(video)video.srcObject=null;}
     function stop(){stopCamera();version++;controller?.abort();controller=null;if(worker){worker.terminate();worker=null;}photo.disabled=false;lookup.disabled=false;}
-    dialog.addEventListener('close',stop);
+    dialog.addEventListener('close',()=>{if(!dialog.open)stop();});
     dialog.querySelector('[data-scan-close]').addEventListener('click',()=>dialog.close());
     async function startCamera(){
         if(lookupBusy)return;
-        stopCamera();const run=version;let detected=false;restart.hidden=true;
+        stopCamera();const run=++version;let detected=false;restart.hidden=true;
         if(!navigator.mediaDevices?.getUserMedia){message('Live camera is not available in this browser. Enter the barcode below.');return;}
         message('Starting camera…');
+        let camera;
+        const current=()=>run===version&&dialog.open&&stream===camera;
         try{
-            const camera=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+            camera=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:20}}});
             if(run!==version||!dialog.open){camera.getTracks().forEach(track=>track.stop());return;}
             stream=camera;
-            await load('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js');
-            if(run!==version||!dialog.open){stopCamera();return;}
-            const reader=new window.ZXingBrowser.BrowserMultiFormatReader();
-            const controls=await reader.decodeFromStream(camera,video,(result,error,controls)=>{
-                if(!result||detected||run!==version||!dialog.open)return;
-                const value=result.getText();if(!/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(value))return;
-                detected=true;controls.stop();stopCamera();code.value=value;findBarcode(value);
-            });
-            if(detected||run!==version||!dialog.open){controls.stop();return;}
-            cameraControls=controls;message('Point the camera at the barcode.');
-        }catch(error){if(run===version&&dialog.open){stopCamera();restart.hidden=false;message(error.name==='NotAllowedError'?'Camera access was denied. Allow camera access and restart, or enter the barcode below.':error.name==='NotFoundError'?'No camera was found. Enter the barcode below.':'Could not start the camera. Restart it or enter the barcode below.');}}
+            video.muted=true;video.playsInline=true;video.srcObject=camera;
+            await video.play();
+            if(!current())return;
+            // Keep camera ownership here rather than inside a decoder: a late
+            // decoder stop from a previous scan must not clear the new preview.
+            const track=camera.getVideoTracks()[0];
+            const capabilities=track?.getCapabilities?.();
+            if(capabilities?.focusMode?.includes('continuous')){
+                track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
+            }
+            let native=null,reader=null,readerError=null,timer=null,stopped=false,attempt=0,nativeBusy=false;
+            cameraControls={stop(){stopped=true;clearTimeout(timer);}};
+            const active=()=>!stopped&&current()&&!detected;
+            function found(value){
+                if(!active()||!/^(?:\d{8}|\d{12}|\d{13}|\d{14})$/.test(value))return false;
+                detected=true;code.value=value;stopCamera();findBarcode(value);return true;
+            }
+            if(window.BarcodeDetector){
+                try{
+                    const supported=await window.BarcodeDetector.getSupportedFormats();
+                    const formats=['ean_13','ean_8','upc_a','upc_e','itf','code_128'].filter(format=>supported.includes(format));
+                    if(formats.length)native=new window.BarcodeDetector({formats});
+                }catch{/* The local decoder works when native detection is unavailable. */}
+            }
+            if(!active())return;
+            // Pinned local copy: scanning never depends on a third-party CDN.
+            load('/lib/zxing/zxing-browser-0.1.5.min.js').then(()=>{
+                if(!active())return;
+                // ZXing DecodeHintType: POSSIBLE_FORMATS=2, TRY_HARDER=3.
+                // BarcodeFormat: CODE_128=4, EAN_8=6, EAN_13=7, ITF=8, UPC_A=14, UPC_E=15.
+                reader=new window.ZXingBrowser.BrowserMultiFormatReader(new Map([[2,[4,6,7,8,14,15]],[3,true]]));
+            }).catch(error=>{readerError=error;});
+            const canvas=document.createElement('canvas'),context=canvas.getContext('2d',{willReadFrequently:true});
+            async function scan(){
+                if(!active())return;
+                try{
+                    if(video.readyState>=2&&video.videoWidth>0&&video.videoHeight>0){
+                        if(native&&!nativeBusy){
+                            nativeBusy=true;
+                            // A slow native detector must not block the fallback.
+                            native.detect(video).then(results=>{
+                                if(active())for(const result of results){if(found(result.rawValue))break;}
+                            }).catch(()=>{}).finally(()=>{nativeBusy=false;});
+                        }
+                        if(reader&&active()){
+                            // Alternate full frames and center crops, in both
+                            // orientations, so small or upright retail barcodes
+                            // are not missed by a horizontal-only scan line.
+                            const variant=attempt++%4,rotate=variant%2===1,crop=variant>=2?.65:1;
+                            const sw=video.videoWidth*crop,sh=video.videoHeight*crop;
+                            const scale=Math.min(1.8,1280/(rotate?sh:sw));
+                            canvas.width=Math.round((rotate?sh:sw)*scale);
+                            canvas.height=Math.round((rotate?sw:sh)*scale);
+                            context.save();context.translate(canvas.width/2,canvas.height/2);
+                            if(rotate)context.rotate(Math.PI/2);
+                            context.drawImage(video,(video.videoWidth-sw)/2,(video.videoHeight-sh)/2,sw,sh,-sw*scale/2,-sh*scale/2,sw*scale,sh*scale);
+                            context.restore();
+                            try{if(found(reader.decodeFromCanvas(canvas).getText()))return;}catch{/* No readable barcode in this frame. */}
+                        }
+                        if(readerError&&!native)restart.hidden=false;
+                        message(readerError&&!native?'Barcode reader could not load. Restart the camera or type the barcode below.':'Scanning… Keep the entire barcode visible and hold steady while the camera focuses.');
+                    }else{message('Waiting for camera video…');}
+                }finally{
+                    if(active())timer=setTimeout(scan,200);
+                }
+            }
+            void scan();
+        }catch(error){
+            if(run===version&&dialog.open){
+                stopCamera();restart.hidden=false;
+                message(error.name==='NotAllowedError'?'Camera access was denied. Allow camera access and restart, or enter the barcode below.':error.name==='NotFoundError'?'No camera was found. Enter the barcode below.':'Could not start the camera. Restart it or enter the barcode below.');
+            }else{camera?.getTracks().forEach(track=>track.stop());}
+        }
     }
     restart?.addEventListener('click',startCamera);
     window.addEventListener('pagehide',stop);
@@ -77,7 +141,7 @@
         try{
             if(mode==='barcode'){
                 objectUrl=URL.createObjectURL(file);
-                await load('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js');
+                await load('/lib/zxing/zxing-browser-0.1.5.min.js');
                 if(run!==version||!dialog.open)return;
                 const result=await new window.ZXingBrowser.BrowserMultiFormatReader().decodeFromImageUrl(objectUrl);
                 if(run!==version||!dialog.open)return;
