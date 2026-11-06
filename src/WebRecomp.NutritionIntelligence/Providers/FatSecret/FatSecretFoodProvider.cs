@@ -117,6 +117,46 @@ public sealed class FatSecretFoodProvider(
             foods);
     }
 
+    public async Task<IReadOnlyList<string>> SearchRestaurantsAsync(string query, CancellationToken ct = default)
+    {
+        options.Validate();
+        var text = query.Trim();
+        if (text.Length is < 1 or > 100) throw new ArgumentException("Enter a restaurant name.");
+        var initial = char.IsDigit(text[0]) ? "*" : text[..1].ToUpperInvariant();
+        var json = await GetJsonAsync("brands/v2?brand_type=restaurant&starts_with=" + Uri.EscapeDataString(initial)
+            + "&region=" + Uri.EscapeDataString(options.Region) + "&format=json", ct);
+        using var doc = JsonDocument.Parse(json);
+        if (TryGetProperty(doc.RootElement, "error", out _)) throw new InvalidOperationException("FatSecret restaurant directory is unavailable.");
+        if (!TryGetProperty(doc.RootElement, "food_brands", out var brands)
+            || !TryGetProperty(brands, "food_brand", out var names)) return [];
+        var values = names.ValueKind == JsonValueKind.Array ? names.EnumerateArray().ToArray() : new[] { names };
+        var normalized = RestaurantKey(text);
+        return values.Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!)
+            .Where(x => RestaurantKey(x).Contains(normalized, StringComparison.Ordinal))
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).Take(60).ToArray();
+    }
+
+    public async Task<(IReadOnlyList<FoodCatalogItem> Foods, int? NextPage)> RestaurantMenuAsync(
+        string restaurant, string? query, int page = 1, CancellationToken ct = default)
+    {
+        var results = new List<FoodCatalogItem>();
+        var key = RestaurantKey(restaurant);
+        if (key.Length == 0 || restaurant.Length > 100 || (query?.Length ?? 0) > 100 || page is < 1 or > 2000)
+            throw new ArgumentException("Choose a restaurant and a valid menu page.");
+        int? next = page;
+        // Keep browsing even when one provider page contains unrelated brands.
+        for (var batch = 0; batch < 3 && next.HasValue && results.Count < 10; batch++)
+        {
+            var response = await SearchAsync(new FoodSearchRequest(restaurant.Trim()
+                + (string.IsNullOrWhiteSpace(query) ? "" : " " + query.Trim()), next.Value, 50), ct);
+            results.AddRange(response.Foods.Where(x => RestaurantKey(x.BrandOwner ?? "") == key));
+            next = response.PageNumber < response.TotalPages ? response.PageNumber + 1 : null;
+        }
+        return (results.DistinctBy(x => x.SourceFoodId).ToArray(), next);
+    }
+
+    private static string RestaurantKey(string value) => new(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+
     public async Task<FoodComposition> GetFoodAsync(
         string sourceFoodId,
         CancellationToken cancellationToken = default)

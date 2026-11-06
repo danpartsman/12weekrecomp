@@ -611,6 +611,7 @@
         </dialog>
 
         <partial name="_FoodScanner" />
+        <partial name="_RestaurantPicker" />
         <dialog id="nutrition-food-picker-dialog"
                 class="nutrition-picker-dialog"
                 data-picker-data-url="@Url.Action("FoodPickerData", "Nutrition")"
@@ -678,6 +679,7 @@
                                 </div>
 
                                 <div class="nutrition-picker-action-links">
+                                    <button type="button" class="nutrition-picker-custom-link" data-picker-restaurant-open>Restaurant</button>
                                     <button type="button" class="nutrition-picker-custom-link" data-food-scan="barcode">Scan barcode</button>
                                     <button type="button" class="nutrition-picker-custom-link" data-food-scan="label">Scan label</button>
                                     <button type="button"
@@ -1999,13 +2001,15 @@
         }
     };
 
-    dialog.addEventListener('nutrition-barcode-selected',async event=>{
+    const selectProviderLookup = async event=>{
         const food=event.detail;
         // Provider descriptions are displayed as markup by the existing selection view.
         const safe=document.createElement('span');safe.textContent=food.description;
         await selectChoice(document.createElement('button'),{kind:'provider',providerCode:food.providerCode,sourceFoodId:food.sourceFoodId,description:safe.innerHTML});
         if(food.autoAdd&&!addButton.disabled&&/^(serving$|portion:)/i.test(measureSelect.value)){addButton.click();addButton.disabled=true;}
-    });
+    };
+    dialog.addEventListener('nutrition-barcode-selected',selectProviderLookup);
+    dialog.addEventListener('nutrition-restaurant-selected',selectProviderLookup);
 
     const renderFoods = foods => {
         foodsHost.replaceChildren();

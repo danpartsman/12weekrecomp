@@ -1,0 +1,18 @@
+<link rel="stylesheet" href="~/css/nutrition-restaurants.css" asp-append-version="true" />
+<dialog id="nutrition-restaurant-picker" class="nutrition-restaurant-picker" aria-labelledby="restaurant-title"
+        data-restaurants-url="@Url.Action("Search", "NutritionRestaurant")" data-menu-url="@Url.Action("Menu", "NutritionRestaurant")">
+    <header><h2 id="restaurant-title">Find restaurant</h2><button type="button" data-restaurant-close>Close</button></header>
+    <button type="button" class="nutrition-picker-custom-link" data-restaurant-back hidden>Change restaurant</button>
+    <label data-restaurant-name-field>Restaurant name<input type="search" maxlength="100" autocomplete="off" placeholder="Chick-fil-A, Chipotle…" data-restaurant-name /></label>
+    <div data-restaurant-brands class="nutrition-restaurant-choices"></div>
+    <section data-restaurant-menu hidden>
+        <label>Search menu items<input type="search" maxlength="100" autocomplete="off" placeholder="Chicken, salad, burger…" data-restaurant-item-search /></label>
+        <p class="small">Available menu items · Choose an item, then review its portion and add it to your meal.</p>
+        <div data-restaurant-items class="nutrition-restaurant-choices"></div>
+        <button type="button" data-restaurant-more hidden>Load more items</button>
+    </section>
+    <p role="status" aria-live="polite" data-restaurant-status>Type a restaurant name to begin.</p>
+    <button type="button" data-restaurant-retry hidden>Try again</button>
+    <footer class="small">Nutrition data from FatSecret. Availability and portions may differ from the restaurant's current menu.</footer>
+</dialog>
+<script src="~/js/nutrition-restaurants.js" asp-append-version="true" defer></script>
