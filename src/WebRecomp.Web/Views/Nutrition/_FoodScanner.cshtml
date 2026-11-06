@@ -1,13 +1,12 @@
 <link rel="stylesheet" href="~/css/nutrition-scanner.css" asp-append-version="true" />
 <dialog id="nutrition-scanner" class="nutrition-scanner" data-barcode-url="@Url.Action("Barcode","NutritionScan")">
-<header><h2 data-scan-title>Scan food</h2></header>
+<header><h2 data-scan-title>Scan food</h2><button type="button" data-scan-close aria-label="Close scanner">Close</button></header>
 <p data-scan-instructions></p>
-<div data-scan-live><video data-scan-video autoplay muted playsinline aria-label="Live barcode camera"></video><button type="button" data-scan-start hidden>Retry camera</button></div>
+<div data-scan-live><video data-scan-video autoplay muted playsinline aria-label="Live barcode camera"></video><p class="small">Point the camera at the barcode. One listed serving is added automatically; if serving data is missing, we will ask you to complete it.</p><button type="button" data-scan-start hidden>Restart camera</button></div>
 <label data-scan-photo-field>Take a photo or choose an image<input type="file" accept="image/*" capture="environment" data-scan-photo /></label>
-<div data-scan-barcode-entry><output data-scan-detected aria-label="Scanned barcode"></output><details><summary>Enter barcode manually</summary><label>Barcode number<input type="text" inputmode="numeric" maxlength="14" autocomplete="off" data-scan-code /></label><button type="button" data-scan-lookup>Look up barcode</button></details></div>
-<section data-scan-result hidden aria-label="Matched food"><strong data-scan-food-name></strong><span data-scan-food-brand></span><span data-scan-food-serving></span><span data-scan-food-macros></span></section>
+<div data-scan-barcode-entry><label>Barcode number<input type="text" inputmode="numeric" maxlength="14" autocomplete="off" data-scan-code /></label><button type="button" data-scan-lookup>Look up barcode</button></div>
 <p role="status" aria-live="polite" data-scan-status></p>
-<footer><button type="button" data-scan-add disabled>Add</button><button type="button" data-scan-close>Close</button></footer>
+<p class="muted">Photos are processed on your device. Barcode lookup sends only the barcode to USDA or Open Food Facts. First use downloads the free scanning tools.</p>
 </dialog>
 <script src="~/js/nutrition-label-parser.js" asp-append-version="true" defer></script>
 <script src="~/js/nutrition-scanner.js" asp-append-version="true" defer></script>
