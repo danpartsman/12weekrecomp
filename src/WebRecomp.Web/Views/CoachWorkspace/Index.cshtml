@@ -1,6 +1,7 @@
 @model WebRecomp.Web.Controllers.CoachWorkspacePage
 <link rel="stylesheet" href="~/css/coach-photos.css" asp-append-version="true" />
 <style>
+.coach-financial-editor{overflow-x:auto}.coach-financial-table [hidden]{display:none!important}
 .coach-financial-table input[type=number]{text-align:center;font-variant-numeric:tabular-nums}
 @@media(min-width:701px){.coach-financial-table th:nth-child(n+3),.coach-financial-table td:nth-child(n+3){text-align:center;vertical-align:middle}.coach-financial-table input[type=number]{display:block;margin-inline:auto;max-width:100%;box-sizing:border-box}}
 
@@ -13,6 +14,7 @@
 <p class="coach-workspace-mobile-nav"><a class="button" asp-controller="MyCoach" asp-action="Index">My Coach</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">This coach's fees &amp; payments</a> <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId">Snap Workouts</a></p>
 @if(TempData["CoachWorkspaceStatus"] is string status){<p role="status">@status</p>}
 @using System.Text.Json
+@using WebRecomp.Web.Services.Coaching
 <section class="card">
 <h2>Coach assignments and macro targets</h2>
 <p>Review the system recommendation alongside your coach's prescription. Values are grams per day; calories are calculated from protein, carbohydrates and fat. Targets depend on the saved weekly workouts; a week of rest or unscheduled days may have identical targets.</p>
@@ -63,48 +65,36 @@ else{<p>Waiting for client acceptance.</p>}
 <form asp-action="FinancialProposal" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
 @Html.AntiForgeryToken()
 <input type="hidden" name="ExpectedRevision" value="@financial.Revision" />
-<div class="coach-financial-editor"><table class="coach-financial-table"><thead><tr><th>Enable</th><th>Rule</th><th>Amount ($)</th><th>Assess</th><th>Minimum per period ($)</th><th>Maximum per period ($)</th></tr></thead><tbody>
+<div class="coach-financial-editor"><table class="coach-financial-table"><thead><tr><th>Enable</th><th>Rule</th><th>Amount ($)</th><th>Assess</th><th>Limit type</th><th>Minimum / % under</th><th>Maximum / % over</th></tr></thead><tbody>
 @for(var i=0;i<financial.Rules.Count;i++){
 var rule=financial.Rules[i];
+var limitMode=rule.LimitMode=="actual"?"actual":"system-percent";
+var lower=rule.LimitMode=="prescription"?10m:rule.LowerLimit;
+var upper=rule.LimitMode=="prescription"?10m:rule.UpperLimit;
+var unit=CoachAgreementLimits.Unit(i);
 var ruleTitle=i<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"):(rule.Name.EndsWith(" coaches incentive")?rule.Name:rule.Name.Replace(" bonus","")+" coaches incentive");
-<tr>
+<tr data-agreement-limit-row data-limit-unit="@unit">
 <td data-label="Enabled"><select name="Enabled[@i]" aria-label="Enable @ruleTitle"><option value="false" selected="@(!rule.Enabled)">Off</option><option value="true" selected="@rule.Enabled">On</option></select></td>
-<td class="coach-financial-rule"><strong>@ruleTitle</strong><small style="display:block">@rule.Criterion</small></td>
+<td class="coach-financial-rule"><strong>@ruleTitle</strong><small style="display:block">@(i<4?"Outside the daily nutrition limits selected here":rule.Criterion)</small></td>
 <td data-label="Amount ($)"><input type="number" name="Amount[@i]" value="@rule.Amount" min="0" max="10000" step="1" required style="width:90px" /></td>
 <td data-label="Assess"><select name="Frequency[@i]"><option value="daily" selected="@(rule.Frequency=="daily")">Daily</option><option value="weekly" selected="@(rule.Frequency=="weekly")">Weekly</option><option value="monthly" selected="@(rule.Frequency=="monthly")">Monthly</option></select></td>
-<td data-label="Minimum ($)"><input type="number" name="Minimum[@i]" value="@rule.Minimum" min="0" max="10000" step="1" required style="width:90px" /></td>
-<td data-label="Maximum ($)"><input type="number" name="Maximum[@i]" value="@rule.Maximum" min="0" max="10000" step="1" required style="width:90px" /></td>
+@if(i<4){
+<td data-label="Limit type"><select name="LimitMode[@i]" data-limit-mode aria-label="@ruleTitle limit type"><option value="actual" selected="@(limitMode=="actual")">Actual values (@unit)</option><option value="system-percent" selected="@(limitMode=="system-percent")">% under/over system</option></select></td>
+<td data-label="@(limitMode=="actual"?$"Minimum ({unit})":"Under system (%)")" data-limit-lower-cell><input type="number" name="LowerLimit[@i]" value="@lower?.ToString(System.Globalization.CultureInfo.InvariantCulture)" min="0" step="0.01" required data-limit-lower aria-label="@ruleTitle lower limit" /></td>
+<td data-label="@(limitMode=="actual"?$"Maximum ({unit})":"Over system (%)")" data-limit-upper-cell><input type="number" name="UpperLimit[@i]" value="@upper?.ToString(System.Globalization.CultureInfo.InvariantCulture)" min="0" step="0.01" required data-limit-upper aria-label="@ruleTitle upper limit" /></td>
+}else{
+<td colspan="3" data-label="Criterion">As described above<input type="hidden" name="LimitMode[@i]" value="event" /><input type="hidden" name="LowerLimit[@i]" value="" /><input type="hidden" name="UpperLimit[@i]" value="" /></td>
+}
+<td hidden><input type="hidden" name="Minimum[@i]" value="@rule.Minimum" /><input type="hidden" name="Maximum[@i]" value="@rule.Maximum" /></td>
 </tr>
 }
 </tbody></table></div>
-<p>For macro penalties, coach-defined nutrition minimums and maximums override the default system thresholds. Financial minimums and maximums above are dollar settlement thresholds and caps, not nutrition targets. The compliance thresholds below follow the coach's prescribed minimum and maximum where present; otherwise they default to 90%–110% of the system's daily target.</p>
-@{
-    var latestPrescription = Model.MacroOffers.OrderByDescending(x=>x.EffectiveWeek).FirstOrDefault();
-}
-@if(latestPrescription is not null)
-{
-    try
-    {
-        using var prescriptionRules = JsonDocument.Parse(latestPrescription.RulesJson);
-        <details><summary>Nutrition compliance limits used for penalties</summary>
-        <table><thead><tr><th>Metric</th><th>Lower limit</th><th>Upper limit</th></tr></thead><tbody>
-        @foreach(var metric in new[]{("Protein","ProteinMin","ProteinMax"),("Carbs","CarbsMin","CarbsMax"),("Fat","FatMin","FatMax"),("Daily calories","DailyCaloriesMin","DailyCaloriesMax")})
-        {
-            var lower=prescriptionRules.RootElement.TryGetProperty(metric.Item2,out var low)&&low.ValueKind==JsonValueKind.Number?low.ToString():null;
-            var upper=prescriptionRules.RootElement.TryGetProperty(metric.Item3,out var high)&&high.ValueKind==JsonValueKind.Number?high.ToString():null;
-            <tr><td>@metric.Item1</td><td>@(lower??"90% of system target")</td><td>@(upper??"110% of system target")</td></tr>
-        }
-        </tbody></table>
-        <p>Coach limits take precedence independently for each bound. A missing lower or upper bound uses the corresponding ±10% system fallback. These limits are displayed for review; automatic financial assessments remain disabled until the assessment engine is integrated.</p>
-        </details>
-    }
-    catch(JsonException){<p>Nutrition prescription limits could not be read.</p>}
-}
-else
-{
-    <p>No coach nutrition prescription found: default compliance range is 90%–110% of the system target for protein, carbs, fat and calories.</p>
-}
-<p>Minimum is a settlement threshold, not a minimum charge. Maximum is a cap for the selected assessment period. Excused days should not generate adherence penalties. A changed proposal requires fresh client approval.</p>
+<p>Actual limits use grams per day for protein, carbs and fat, or kcal per day for calories. Percentage limits follow each day's system prescription: enter the percentage allowed under and over. For example, 5% under and 10% over a 200 g target allows 190–220 g. Nutrition compliance incentives use these same agreed limits.</p>
+@if(financial.Rules.Any(x=>x.Minimum>0||x.Maximum>0)){
+<details><summary>Previously saved dollar settlement limits</summary><p>These existing charge thresholds and caps are separate from nutrition criteria.</p>
+@foreach(var savedRule in financial.Rules.Where(x=>x.Minimum>0||x.Maximum>0)){<p>@savedRule.Name: charge threshold @savedRule.Minimum.ToString("C"), cap @savedRule.Maximum.ToString("C") per @savedRule.Frequency period.</p>}
+</details>}
+<p>Excused days should not generate adherence penalties. A changed proposal requires fresh client approval. Automatic financial assessments remain disabled until the assessment engine is integrated.</p>
 <fieldset><legend>Payment schedule</legend>
 <label>Payment due
 <select name="PaymentSchedule">
@@ -119,12 +109,12 @@ else
 </fieldset>
 <details><summary>Preview agreement the client will receive</summary>
 <p><strong>Coach:</strong> @Model.CoachName · <strong>Agreement revision:</strong> @(financial.Revision+1)</p>
-<p>The client agrees to the enabled penalties and incentives below, subject to coach-prescribed nutrition limits (or ±10% of system targets where no coach limit is set), excused days, and the agreed payment schedule.</p>
-<table><thead><tr><th>Rule</th><th>Amount</th><th>Assessment</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>
+<p>The client agrees to the enabled penalties and incentives below, subject to the actual or percentage nutrition limits selected above, excused days, and the agreed payment schedule.</p>
+<table><thead><tr><th>Rule</th><th>Amount</th><th>Assessment</th><th>Nutrition limits</th></tr></thead><tbody>
 @for(var previewIndex=0;previewIndex<financial.Rules.Count;previewIndex++){
 var previewRule=financial.Rules[previewIndex];
 var previewTitle=previewIndex<8?(previewRule.Name.EndsWith(" penalty")?previewRule.Name:previewRule.Name+" penalty"):(previewRule.Name.EndsWith(" coaches incentive")?previewRule.Name:previewRule.Name.Replace(" bonus","")+" coaches incentive");
-<tr><td>@previewTitle</td><td colspan="4">Use the amounts and enabled selections in the editable table above; the client sees the saved values after submission.</td></tr>
+<tr><td>@previewTitle</td><td colspan="3">Use the amounts and enabled selections in the editable table above; the client sees the saved values after submission.</td></tr>
 }
 </tbody></table>
 <p>The client will see Accept, Request Changes and Decline options. Accept requires their account email and password.</p>
@@ -138,12 +128,13 @@ else
 <p>The following rules and payment terms are the agreement the client reviews and accepts with their account credentials. Acceptance authorizes only the displayed version.</p>
 @if(financial.Status=="draft"){<p>Your coach has not sent a financial proposal.</p>}
 else{
-<div style="overflow-x:auto"><table><thead><tr><th>Rule</th><th>Amount</th><th>Period</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>
+<div style="overflow-x:auto"><table><thead><tr><th>Rule</th><th>Amount</th><th>Period</th><th>Nutrition limits</th></tr></thead><tbody>
 @foreach(var rule in financial.Rules.Where(x=>x.Enabled)){
 var ruleIndex=financial.Rules.ToList().IndexOf(rule);
 var ruleTitle=ruleIndex<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"):(rule.Name.EndsWith(" coaches incentive")?rule.Name:rule.Name.Replace(" bonus","")+" coaches incentive");
-<tr><td>@ruleTitle <small>@rule.Criterion</small></td><td>@rule.Amount.ToString("C")</td><td>@rule.Frequency</td><td>@rule.Minimum.ToString("C")</td><td>@rule.Maximum.ToString("C")</td></tr>
+<tr><td>@ruleTitle <small>@(ruleIndex<4?"Outside the agreed nutrition range":rule.Criterion)</small></td><td>@rule.Amount.ToString("C")</td><td>@rule.Frequency</td><td>@CoachAgreementLimits.Describe(rule,ruleIndex)</td></tr>
 }</tbody></table></div>
+@if(financial.Rules.Any(x=>x.Enabled&&(x.Minimum>0||x.Maximum>0))){<details><summary>Dollar settlement limits</summary>@foreach(var savedRule in financial.Rules.Where(x=>x.Enabled&&(x.Minimum>0||x.Maximum>0))){<p>@savedRule.Name: charge threshold @savedRule.Minimum.ToString("C"), cap @savedRule.Maximum.ToString("C") per @savedRule.Frequency period.</p>}</details>}
 @if(financial.Status=="pending"){
 <form asp-action="FinancialResponse" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
 @Html.AntiForgeryToken()
@@ -203,3 +194,5 @@ var last=thread.OrderByDescending(m=>m.CreatedUtc).First();
 @if(Model.Activity.Count==0){<p>No coaching activity recorded yet.</p>}
 @foreach(var a in Model.Activity){<p><small>@a.CreatedUtc.ToString("MMM d, yyyy h:mm tt") UTC</small> · @a.Description</p>}
 </section></div>
+
+<script src="~/js/coach-agreement-limits.js" asp-append-version="true" defer></script>

@@ -11,6 +11,7 @@ using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Notifications;
+using WebRecomp.Web.Services.Coaching;
 
 namespace WebRecomp.Web.Controllers;
 
@@ -18,7 +19,7 @@ public sealed record CoachConversationItem(Guid Id, DateTime CreatedUtc, Guid Au
 public sealed record CoachActivityItem(DateTime CreatedUtc, string Description);
 public sealed record CoachMacroOffer(Guid VersionId, DateOnly EffectiveWeek, string Reason, string? EngineJson, string? AdjustedJson, string RulesJson, string Fingerprint, bool Accepted, DateTime? AcceptedUtc, bool FinancialOptIn);
 public sealed record CoachMacroAcceptance(Guid VersionId, Guid ClientId, Guid CoachId, Guid OwnerId, string Fingerprint, DateTime AcceptedUtc);
-public sealed record CoachFinancialRule(string Name, bool Enabled, string Frequency, decimal Amount, decimal Minimum, decimal Maximum, string Criterion);
+public sealed record CoachFinancialRule(string Name, bool Enabled, string Frequency, decimal Amount, decimal Minimum, decimal Maximum, string Criterion, string LimitMode = "prescription", decimal? LowerLimit = null, decimal? UpperLimit = null);
 public sealed record CoachFinancialAgreement(int Revision, string Status, DateTime UpdatedUtc, Guid UpdatedBy, string? ClientNote, IReadOnlyList<CoachFinancialRule> Rules, DateTime? AcceptedUtc = null, Guid? AcceptedBy = null, string PaymentSchedule = "weekly", DayOfWeek PaymentDay = DayOfWeek.Friday);
 public sealed record CoachWorkspacePage(Guid ClientId, Guid CoachId, string CoachName, bool IsCoach, IReadOnlyList<CoachConversationItem> Messages, IReadOnlyList<CoachActivityItem> Activity, IReadOnlyList<(string Id,string Name)> Workouts, IReadOnlyList<CoachMacroOffer> MacroOffers)
 {
@@ -43,7 +44,7 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         ("Workout completion coaches incentive", "All planned workouts completed", "weekly")
     ];
     private static CoachFinancialAgreement DefaultFinancial(Guid coach) => new(0, "draft", DateTime.UtcNow, coach, null,
-        FinancialCategories.Select(c => new CoachFinancialRule(c.Name, false, c.Frequency, 0m, 0m, 0m, c.Criterion)).ToList());
+        FinancialCategories.Select((c, i) => new CoachFinancialRule(c.Name, false, c.Frequency, 0m, 0m, 0m, c.Criterion, i < 4 ? "system-percent" : "event", i < 4 ? 10m : null, i < 4 ? 10m : null)).ToList());
     private string Key(Guid client,Guid coach) => $"conversations/{client:N}-{coach:N}";
     private async Task<(Guid Actor,bool IsCoach,Guid Owner)?> Allowed(Guid client,Guid coach,CancellationToken ct)
     {
@@ -129,6 +130,9 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         public List<decimal> Minimum { get; set; } = [];
         public List<decimal> Maximum { get; set; } = [];
         public List<string> Frequency { get; set; } = [];
+        public List<string> LimitMode { get; set; } = [];
+        public List<decimal?> LowerLimit { get; set; } = [];
+        public List<decimal?> UpperLimit { get; set; } = [];
     }
     [HttpPost("{clientId:guid}/{coachId:guid}/financial-proposal"), ValidateAntiForgeryToken]
     public async Task<IActionResult> FinancialProposal(Guid clientId, Guid coachId, FinancialInput input, CancellationToken ct)
@@ -138,18 +142,21 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         if(!auth.Value.IsCoach) return Forbid();
         if(input.PaymentSchedule is not ("next-day" or "weekly" or "monthly"))return BadRequest("Choose a valid payment schedule.");
         if(!Enum.IsDefined(input.PaymentDay))return BadRequest("Choose a valid weekly due day.");
+        if(!ModelState.IsValid)return BadRequest("Review the agreement values.");
         var n=FinancialCategories.Length;
-        if(input.Enabled.Count!=n || input.Amount.Count!=n || input.Minimum.Count!=n || input.Maximum.Count!=n || input.Frequency.Count!=n)
+        if(input.Enabled.Count!=n || input.Amount.Count!=n || input.Minimum.Count!=n || input.Maximum.Count!=n || input.Frequency.Count!=n || input.LimitMode.Count!=n || input.LowerLimit.Count!=n || input.UpperLimit.Count!=n)
             return BadRequest("Review all accountability criteria.");
         var rules=new List<CoachFinancialRule>();
         for(var i=0;i<n;i++)
         {
             var amount=input.Amount[i];var min=input.Minimum[i];var max=input.Maximum[i];
-            if(amount<0 || amount>10000 || min<0 || max<0 || max>10000 || min>max || (input.Enabled[i] && (amount<=0 || max<=0)))
-                return BadRequest("Amounts must be nonnegative, enabled rules need an amount and cap, and minimum cannot exceed maximum.");
+            if(amount<0 || amount>10000 || min<0 || max<0 || max>10000 || min>max || (input.Enabled[i] && amount<=0))
+                return BadRequest("Amounts must be nonnegative, enabled rules need a fee amount, and any saved dollar settlement threshold cannot exceed its cap.");
             if(input.Frequency[i] is not ("daily" or "weekly" or "monthly"))return BadRequest("Choose daily, weekly, or monthly.");
+            var limitError=CoachAgreementLimits.Validate(input.LimitMode[i],input.LowerLimit[i],input.UpperLimit[i],i);
+            if(limitError is not null)return BadRequest(limitError);
             var c=FinancialCategories[i];
-            rules.Add(new(c.Name,input.Enabled[i],input.Frequency[i],amount,min,max,c.Criterion));
+            rules.Add(new(c.Name,input.Enabled[i],input.Frequency[i],amount,min,max,c.Criterion,input.LimitMode[i],input.LowerLimit[i],input.UpperLimit[i]));
         }
         var key=FinancialKey(clientId,coachId);
         using(files.Lease(key))
