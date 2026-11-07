@@ -30,6 +30,14 @@ public sealed class MyCoachController(RecompDbContext db, AppUserContextService 
                 profile == null ? null : profile.Bio, profile == null ? null : profile.Specialties)).ToListAsync(ct);
         return new(connections, input) { ClientId = clientId };
     }
+    [HttpGet("pending-agreements")]
+    public async Task<IActionResult> PendingAgreements([FromServices] WebRecomp.Web.Services.Notifications.NotificationFiles files, CancellationToken ct)
+    {
+        var context = await users.GetAsync(HttpContext, ct);
+        var agreements = context.Client is null ? Array.Empty<PendingFinancialAgreement>()
+            : await PendingFinancialAgreements.ReadAsync(db, files, context.Client.ClientId, context.User.UserId, ct);
+        return Json(new { agreements });
+    }
     [HttpGet("pending-snaps")]
     public async Task<IActionResult> PendingSnaps([FromServices] CoachAccountabilityStore store,[FromServices] IConfiguration configuration,[FromServices] SimpleCoachingService simple,CancellationToken ct)
     {

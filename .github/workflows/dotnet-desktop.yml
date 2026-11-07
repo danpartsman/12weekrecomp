@@ -91,6 +91,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Real barcode video-frame decoding check failed." }
           node tests/nutrition-restaurants.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Restaurant menu picker check failed." }
+          node tests/coach-agreement-review.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Agreement review layout and notice check failed." }
           node tests/coach-notifications.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Phone notification setup check failed." }
 

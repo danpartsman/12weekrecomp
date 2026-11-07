@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging.Abstractions;
 using WebRecomp.Web.Data;
+using WebRecomp.Web.Controllers;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
@@ -92,6 +93,64 @@ public sealed class CoachNotificationTests
         Assert.Equal("accepted", f.Files.Read<WebRecomp.Web.Controllers.CoachFinancialAgreement>(key)!.Status);
         Assert.Equal("pending", f.Files.Read<WebRecomp.Web.Controllers.CoachFinancialAgreement>(otherKey)!.Status);
         Assert.DoesNotContain("Protein penalty", File.ReadAllText(System.IO.Path.Combine(f.Path, "financial-agreements", $"{client:N}-{coach:N}.json")));
+    }
+    private static CoachFinancialAgreement FinancialProposal(Fixture f, int revision = 1, bool notify = true) =>
+        new(revision, "pending", DateTime.UtcNow, f.Coach, null,
+            [new CoachFinancialRule("Protein penalty", true, "daily", 5m, 0m, 0m, "Outside nutrition range", "system-percent", 10m, 10m)], NotifyClient: notify);
+    private static void SaveFinancial(Fixture f, CoachFinancialAgreement agreement)
+    {
+        var key = $"financial-agreements/{f.Client:N}-{f.Coach:N}";
+        using(f.Files.Lease(key)) f.Files.Write(key, agreement);
+    }
+    private static async Task SeedFinancial(Fixture f)
+    {
+        await f.Seed();
+        f.Db.CoachAccountabilityEvents.RemoveRange(f.Db.CoachAccountabilityEvents);
+        await f.Db.SaveChangesAsync();
+    }
+    [Fact]
+    public async Task NewAndRevisedFinancialAgreementsNotifyOwnerOnceAndLinkToReview()
+    {
+        using var f = new Fixture(); await SeedFinancial(f);
+        SaveFinancial(f, FinancialProposal(f));
+        await f.Processor.RunAsync(default); await f.Processor.RunAsync(default);
+        var message = Assert.Single(f.Email.Messages);
+        Assert.Equal("owner@example.com", message.ToAddress);
+        Assert.Contains("agreement", message.Subject, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains($"/coach-workspace/{f.Client:D}/{f.Coach:D}#financial-agreement", message.Body);
+        SaveFinancial(f, FinancialProposal(f, 3));
+        await f.Processor.RunAsync(default); await f.Processor.RunAsync(default);
+        Assert.Equal(2, f.Email.Messages.Count);
+    }
+    [Fact]
+    public async Task PendingNoticeIncludesExistingProposalButDoesNotRetroactivelyEmailIt()
+    {
+        using var f = new Fixture(); await SeedFinancial(f);
+        SaveFinancial(f, FinancialProposal(f, notify: false));
+        var notices = await PendingFinancialAgreements.ReadAsync(f.Db, f.Files, f.Client, f.Owner, default);
+        Assert.Single(notices); Assert.Equal(f.Coach, notices[0].CoachId);
+        Assert.Empty(await PendingFinancialAgreements.ReadAsync(f.Db, f.Files, f.Client, f.Coach, default));
+        await f.Processor.RunAsync(default); Assert.Empty(f.Email.Messages);
+        SaveFinancial(f, FinancialProposal(f) with { Status = "accepted", Revision = 2 });
+        Assert.Empty(await PendingFinancialAgreements.ReadAsync(f.Db, f.Files, f.Client, f.Owner, default));
+    }
+    [Fact]
+    public async Task AcceptedAgreementSuppressesQueuedRetryAndRevokedCoachGetsNoNotice()
+    {
+        using var f = new Fixture(); await SeedFinancial(f);
+        SaveFinancial(f, FinancialProposal(f)); f.Email.Fail = true;
+        await f.Processor.RunAsync(default); Assert.Single(f.Email.Messages);
+        var id = CoachNotificationProcessor.FinancialDeliveryId(f.Client, f.Coach, 1);
+        var queued = f.Files.Read<NotificationDelivery>($"queue/{id}")!;
+        queued.NextAttemptUtc = DateTime.MinValue; f.Files.Write($"queue/{id}", queued);
+        SaveFinancial(f, FinancialProposal(f) with { Status = "accepted", Revision = 2 });
+        f.Email.Fail = false; await f.Processor.RunAsync(default);
+        Assert.Single(f.Email.Messages); Assert.True(f.Files.Read<NotificationDelivery>($"queue/{id}")!.Finished);
+        SaveFinancial(f, FinancialProposal(f, 3));
+        (await f.Db.CoachClientRelationships.SingleAsync()).RevokedAtUtc = DateTime.UtcNow;
+        await f.Db.SaveChangesAsync(); await f.Processor.RunAsync(default);
+        Assert.Single(f.Email.Messages);
+        Assert.Empty(await PendingFinancialAgreements.ReadAsync(f.Db, f.Files, f.Client, f.Owner, default));
     }
     [Fact]
     public void PushSubscriptionsCannotTargetPrivateOrArbitraryServers()

@@ -2,6 +2,7 @@ using System.Net.Mail;
 using Microsoft.EntityFrameworkCore;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
+using WebRecomp.Web.Controllers;
 using WebRecomp.Web.Services.Coaching;
 
 namespace WebRecomp.Web.Services.Notifications;
@@ -27,6 +28,34 @@ public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationF
         files.Enqueue(new() { Id = "event-" + item.EventId.ToString("N"), ClientId = clientId, CoachUserId = item.ActorUserId,
             UserId = owner.UserId, Subject = change.Subject, Body = change.EmailBody(coach.PreferredDisplayName ?? coach.DisplayName ?? "Your coach", url, client.TimeZone), Url = path });
     }
+    public static string FinancialDeliveryId(Guid client, Guid coach, int revision) => $"financial-{client:N}-{coach:N}-{revision}";
+    private async Task QueueFinancialAgreementsAsync(CancellationToken ct)
+    {
+        foreach (var path in Directory.EnumerateFiles(Path.Combine(files.Root, "financial-agreements"), "*.json"))
+        {
+            var pair = Path.GetFileNameWithoutExtension(path).Split('-');
+            if (pair.Length != 2 || !Guid.TryParseExact(pair[0], "N", out var clientId) || !Guid.TryParseExact(pair[1], "N", out var coachId)) continue;
+            try
+            {
+                var agreement = files.Read<CoachFinancialAgreement>($"financial-agreements/{clientId:N}-{coachId:N}");
+                // Old pending agreements get an in-app notice; only proposals explicitly
+                // submitted with notifications enabled enter email/push delivery.
+                if (agreement is not { Status: "pending", NotifyClient: true } || agreement.UpdatedUtc < DateTime.UtcNow.AddDays(-7)) continue;
+                var id = FinancialDeliveryId(clientId, coachId, agreement.Revision);
+                if (files.Read<NotificationDelivery>($"queue/{id}") is not null) continue;
+                var owner = await OwnerAsync(clientId, coachId, ct); if (owner is null) continue;
+                var coach = await db.UserAccounts.AsNoTracking().SingleAsync(x => x.UserId == coachId, ct);
+                var target = $"/coach-workspace/{clientId:D}/{coachId:D}#financial-agreement";
+                files.Enqueue(new() { Id = id, ClientId = clientId, CoachUserId = coachId, UserId = owner.UserId,
+                    Subject = "Coach agreement ready for your review",
+                    Body = $"{coach.PreferredDisplayName ?? coach.DisplayName ?? "Your coach"} sent you a penalty and incentive agreement. Review the terms and accept, request changes, or decline.\n\n{files.BaseUrl}{target}",
+                    Url = target });
+            }
+            catch (IOException) { /* A concurrent worker will pick this up on the next pass. */ }
+            catch (Exception error) when (error is System.Security.Cryptography.CryptographicException or System.Text.Json.JsonException)
+            { logger.LogWarning("An agreement notification could not be read and will retry."); }
+        }
+    }
     private async Task<UserAccount?> OwnerAsync(Guid clientId, Guid coach, CancellationToken ct)
     {
         if (!await db.Clients.AnyAsync(x => x.ClientId == clientId && x.ClientStatusCode == "ACTIVE", ct)
@@ -47,6 +76,7 @@ public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationF
             try { await QueueConfigAsync(item.ClientId, item.Revision, ct); }
             catch (IOException) { /* Another worker is already recording this event. */ }
         }
+        await QueueFinancialAgreementsAsync(ct);
         await QueueDailyReviewsAsync(ct);
         if (!files.DeliveryEnabled) return;
         var pending = files.QueueIds().Select(id => files.Read<NotificationDelivery>($"queue/{id}"))
@@ -92,6 +122,14 @@ public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationF
             var item = files.Read<NotificationDelivery>($"queue/{id}"); if (item is null || item.Finished) return;
             var owner = await OwnerAsync(item.ClientId, item.CoachUserId, ct);
             if (owner?.UserId != item.UserId) { item.EmailDone = item.PushDone = true; files.Write($"queue/{id}", item); return; }
+            if (item.Id.StartsWith("financial-", StringComparison.Ordinal))
+            {
+                var agreement = files.Read<CoachFinancialAgreement>($"financial-agreements/{item.ClientId:N}-{item.CoachUserId:N}");
+                if (agreement?.Status != "pending" || item.Id != FinancialDeliveryId(item.ClientId, item.CoachUserId, agreement.Revision))
+                {
+                    item.EmailDone = item.PushDone = true; files.Write($"queue/{id}", item); return;
+                }
+            }
             var settings = files.User(owner.UserId);
             if (item.Id.StartsWith("daily-", StringComparison.Ordinal) && !settings.DailyReview)
             {

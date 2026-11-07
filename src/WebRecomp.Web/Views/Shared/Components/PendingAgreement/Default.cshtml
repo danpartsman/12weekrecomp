@@ -1,0 +1,5 @@
+@model IReadOnlyList<WebRecomp.Web.Services.Coaching.PendingFinancialAgreement>
+<aside class="pending-snap-banner" aria-label="Coach agreements to review">
+    <div><strong>@Model.Count @(Model.Count == 1 ? "agreement to review" : "agreements to review")</strong><p>Your coach sent new agreement terms. Review them and accept, request changes, or decline.</p></div>
+    <ul>@foreach(var agreement in Model){<li><a class="button" asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@agreement.ClientId" asp-route-coachId="@agreement.CoachId" asp-fragment="financial-agreement">Review agreement · @agreement.CoachName</a></li>}</ul>
+</aside>

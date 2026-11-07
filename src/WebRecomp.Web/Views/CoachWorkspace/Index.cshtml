@@ -1,5 +1,6 @@
 @model WebRecomp.Web.Controllers.CoachWorkspacePage
 <link rel="stylesheet" href="~/css/coach-photos.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/coach-agreement.css" asp-append-version="true" />
 <style>
 .coach-financial-editor{overflow-x:auto}.coach-financial-table [hidden]{display:none!important}
 .coach-financial-table input[type=number]{text-align:center;font-variant-numeric:tabular-nums}
@@ -52,12 +53,12 @@ else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Mod
 else{<p>Waiting for client acceptance.</p>}
 </details>}
 </section>
-<section class="card">
+<section class="card" id="financial-agreement">
 <h2>Penalties, incentives &amp; agreement</h2>
-<p>Each coach and client have a separate agreement. Amounts are USD. Rules are proposals until the client accepts them; existing ledger entries remain unchanged.</p>
+<p>Review this coach’s fees, incentives and payment terms. New or revised terms require client acceptance. Amounts are USD.</p>
 @{var financial=Model.FinancialAgreement!;}
-<p><strong>Payment terms:</strong> @(financial.PaymentSchedule=="next-day"?"Due the following day":financial.PaymentSchedule=="monthly"?"Due on the first day of the following month":$"Due every {financial.PaymentDay}")</p>
-<p><strong>Status:</strong> @financial.Status.Replace("-", " ") · Revision @financial.Revision @if(financial.AcceptedUtc is DateTime accepted){<span> · Accepted @accepted.ToString("MMM d, yyyy h:mm tt") UTC</span>}</p>
+<div class="coach-agreement-summary"><div><strong>Payment terms</strong>@(financial.PaymentSchedule=="next-day"?"Due the following day":financial.PaymentSchedule=="monthly"?"Due on the first day of the following month":$"Due every {financial.PaymentDay}")</div>
+<div><strong>Status</strong>@financial.Status.Replace("-", " ") · Revision @financial.Revision @if(financial.AcceptedUtc is DateTime accepted){<span> · Accepted @accepted.ToString("MMM d, yyyy h:mm tt") UTC</span>}</div></div>
 @if(!string.IsNullOrWhiteSpace(financial.ClientNote)){<p><strong>Client response:</strong> @financial.ClientNote</p>}
 @if(Model.IsCoach)
 {
@@ -124,30 +125,25 @@ var previewTitle=previewIndex<8?(previewRule.Name.EndsWith(" penalty")?previewRu
 }
 else
 {
-<h3>Financial agreement presented to the client</h3>
-<p>The following rules and payment terms are the agreement the client reviews and accepts with their account credentials. Acceptance authorizes only the displayed version.</p>
+<h3>Review your agreement</h3>
+<p>Review each rule below, then accept, request changes, or decline.</p>
 @if(financial.Status=="draft"){<p>Your coach has not sent a financial proposal.</p>}
 else{
-<div style="overflow-x:auto"><table><thead><tr><th>Rule</th><th>Amount</th><th>Period</th><th>Nutrition limits</th></tr></thead><tbody>
-@foreach(var rule in financial.Rules.Where(x=>x.Enabled)){
-var ruleIndex=financial.Rules.ToList().IndexOf(rule);
-var ruleTitle=ruleIndex<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"):(rule.Name.EndsWith(" coaches incentive")?rule.Name:rule.Name.Replace(" bonus","")+" coaches incentive");
-<tr><td>@ruleTitle <small>@(ruleIndex<4?"Outside the agreed nutrition range":rule.Criterion)</small></td><td>@rule.Amount.ToString("C")</td><td>@rule.Frequency</td><td>@CoachAgreementLimits.Describe(rule,ruleIndex)</td></tr>
-}</tbody></table></div>
+<partial name="_FinancialAgreementRules" model="financial" />
 @if(financial.Rules.Any(x=>x.Enabled&&(x.Minimum>0||x.Maximum>0))){<details><summary>Dollar settlement limits</summary>@foreach(var savedRule in financial.Rules.Where(x=>x.Enabled&&(x.Minimum>0||x.Maximum>0))){<p>@savedRule.Name: charge threshold @savedRule.Minimum.ToString("C"), cap @savedRule.Maximum.ToString("C") per @savedRule.Frequency period.</p>}</details>}
 @if(financial.Status=="pending"){
-<form asp-action="FinancialResponse" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
+<form class="coach-financial-response" asp-action="FinancialResponse" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
 @Html.AntiForgeryToken()
 <input type="hidden" name="expectedRevision" value="@financial.Revision" />
 <label>Comments or requested changes<textarea name="note" rows="3" maxlength="2000" placeholder="Explain what you would like changed (required if not accepting)"></textarea></label>
-<fieldset><legend>One-time agreement verification</legend>
-<p>To accept this version of the coach's fees, enter your account username and password. A revised agreement requires another acceptance.</p>
+<fieldset><legend>Confirm acceptance</legend>
+<p>Enter your account email and password to accept this version.</p>
 <label>Account username (email)<input type="email" name="username" maxlength="320" autocomplete="username" /></label>
 <label>Current password<input type="password" name="password" maxlength="1024" autocomplete="current-password" /></label>
 </fieldset>
-<button type="submit" name="decision" value="accepted">Verify and accept agreement</button>
+<div class="coach-agreement-response-actions"><button type="submit" name="decision" value="accepted">Verify and accept agreement</button>
 <button type="submit" name="decision" value="changes-requested" class="secondary" formnovalidate>Request changes</button>
-<button type="submit" name="decision" value="declined" class="secondary" formnovalidate>Decline</button>
+<button type="submit" name="decision" value="declined" class="secondary" formnovalidate>Decline</button></div>
 </form>
 }
 }

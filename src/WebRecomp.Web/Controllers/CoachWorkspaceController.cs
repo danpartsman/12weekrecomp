@@ -20,7 +20,7 @@ public sealed record CoachActivityItem(DateTime CreatedUtc, string Description);
 public sealed record CoachMacroOffer(Guid VersionId, DateOnly EffectiveWeek, string Reason, string? EngineJson, string? AdjustedJson, string RulesJson, string Fingerprint, bool Accepted, DateTime? AcceptedUtc, bool FinancialOptIn);
 public sealed record CoachMacroAcceptance(Guid VersionId, Guid ClientId, Guid CoachId, Guid OwnerId, string Fingerprint, DateTime AcceptedUtc);
 public sealed record CoachFinancialRule(string Name, bool Enabled, string Frequency, decimal Amount, decimal Minimum, decimal Maximum, string Criterion, string LimitMode = "prescription", decimal? LowerLimit = null, decimal? UpperLimit = null);
-public sealed record CoachFinancialAgreement(int Revision, string Status, DateTime UpdatedUtc, Guid UpdatedBy, string? ClientNote, IReadOnlyList<CoachFinancialRule> Rules, DateTime? AcceptedUtc = null, Guid? AcceptedBy = null, string PaymentSchedule = "weekly", DayOfWeek PaymentDay = DayOfWeek.Friday);
+public sealed record CoachFinancialAgreement(int Revision, string Status, DateTime UpdatedUtc, Guid UpdatedBy, string? ClientNote, IReadOnlyList<CoachFinancialRule> Rules, DateTime? AcceptedUtc = null, Guid? AcceptedBy = null, string PaymentSchedule = "weekly", DayOfWeek PaymentDay = DayOfWeek.Friday, bool NotifyClient = false);
 public sealed record CoachWorkspacePage(Guid ClientId, Guid CoachId, string CoachName, bool IsCoach, IReadOnlyList<CoachConversationItem> Messages, IReadOnlyList<CoachActivityItem> Activity, IReadOnlyList<(string Id,string Name)> Workouts, IReadOnlyList<CoachMacroOffer> MacroOffers)
 {
     public CoachFinancialAgreement? FinancialAgreement { get; init; }
@@ -163,7 +163,7 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         {
             var current=files.Read<CoachFinancialAgreement>(key)??DefaultFinancial(coachId);
             if(current.Revision!=input.ExpectedRevision)return Conflict("The agreement changed. Reload and review before saving.");
-            files.Write(key,new CoachFinancialAgreement(current.Revision+1,"pending",DateTime.UtcNow,auth.Value.Actor,null,rules,PaymentSchedule:input.PaymentSchedule,PaymentDay:input.PaymentDay));
+            files.Write(key,new CoachFinancialAgreement(current.Revision+1,"pending",DateTime.UtcNow,auth.Value.Actor,null,rules,PaymentSchedule:input.PaymentSchedule,PaymentDay:input.PaymentDay,NotifyClient:true));
         }
         TempData["CoachWorkspaceStatus"]="Financial proposal sent for client review. No new automatic fees are authorized until acceptance.";
         return RedirectToAction(nameof(Index),new{clientId,coachId});

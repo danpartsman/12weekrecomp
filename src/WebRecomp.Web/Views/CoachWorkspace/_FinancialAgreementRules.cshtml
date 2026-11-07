@@ -1,0 +1,18 @@
+@model WebRecomp.Web.Controllers.CoachFinancialAgreement
+@using WebRecomp.Web.Services.Coaching
+@using System.Globalization
+<div class="coach-agreement-rules">
+@for(var i=0;i<Model.Rules.Count;i++){
+    var rule=Model.Rules[i];
+    if(!rule.Enabled){continue;}
+    var title=i<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"):(rule.Name.EndsWith(" coaches incentive")?rule.Name:rule.Name.Replace(" bonus","")+" coaches incentive");
+    <article class="coach-agreement-rule">
+        <header><h4>@title</h4><strong class="coach-agreement-amount">@rule.Amount.ToString("C",CultureInfo.GetCultureInfo("en-US"))</strong></header>
+        <dl>
+            <div><dt>Assessed</dt><dd>@CultureInfo.InvariantCulture.TextInfo.ToTitleCase(rule.Frequency)</dd></div>
+            <div><dt>@(i<4?"Daily nutrition limits":"When it applies")</dt><dd>@CoachAgreementLimits.Describe(rule,i)</dd></div>
+        </dl>
+    </article>
+}
+@if(!Model.Rules.Any(x=>x.Enabled)){<p>No penalties or incentives are enabled in this proposal.</p>}
+</div>
