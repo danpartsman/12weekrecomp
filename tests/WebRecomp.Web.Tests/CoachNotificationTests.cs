@@ -69,6 +69,31 @@ public sealed class CoachNotificationTests
         Assert.DoesNotContain(device.Endpoint, data);
     }
     [Fact]
+    public void FreshAgreementStorageCanSaveReloadAndUpdateEachCoachClientPair()
+    {
+        using var f = new Fixture();
+        var client = Guid.NewGuid(); var coach = Guid.NewGuid(); var otherCoach = Guid.NewGuid();
+        var key = $"financial-agreements/{client:N}-{coach:N}";
+        var otherKey = $"financial-agreements/{client:N}-{otherCoach:N}";
+        var rule = new WebRecomp.Web.Controllers.CoachFinancialRule("Protein penalty", true, "daily", 5m, 0m, 0m,
+            "Outside agreed nutrition limits", "system-percent", 5m, 10m);
+        var proposal = new WebRecomp.Web.Controllers.CoachFinancialAgreement(1, "pending", DateTime.UtcNow, coach, null, [rule]);
+        // This is the same lease/write sequence used by FinancialProposal on a fresh installation.
+        using (f.Files.Lease(key)) f.Files.Write(key, proposal);
+        var again = new NotificationFiles(f.Environment, f.Config, f.Protection);
+        var saved = again.Read<WebRecomp.Web.Controllers.CoachFinancialAgreement>(key)!;
+        Assert.Equal("pending", saved.Status); Assert.Equal(1, saved.Revision);
+        Assert.Equal(5m, saved.Rules[0].Amount); Assert.Equal("system-percent", saved.Rules[0].LimitMode);
+        Assert.Equal(5m, saved.Rules[0].LowerLimit); Assert.Equal(10m, saved.Rules[0].UpperLimit);
+        Assert.Null(again.Read<WebRecomp.Web.Controllers.CoachFinancialAgreement>(otherKey));
+        var owner = Guid.NewGuid();
+        using (again.Lease(key)) again.Write(key, saved with { Status = "accepted", Revision = 2, AcceptedBy = owner, AcceptedUtc = DateTime.UtcNow });
+        using (again.Lease(otherKey)) again.Write(otherKey, proposal with { UpdatedBy = otherCoach });
+        Assert.Equal("accepted", f.Files.Read<WebRecomp.Web.Controllers.CoachFinancialAgreement>(key)!.Status);
+        Assert.Equal("pending", f.Files.Read<WebRecomp.Web.Controllers.CoachFinancialAgreement>(otherKey)!.Status);
+        Assert.DoesNotContain("Protein penalty", File.ReadAllText(System.IO.Path.Combine(f.Path, "financial-agreements", $"{client:N}-{coach:N}.json")));
+    }
+    [Fact]
     public void PushSubscriptionsCannotTargetPrivateOrArbitraryServers()
     {
         var device = Device(); NotificationFiles.ValidateDevice(device);

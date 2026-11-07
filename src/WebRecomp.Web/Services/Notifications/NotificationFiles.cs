@@ -55,6 +55,7 @@ public sealed class NotificationFiles
         Directory.CreateDirectory(Path.Combine(Root, "devices"));
         Directory.CreateDirectory(Path.Combine(Root, "conversations"));
         Directory.CreateDirectory(Path.Combine(Root, "macro-acceptance"));
+        Directory.CreateDirectory(Path.Combine(Root, "financial-agreements"));
         protector = protection.CreateProtector("12WR.CoachNotifications.v1");
         identity = new Lazy<NotificationIdentity>(Initialize);
     }
