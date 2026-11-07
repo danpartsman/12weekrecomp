@@ -257,6 +257,14 @@ public sealed class CoachAccountabilityStoreTests
             .ConfigureAppConfiguration((_,builder)=>builder.AddInMemoryCollection(new Dictionary<string,string?>{["WEBSITE_SITE_NAME"]="recomp-test",["SimpleCoaching:Enabled"]=simpleMode.ToString()}))
             .ConfigureServices(services=>
             {
+                services.AddSingleton<WebRecomp.Web.Services.Notifications.NotificationFiles>(provider => new(
+                    provider.GetRequiredService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>(),
+                    new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>
+                    {
+                        ["Notifications:DataPath"] = Path.Combine(Path.GetTempPath(), "12wr-agreement-http-tests", Guid.NewGuid().ToString("N")),
+                        ["WEBSITE_SITE_NAME"] = "recomp-test"
+                    }).Build(),
+                    new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider()));
                 services.AddScoped<RecompDbContext>(_=>f.Db());
                 services.AddScoped<AppUserContextService>();services.AddScoped<CoachCenterService>();
                 services.AddScoped<CoachAccountabilityPreviewService>(_=>new CoachAccountabilityPreviewService(_.GetRequiredService<RecompDbContext>(),_.GetRequiredService<CoachCenterService>(),null!));
