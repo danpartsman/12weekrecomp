@@ -250,6 +250,36 @@ public sealed class CoachNotificationTests
         static string B64(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+','-').Replace('/','_');
         return new("https://fcm.googleapis.com/wp/test-token", B64(new byte[]{4}.Concat(p.Q.X!).Concat(p.Q.Y!).ToArray()), B64(RandomNumberGenerator.GetBytes(16)));
     }
+    [Fact]
+    public async Task CoachNoticesShowClientResponsesAndOnlyTheirCompletedWorkouts()
+    {
+        using var f=new Fixture();await f.Seed();
+        var workout=Sample().SnapWorkouts.First();
+        async Task Result(int revision,bool finalized,Guid actor)
+        {
+            f.Db.CoachAccountabilityEvents.Add(new(){EventId=Guid.NewGuid(),ClientId=f.Client,ActorUserId=actor,Kind="RESULT",Revision=revision,TermsVersion=1,CreatedAtUtc=DateTime.UtcNow,
+                PayloadJson=JsonSerializer.Serialize(new{workoutId=workout.Id,result=new AccountabilityResult{Finalized=finalized}},AccountabilityDocument.Json)});
+            await f.Db.SaveChangesAsync();
+        }
+        await Result(2,false,f.Owner);
+        Assert.Empty(await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default));
+        await Result(3,true,f.Coach); // Coach edits do not count as client submissions.
+        Assert.Empty(await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default));
+        await Result(4,true,f.Owner);await Result(5,true,f.Owner);
+        var notices=await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default);
+        Assert.Single(notices);Assert.Contains(workout.Name,notices[0].Title);
+        var other=Guid.NewGuid();f.Db.CoachClientRelationships.Add(new(){CoachClientRelationshipId=Guid.NewGuid(),ClientId=f.Client,CoachUserId=other,StatusCode="ACTIVE"});await f.Db.SaveChangesAsync();
+        Assert.Empty(await CoachActivityNotices.ReadAsync(f.Db,f.Files,other,default));
+        SaveFinancial(f,FinancialProposal(f) with {Status="accepted",UpdatedBy=f.Owner,Revision=2});
+        notices=await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default);
+        Assert.Equal(2,notices.Count);Assert.Contains(notices,x=>x.Title.Contains("accepted the agreement")&&x.Url.EndsWith("#financial-agreement"));
+        f.Files.Write(CoachActivityNotices.ReceiptKey(f.Coach),notices.Select(x=>x.Id).ToList());
+        Assert.Empty(await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default));
+        SaveFinancial(f,FinancialProposal(f) with {Status="changes-requested",UpdatedBy=f.Owner,Revision=4});
+        Assert.Single(await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default));
+        var link=await f.Db.CoachClientRelationships.SingleAsync(x=>x.CoachUserId==f.Coach);link.RevokedAtUtc=DateTime.UtcNow;await f.Db.SaveChangesAsync();
+        Assert.Empty(await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default));
+    }
     private sealed class Fixture : IDisposable
     {
         public string Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "12wr-notifications-" + Guid.NewGuid().ToString("N"));

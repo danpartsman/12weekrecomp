@@ -28,6 +28,9 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   for(const width of [320,354,390,820,1280]){
    await page.setViewportSize({width,height:844});
    assert.equal(await page.locator('.coach-workspace-page').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,`Agreement fits at ${width}px`);
+   const assessed=page.locator('.coach-agreement-rule dl>div').first();
+   assert.equal(await assessed.evaluate(el=>{const a=el.querySelector('dt').getBoundingClientRect(),b=el.querySelector('dd').getBoundingClientRect();return Math.abs(a.top-b.top)<8 && a.width>55 && b.width>35;}),true,`Assessed Daily stays horizontal at ${width}px`);
+   assert.equal(await page.locator('.coach-agreement-rule dl').first().evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),1);
    const title=page.locator('.coach-agreement-rule h4').first();
    assert.equal(await title.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
    assert.equal(await page.locator('.coach-agreement-amount').first().textContent(),'$5.00');
@@ -45,6 +48,22 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   await page.locator('[data-pending-agreements-host][aria-busy="false"]').waitFor({state:'attached'});await link.waitFor();
   unavailable=false;agreements=[];await page.evaluate(()=>window.dispatchEvent(new Event('coach-agreements-changed')));
   await page.waitForFunction(()=>!document.querySelector('[data-pending-agreements-host]').children.length);
+  const coach=await browser.newPage({viewport:{width:354,height:768}});
+  let coachNotices=[{id:'agreement-1',title:'Client <Name> accepted the agreement',url:'/coach-workspace/client/coach#financial-agreement'}],dismissed=false;
+  const layout=fs.readFileSync('src/WebRecomp.Web/Views/Shared/_Layout.cshtml','utf8');
+  const popup=layout.match(/<dialog class="coach-activity-dialog"[\s\S]*?<\/dialog>/)[0].replace('@Html.AntiForgeryToken()','<input type="hidden" name="__RequestVerificationToken" value="csrf-test">');
+  await coach.route('https://coach.test/**',route=>{
+   const req=route.request(),path=new URL(req.url()).pathname;
+   if(path.endsWith('/dismiss')){assert.equal(req.method(),'POST');assert.ok(req.postData().includes('__RequestVerificationToken=csrf-test'));dismissed=true;coachNotices=[];return route.fulfill({status:200,body:''});}
+   if(path==='/coach/activity-notices')return route.fulfill({contentType:'application/json',body:JSON.stringify({notices:coachNotices})});
+   return route.fulfill({contentType:'text/html',body:`<html><style>${fs.readFileSync('src/WebRecomp.Web/wwwroot/css/coach-activity-notices.css','utf8')}</style><body>${popup}</body></html>`});
+  });
+  await coach.goto('https://coach.test/coach');await coach.addScriptTag({path:'src/WebRecomp.Web/wwwroot/js/coach-activity-notices.js'});
+  await coach.locator('dialog[open]').waitFor();
+  assert.equal(await coach.getByRole('link').textContent(),'Client <Name> accepted the agreement');
+  assert.equal(await coach.locator('dialog').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+  await coach.getByRole('button',{name:'Mark as read'}).click();await coach.locator('dialog[open]').waitFor({state:'hidden'});assert.equal(dismissed,true);
+  await coach.evaluate(()=>window.dispatchEvent(new Event('focus')));await coach.waitForTimeout(100);assert.equal(await coach.locator('dialog[open]').count(),0);await coach.close();
   assert.deepEqual(errors,[]);
   console.log('Agreement rule cards and approval controls fit phones; pending notice arrives, links safely to review, survives network errors and clears after response.');
  }finally{await browser.close();}

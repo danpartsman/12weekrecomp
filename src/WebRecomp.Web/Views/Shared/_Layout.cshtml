@@ -300,6 +300,17 @@
     <script src="~/js/pending-snap.js" asp-append-version="true" defer></script> }
     @if (User.Identity?.IsAuthenticated == true && !isPublicPage && !isOnboardingPage) { <div data-pending-agreements-host aria-live="polite">@await Component.InvokeAsync("PendingAgreement")</div>
     <script src="~/js/pending-agreements.js" asp-append-version="true" defer></script> }
+    @if ((User.IsInRole("Coach") || User.IsInRole("Administrator")) && !isPublicPage && !isOnboardingPage) {
+    <link rel="stylesheet" href="~/css/coach-activity-notices.css" asp-append-version="true" />
+    <dialog class="coach-activity-dialog" data-coach-activity aria-labelledby="coach-activity-title">
+        <h2 id="coach-activity-title">Client updates</h2>
+        <ul data-coach-activity-list></ul>
+        <form>@Html.AntiForgeryToken()</form>
+        <p role="status"></p>
+        <footer><button type="button" data-dismiss>Mark as read</button><button type="button" data-close>Close</button></footer>
+    </dialog>
+    <script src="~/js/coach-activity-notices.js" asp-append-version="true" defer></script>
+    }
     @RenderBody()
 </main>
 

@@ -3,9 +3,9 @@
 .coach-agreement-rule header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:start}
 .coach-agreement-rule h4{margin:0;font-size:1rem;line-height:1.45;word-break:normal;overflow-wrap:break-word}
 .coach-agreement-amount{font-size:1.2rem;white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.4}
-.coach-agreement-rule dl{display:grid;gap:12px;margin:14px 0 0}
+.coach-agreement-rule dl{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:14px 0 0}
 .coach-agreement-rule dl>div{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px}
-.coach-agreement-rule dt{font-size:.9rem;color:var(--muted,#a8bbd1)}
+.coach-agreement-rule dt{min-width:0;font-size:.9rem;color:var(--muted,#a8bbd1)}
 .coach-agreement-rule dd{margin:0;line-height:1.5;min-width:0;word-break:normal;overflow-wrap:break-word}
 .coach-agreement-summary{display:flex;flex-wrap:wrap;gap:10px 20px;margin:16px 0;line-height:1.5}
 .coach-agreement-summary>div{min-width:0;max-width:100%}
@@ -19,4 +19,4 @@
 .coach-agreement-response-actions{display:grid;gap:10px}
 .coach-workspace-page .coach-agreement-response-actions button{width:100%;min-height:48px;box-sizing:border-box;white-space:normal;text-align:center;padding:12px}
 #financial-agreement{scroll-margin-top:90px}
-@media(max-width:600px){.coach-agreement-rule{padding:14px}.coach-agreement-rule dl>div{grid-template-columns:minmax(0,1fr);gap:4px}.coach-agreement-summary{display:grid;gap:12px}}
+@media(max-width:600px){.coach-agreement-rule{padding:14px}.coach-agreement-rule dl>div{grid-template-columns:minmax(0,1fr);gap:4px}.coach-agreement-rule dl>div:first-child{grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:baseline}.coach-agreement-rule dl>div:first-child dt,.coach-agreement-rule dl>div:first-child dd{white-space:nowrap;overflow-wrap:normal}.coach-agreement-summary{display:grid;gap:12px}}
