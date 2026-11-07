@@ -24,7 +24,7 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   });
   await page.goto('https://agreement.test/');
   await page.addScriptTag({path:'src/WebRecomp.Web/wwwroot/js/pending-agreements.js'});
-  await page.locator('[data-pending-agreements-host][aria-busy="false"]').waitFor();
+  await page.locator('[data-pending-agreements-host][aria-busy="false"]').waitFor({state:'attached'});
   for(const width of [320,354,390,820,1280]){
    await page.setViewportSize({width,height:844});
    assert.equal(await page.locator('.coach-workspace-page').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true,`Agreement fits at ${width}px`);
@@ -42,7 +42,7 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   assert.equal(await page.locator('[data-pending-agreements-host] nina').count(),0);
   const failed=page.waitForResponse(response=>response.url().includes('/pending-agreements')&&response.status()===503);
   unavailable=true;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await failed;
-  await page.locator('[data-pending-agreements-host][aria-busy="false"]').waitFor();await link.waitFor();
+  await page.locator('[data-pending-agreements-host][aria-busy="false"]').waitFor({state:'attached'});await link.waitFor();
   unavailable=false;agreements=[];await page.evaluate(()=>window.dispatchEvent(new Event('coach-agreements-changed')));
   await page.waitForFunction(()=>!document.querySelector('[data-pending-agreements-host]').children.length);
   assert.deepEqual(errors,[]);
