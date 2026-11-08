@@ -296,7 +296,7 @@
 
 
 <main class="container">
-    @if (User.Identity?.IsAuthenticated == true && !isPublicPage && !isOnboardingPage) { <div data-pending-snap-host aria-live="polite">@await Component.InvokeAsync("PendingSnap")</div>
+    @if (User.Identity?.IsAuthenticated == true && !isPublicPage && !isOnboardingPage) { <div data-pending-snap-host data-snap-coach="@ViewData["SnapCoachScope"]" aria-live="polite">@await Component.InvokeAsync("PendingSnap", new { coachUserId = ViewData["SnapCoachScope"] as Guid? })</div>
     <script src="~/js/pending-snap.js" asp-append-version="true" defer></script> }
     @if (User.Identity?.IsAuthenticated == true && !isPublicPage && !isOnboardingPage) { <div data-pending-agreements-host aria-live="polite">@await Component.InvokeAsync("PendingAgreement")</div>
     <script src="~/js/pending-agreements.js" asp-append-version="true" defer></script> }

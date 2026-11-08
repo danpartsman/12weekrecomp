@@ -39,7 +39,7 @@ public sealed class MyCoachController(RecompDbContext db, AppUserContextService 
         return Json(new { agreements });
     }
     [HttpGet("pending-snaps")]
-    public async Task<IActionResult> PendingSnaps([FromServices] CoachAccountabilityStore store,[FromServices] IConfiguration configuration,[FromServices] SimpleCoachingService simple,CancellationToken ct)
+    public async Task<IActionResult> PendingSnaps([FromServices] CoachAccountabilityStore store,[FromServices] IConfiguration configuration,[FromServices] SimpleCoachingService simple,CancellationToken ct,Guid? coachUserId=null)
     {
         if(!AccountabilityPreview.Enabled(configuration))return NotFound();
         var id=await OwnedClientAsync(ct);
@@ -51,6 +51,11 @@ public sealed class MyCoachController(RecompDbContext db, AppUserContextService 
             var workouts=row is null?[]:AccountabilityDocument.Parse(row.StateJson).SnapWorkouts;
             var state=row is null?null:AccountabilityDocument.Parse(row.StateJson);
             var owners=await SnapWorkoutAssignments.OwnersAsync(db,id.Value,ct);
+            if(coachUserId.HasValue)
+            {
+                if(!await coaches.CanAccessAsync(coachUserId.Value,id.Value,ct))return NotFound();
+                workouts=workouts.Where(w=>owners.GetValueOrDefault(w.Id)==coachUserId.Value).ToList();
+            }
             var names=await SnapWorkoutAssignments.NamesAsync(db,owners.Values,ct);
             return Json(new{clientId=id.Value,workouts=workouts.Where(w=>(!SimpleCoaching.Enabled(configuration)||w.Simple)&&!(SimpleCoaching.Enabled(configuration)?state!.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true:SnapWorkoutLibrary.Completed(w,state!.SnapResults.GetValueOrDefault(w.Id)))).OrderBy(w=>w.Date).Select(w=>new{w.Id,w.Name,w.Date,coachName=names.GetValueOrDefault(owners.GetValueOrDefault(w.Id))??"Coach unavailable"})});
         }

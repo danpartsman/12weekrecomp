@@ -462,6 +462,10 @@ public sealed class CoachAccountabilityStoreTests
         var scoped = await http.GetStringAsync(path + $"?coachUserId={f.OtherCoach}");
         Assert.Contains("Second assignment · Second Coach", scoped);
         Assert.DoesNotContain("First assignment", scoped);
+        using var pending = JsonDocument.Parse(await http.GetStringAsync($"/my-coach/pending-snaps?coachUserId={f.OtherCoach}"));
+        var pendingWorkout = Assert.Single(pending.RootElement.GetProperty("workouts").EnumerateArray());
+        Assert.Equal(secondId, pendingWorkout.GetProperty("id").GetString());
+        Assert.Equal("Second Coach", pendingWorkout.GetProperty("coachName").GetString());
         Assert.Equal(System.Net.HttpStatusCode.NotFound,
             (await http.GetAsync(path + $"?coachUserId={f.OtherCoach}&assignment={firstId}")).StatusCode);
 

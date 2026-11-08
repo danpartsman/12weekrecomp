@@ -16,7 +16,7 @@
         var assigned = workout.CreatedAtUtc.HasValue
             ? TimeZoneInfo.ConvertTime(workout.CreatedAtUtc.Value, zone).ToString("MM-dd-yy h:mm tt", CultureInfo.InvariantCulture)
             : DateOnly.TryParse(workout.Date, out var date) ? date.ToString("MM-dd-yy", CultureInfo.InvariantCulture) : workout.Date;
-        <li data-pending-workout="@workout.Id"><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@ViewData["ClientId"]" asp-route-assignment="@workout.Id" asp-fragment="snap-@workout.Id">Open @workout.Name · @(coachNames?.GetValueOrDefault(workout.Id) ?? "Coach unavailable") · @assigned</a></li>
+        <li data-pending-workout="@workout.Id"><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@ViewData["ClientId"]" asp-route-assignment="@workout.Id" asp-route-coachUserId="@ViewData["SnapCoachScope"]" asp-fragment="snap-@workout.Id">Open @workout.Name · @(coachNames?.GetValueOrDefault(workout.Id) ?? "Coach unavailable") · @assigned</a></li>
     }
     </ul>
 </aside>

@@ -1,12 +1,14 @@
 (() => {
     const host = document.querySelector('[data-pending-snap-host]');
     if (!host) return;
+    const coach = host.dataset.snapCoach;
+    const endpoint = coach ? '/my-coach/pending-snaps?coachUserId=' + encodeURIComponent(coach) : '/my-coach/pending-snaps';
     let busy = false;
     async function refresh() {
         if (busy || document.hidden) return;
         busy = true;
         try {
-            const response = await fetch('/my-coach/pending-snaps', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
+            const response = await fetch(endpoint, { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
             if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) return;
             const data = await response.json();
             if (!Array.isArray(data.workouts) || (data.workouts.length && !/^[a-f0-9-]{36}$/i.test(data.clientId))) return;
@@ -21,7 +23,7 @@
             for (const w of data.workouts) {
                 const item = document.createElement('li'); item.dataset.pendingWorkout = w.id;
                 const link = document.createElement('a'); link.className = 'button'; link.textContent = `Open ${w.name} · ${w.coachName || "Coach unavailable"} · ${w.date}`;
-                link.href = `/accountability-preview/clients/${encodeURIComponent(data.clientId)}/snap?assignment=${encodeURIComponent(w.id)}#snap-${encodeURIComponent(w.id)}`;
+                link.href = `/accountability-preview/clients/${encodeURIComponent(data.clientId)}/snap?assignment=${encodeURIComponent(w.id)}${coach ? "&coachUserId=" + encodeURIComponent(coach) : ""}#snap-${encodeURIComponent(w.id)}`;
                 item.append(link); list.append(item);
             }
             banner.append(title, text, list); host.replaceChildren(banner);

@@ -29,6 +29,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var scope=await ResolveScopeAsync(user.UserId,clientId,assignedCoach,coachUserId,ct);
             var owners=await simple.AssignmentOwnersAsync(clientId,ct);
             if(scope.HasValue)SnapWorkoutAssignments.Filter(state,owners,scope.Value);
+            ViewData["SnapCoachScope"]=scope;
             var selected=retry?.WorkoutId??Request.Query["assignment"].FirstOrDefault();
             if(scope.HasValue&&!string.IsNullOrWhiteSpace(selected)&&!state.SnapWorkouts.Any(w=>w.Simple&&w.Id==selected))
                 return NotFound();

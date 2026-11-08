@@ -28,7 +28,7 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
     public async Task<IActionResult> Snap(Guid clientId, CancellationToken ct,bool old=false)
     {
         if (!Enabled) return NotFound();
-        if(SimpleCoaching.Enabled(configuration)&&(!old||CoachRole))return RedirectToAction("Index","SimpleSnap",new{clientId,assignment=Request.Query["assignment"].ToString()});
+        if(SimpleCoaching.Enabled(configuration)&&(!old||CoachRole))return RedirectToAction("Index","SimpleSnap",new{clientId,assignment=Request.Query["assignment"].ToString(),coachUserId=Request.Query["coachUserId"].ToString()});
         var user = (await users.GetAsync(HttpContext, ct)).User;
         if (!await preview.CanViewAsync(user.UserId, clientId, CoachRole, ct)) return NotFound();
         var name = await preview.ClientNameAsync(clientId, ct); if (name is null) return NotFound();
