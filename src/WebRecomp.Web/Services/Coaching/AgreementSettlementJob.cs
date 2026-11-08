@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
 using WebRecomp.NutritionIntelligence.Persistence;
 using WebRecomp.Web.Services.Dashboard3;
 using WebRecomp.Web.Controllers;
@@ -15,7 +17,12 @@ public sealed class AgreementSettlementJob(
     SimpleCoachingService coaching, AccountabilityLedger ledger, IConfiguration configuration,
     ILogger<AgreementSettlementJob> logger, TimeProvider? clock = null) : IScheduledJob
 {
-    private sealed record Progress(DateOnly ClosedThrough);
+    private sealed record Progress(DateOnly ClosedThrough, DateTime LastCheckedUtc = default);
+
+    // Explicit one-time authorization for one accepted pair and date. Store the
+    // pair fingerprint here instead of identifiers from the production account.
+    private const string CatchUpPair = "217e6a07cbec1ae9dc296a7dd100e678ce27380a465dabc4487be9ac6ca548ac";
+    private static readonly DateOnly CatchUpDate = new(2026, 11, 7);
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -70,22 +77,54 @@ public sealed class AgreementSettlementJob(
         DateOnly LocalDate(DateTime utc) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
             DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone));
         var first = LocalDate(linkedAt is { } linked && linked > activated ? linked : activated).AddDays(1);
-        var closed = LocalDate(now.AddHours(-1)).AddDays(-1);
-        if (closed < first) return;
-
+        var closed = LocalDate(now).AddDays(-1);
         var progressKey = $"financial-agreements/settlement-{clientId:N}-{coach:N}";
         using var lease = files.Lease(progressKey);
+
+        var fingerprint = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{clientId:N}:{coach:N}")));
+        var authorizedPair = fingerprint == CatchUpPair && (linkedAt is null || LocalDate(linkedAt.Value) <= CatchUpDate);
+        var acceptedOnDate = authorizedPair
+            ? versions.Where(v => v.Revision == 2 && v.AcceptedBy == owners[0]
+                && v.AcceptedUtc is { } accepted && LocalDate(accepted) == CatchUpDate).ToArray()
+            : [];
+        if (acceptedOnDate.Length != 0 && first > CatchUpDate.AddDays(1))
+            first = CatchUpDate.AddDays(1);
+
+        if (acceptedOnDate.Length != 0 && closed >= CatchUpDate && closed <= CatchUpDate.AddDays(2))
+        {
+            var receiptKey = progressKey + "-accepted-day-20261107";
+            if (files.Read<bool?>(receiptKey) != true)
+            {
+                var catchUp = AgreementSettlement.DuePeriods(acceptedOnDate, owners[0], zone,
+                    CatchUpDate, CatchUpDate, CatchUpDate, includeAcceptanceDay: true);
+                if (catchUp.Count > 0 && await PostPeriodsAsync(client, coach, owners[0], owners[0], agreement, catchUp, ct))
+                    files.Write(receiptKey, true);
+            }
+        }
+
+        if (closed < first) return;
         var previous = files.Read<Progress>(progressKey);
-        // Resume after outages. Also revisit recently closed periods for late edits.
+        if (previous is not null && previous.ClosedThrough >= closed
+            && now - previous.LastCheckedUtc < TimeSpan.FromMinutes(15)) return;
+
+        // Resume after outages and revisit recently closed periods for late edits.
         var earliestClose = previous is null ? first : previous.ClosedThrough.AddDays(-13);
         if (earliestClose < first) earliestClose = first;
         var periods = AgreementSettlement.DuePeriods(versions, owners[0], zone, first, earliestClose, closed);
+        if (await PostPeriodsAsync(client, coach, owners[0], coach, agreement, periods, ct))
+            files.Write(progressKey, new Progress(closed, now));
+    }
+
+    private async Task<bool> PostPeriodsAsync(Client client, Guid coach, Guid owner, Guid actor,
+        CoachFinancialAgreement agreement, IReadOnlyList<AgreementPeriod> periods, CancellationToken ct)
+    {
+        var clientId = client.ClientId;
         if (periods.Count != 0)
         {
             var from = periods.Min(x => x.Start);
             var through = periods.Max(x => x.End);
             var row = await db.CoachAccountabilityAgreements.SingleOrDefaultAsync(x => x.ClientId == clientId, ct);
-            var dayEvidence = await LoadEvidenceAsync(client, owners[0], agreement, from, through,
+            var dayEvidence = await LoadEvidenceAsync(client, owner, agreement, from, through,
                 periods.Any(p => p.RuleIndex < 4 || p.RuleIndex is 5 or 8),
                 periods.Any(p => p.RuleIndex == 7),
                 periods.Any(p => p.RuleIndex == 8 || (p.RuleIndex < 4 && p.Agreement.Rules[p.RuleIndex].LimitMode == "system-percent")), ct);
@@ -99,18 +138,18 @@ public sealed class AgreementSettlementJob(
                     charges.Add((charge, period.Agreement.Revision));
             }
             var entries = charges.GroupBy(x => x.Revision).SelectMany(group =>
-                AccountabilityLedger.Delta(group.Select(x => x.Charge), existing, group.Key, coach)).ToList();
+                AccountabilityLedger.Delta(group.Select(x => x.Charge), existing, group.Key, actor)).ToList();
             foreach (var entry in entries) entry.CoachUserId = coach;
             if (entries.Count != 0)
             {
                 row ??= await coaching.EnsureAsync(coach, clientId, ct);
                 await ledger.PrepareAutomaticAsync(row, entries, ct);
-                if (entries.Count == 0) return;
-                ledger.Append(row, coach, entries);
+                if (entries.Count == 0) return false;
+                ledger.Append(row, actor, entries);
                 await db.SaveChangesAsync(ct);
             }
         }
-        files.Write(progressKey, new Progress(closed));
+        return true;
     }
 
     private async Task<Dictionary<DateOnly, AgreementDay>> LoadEvidenceAsync(Client client, Guid owner,

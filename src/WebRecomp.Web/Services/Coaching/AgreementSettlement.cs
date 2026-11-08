@@ -22,11 +22,11 @@ internal static class AgreementSettlement
 
     public static IReadOnlyList<AgreementPeriod> DuePeriods(
         IEnumerable<CoachFinancialAgreement> versions, Guid owner, TimeZoneInfo zone,
-        DateOnly firstEligible, DateOnly earliestClose, DateOnly closedThrough)
+        DateOnly firstEligible, DateOnly earliestClose, DateOnly closedThrough, bool includeAcceptanceDay = false)
     {
         DateOnly EffectiveDay(CoachFinancialAgreement version) =>
             DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
-                DateTime.SpecifyKind(version.AcceptedUtc!.Value, DateTimeKind.Utc), zone)).AddDays(1);
+                DateTime.SpecifyKind(version.AcceptedUtc!.Value, DateTimeKind.Utc), zone)).AddDays(includeAcceptanceDay ? 0 : 1);
 
         var accepted = versions.Where(v => v.Status == "accepted" && v.AcceptedBy == owner
             && v.AcceptedUtc.HasValue && v.Rules.Count == 10)
@@ -40,7 +40,14 @@ internal static class AgreementSettlement
             {
                 var rule = version.Rules[i];
                 if (!rule.Enabled || rule.Amount <= 0 || rule.Frequency is not ("daily" or "weekly" or "monthly")) continue;
+                if (includeAcceptanceDay && rule.Frequency != "daily") continue;
                 var (start, end) = AccountabilityAssessment.Period(date, rule.Frequency);
+                if (rule.Frequency == "weekly" && version.PaymentSchedule == "weekly")
+                {
+                    var offset = ((int)date.DayOfWeek - (int)version.PaymentDay + 7) % 7;
+                    start = date.AddDays(-offset);
+                    end = start.AddDays(6);
+                }
                 if (end == date && start >= firstEligible && start >= EffectiveDay(version))
                     periods.Add(new(version, i, start, end));
             }
