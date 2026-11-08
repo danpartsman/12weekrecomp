@@ -425,6 +425,58 @@ public sealed class CoachAccountabilityStoreTests
         using(var pending=JsonDocument.Parse(await http.GetStringAsync("/my-coach/pending-snaps")))Assert.Equal(0,pending.RootElement.GetProperty("workouts").GetArrayLength());
     }
     [Fact]
+    public async Task SimpleSnapScopesClientLinksAndCoachAccessToTheOriginalAssigner()
+    {
+        var f = await Fixture.Create();
+        string firstId, secondId;
+        using (var db = f.Db())
+        {
+            var access = new CoachAccountabilityPreviewService(db, new CoachCenterService(db), null!);
+            var ledger = new AccountabilityLedger(db, access);
+            var simple = new SimpleCoachingService(db, access, ledger);
+            var date = AppUserContextService.GetClientToday(await db.Clients.SingleAsync()).ToString("yyyy-MM-dd");
+            db.UserAccounts.Single(x => x.UserId == f.Coach).DisplayName = "First Coach";
+            db.UserAccounts.Single(x => x.UserId == f.OtherCoach).DisplayName = "Second Coach";
+            await db.SaveChangesAsync();
+            AccountabilityWorkout Workout(string name) => new()
+            {
+                Name = name, Date = date, Exercises = [new() { Name = "Press", Sets = 1, Reps = 10, MaxWeight = 0 }]
+            };
+            await simple.AssignAsync(f.Coach, f.Client, 0, Guid.NewGuid(), Workout("First assignment"), default);
+            var row = await db.CoachAccountabilityAgreements.SingleAsync();
+            await simple.AssignAsync(f.OtherCoach, f.Client, row.Revision, Guid.NewGuid(), Workout("Second assignment"), default);
+            var workouts = AccountabilityDocument.Parse(row.StateJson).SnapWorkouts;
+            firstId = workouts[0].Id;
+            secondId = workouts[1].Id;
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+                simple.ResultAsync(f.OtherCoach, f.Client, true, row.Revision, firstId, new(), default));
+        }
+
+        using var server = CreateServer(f, true);
+        using var http = server.CreateClient();
+        var path = $"/clients/{f.Client}/snap";
+        http.DefaultRequestHeaders.Add("X-Test-Actor", "owner");
+        var all = await http.GetStringAsync(path);
+        Assert.Contains("First assignment · First Coach", all);
+        Assert.Contains("Second assignment · Second Coach", all);
+        var scoped = await http.GetStringAsync(path + $"?coachUserId={f.OtherCoach}");
+        Assert.Contains("Second assignment · Second Coach", scoped);
+        Assert.DoesNotContain("First assignment", scoped);
+        Assert.Equal(System.Net.HttpStatusCode.NotFound,
+            (await http.GetAsync(path + $"?coachUserId={f.OtherCoach}&assignment={firstId}")).StatusCode);
+
+        http.DefaultRequestHeaders.Remove("X-Test-Actor");
+        http.DefaultRequestHeaders.Add("X-Test-Actor", "other");
+        var coachView = await http.GetStringAsync(path);
+        Assert.Contains("Second assignment", coachView);
+        Assert.DoesNotContain("First assignment", coachView);
+        Assert.Equal(System.Net.HttpStatusCode.NotFound,
+            (await http.GetAsync(path + $"/template?workoutId={firstId}")).StatusCode);
+        using var status = JsonDocument.Parse(await http.GetStringAsync(path + "/status"));
+        Assert.Equal(secondId, Assert.Single(status.RootElement.GetProperty("workouts").EnumerateArray()).GetProperty("id").GetString());
+    }
+
+    [Fact]
     public async Task SimpleAccountAcceptsManualFeeBeforeAnyWorkoutOrAgreement()
     {
         var f=await Fixture.Create();using var db=f.Db();var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);var ledger=new AccountabilityLedger(db,access);var simple=new SimpleCoachingService(db,access,ledger);

@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="~/css/coach-ledger.css" asp-append-version="true" />
 <section class="page-header"><p class="eyebrow">CLIENT ACCOUNT</p><h1>@Model.ClientName · Fees &amp; incentives</h1><p>Fees, incentives and payments between @Model.ClientName and @Model.CoachName only. Each coach has a separate running balance and payment history.</p></section>
 <partial name="_CoachLedgerAccounts" model="Model" />
-<p class="ledger-links">@if(Model.ActiveCoach){<a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId">Snap Workouts</a>} @if(Model.CanRecord){<a class="button" asp-controller="Coach" asp-action="Index">Client list</a>}</p>
+<p class="ledger-links">@if(Model.ActiveCoach){<a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachUserId">Snap Workouts</a>} @if(Model.CanRecord){<a class="button" asp-controller="Coach" asp-action="Index">Client list</a>}</p>
 @if(TempData["LedgerStatus"] is string status){<div class="app-message" role="status">@status</div>}
 <section class="card ledger-summary" aria-label="Account balance">
     <div><span>Running balance</span><strong>@Money(Math.Abs(balance))</strong><p>@(balance>0?"Client owes coach":balance<0?"Client payment credit":"Account is settled")</p></div>

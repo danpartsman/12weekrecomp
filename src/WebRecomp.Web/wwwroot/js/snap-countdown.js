@@ -5,7 +5,7 @@
     async function refresh(){
         if(busy||document.hidden)return;busy=true;
         try{
-            const response=await fetch(location.pathname.replace(/\/$/,'')+'/status',{credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}});
+            const response=await fetch(location.pathname.replace(/\/$/,'')+'/status'+location.search,{credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}});
             if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))return;
             const data=await response.json();if(!Number.isFinite(Date.parse(data.nowUtc)))return;
             serverStart=Date.parse(data.nowUtc);anchor=performance.now();

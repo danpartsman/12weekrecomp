@@ -50,7 +50,9 @@ public sealed class MyCoachController(RecompDbContext db, AppUserContextService 
             var row=SimpleCoaching.Enabled(configuration)?await simple.ReadAsync(user.UserId,id.Value,false,ct):await store.ReadSnapAsync(user.UserId,id.Value,false,ct);
             var workouts=row is null?[]:AccountabilityDocument.Parse(row.StateJson).SnapWorkouts;
             var state=row is null?null:AccountabilityDocument.Parse(row.StateJson);
-            return Json(new{clientId=id.Value,workouts=workouts.Where(w=>(!SimpleCoaching.Enabled(configuration)||w.Simple)&&!(SimpleCoaching.Enabled(configuration)?state!.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true:SnapWorkoutLibrary.Completed(w,state!.SnapResults.GetValueOrDefault(w.Id)))).OrderBy(w=>w.Date).Select(w=>new{w.Id,w.Name,w.Date})});
+            var owners=await SnapWorkoutAssignments.OwnersAsync(db,id.Value,ct);
+            var names=await SnapWorkoutAssignments.NamesAsync(db,owners.Values,ct);
+            return Json(new{clientId=id.Value,workouts=workouts.Where(w=>(!SimpleCoaching.Enabled(configuration)||w.Simple)&&!(SimpleCoaching.Enabled(configuration)?state!.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true:SnapWorkoutLibrary.Completed(w,state!.SnapResults.GetValueOrDefault(w.Id)))).OrderBy(w=>w.Date).Select(w=>new{w.Id,w.Name,w.Date,coachName=names.GetValueOrDefault(owners.GetValueOrDefault(w.Id))??"Coach unavailable"})});
         }
         catch(UnauthorizedAccessException){return Json(new{clientId=id.Value,workouts=Array.Empty<object>()});}
     }

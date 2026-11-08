@@ -20,7 +20,15 @@ public sealed class CoachCenterService(RecompDbContext db,IConfiguration? config
         var ids=from link in db.CoachClientRelationships join client in db.Clients on link.ClientId equals client.ClientId
                 where link.CoachUserId==coach&&link.StatusCode=="ACTIVE"&&link.RevokedAtUtc==null&&client.ClientStatusCode=="ACTIVE" select client.ClientId;
         var rows=await db.CoachAccountabilityAgreements.AsNoTracking().Where(x=>ids.Contains(x.ClientId)).Select(x=>new{x.ClientId,x.StateJson}).ToListAsync(ct);
-        return rows.ToDictionary(x=>x.ClientId,x=>SnapStatus(VisibleState(x.StateJson)));
+        var statuses = new Dictionary<Guid, CoachSnapStatus>();
+        foreach (var row in rows)
+        {
+            var state = VisibleState(row.StateJson);
+            if (SimpleCoaching.Enabled(configuration))
+                SnapWorkoutAssignments.Filter(state, await SnapWorkoutAssignments.OwnersAsync(db, row.ClientId, ct), coach);
+            statuses[row.ClientId] = SnapStatus(state);
+        }
+        return statuses;
     }
     private AccountabilityState VisibleState(string json)
     {

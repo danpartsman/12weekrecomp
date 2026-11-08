@@ -18,6 +18,13 @@ public sealed class PendingSnapViewComponent(AppUserContextService users, CoachA
             var state = AccountabilityDocument.Parse(row.StateJson);
             var pending = state.SnapWorkouts.Where(w => (!SimpleCoaching.Enabled(configuration)||w.Simple)&&!(SimpleCoaching.Enabled(configuration)?state.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true:SnapWorkoutLibrary.Completed(w,state.SnapResults.GetValueOrDefault(w.Id)))).OrderBy(w => w.Date).ToList();
             if (pending.Count == 0) return Content("");
+            if (simple is not null)
+            {
+                var owners = await simple.AssignmentOwnersAsync(context.Client.ClientId, ct);
+                var names = await simple.AssignmentNamesAsync(pending.Select(w => owners.GetValueOrDefault(w.Id)), ct);
+                ViewData["SnapCoachNames"] = pending.ToDictionary(w => w.Id,
+                    w => names.GetValueOrDefault(owners.GetValueOrDefault(w.Id)) ?? "Coach unavailable");
+            }
             ViewData["ClientId"] = context.Client.ClientId;
             ViewData["ClientTimeZone"] = context.Client.TimeZone;
             return View("~/Views/Shared/Components/PendingSnap/Default.cshtml", pending);

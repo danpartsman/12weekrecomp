@@ -10,6 +10,12 @@ public static class SimpleCoaching
 public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,WebRecomp.Web.Services.Notifications.CoachNotificationProcessor? notifications=null,TimeProvider? clock=null)
 {
     private readonly TimeProvider time=clock??TimeProvider.System;
+    internal Task<Dictionary<string, Guid>> AssignmentOwnersAsync(Guid client, CancellationToken ct) =>
+        SnapWorkoutAssignments.OwnersAsync(db, client, ct);
+
+    internal Task<Dictionary<Guid, string>> AssignmentNamesAsync(IEnumerable<Guid> coaches, CancellationToken ct) =>
+        SnapWorkoutAssignments.NamesAsync(db, coaches, ct);
+
     public async Task<CoachAccountabilityAgreement?> ReadAsync(Guid actor,Guid client,bool coach,CancellationToken ct)
     {
         if(!await access.CanViewAsync(actor,client,coach,ct))throw new UnauthorizedAccessException();
@@ -52,10 +58,13 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         row.StateJson=AccountabilityDocument.Serialize(state);Event(row,actor,"CONFIG",row.StateJson);await SaveAsync(ct);
         if(notifications is not null)try{await notifications.QueueConfigAsync(client,row.Revision,ct);}catch(Exception){/* Notification worker recovers the CONFIG event. */}
     }
-    public async Task ResultAsync(Guid actor,Guid client,bool coach,int expected,string workoutId,AccountabilityResult result,CancellationToken ct)
+    public async Task ResultAsync(Guid actor,Guid client,bool coach,int expected,string workoutId,AccountabilityResult result,CancellationToken ct,Guid? coachUserId=null)
     {
         if(!await access.CanViewAsync(actor,client,coach,ct))throw new UnauthorizedAccessException();
         var row=await db.CoachAccountabilityAgreements.SingleOrDefaultAsync(x=>x.ClientId==client,ct)??throw new ArgumentException("No workout is assigned.");
+        if ((coach || coachUserId.HasValue)
+            && (await AssignmentOwnersAsync(client, ct)).GetValueOrDefault(workoutId) != (coach ? actor : coachUserId))
+            throw new UnauthorizedAccessException();
         if(row.Revision!=expected)
         {
             var intervening=await db.CoachAccountabilityEvents.AsNoTracking().Where(x=>x.ClientId==client&&x.Revision>expected).Select(x=>new{x.Kind,x.PayloadJson}).ToListAsync(ct);

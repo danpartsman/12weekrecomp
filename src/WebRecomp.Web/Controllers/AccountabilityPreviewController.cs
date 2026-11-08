@@ -28,7 +28,7 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
     public async Task<IActionResult> Snap(Guid clientId, CancellationToken ct,bool old=false)
     {
         if (!Enabled) return NotFound();
-        if(SimpleCoaching.Enabled(configuration)&&!old)return RedirectToAction("Index","SimpleSnap",new{clientId,assignment=Request.Query["assignment"].ToString()});
+        if(SimpleCoaching.Enabled(configuration)&&(!old||CoachRole))return RedirectToAction("Index","SimpleSnap",new{clientId,assignment=Request.Query["assignment"].ToString()});
         var user = (await users.GetAsync(HttpContext, ct)).User;
         if (!await preview.CanViewAsync(user.UserId, clientId, CoachRole, ct)) return NotFound();
         var name = await preview.ClientNameAsync(clientId, ct); if (name is null) return NotFound();
@@ -40,7 +40,7 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
     [HttpGet("snap-library")]
     public async Task<IActionResult> SnapLibrary(Guid clientId, [FromServices] SnapWorkoutLibrary library, CancellationToken ct)
     {
-        if (!Enabled || !CoachRole) return NotFound();
+        if (!Enabled || !CoachRole || SimpleCoaching.Enabled(configuration)) return NotFound();
         var user = (await users.GetAsync(HttpContext, ct)).User;
         try { return Json(await library.ReadAsync(user.UserId, clientId, ct)); }
         catch (UnauthorizedAccessException) { return NotFound(); }
@@ -89,6 +89,8 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
     {
         if (!Enabled) return NotFound();
         var user = (await users.GetAsync(HttpContext, ct)).User;
+        if (SimpleCoaching.Enabled(configuration) && !await preview.IsOwnerAsync(user.UserId, clientId, ct))
+            return NotFound();
         try { return Json(await store!.EnvelopeAsync(await store.ReadAsync(user.UserId, clientId, CoachRole, ct), ct)); }
         catch (UnauthorizedAccessException) { return NotFound(); }
     }
@@ -97,6 +99,8 @@ public sealed class AccountabilityPreviewController(AppUserContextService users,
     {
         if(!Enabled)return NotFound();
         var user=(await users.GetAsync(HttpContext,ct)).User;
+        if (SimpleCoaching.Enabled(configuration) && !await preview.IsOwnerAsync(user.UserId, clientId, ct))
+            return NotFound();
         try{return Json(await store!.EnvelopeAsync(await store.ReadSnapAsync(user.UserId,clientId,CoachRole,ct),ct));}
         catch(UnauthorizedAccessException){return NotFound();}
     }

@@ -1,6 +1,7 @@
 @model IReadOnlyList<WebRecomp.Web.Services.Coaching.AccountabilityWorkout>
 @using System.Globalization
 @{
+    var coachNames = ViewData["SnapCoachNames"] as IReadOnlyDictionary<string, string>;
     var zoneId = ViewData["ClientTimeZone"] as string ?? "UTC";
     TimeZoneInfo zone;
     try { zone = TimeZoneInfo.FindSystemTimeZoneById(zoneId); }
@@ -15,7 +16,7 @@
         var assigned = workout.CreatedAtUtc.HasValue
             ? TimeZoneInfo.ConvertTime(workout.CreatedAtUtc.Value, zone).ToString("MM-dd-yy h:mm tt", CultureInfo.InvariantCulture)
             : DateOnly.TryParse(workout.Date, out var date) ? date.ToString("MM-dd-yy", CultureInfo.InvariantCulture) : workout.Date;
-        <li data-pending-workout="@workout.Id"><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@ViewData["ClientId"]" asp-route-assignment="@workout.Id" asp-fragment="snap-@workout.Id">Open Snap Workout · @assigned</a></li>
+        <li data-pending-workout="@workout.Id"><a class="button" asp-controller="AccountabilityPreview" asp-action="Snap" asp-route-clientId="@ViewData["ClientId"]" asp-route-assignment="@workout.Id" asp-fragment="snap-@workout.Id">Open @workout.Name · @(coachNames?.GetValueOrDefault(workout.Id) ?? "Coach unavailable") · @assigned</a></li>
     }
     </ul>
 </aside>

@@ -8,15 +8,15 @@ using Microsoft.AspNetCore.RateLimiting;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.Controllers;
-public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];public Dictionary<string,decimal> AssessedCharges{get;init;}=[];public Dictionary<string,decimal> PostedCharges{get;init;}=[];public List<(string Id,string Name,string Date)> RecentTemplates{get;init;}=[];}
+public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Guid? CoachUserId{get;init;}public string? CoachName{get;init;}public Dictionary<string,string> AssignedBy{get;init;}=[];public Dictionary<string,Guid> AssignmentOwners{get;init;}=[];public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];public Dictionary<string,decimal> AssessedCharges{get;init;}=[];public Dictionary<string,decimal> PostedCharges{get;init;}=[];public List<(string Id,string Name,string Date)> RecentTemplates{get;init;}=[];}
 [Authorize,Route("clients/{clientId:guid}/snap"),ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
 public sealed class SimpleSnapController(AppUserContextService users,SimpleCoachingService simple,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,IConfiguration configuration,SnapWorkoutEstimateService? estimates=null):Controller
 {
     // Snap Workout permissions are scoped to the active coach-client relationship, not role-claim spelling.
     private Task<bool> IsAssignedCoachAsync(Guid actor,Guid clientId,CancellationToken ct)=>access.CanAssignSnapAsync(actor,clientId,ct);
     [HttpGet("")]
-    public async Task<IActionResult> Index(Guid clientId,CancellationToken ct)=>await Page(clientId,null,ct);
-    private async Task<IActionResult> Page(Guid clientId,AssignmentInput? draft,CancellationToken ct,ResultInput? retry=null)
+    public async Task<IActionResult> Index(Guid clientId,CancellationToken ct,Guid? coachUserId=null)=>await Page(clientId,null,ct,coachUserId:coachUserId);
+    private async Task<IActionResult> Page(Guid clientId,AssignmentInput? draft,CancellationToken ct,ResultInput? retry=null,Guid? coachUserId=null)
     {
         if(!SimpleCoaching.Enabled(configuration))return NotFound();
         var user=(await users.GetAsync(HttpContext,ct)).User;
@@ -26,6 +26,15 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             await simple.RefreshAsync(user.UserId,clientId,assignedCoach,ct);
             var row=await simple.ReadAsync(user.UserId,clientId,assignedCoach,ct);var clock=await ledger.ClockAsync(clientId,ct);
             var state=row is null?new AccountabilityState():AccountabilityDocument.Parse(row.StateJson);
+            var scope=await ResolveScopeAsync(user.UserId,clientId,assignedCoach,coachUserId,ct);
+            var owners=await simple.AssignmentOwnersAsync(clientId,ct);
+            if(scope.HasValue)SnapWorkoutAssignments.Filter(state,owners,scope.Value);
+            var selected=retry?.WorkoutId??Request.Query["assignment"].FirstOrDefault();
+            if(scope.HasValue&&!string.IsNullOrWhiteSpace(selected)&&!state.SnapWorkouts.Any(w=>w.Simple&&w.Id==selected))
+                return NotFound();
+            var names=await simple.AssignmentNamesAsync(state.SnapWorkouts.Select(w=>owners.GetValueOrDefault(w.Id))
+                .Concat(scope.HasValue?[scope.Value]:Array.Empty<Guid>()),ct);
+            var assignedBy=state.SnapWorkouts.ToDictionary(w=>w.Id,w=>names.GetValueOrDefault(owners.GetValueOrDefault(w.Id))??"Coach unavailable");
             var retryWorkout=state.SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==retry?.WorkoutId);
             if(retryWorkout is not null&&retry is not null)
             {
@@ -43,10 +52,22 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var posted=new Dictionary<string,decimal>();
             if(row is not null){var entries=await ledger.ReadAsync(row,ct);posted=entries.Where(x=>x.SourceKey.StartsWith("snap:")&&(!assignedCoach||x.CoachUserId==user.UserId)).GroupBy(x=>x.SourceKey.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount));}
             var recent=assignedCoach?state.SnapWorkouts.Where(w=>w.Simple).Reverse().OrderByDescending(w=>w.CreatedAtUtc??DateTimeOffset.MinValue).Select(w=>(w.Id,w.Name,w.Date)).ToList():new List<(string Id,string Name,string Date)>();
-            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today,Name="Snap Workout "+TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(clock.Zone)).ToString("M/d/yy h:mmtt",System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()},clock.Zone){Estimates=readings,AssessedCharges=assessed,PostedCharges=posted,RecentTemplates=recent});
+            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today,Name="Snap Workout "+TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(clock.Zone)).ToString("M/d/yy h:mmtt",System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()},clock.Zone){Estimates=readings,AssessedCharges=assessed,PostedCharges=posted,RecentTemplates=recent,CoachUserId=scope,CoachName=scope.HasValue?names.GetValueOrDefault(scope.Value)??"Coach":null,AssignedBy=assignedBy,AssignmentOwners=owners});
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }
+    private async Task<Guid?> ResolveScopeAsync(Guid actor, Guid clientId, bool assignedCoach, Guid? selected, CancellationToken ct)
+    {
+        if (assignedCoach)
+        {
+            if (selected.HasValue && selected.Value != actor) throw new UnauthorizedAccessException();
+            return actor;
+        }
+        if (selected.HasValue && !await access.CanAssignSnapAsync(selected.Value, clientId, ct))
+            throw new UnauthorizedAccessException();
+        return selected;
+    }
+
     private static AssignmentInput FromWorkout(AccountabilityWorkout w,int revision,DateOnly today)=>new(){
         Revision=revision,RequestId=Guid.NewGuid(),Name=w.Name,Date=today,TimeAllowed=(w.TimeLimitMinutes??120)/60m,
         LatePenalty=w.LatePenalty??0,Cap=w.Cap,CompletionReward=w.CompletionReward??0,
@@ -59,6 +80,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         if(!SimpleCoaching.Enabled(configuration))return NotFound();
         var actor=(await users.GetAsync(HttpContext,ct)).User.UserId;
         if(!await IsAssignedCoachAsync(actor,clientId,ct))return NotFound();
+        if ((await simple.AssignmentOwnersAsync(clientId,ct)).GetValueOrDefault(workoutId)!=actor)return NotFound();
         var row=await simple.ReadAsync(actor,clientId,true,ct);
         if(row is null)return NotFound();
         var clock=await ledger.ClockAsync(clientId,ct);
@@ -85,6 +107,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
     {
         var actor=(await users.GetAsync(HttpContext,ct)).User.UserId;
         if(!await IsAssignedCoachAsync(actor,clientId,ct))return NotFound();
+        if ((await simple.AssignmentOwnersAsync(clientId,ct)).GetValueOrDefault(workoutId)!=actor)return NotFound();
         var row=await simple.ReadAsync(actor,clientId,true,ct);
         if(row is null)return NotFound();
         var workout=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==workoutId);
@@ -98,6 +121,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
     {
         var actor=(await users.GetAsync(HttpContext,ct)).User.UserId;
         if(!await IsAssignedCoachAsync(actor,clientId,ct))return NotFound();
+        if ((await simple.AssignmentOwnersAsync(clientId,ct)).GetValueOrDefault(workoutId)!=actor)return NotFound();
         var row=await simple.ReadAsync(actor,clientId,true,ct);
         if(row is null)return NotFound();
         var original=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==workoutId);
@@ -121,7 +145,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         return Json(rows.Select(x=>new{name=x.Name,muscles=string.Join(", ",muscles.Where(m=>m.ExerciseCatalogItemId==x.ExerciseId).Select(m=>m.MuscleName).Distinct())}));
     }
     [HttpGet("status")]
-    public async Task<IActionResult> Status(Guid clientId,CancellationToken ct)
+    public async Task<IActionResult> Status(Guid clientId,CancellationToken ct,Guid? coachUserId=null)
     {
         if(!SimpleCoaching.Enabled(configuration))return NotFound();
         var user=(await users.GetAsync(HttpContext,ct)).User;
@@ -130,6 +154,8 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var assignedCoach=await IsAssignedCoachAsync(user.UserId,clientId,ct);
             await simple.RefreshAsync(user.UserId,clientId,assignedCoach,ct);var row=await simple.ReadAsync(user.UserId,clientId,assignedCoach,ct);
             var state=row is null?new AccountabilityState():AccountabilityDocument.Parse(row.StateJson);
+            var scope=await ResolveScopeAsync(user.UserId,clientId,assignedCoach,coachUserId,ct);
+            if(scope.HasValue)SnapWorkoutAssignments.Filter(state,await simple.AssignmentOwnersAsync(clientId,ct),scope.Value);
             return Json(new{nowUtc=DateTimeOffset.UtcNow,workouts=state.SnapWorkouts.Where(w=>w.Simple).Select(w=>new{w.Id,w.DeadlineUtc,finished=state.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true,finishedAtUtc=state.SnapResults.GetValueOrDefault(w.Id)?.CompletedAtUtc})});
         }
         catch(UnauthorizedAccessException){return NotFound();}
@@ -171,7 +197,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         catch(Exception e)when(e is ArgumentException or AccountabilityConflictException){ModelState.AddModelError("",e.Message);return await Page(clientId,input,ct);}
     }
     [HttpPost("result"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(65536)]
-    public async Task<IActionResult> Result(Guid clientId,ResultInput input,CancellationToken ct)
+    public async Task<IActionResult> Result(Guid clientId,ResultInput input,CancellationToken ct,Guid? coachUserId=null)
     {
         if(!SimpleCoaching.Enabled(configuration))return NotFound();
         try
@@ -179,12 +205,14 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             if(!ModelState.IsValid)throw new ArgumentException("Check the completed reps and weight.");
             var finish=input.SubmitMode=="finish"||(Request.HasFormContentType&&Request.Form["Action"]=="finish");
             var user=(await users.GetAsync(HttpContext,ct)).User;
-            await simple.ResultAsync(user.UserId,clientId,await IsAssignedCoachAsync(user.UserId,clientId,ct),input.Revision,input.WorkoutId,new(){Finalized=finish,DurationMinutes=null,Sets=input.Exercises.ToDictionary(e=>e.Id,e=>e.Sets.Select(s=>new AccountabilitySet{Reps=s.Reps,Weight=s.Weight,Rpe=e.Rpe}).ToList())},ct);
+            var isCoach=await IsAssignedCoachAsync(user.UserId,clientId,ct);
+            var scope=await ResolveScopeAsync(user.UserId,clientId,isCoach,coachUserId,ct);
+            await simple.ResultAsync(user.UserId,clientId,isCoach,input.Revision,input.WorkoutId,new(){Finalized=finish,DurationMinutes=null,Sets=input.Exercises.ToDictionary(e=>e.Id,e=>e.Sets.Select(s=>new AccountabilitySet{Reps=s.Reps,Weight=s.Weight,Rpe=e.Rpe}).ToList())},ct,scope);
             TempData["SimpleStatus"]=finish?"Workout finished. Your coach can see the results and calculated account entries.":"Progress saved.";
         }
         catch(UnauthorizedAccessException){return NotFound();}
-        catch(Exception e)when(e is ArgumentException or AccountabilityConflictException){ModelState.AddModelError("",e.Message);return await Page(clientId,null,ct,input);}
-        return RedirectToAction(nameof(Index),new{clientId,assignment=input.WorkoutId});
+        catch(Exception e)when(e is ArgumentException or AccountabilityConflictException){ModelState.AddModelError("",e.Message);return await Page(clientId,null,ct,input,coachUserId);}
+        return RedirectToAction(nameof(Index),new{clientId,assignment=input.WorkoutId,coachUserId});
     }
     public sealed class AssignmentInput
     {

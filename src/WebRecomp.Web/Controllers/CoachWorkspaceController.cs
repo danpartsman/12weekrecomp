@@ -76,27 +76,14 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         }
         var agreement=await db.CoachAccountabilityAgreements.AsNoTracking().Where(x=>x.ClientId==client).Select(x=>x.StateJson).FirstOrDefaultAsync(ct);
         var workouts=new List<(string Id,string Name)>();
-        if(agreement is not null)try {
-            var state=WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(agreement);
-            var configEvents=await db.CoachAccountabilityEvents.AsNoTracking()
-                .Where(x=>x.ClientId==client&&x.Kind=="CONFIG")
-                .OrderBy(x=>x.Revision)
-                .Select(x=>new{x.ActorUserId,x.PayloadJson}).ToListAsync(ct);
-            var assigned=new HashSet<string>();
-            foreach(var evt in configEvents)
-            {
-                try
-                {
-                    var historical=WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(evt.PayloadJson);
-                    foreach(var workout in historical.SnapWorkouts.Where(w=>w.Simple))
-                        if(assigned.Add(workout.Id)&&evt.ActorUserId==coach)
-                        {
-                            var current=state.SnapWorkouts.FirstOrDefault(w=>w.Id==workout.Id);
-                            if(current is not null)workouts.Add((current.Id,current.Name));
-                        }
-                }catch(ArgumentException){/* Skip malformed historical event. */}
-            }
-        }catch(ArgumentException){}
+        if(agreement is not null)try
+        {
+            var state=AccountabilityDocument.Parse(agreement);
+            var owners=await SnapWorkoutAssignments.OwnersAsync(db,client,ct);
+            SnapWorkoutAssignments.Filter(state,owners,coach);
+            workouts=state.SnapWorkouts.Where(w=>w.Simple).AsEnumerable().Reverse().Select(w=>(w.Id,w.Name)).ToList();
+        }
+        catch(ArgumentException){}
         return new(client,coach,coachName,isCoach,messages.OrderByDescending(x=>x.CreatedUtc).Take(100).Reverse().ToList(),activity,workouts,offers)
         { FinancialAgreement = files.Read<CoachFinancialAgreement>(FinancialKey(client,coach)) ?? DefaultFinancial(coach) };
     }
@@ -244,18 +231,8 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         {
             var json=await db.CoachAccountabilityAgreements.AsNoTracking().Where(x=>x.ClientId==clientId).Select(x=>x.StateJson).FirstOrDefaultAsync(ct);
             if(json is null||!WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(json).SnapWorkouts.Any(w=>w.Simple&&w.Id==input.WorkoutId))return BadRequest("Unknown Snap Workout.");
-            var history=await db.CoachAccountabilityEvents.AsNoTracking().Where(x=>x.ClientId==clientId&&x.Kind=="CONFIG")
-                .OrderBy(x=>x.Revision).Select(x=>new{x.ActorUserId,x.PayloadJson}).ToListAsync(ct);
-            Guid? assignedBy=null;
-            foreach(var evt in history)
-            {
-                try
-                {
-                    if(WebRecomp.Web.Services.Coaching.AccountabilityDocument.Parse(evt.PayloadJson).SnapWorkouts.Any(w=>w.Simple&&w.Id==input.WorkoutId))
-                    {assignedBy=evt.ActorUserId;break;}
-                }catch(ArgumentException){}
-            }
-            if(assignedBy!=coachId)return BadRequest("This Snap Workout was not assigned by the selected coach.");
+            if ((await SnapWorkoutAssignments.OwnersAsync(db,clientId,ct)).GetValueOrDefault(input.WorkoutId!) != coachId)
+                return BadRequest("This Snap Workout was not assigned by the selected coach.");
         }
         var sender=await db.UserAccounts.AsNoTracking().Where(x=>x.UserId==auth.Value.Actor).Select(x=>x.PreferredDisplayName??x.DisplayName??"Member").SingleAsync(ct);
         var key=Key(clientId,coachId);

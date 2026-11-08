@@ -20,7 +20,7 @@
             const list = document.createElement('ul');
             for (const w of data.workouts) {
                 const item = document.createElement('li'); item.dataset.pendingWorkout = w.id;
-                const link = document.createElement('a'); link.className = 'button'; link.textContent = `Open ${w.name} · ${w.date}`;
+                const link = document.createElement('a'); link.className = 'button'; link.textContent = `Open ${w.name} · ${w.coachName || "Coach unavailable"} · ${w.date}`;
                 link.href = `/accountability-preview/clients/${encodeURIComponent(data.clientId)}/snap?assignment=${encodeURIComponent(w.id)}#snap-${encodeURIComponent(w.id)}`;
                 item.append(link); list.append(item);
             }
