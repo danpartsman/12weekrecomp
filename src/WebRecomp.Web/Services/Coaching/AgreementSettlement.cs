@@ -8,7 +8,7 @@ public sealed record CoachFinancialReview(bool Excused, int? CheatFoods);
 
 internal sealed record AgreementDay(
     NutritionDay? Nutrition, CoachSummaryPrescription? Target, bool NutritionComplete, bool HasScaleOrRecovery,
-    bool WorkoutPlanned, bool WorkoutCompleted, bool Excused, int? ReviewedCheatFoods);
+    bool WorkoutPlanned, bool WorkoutCompleted, bool Excused, int? CheatFoods);
 
 internal sealed record AgreementPeriod(
     CoachFinancialAgreement Agreement, int RuleIndex, DateOnly Start, DateOnly End);
@@ -58,7 +58,7 @@ internal static class AgreementSettlement
             4 => days.Any(day => day.WorkoutPlanned && !day.WorkoutCompleted) ? 1 : 0,
             5 => days.Any(day => !day.NutritionComplete) ? 1 : 0,
             6 => days.Any(day => !day.HasScaleOrRecovery) ? 1 : 0,
-            7 => days.Sum(day => day.ReviewedCheatFoods ?? 0),
+            7 => days.Sum(day => day.CheatFoods ?? 0),
             8 => NutritionCompliance(period.Agreement, days),
             9 => days.Any(day => day.WorkoutPlanned)
                 && days.All(day => !day.WorkoutPlanned || day.WorkoutCompleted) ? 1 : 0,

@@ -87,6 +87,7 @@ public sealed class AgreementSettlementJob(
             var row = await db.CoachAccountabilityAgreements.SingleOrDefaultAsync(x => x.ClientId == clientId, ct);
             var dayEvidence = await LoadEvidenceAsync(client, owners[0], agreement, from, through,
                 periods.Any(p => p.RuleIndex < 4 || p.RuleIndex is 5 or 8),
+                periods.Any(p => p.RuleIndex == 7),
                 periods.Any(p => p.RuleIndex == 8 || (p.RuleIndex < 4 && p.Agreement.Rules[p.RuleIndex].LimitMode == "system-percent")), ct);
             var existing = row is null ? new List<AccountabilityLedgerEntry>() : await ledger.ReadAsync(row, ct);
             var charges = new List<(AccountabilityCharge Charge, int Revision)>();
@@ -113,7 +114,8 @@ public sealed class AgreementSettlementJob(
     }
 
     private async Task<Dictionary<DateOnly, AgreementDay>> LoadEvidenceAsync(Client client, Guid owner,
-        CoachFinancialAgreement agreement, DateOnly from, DateOnly through, bool needsNutrition, bool needsTargets, CancellationToken ct)
+        CoachFinancialAgreement agreement, DateOnly from, DateOnly through, bool needsNutrition, bool needsCheatFoods,
+        bool needsTargets, CancellationToken ct)
     {
         var id = client.ClientId;
         var nutrition = (await db.NutritionDays.AsNoTracking().Where(x => x.ClientId == id
@@ -139,6 +141,20 @@ public sealed class AgreementSettlementJob(
                 foreach (var target in (await prescriptions.LoadAsync(owner, client, date.AddDays(7), ct)).Days)
                     targets.TryAdd(target.Key, target.Value);
 
+        var savedCounts = new Dictionary<(Guid Program, DateOnly Date), int?>();
+        var programs = new List<ProgramRecord>();
+        if (needsCheatFoods)
+        {
+            programs = await db.Programs.AsNoTracking().Where(x => x.ClientId == id && x.StartDate <= through)
+                .OrderByDescending(x => x.StartDate).ToListAsync(ct);
+            var counts = await db.AnalysisRuns.AsNoTracking().Where(x => x.ClientId == id
+                && x.EngineVersion == RecompCockpitService.FlexVersion && x.ActionDate >= from && x.ActionDate <= through)
+                .OrderByDescending(x => x.StartedAtUtc).ThenByDescending(x => x.AnalysisRunId)
+                .Select(x => new { x.ProgramId, x.ActionDate, x.DiagnosticJson }).ToListAsync(ct);
+            foreach (var record in counts)
+                savedCounts.TryAdd((record.ProgramId, record.ActionDate), RecompCockpitService.ReadFlexibleCount(record.DiagnosticJson));
+        }
+
         var evidence = new Dictionary<DateOnly, AgreementDay>();
         for (var date = from; date <= through; date = date.AddDays(1))
         {
@@ -156,14 +172,30 @@ public sealed class AgreementSettlementJob(
             var intake = nutrition.GetValueOrDefault(date);
             var nutritionComplete = intake is
                 { ActualCalories: not null, ActualProteinG: not null, ActualCarbsG: not null, ActualFatG: not null };
-            if (needsNutrition && nutritionComplete && intake!.EntrySourceCode == "FOOD_LOG" && review?.Excused != true)
+            var cheatFoods = review?.CheatFoods;
+            if (review?.Excused != true)
             {
-                var log = await foodLog.GetDailyLogAsync(id, date, ct);
-                nutritionComplete = log.Items.Count > 0 && RecompTreatClassifier.Complete(log);
+                var program = needsCheatFoods
+                    ? programs.FirstOrDefault(x => x.ProgramId == intake?.ProgramId)
+                        ?? programs.FirstOrDefault(x => x.StartDate <= date)
+                    : null;
+                if (cheatFoods is null && program is not null)
+                    cheatFoods = savedCounts.GetValueOrDefault((program.ProgramId, date));
+
+                var checkFoodLog = needsNutrition && nutritionComplete && intake!.EntrySourceCode == "FOOD_LOG";
+                var detectCheatFoods = cheatFoods is null && program?.NutritionFoodLogEnabled == true
+                    && (intake?.EntrySourceCode is null or "FOOD_LOG" or "MANUAL");
+                if (checkFoodLog || detectCheatFoods)
+                {
+                    var log = await foodLog.GetDailyLogAsync(id, date, ct);
+                    if (checkFoodLog) nutritionComplete = log.Items.Count > 0 && RecompTreatClassifier.Complete(log);
+                    if (detectCheatFoods && RecompTreatClassifier.CanCount(log, intake?.EntrySourceCode))
+                        cheatFoods = RecompTreatClassifier.Count(log);
+                }
             }
             evidence.Add(date, new(intake, targets.GetValueOrDefault(date), nutritionComplete,
                 scale.Contains(date) || checkins.Contains(date), planned.Length > 0,
-                workouts[date].Count() - done.Count == planned.Length, review?.Excused == true, review?.CheatFoods));
+                workouts[date].Count() - done.Count == planned.Length, review?.Excused == true, cheatFoods));
         }
         return evidence;
     }

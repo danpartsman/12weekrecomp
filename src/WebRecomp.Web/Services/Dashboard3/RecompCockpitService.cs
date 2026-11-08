@@ -48,7 +48,9 @@ public sealed class RecompCockpitService(RecompDbContext db,
     Engine30DashboardProjectionService projection, Engine30WorkoutUiCatalogService catalog,
     ProgramPlanService planSelection, INutritionFoodLogStore foodLog, ILogger<RecompCockpitService> logger)
 {
-    private const string FlexVersion = "RECOMP_FLEX_V1";
+    internal const string FlexVersion = "RECOMP_FLEX_V1";
+
+    internal static int? ReadFlexibleCount(string? json) => Read<FlexibleItemEntry>(json)?.Count;
 
     public async Task<RecompCockpit> BuildAsync(AppClientContext context, DashboardViewModel day,
         MacroDayPlan mealPlan, CancellationToken ct, bool captureHistory = true)
@@ -87,7 +89,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
             && (x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5") || x.EngineVersion == FlexVersion))
             .OrderByDescending(x => x.StartedAtUtc).ThenByDescending(x => x.AnalysisRunId).ToListAsync(ct);
         var flex = records.Where(x => x.EngineVersion == FlexVersion).GroupBy(x => x.ActionDate)
-            .ToDictionary(x => x.Key, x => Read<FlexibleItemEntry>(x.First().DiagnosticJson)?.Count);
+            .ToDictionary(x => x.Key, x => ReadFlexibleCount(x.First().DiagnosticJson));
         var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5"))
             .Select(x => (Run: x, Snapshot: Read<RecompScoreSnapshot>(x.DiagnosticJson)))
             .Where(x => x.Snapshot is not null).ToArray();
@@ -110,8 +112,8 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 mealPlan.PredictionNotice = "Meal history is temporarily unavailable.";
             }
         }
-        var eligibleLogs = logs.Where(RecompTreatClassifier.Complete).Where(x => x.Items.Count > 0)
-            .Where(x => nutrition.SingleOrDefault(n => n.NutritionDate == x.LogDate)?.EntrySourceCode is null or "FOOD_LOG" or "MANUAL").ToArray();
+        var eligibleLogs = logs.Where(log => RecompTreatClassifier.CanCount(log,
+            nutrition.SingleOrDefault(n => n.NutritionDate == log.LogDate)?.EntrySourceCode)).ToArray();
         var detected = eligibleLogs.ToDictionary(x => x.LogDate, RecompTreatClassifier.Count);
         var detectedFoods = eligibleLogs.ToDictionary(x => x.LogDate, RecompTreatClassifier.FoodNames);
         int? Flex(DateOnly date) => flex.GetValueOrDefault(date) ?? (detected.TryGetValue(date, out var count) ? count : null);

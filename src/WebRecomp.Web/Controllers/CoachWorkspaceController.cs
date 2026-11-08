@@ -40,7 +40,7 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         ("Missed planned workout penalty", "Scheduled workout not completed without excuse", "weekly"),
         ("Missing nutrition tracking penalty", "Required daily nutrition log incomplete", "daily"),
         ("Missing scale check-in penalty", "Required scale or recovery entry incomplete", "daily"),
-        ("Cheat-food occurrence penalty", "Each reviewed cheat-food occurrence", "daily"),
+        ("Cheat-food occurrence penalty", "Each cheat-food portion counted in Command Center, with coach review taking precedence", "daily"),
         ("Nutrition compliance coaches incentive", "All agreed nutrition criteria met", "weekly"),
         ("Workout completion coaches incentive", "All planned workouts completed", "weekly")
     ];

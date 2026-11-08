@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Reflection;
+using WebRecomp.NutritionIntelligence.Persistence;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
@@ -335,6 +337,71 @@ public sealed class CoachNotificationTests
         entries = await ledger.ReadAsync(row, default);
         Assert.Equal(4, entries.Count);
         Assert.All(entries.GroupBy(entry => entry.CoachUserId), group => Assert.Equal(0m, group.Sum(entry => entry.Amount)));
+    }
+
+    [Fact]
+    public async Task ScheduledCheatFoodFeeUsesDetectedCountThenSavedCountThenCoachOverride()
+    {
+        using var f = new Fixture();
+        await SeedFinancial(f);
+        f.Config["SimpleCoaching:Enabled"] = "true";
+        (await f.Db.Clients.SingleAsync()).TimeZone = "UTC";
+        var date = new DateOnly(2026, 11, 2);
+        var program = new ProgramRecord
+        {
+            ProgramId = Guid.NewGuid(), ClientId = f.Client, StartDate = date.AddDays(-20),
+            SelectedPlanCode = "TEST", GoalCode = "RECOMP", NutritionFoodLogEnabled = true
+        };
+        f.Db.Programs.Add(program);
+        await f.Db.SaveChangesAsync();
+        var acceptedAt = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
+        var agreement = new CoachFinancialAgreement(2, "accepted", acceptedAt, f.Owner, null,
+            Enumerable.Range(0, 10).Select(i => new CoachFinancialRule("Cheat-food occurrence penalty", i == 7,
+                "daily", 15, 0, 0, "Per portion", "event")).ToArray(), acceptedAt, f.Owner);
+        SaveFinancial(f, agreement);
+        var foodLog = DispatchProxy.Create<INutritionFoodLogStore, TreatLogStub>();
+        var access = new CoachAccountabilityPreviewService(f.Db, new CoachCenterService(f.Db), null!);
+        var ledger = new AccountabilityLedger(f.Db, access, f.Config);
+        var clock = new SettlementClock { Now = new DateTimeOffset(2026, 11, 1, 20, 0, 0, TimeSpan.Zero) };
+        var job = new AgreementSettlementJob(f.Db, f.Files, null!, foodLog, new SimpleCoachingService(f.Db, access, ledger),
+            ledger, f.Config, NullLogger<AgreementSettlementJob>.Instance, clock);
+        await job.RunAsync(default);
+        clock.Now = new(2026, 11, 3, 2, 0, 0, TimeSpan.Zero);
+        await job.RunAsync(default);
+        var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        var entry = Assert.Single(await ledger.ReadAsync(row, default));
+        Assert.Equal(f.Coach, entry.CoachUserId);
+        Assert.Equal(15m, entry.Amount);
+
+        f.Db.AnalysisRuns.Add(new()
+        {
+            AnalysisRunId = Guid.NewGuid(), ClientId = f.Client, ProgramId = program.ProgramId,
+            ActionDate = date, EngineVersion = "RECOMP_FLEX_V1", DiagnosticJson = "{\"Count\":2}",
+            RunStatusCode = "COMPLETED", StartedAtUtc = clock.Now.UtcDateTime
+        });
+        await f.Db.SaveChangesAsync();
+        await job.RunAsync(default);
+        Assert.Equal(30m, (await ledger.ReadAsync(row, default)).Sum(x => x.Amount));
+
+        SaveFinancial(f, agreement with { Reviews = new() { [date] = new(false, 0) } });
+        await job.RunAsync(default);
+        await job.RunAsync(default);
+        var entries = await ledger.ReadAsync(row, default);
+        Assert.Equal(3, entries.Count);
+        Assert.Equal(0m, entries.Sum(x => x.Amount));
+    }
+
+    public class TreatLogStub : DispatchProxy
+    {
+        protected override object Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name != nameof(INutritionFoodLogStore.GetDailyLogAsync))
+                throw new NotSupportedException();
+            return Task.FromResult(new NutritionDailyLogReadModel(Guid.NewGuid(), (DateOnly)args![1]!,
+                [new(Guid.NewGuid(), "SNACK", 1, "The Original", 1, "SERVING", null,
+                    300, 3, 35, 15, null, 25, null, null)],
+                new(300, 3, 35, 15, null, 25, null, null, NutritionCompletenessCodes.Complete)));
+        }
     }
 
     private sealed class SettlementClock : TimeProvider

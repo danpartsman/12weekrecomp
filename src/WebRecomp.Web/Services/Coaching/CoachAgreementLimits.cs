@@ -26,6 +26,7 @@ public static class CoachAgreementLimits
     public static string Describe(CoachFinancialRule rule, int ruleIndex)
     {
         static string Number(decimal? value) => value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "—";
+        if (ruleIndex == 7) return "Each cheat-food portion counted in Command Center unless the coach overrides the count";
         if (ruleIndex >= 4) return rule.Criterion;
         return rule.LimitMode switch
         {
