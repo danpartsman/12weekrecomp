@@ -59,6 +59,15 @@ else{<p>Waiting for client acceptance.</p>}
 @{var financial=Model.FinancialAgreement!;}
 <div class="coach-agreement-summary"><div><strong>Payment terms</strong>@(financial.PaymentSchedule=="next-day"?"Due the following day":financial.PaymentSchedule=="monthly"?"Due on the first day of the following month":$"Due every {financial.PaymentDay}")</div>
 <div><strong>Status</strong>@financial.Status.Replace("-", " ") · Revision @financial.Revision @if(financial.AcceptedUtc is DateTime accepted){<span> · Accepted @accepted.ToString("MMM d, yyyy h:mm tt") UTC</span>}</div></div>
+<p>Automatic entries appear in this coach’s ledger after the client’s local assessment period closes, with one hour for late logging. Each rule is assessed once per period. Reviewed cheat foods are charged per recorded occurrence.</p>
+@if (financial.Rules.Take(4).Any(rule => rule.Enabled && rule.LimitMode == "prescription"))
+{
+    <p>For automatic assessment of older nutrition rules, the coach must send explicit limits and the client must accept them.</p>
+}
+@if (financial.Status != "accepted" && financial.AcceptedHistory?.Count > 0)
+{
+    <p>The latest accepted revision remains in effect while you review this proposal.</p>
+}
 @if(!string.IsNullOrWhiteSpace(financial.ClientNote)){<p><strong>Client response:</strong> @financial.ClientNote</p>}
 @if(Model.IsCoach)
 {
@@ -95,7 +104,7 @@ var ruleTitle=i<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"
 <details><summary>Previously saved dollar settlement limits</summary><p>These existing charge thresholds and caps are separate from nutrition criteria.</p>
 @foreach(var savedRule in financial.Rules.Where(x=>x.Minimum>0||x.Maximum>0)){<p>@savedRule.Name: charge threshold @savedRule.Minimum.ToString("C"), cap @savedRule.Maximum.ToString("C") per @savedRule.Frequency period.</p>}
 </details>}
-<p>Excused days should not generate adherence penalties. A changed proposal requires fresh client approval. Automatic financial assessments remain disabled until the assessment engine is integrated.</p>
+<p>Automatic assessments run after the client’s local day, week, or month closes. Accepted terms apply from the next full assessment period. A period can be corrected for 14 days after it closes.</p>
 <fieldset><legend>Payment schedule</legend>
 <label>Payment due
 <select name="PaymentSchedule">
@@ -147,6 +156,29 @@ else{
 </form>
 }
 }
+}
+@if (Model.IsCoach && (financial.Status == "accepted" || financial.AcceptedHistory?.Count > 0))
+{
+    <details>
+        <summary>Record a dated excuse or reviewed cheat foods</summary>
+        <form asp-action="FinancialReview" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
+            @Html.AntiForgeryToken()
+            <label>Date<input type="date" name="date" required /></label>
+            <label><input type="checkbox" name="excused" value="true" /> Excuse this day</label>
+            <label>Reviewed cheat-food count<input type="number" name="cheatFoods" min="0" max="1000" step="1" /></label>
+            <p>To clear a review, save the date with both fields empty. Excused days are excluded from assessment.</p>
+            <button type="submit">Save review</button>
+        </form>
+        @if (financial.Reviews is { Count: > 0 } reviews)
+        {
+            <ul>
+            @foreach (var review in reviews.OrderByDescending(x => x.Key).Take(14))
+            {
+                <li>@review.Key.ToString("MMM d, yyyy") · @(review.Value.Excused ? "Excused" : "Not excused") · @(review.Value.CheatFoods?.ToString() ?? "—") reviewed cheat foods</li>
+            }
+            </ul>
+        }
+    </details>
 }
 <p><a class="button" asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" asp-fragment="agreement-discussion">Discuss agreement with coach</a></p>
 </section>

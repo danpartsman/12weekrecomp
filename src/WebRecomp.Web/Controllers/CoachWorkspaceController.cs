@@ -20,7 +20,8 @@ public sealed record CoachActivityItem(DateTime CreatedUtc, string Description);
 public sealed record CoachMacroOffer(Guid VersionId, DateOnly EffectiveWeek, string Reason, string? EngineJson, string? AdjustedJson, string RulesJson, string Fingerprint, bool Accepted, DateTime? AcceptedUtc, bool FinancialOptIn);
 public sealed record CoachMacroAcceptance(Guid VersionId, Guid ClientId, Guid CoachId, Guid OwnerId, string Fingerprint, DateTime AcceptedUtc);
 public sealed record CoachFinancialRule(string Name, bool Enabled, string Frequency, decimal Amount, decimal Minimum, decimal Maximum, string Criterion, string LimitMode = "prescription", decimal? LowerLimit = null, decimal? UpperLimit = null);
-public sealed record CoachFinancialAgreement(int Revision, string Status, DateTime UpdatedUtc, Guid UpdatedBy, string? ClientNote, IReadOnlyList<CoachFinancialRule> Rules, DateTime? AcceptedUtc = null, Guid? AcceptedBy = null, string PaymentSchedule = "weekly", DayOfWeek PaymentDay = DayOfWeek.Friday, bool NotifyClient = false);
+public sealed record CoachFinancialAgreement(int Revision, string Status, DateTime UpdatedUtc, Guid UpdatedBy, string? ClientNote, IReadOnlyList<CoachFinancialRule> Rules, DateTime? AcceptedUtc = null, Guid? AcceptedBy = null, string PaymentSchedule = "weekly", DayOfWeek PaymentDay = DayOfWeek.Friday, bool NotifyClient = false,
+    IReadOnlyList<CoachFinancialAgreement>? AcceptedHistory = null, Dictionary<DateOnly, CoachFinancialReview>? Reviews = null);
 public sealed record CoachWorkspacePage(Guid ClientId, Guid CoachId, string CoachName, bool IsCoach, IReadOnlyList<CoachConversationItem> Messages, IReadOnlyList<CoachActivityItem> Activity, IReadOnlyList<(string Id,string Name)> Workouts, IReadOnlyList<CoachMacroOffer> MacroOffers)
 {
     public CoachFinancialAgreement? FinancialAgreement { get; init; }
@@ -163,9 +164,10 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         {
             var current=files.Read<CoachFinancialAgreement>(key)??DefaultFinancial(coachId);
             if(current.Revision!=input.ExpectedRevision)return Conflict("The agreement changed. Reload and review before saving.");
-            files.Write(key,new CoachFinancialAgreement(current.Revision+1,"pending",DateTime.UtcNow,auth.Value.Actor,null,rules,PaymentSchedule:input.PaymentSchedule,PaymentDay:input.PaymentDay,NotifyClient:true));
+            files.Write(key,new CoachFinancialAgreement(current.Revision+1,"pending",DateTime.UtcNow,auth.Value.Actor,null,rules,PaymentSchedule:input.PaymentSchedule,PaymentDay:input.PaymentDay,NotifyClient:true,
+                AcceptedHistory:AgreementSettlement.AcceptedVersions(current),Reviews:current.Reviews));
         }
-        TempData["CoachWorkspaceStatus"]="Financial proposal sent for client review. No new automatic fees are authorized until acceptance.";
+        TempData["CoachWorkspaceStatus"]="Financial proposal sent for client review. Previously accepted terms still apply until the new terms take effect.";
         return RedirectToAction(nameof(Index),new{clientId,coachId});
     }
     [HttpPost("{clientId:guid}/{coachId:guid}/financial-response"), ValidateAntiForgeryToken, EnableRateLimiting("accountability-approval")]
@@ -193,6 +195,34 @@ public sealed class CoachWorkspaceController(RecompDbContext db, AppUserContextS
         TempData["CoachWorkspaceStatus"]=decision=="accepted"?"Financial agreement accepted.":"Your response was saved for the coach.";
         return RedirectToAction(nameof(Index),new{clientId,coachId});
     }
+    [HttpPost("{clientId:guid}/{coachId:guid}/financial-review"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> FinancialReview(Guid clientId, Guid coachId, DateOnly date,
+        bool excused, int? cheatFoods, CancellationToken ct)
+    {
+        var auth = await Allowed(clientId, coachId, ct);
+        if (auth is null) return NotFound();
+        if (!auth.Value.IsCoach) return Forbid();
+        var client = await db.Clients.AsNoTracking().SingleOrDefaultAsync(x => x.ClientId == clientId && x.ClientStatusCode == "ACTIVE", ct);
+        if (client is null) return NotFound();
+        var today = AppUserContextService.GetClientToday(client);
+        if (!ModelState.IsValid || date > today || date < today.AddDays(-45) || cheatFoods is < 0 or > 1000)
+            return BadRequest("Choose a date within the last 45 days and a count from 0 to 1,000.");
+
+        var key = FinancialKey(clientId, coachId);
+        using (files.Lease(key))
+        {
+            var agreement = files.Read<CoachFinancialAgreement>(key);
+            if (agreement is null || AgreementSettlement.AcceptedVersions(agreement).Count == 0)
+                return BadRequest("An accepted agreement is required before recording reviews.");
+            var reviews = agreement.Reviews ?? new();
+            if (!excused && cheatFoods is null) reviews.Remove(date);
+            else reviews[date] = new(excused, cheatFoods);
+            files.Write(key, agreement with { Reviews = reviews });
+        }
+        TempData["CoachWorkspaceStatus"] = "Review saved for automatic assessment.";
+        return RedirectToAction(nameof(Index), null, new { clientId, coachId }, "financial-agreement");
+    }
+
     public sealed class MessageInput
     {
         [Required,StringLength(2000,MinimumLength=1)]public string Body{get;set;}="";
