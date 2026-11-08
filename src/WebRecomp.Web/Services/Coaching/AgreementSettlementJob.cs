@@ -31,8 +31,8 @@ public sealed class AgreementSettlementJob(
         }
 
         var pairs = await db.CoachClientRelationships.AsNoTracking()
-            .Where(link => link.StatusCode == "ACTIVE" && link.RevokedAtUtc == null)
-            .Select(link => new { link.ClientId, link.CoachUserId, link.AcceptedAtUtc }).ToListAsync(cancellationToken);
+            .Where(link => link.StatusCode == "ACTIVE" && link.RevokedAtUtc == null && link.ClientId.HasValue)
+            .Select(link => new { ClientId = link.ClientId!.Value, link.CoachUserId, link.AcceptedAtUtc }).ToListAsync(cancellationToken);
         foreach (var pair in pairs.GroupBy(link => new { link.ClientId, link.CoachUserId })
                      .Select(group => group.OrderByDescending(link => link.AcceptedAtUtc).First()))
         {
