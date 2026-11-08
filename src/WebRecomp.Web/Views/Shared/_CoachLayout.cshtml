@@ -78,6 +78,10 @@
 </header>
 
 <main class="container">
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <partial name="_AutomaticFeeNotice" />
+    }
     @RenderBody()
 </main>
 

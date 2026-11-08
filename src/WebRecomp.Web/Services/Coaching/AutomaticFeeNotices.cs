@@ -6,10 +6,26 @@ using WebRecomp.Web.Services.Notifications;
 
 namespace WebRecomp.Web.Services.Coaching;
 
-public sealed record AutomaticFeeNotice(string Id, string Title, string Url);
+public sealed record AutomaticFeeNotice(string Id, string Title, string Url, bool ForCoach, string Message);
 
 public static class AutomaticFeeNotices
 {
+    private static readonly string[] CoachMessages =
+    [
+        "{0} owes you for real accountability.",
+        "Accountability feels so good.",
+        "The standard holds. {0} has a fee to review.",
+        "You set the standard. The ledger backs it up."
+    ];
+
+    private static readonly string[] ClientMessages =
+    [
+        "Weakness costs you.",
+        "Do better or pay.",
+        "Miss the standard, pay the price.",
+        "The ledger keeps score. Make the next day count."
+    ];
+
     public static string ReceiptKey(Guid user) => $"users/automatic-fees-{user:N}";
 
     public static async Task<IReadOnlyList<AutomaticFeeNotice>> ReadAsync(
@@ -55,10 +71,15 @@ public static class AutomaticFeeNotices
                     continue;
                 var id = entry.Id.ToString("N");
                 if (!seen.Add(id)) continue;
-                var name = ownedClient == batch.ClientId ? pair.CoachName : pair.ClientName;
+                var forCoach = ownedClient != batch.ClientId;
+                var name = forCoach ? pair.ClientName : pair.CoachName;
+                var options = forCoach ? CoachMessages : ClientMessages;
+                var firstName = pair.ClientName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Your client";
+                var message = string.Format(CultureInfo.InvariantCulture,
+                    options[entry.Id.ToByteArray()[0] % options.Length], firstName);
                 var amount = entry.Amount.ToString("C", CultureInfo.GetCultureInfo("en-US"));
                 notices.Add(new(id, $"{name} · {amount} · {entry.Description}",
-                    $"/clients/{batch.ClientId:D}/coach-ledger?coachUserId={coachId:D}"));
+                    $"/clients/{batch.ClientId:D}/coach-ledger?coachUserId={coachId:D}", forCoach, message));
                 if (notices.Count == 50) return notices;
             }
         }

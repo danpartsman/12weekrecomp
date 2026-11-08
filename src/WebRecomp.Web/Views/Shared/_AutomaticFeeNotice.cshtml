@@ -1,0 +1,14 @@
+<link rel="stylesheet" href="~/css/coach-activity-notices.css" asp-append-version="true" />
+<dialog class="coach-activity-dialog" data-coach-activity data-notice-endpoint="/fee-notices" aria-labelledby="fee-notice-title">
+    <img class="fee-notice-art" data-fee-cash src="~/images/fee-notice-cash.webp" asp-append-version="true" alt="" width="128" height="128" hidden />
+    <img class="fee-notice-art fee-notice-portrait" data-fee-portrait src="~/images/coach/lucia-strength-v1015e-1.webp" asp-append-version="true" alt="" width="128" height="128" hidden />
+    <h2 id="fee-notice-title" data-fee-message>Automatic fee posted</h2>
+    <ul data-coach-activity-list></ul>
+    <form>@Html.AntiForgeryToken()</form>
+    <p role="status"></p>
+    <footer>
+        <a class="button" data-fee-ledger-link>View ledger</a>
+        <button type="button" data-close>Close</button>
+    </footer>
+</dialog>
+<script src="~/js/coach-activity-notices.js" asp-append-version="true" defer></script>

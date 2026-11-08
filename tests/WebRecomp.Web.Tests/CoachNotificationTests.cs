@@ -435,6 +435,9 @@ public sealed class CoachNotificationTests
         var coachNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, null, true, default));
         Assert.Contains("Coach · $15.00", clientNotice.Title);
         Assert.Contains("Client · $15.00", coachNotice.Title);
+        Assert.False(clientNotice.ForCoach);
+        Assert.True(coachNotice.ForCoach);
+        Assert.NotEqual(clientNotice.Message, coachNotice.Message);
         Assert.Equal(clientNotice.Id, coachNotice.Id);
         Assert.Equal($"/clients/{f.Client:D}/coach-ledger?coachUserId={f.Coach:D}", coachNotice.Url);
         Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, otherCoach, f.Client, true, default));

@@ -302,17 +302,7 @@
     <script src="~/js/pending-agreements.js" asp-append-version="true" defer></script> }
     @if (User.Identity?.IsAuthenticated == true && !isPublicPage && !isOnboardingPage)
     {
-        <link rel="stylesheet" href="~/css/coach-activity-notices.css" asp-append-version="true" />
-        <dialog class="coach-activity-dialog" data-coach-activity data-notice-endpoint="/fee-notices" aria-labelledby="fee-notice-title">
-            <img class="fee-notice-art" src="~/images/fee-notice-cash.webp" asp-append-version="true" alt="" width="128" height="128" loading="lazy" />
-            <h2 id="fee-notice-title">Automatic fee posted</h2>
-            <p>Open a charge to see it in the coach’s ledger.</p>
-            <ul data-coach-activity-list></ul>
-            <form>@Html.AntiForgeryToken()</form>
-            <p role="status"></p>
-            <footer><button type="button" data-dismiss>Mark as read</button><button type="button" data-close>Close</button></footer>
-        </dialog>
-        <script src="~/js/coach-activity-notices.js" asp-append-version="true" defer></script>
+        <partial name="_AutomaticFeeNotice" />
     }
     @if ((User.IsInRole("Coach") || User.IsInRole("Administrator")) && !isPublicPage && !isOnboardingPage) {
     <dialog class="coach-activity-dialog" data-coach-activity aria-labelledby="coach-activity-title">

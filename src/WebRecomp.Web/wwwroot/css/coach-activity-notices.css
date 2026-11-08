@@ -1,3 +1,6 @@
 dialog.coach-activity-dialog{width:min(480px,calc(100vw - 32px));max-height:80dvh;overflow:auto;box-sizing:border-box;padding:22px;border:1px solid #56728c;border-radius:16px;background:#102139;color:#f4f7fa}dialog.coach-activity-dialog::backdrop{background:#0009}.coach-activity-dialog h2{margin:0 0 16px}.coach-activity-dialog ul{padding-left:20px;display:grid;gap:18px}.coach-activity-dialog a{color:#9ce6f7;overflow-wrap:anywhere}.coach-activity-dialog footer{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}.coach-activity-dialog button{min-height:48px;padding:10px 16px}.coach-activity-dialog [role=status]:empty{display:none}
 
 .fee-notice-art{display:block;width:128px;height:128px;object-fit:contain;margin:0 auto 6px}
+.fee-notice-art[hidden]{display:none}
+.fee-notice-portrait{border-radius:14px;object-fit:cover}
+.coach-activity-dialog [data-fee-ledger-link]{display:inline-flex;align-items:center;min-height:48px}

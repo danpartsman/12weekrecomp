@@ -1,4 +1,11 @@
 @model WebRecomp.Web.Controllers.AccountabilityLedgerPage
+@{
+    var feeNoticeCutoff = DateTime.UtcNow.AddDays(-30);
+    var openedFees = Model.Entries.Where(entry => entry.Automatic && entry.Amount > 0
+        && entry.CreatedAtUtc >= feeNoticeCutoff && entry.SourceKey.StartsWith("agreement:", StringComparison.Ordinal))
+        .Select(entry => entry.Id.ToString("N"));
+}
+<span hidden data-fee-ledger-entries="@string.Join(" ", openedFees)"></span>
 <section class="card coach-account-selector" aria-label="Coach accounts">
 <h2>@Model.CoachName · account</h2>
 @if(Model.Accounts.Count>1)
