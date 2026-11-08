@@ -51,7 +51,7 @@ const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
   const coach=await browser.newPage({viewport:{width:354,height:768}});
   let coachNotices=[{id:'agreement-1',title:'Client <Name> accepted the agreement',url:'/coach-workspace/client/coach#financial-agreement'}],dismissed=false;
   const layout=fs.readFileSync('src/WebRecomp.Web/Views/Shared/_Layout.cshtml','utf8');
-  const popup=layout.match(/<dialog class="coach-activity-dialog"[\s\S]*?<\/dialog>/)[0].replace('@Html.AntiForgeryToken()','<input type="hidden" name="__RequestVerificationToken" value="csrf-test">');
+  const popup=layout.match(/<dialog class="coach-activity-dialog" data-coach-activity aria-labelledby="coach-activity-title">[\s\S]*?<\/dialog>/)[0].replace('@Html.AntiForgeryToken()','<input type="hidden" name="__RequestVerificationToken" value="csrf-test">');
   await coach.route('https://coach.test/**',route=>{
    const req=route.request(),path=new URL(req.url()).pathname;
    if(path.endsWith('/dismiss')){assert.equal(req.method(),'POST');assert.ok(req.postData().includes('__RequestVerificationToken=csrf-test'));dismissed=true;coachNotices=[];return route.fulfill({status:200,body:''});}

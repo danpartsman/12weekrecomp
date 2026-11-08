@@ -404,6 +404,47 @@ public sealed class CoachNotificationTests
         }
     }
 
+    [Fact]
+    public async Task AutomaticFeeNoticesReachOnlyTheOwnerAndPostingCoachWithSeparateReceipts()
+    {
+        using var f = new Fixture();
+        await f.Seed();
+        var otherCoach = Guid.NewGuid();
+        f.Db.UserAccounts.Add(new UserAccount { UserId = otherCoach, ExternalSubject = "other", EmailNormalized = "other@example.com" });
+        f.Db.CoachClientRelationships.Add(new()
+        {
+            CoachClientRelationshipId = Guid.NewGuid(), ClientId = f.Client, CoachUserId = otherCoach, StatusCode = "ACTIVE"
+        });
+        var entry = new AccountabilityLedgerEntry
+        {
+            CoachUserId = f.Coach, Automatic = true, SourceKey = "agreement:test", Amount = 15, Description = "Cheat-food fee"
+        };
+        f.Db.CoachAccountabilityEvents.Add(new()
+        {
+            EventId = Guid.NewGuid(), ClientId = f.Client, ActorUserId = f.Coach, Kind = "RESULT", Revision = 2,
+            CreatedAtUtc = DateTime.UtcNow, PayloadJson = JsonSerializer.Serialize(new
+            {
+                ledgerEntries = new[] { entry,
+                    new AccountabilityLedgerEntry { CoachUserId = f.Coach, Amount = 10, SourceKey = "manual" },
+                    new AccountabilityLedgerEntry { CoachUserId = f.Coach, Amount = -5, Automatic = true, SourceKey = "agreement:credit" } }
+            }, AccountabilityDocument.Json)
+        });
+        await f.Db.SaveChangesAsync();
+
+        var clientNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, f.Client, false, default));
+        var coachNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, null, true, default));
+        Assert.Contains("Coach · $15.00", clientNotice.Title);
+        Assert.Contains("Client · $15.00", coachNotice.Title);
+        Assert.Equal(clientNotice.Id, coachNotice.Id);
+        Assert.Equal($"/clients/{f.Client:D}/coach-ledger?coachUserId={f.Coach:D}", coachNotice.Url);
+        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, otherCoach, f.Client, true, default));
+        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, Guid.NewGuid(), f.Client, false, default));
+
+        f.Files.Write(AutomaticFeeNotices.ReceiptKey(f.Owner), new[] { clientNotice.Id });
+        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, f.Client, false, default));
+        Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, null, true, default));
+    }
+
     private sealed class SettlementClock : TimeProvider
     {
         public DateTimeOffset Now { get; set; }
