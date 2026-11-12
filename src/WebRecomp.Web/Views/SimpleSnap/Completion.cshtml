@@ -1,0 +1,91 @@
+@model WebRecomp.Web.Controllers.SimpleSnapCompletionPage
+@using System.Globalization
+@{
+    ViewData["Title"] = "Snap Workout complete";
+    if (Model.IsCoach) { Layout = "_CoachLayout"; }
+    string Money(decimal amount) => amount.ToString("C2", CultureInfo.GetCultureInfo("en-US"));
+    var assessed = Model.Charges.Sum(charge => charge.Amount);
+    var raw = Model.Charges.Sum(charge => charge.RawAmount);
+    var titlePrefix = Model.Workout.Name + " · ";
+    string Description(string text) => text.StartsWith(titlePrefix, StringComparison.Ordinal) ? text[titlePrefix.Length..] : text;
+    var completed = Model.Result.CompletedAtUtc.HasValue
+        ? TimeZoneInfo.ConvertTime(Model.Result.CompletedAtUtc.Value, TimeZoneInfo.FindSystemTimeZoneById(Model.TimeZone)).ToString("MMM d, yyyy h:mm tt")
+        : "";
+}
+<link rel="stylesheet" href="~/css/snap-completion.css" asp-append-version="true" />
+<div class="snap-completion">
+    <header>
+        <p class="eyebrow">SNAP WORKOUT COMPLETE</p>
+        <h1>@Model.Workout.Name</h1>
+        <p>@Model.ClientName · Assigned by @Model.CoachName</p>
+        <p>Finished @completed (@Model.TimeZone)</p>
+    </header>
+    @if (TempData["SnapCompletionStatus"] is string status)
+    {
+        <p class="app-message" role="status">@status</p>
+    }
+    <section class="card" aria-labelledby="snap-fee-title">
+        <h2 id="snap-fee-title">Penalty &amp; fee summary</h2>
+        <dl class="snap-completion-charges">
+        @foreach (var charge in Model.Charges.Where(charge => charge.RawAmount > 0 || charge.Kind == "late-penalty"))
+        {
+            <div><dt>@Description(charge.Description)</dt><dd>@Money(charge.RawAmount)</dd></div>
+        }
+        @if (!Model.Charges.Any(charge => charge.RawAmount > 0))
+        {
+            <div><dt>No completion or exercise charges</dt><dd>@Money(0)</dd></div>
+        }
+        @if (raw > assessed)
+        {
+            <div><dt>Reduction from workout cap</dt><dd>−@Money(raw - assessed)</dd></div>
+        }
+        <div class="snap-completion-total"><dt>Total assessed</dt><dd>@Money(assessed)</dd></div>
+        <div><dt>Posted to @Model.CoachName's ledger</dt><dd>@Money(Model.PostedTotal)</dd></div>
+        </dl>
+        @if (assessed != Model.PostedTotal)
+        {
+            <p>The assessed amount and posted balance differ. Review the ledger for adjustments.</p>
+        }
+        <a class="button" asp-controller="AccountabilityLedger" asp-action="Index"
+           asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">View this coach's ledger</a>
+    </section>
+    <section class="card">
+        <h2>@Model.CoachName's note</h2>
+        @if (!string.IsNullOrWhiteSpace(Model.Workout.CoachNote))
+        {
+            <p class="snap-completion-note">@Model.Workout.CoachNote</p>
+        }
+        else
+        {
+            <p>No coach note for this workout.</p>
+        }
+        @if (Model.IsCoach)
+        {
+            <form asp-action="CompletionNote" asp-route-clientId="@Model.ClientId" asp-route-workoutId="@Model.Workout.Id" method="post">
+                <input type="hidden" name="Revision" value="@Model.Revision" />
+                <label>Note to client<textarea name="Note" rows="3" maxlength="1000">@Model.Workout.CoachNote</textarea></label>
+                <button type="submit">Save note to client</button>
+            </form>
+        }
+    </section>
+    <section class="card">
+        <h2>@(Model.IsCoach ? "Client's note" : "Send a note to your coach")</h2>
+        @if (Model.IsCoach)
+        {
+            <p class="snap-completion-note">@(string.IsNullOrWhiteSpace(Model.Result.ClientNote) ? "No client note yet." : Model.Result.ClientNote)</p>
+        }
+        else
+        {
+            <form asp-action="CompletionNote" asp-route-clientId="@Model.ClientId" asp-route-workoutId="@Model.Workout.Id" method="post">
+                <input type="hidden" name="Revision" value="@Model.Revision" />
+                <label>Short note for @Model.CoachName (optional)<textarea name="Note" rows="3" maxlength="1000" placeholder="How did the workout go?">@Model.Result.ClientNote</textarea></label>
+                <button type="submit">Send note to coach</button>
+            </form>
+        }
+    </section>
+    <nav class="snap-completion-actions" aria-label="Completed workout links">
+        <a class="button secondary" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">More workouts from @Model.CoachName</a>
+        <a asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId"
+           asp-route-assignment="@Model.Workout.Id" asp-fragment="snap-@Model.Workout.Id">Review or correct exercise results</a>
+    </nav>
+</div>

@@ -74,6 +74,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         var local=await db.Clients.AsNoTracking().SingleAsync(x=>x.ClientId==client,ct);
         // Allow results for an already assigned workout before its scheduled date.
         var previous=state.SnapResults.GetValueOrDefault(workoutId);
+        result.ClientNote = previous?.ClientNote;
         result.Finalized=result.Finalized||previous?.Finalized==true;
         result.CompletedAtUtc=result.Finalized?(previous?.Finalized==true?previous.CompletedAtUtc??time.GetUtcNow():time.GetUtcNow()):null;
         if(result.Sets.Keys.Any(id=>workout.Exercises.All(e=>e.Id!=id)))throw new ArgumentException("Choose the assigned exercise rows.");
@@ -96,6 +97,44 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         await ledger.PrepareAutomaticAsync(row,changes,ct);
         ledger.Append(row,actor,changes);await SaveAsync(ct);
     }
+    public async Task SaveNoteAsync(Guid actor, Guid client, bool coach, int expected, string workoutId,
+        string? note, CancellationToken ct)
+    {
+        if (note?.Length > 1000) throw new ArgumentException("Keep the note within 1,000 characters.");
+        if (!await access.CanViewAsync(actor, client, coach, ct)) throw new UnauthorizedAccessException();
+        if (coach)
+        {
+            if ((await AssignmentOwnersAsync(client, ct)).GetValueOrDefault(workoutId) != actor)
+                throw new UnauthorizedAccessException();
+        }
+        else if (!await access.IsOwnerAsync(actor, client, ct)) throw new UnauthorizedAccessException();
+
+        var row = await db.CoachAccountabilityAgreements.SingleOrDefaultAsync(x => x.ClientId == client, ct)
+            ?? throw new ArgumentException("This workout is not assigned.");
+        if (row.Revision != expected) throw new AccountabilityConflictException();
+        var state = AccountabilityDocument.Parse(row.StateJson);
+        var workout = state.SnapWorkouts.SingleOrDefault(w => w.Simple && w.Id == workoutId)
+            ?? throw new ArgumentException("This workout is not assigned.");
+        var cleaned = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        if (coach)
+        {
+            if (workout.CoachNote == cleaned) return;
+            workout.CoachNote = cleaned;
+            row.StateJson = AccountabilityDocument.Serialize(state);
+            Event(row, actor, "SNAP_COACH_NOTE", JsonSerializer.Serialize(new { workoutId, note = cleaned }, AccountabilityDocument.Json));
+        }
+        else
+        {
+            if (state.SnapResults.GetValueOrDefault(workoutId) is not { Finalized: true } result)
+                throw new ArgumentException("Finish this workout before sending a completion note.");
+            if (result.ClientNote == cleaned) return;
+            result.ClientNote = cleaned;
+            row.StateJson = AccountabilityDocument.Serialize(state);
+            Event(row, actor, "SNAP_NOTE", JsonSerializer.Serialize(new { workoutId, result }, AccountabilityDocument.Json));
+        }
+        await SaveAsync(ct);
+    }
+
     public static IReadOnlyList<AccountabilityCharge> Charges(AccountabilityState saved,DateOnly today,DateTimeOffset? asOf=null)
     {
         var simple=AccountabilityDocument.Parse(AccountabilityDocument.Serialize(saved));

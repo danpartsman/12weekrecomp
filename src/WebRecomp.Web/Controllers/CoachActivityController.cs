@@ -7,16 +7,16 @@ using WebRecomp.Web.Services.Notifications;
 namespace WebRecomp.Web.Controllers;
 [Authorize(Roles="Coach,Administrator"), Route("coach/activity-notices")]
 [ResponseCache(NoStore=true, Location=ResponseCacheLocation.None)]
-public sealed class CoachActivityController(RecompDbContext db, AppUserContextService users, NotificationFiles files) : Controller
+public sealed class CoachActivityController(RecompDbContext db, AppUserContextService users, NotificationFiles files, AccountabilityLedger ledger) : Controller
 {
     [HttpGet("")]
-    public async Task<IActionResult> Index(CancellationToken ct) => Json(new { notices=await CoachActivityNotices.ReadAsync(db,files,(await users.GetAsync(HttpContext,ct)).User.UserId,ct) });
+    public async Task<IActionResult> Index(CancellationToken ct) => Json(new { notices=await CoachActivityNotices.ReadAsync(db,files,(await users.GetAsync(HttpContext,ct)).User.UserId,ct,ledger) });
     [HttpPost("dismiss"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Dismiss([FromForm]string[] ids,CancellationToken ct)
     {
         if(ids.Length>50 || ids.Any(x=>x.Length>200))return BadRequest();
         var coach=(await users.GetAsync(HttpContext,ct)).User.UserId;
-        var valid=(await CoachActivityNotices.ReadAsync(db,files,coach,ct)).Select(x=>x.Id).ToHashSet();
+        var valid=(await CoachActivityNotices.ReadAsync(db,files,coach,ct,ledger)).Select(x=>x.Id).ToHashSet();
         var key=CoachActivityNotices.ReceiptKey(coach);
         using(files.Lease(key))
         {

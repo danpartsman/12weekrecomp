@@ -405,12 +405,37 @@ public sealed class CoachAccountabilityStoreTests
         }
         Actor("other");var token=await Token($"/clients/{f.Client}/snap");Assert.NotEmpty(token);var request=Guid.NewGuid();
         DateOnly today;using(var db=f.Db())today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
-        var response=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["RequestId"]=request.ToString(),["Revision"]="0",["Name"]="Quick test workout",["Date"]=today.ToString("yyyy-MM-dd"),["Cap"]="100",["TimeAllowed"]="0.5",["CoachIncentivePerRep"]="1",["IncompleteExerciseFee"]="15",["Exercises[0].Name"]="Squat",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="0",["Exercises[0].Rpe"]="7",["Exercises[0].MuscleFocus"]="quads, glutes",["Exercises[0].ExtraRepRate"]="1",["Exercises[0].Penalty"]="15"}));
+        var response=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["RequestId"]=request.ToString(),["Revision"]="0",["Name"]="Quick test workout",["CoachNote"]="Stay controlled and finish strong.",["Date"]=today.ToString("yyyy-MM-dd"),["Cap"]="100",["TimeAllowed"]="0.5",["CoachIncentivePerRep"]="1",["IncompleteExerciseFee"]="15",["Exercises[0].Name"]="Squat",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="0",["Exercises[0].Rpe"]="7",["Exercises[0].MuscleFocus"]="quads, glutes",["Exercises[0].ExtraRepRate"]="1",["Exercises[0].Penalty"]="15"}));
         Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
         Actor("owner");token=await Token($"/clients/{f.Client}/snap");Assert.NotEmpty(token);
         string id,exercise;int revision;using(var db=f.Db()){var row=await db.CoachAccountabilityAgreements.SingleAsync();revision=row.Revision;var workout=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.Single();Assert.Equal(30,workout.TimeLimitMinutes);Assert.Equal(15,workout.Exercises[0].Penalty);Assert.Equal(1,workout.Exercises[0].ExtraRepRate);id=workout.Id;exercise=workout.Exercises[0].Id;}
         response=await http.PostAsync($"/clients/{f.Client}/snap/result",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["Revision"]=revision.ToString(),["WorkoutId"]=id,["Action"]="finish",["DurationMinutes"]="12",["Exercises[0].Rpe"]="8",["Exercises[0].Id"]=exercise,["Exercises[0].Sets[0].Reps"]="40",["Exercises[0].Sets[0].Weight"]="0"}));
         Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
+        Assert.EndsWith($"/snap/completion/{id}",response.Headers.Location!.ToString());
+        var summaryUrl=response.Headers.Location.ToString();
+        token=await Token(summaryUrl);
+        var summary=await http.GetStringAsync(summaryUrl);
+        Assert.Contains("Penalty &amp; fee summary",summary);
+        Assert.Contains("$30.00",summary);
+        Assert.Contains("Stay controlled and finish strong.",summary);
+        using(var db=f.Db())revision=(await db.CoachAccountabilityAgreements.SingleAsync()).Revision;
+        response=await http.PostAsync(summaryUrl+"/note",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["Revision"]=revision.ToString(),["Note"]="Tough but done!"}));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
+        using(var db=f.Db())Assert.Equal("Tough but done!",AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapResults[id].ClientNote);
+        Actor("coach");Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync(summaryUrl)).StatusCode);
+        Actor("other");
+        var coachSummary=await http.GetStringAsync(summaryUrl);Assert.Contains("Tough but done!",coachSummary);
+        using(var json=JsonDocument.Parse(await http.GetStringAsync("/coach/activity-notices")))
+        {
+            var notice=Assert.Single(json.RootElement.GetProperty("notices").EnumerateArray());
+            Assert.Contains("$30.00",notice.GetProperty("title").GetString());
+            Assert.Contains("Tough but done!",notice.GetProperty("title").GetString());
+        }
+        token=await Token(summaryUrl);
+        using(var db=f.Db())revision=(await db.CoachAccountabilityAgreements.SingleAsync()).Revision;
+        response=await http.PostAsync(summaryUrl+"/note",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["Revision"]=revision.ToString(),["Note"]="Great effort."}));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
+        Actor("owner");Assert.Contains("Great effort.",await http.GetStringAsync(summaryUrl));
         using(var db=f.Db()){var session=Assert.Single(await db.WorkoutSessions.ToListAsync());Assert.Equal(SnapWorkoutEngine.Source,session.EntrySourceCode);Assert.True(session.CompletedFlag);Assert.Equal(2,session.DurationMin);Assert.Equal(8,session.SessionRpe);}
         var account=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger");Assert.Contains("$30.00",account);Assert.DoesNotContain("waiting for the client's approval",account);
         using(var db=f.Db()){Assert.Empty(await db.CoachAccountabilityApprovals.ToListAsync());Assert.True(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapResults[id].Finalized);}
@@ -419,7 +444,7 @@ public sealed class CoachAccountabilityStoreTests
         using(var db=f.Db())revision=(await db.CoachAccountabilityAgreements.SingleAsync()).Revision;
         response=await http.PostAsync($"/clients/{f.Client}/snap/result",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["Revision"]=revision.ToString(),["WorkoutId"]=id,["SubmitMode"]="finish",["Exercises[0].Id"]=exercise,["Exercises[0].Sets[0].Reps"]="",["Exercises[0].Sets[0].Weight"]=""}));
         Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
-        using(var db=f.Db()){var row=await db.CoachAccountabilityAgreements.SingleAsync();Assert.True(AccountabilityDocument.Parse(row.StateJson).SnapResults[id].Finalized);}
+        using(var db=f.Db()){var row=await db.CoachAccountabilityAgreements.SingleAsync();Assert.True(AccountabilityDocument.Parse(row.StateJson).SnapResults[id].Finalized);Assert.Equal("Tough but done!",AccountabilityDocument.Parse(row.StateJson).SnapResults[id].ClientNote);}
         using(var db=f.Db())Assert.Single(await db.WorkoutSessions.ToListAsync());
         Assert.Contains("$15.00",await http.GetStringAsync($"/clients/{f.Client}/coach-ledger"));
         using(var pending=JsonDocument.Parse(await http.GetStringAsync("/my-coach/pending-snaps")))Assert.Equal(0,pending.RootElement.GetProperty("workouts").GetArrayLength());
