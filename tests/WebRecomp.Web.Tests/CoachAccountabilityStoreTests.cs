@@ -400,7 +400,14 @@ public sealed class CoachAccountabilityStoreTests
         async Task<string> Token(string url)
         {
             var response=await http.GetAsync(url);Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);var html=await response.Content.ReadAsStringAsync();
-            if(response.Headers.TryGetValues("Set-Cookie",out var cookies)){http.DefaultRequestHeaders.Remove("Cookie");http.DefaultRequestHeaders.Add("Cookie",string.Join("; ",cookies.Select(x=>x.Split(';')[0])));}
+            if(response.Headers.TryGetValues("Set-Cookie",out var cookies))
+            {
+                var jar=new Dictionary<string,string>();
+                if(http.DefaultRequestHeaders.TryGetValues("Cookie",out var existing))
+                    foreach(var cookie in existing.SelectMany(x=>x.Split("; ")))jar[cookie.Split('=')[0]]=cookie;
+                foreach(var cookie in cookies.Select(x=>x.Split(';')[0]))jar[cookie.Split('=')[0]]=cookie;
+                http.DefaultRequestHeaders.Remove("Cookie");http.DefaultRequestHeaders.Add("Cookie",string.Join("; ",jar.Values));
+            }
             return System.Text.RegularExpressions.Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         }
         Actor("other");var token=await Token($"/clients/{f.Client}/snap");Assert.NotEmpty(token);var request=Guid.NewGuid();
