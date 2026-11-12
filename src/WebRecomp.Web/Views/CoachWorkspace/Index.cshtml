@@ -60,7 +60,7 @@ else{<p>Waiting for client acceptance.</p>}
 @{var financial=Model.FinancialAgreement!;}
 <div class="coach-agreement-summary"><div><strong>Payment terms</strong>@(financial.PaymentSchedule=="next-day"?"Due the following day":financial.PaymentSchedule=="monthly"?"Due on the first day of the following month":$"Due every {financial.PaymentDay}")</div>
 <div><strong>Status</strong>@financial.Status.Replace("-", " ") · Revision @financial.Revision @if(financial.AcceptedUtc is DateTime accepted){<span> · Accepted @accepted.ToString("MMM d, yyyy h:mm tt") UTC</span>}</div></div>
-<p>Daily entries post at the client’s local midnight. Weekly entries for a weekly payment agreement post at midnight as the payment day begins. Each rule is assessed once per period. Cheat-food fees use the daily Command Center count unless the coach records an override.</p>
+<p>An accepted revision replaces this coach’s previous terms starting on the client’s local acceptance date. Earlier dates retain their accepted terms. Daily entries post at the client’s local midnight. Weekly entries for a weekly payment agreement post at midnight as the payment day begins. Each rule is assessed once per period. Cheat-food fees use the daily Command Center count unless the coach records an override.</p>
 @if (financial.Rules.Take(4).Any(rule => rule.Enabled && rule.LimitMode == "prescription"))
 {
     <p>For automatic assessment of older nutrition rules, the coach must send explicit limits and the client must accept them.</p>

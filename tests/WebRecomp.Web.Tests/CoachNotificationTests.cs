@@ -340,6 +340,57 @@ public sealed class CoachNotificationTests
         Assert.All(entries.GroupBy(entry => entry.CoachUserId), group => Assert.Equal(0m, group.Sum(entry => entry.Amount)));
     }
 
+    [Theory]
+    [InlineData(true, 5)]
+    [InlineData(false, 0)]
+    public async Task AcceptedReplacementAppliesOnLocalAcceptanceDateAndCorrectsOldFees(bool enabled, int expected)
+    {
+        using var f = new Fixture();
+        await SeedFinancial(f);
+        f.Config["SimpleCoaching:Enabled"] = "true";
+        (await f.Db.Clients.SingleAsync()).TimeZone = "America/Los_Angeles";
+        await f.Db.SaveChangesAsync();
+        var originalAt = new DateTime(2026, 11, 2, 17, 0, 0, DateTimeKind.Utc);
+        CoachFinancialAgreement Terms(int revision, DateTime accepted, decimal amount, bool active) =>
+            new(revision, "accepted", accepted, f.Owner, null,
+                Enumerable.Range(0, 10).Select(i => new CoachFinancialRule("Missing nutrition", i == 5 && active,
+                    "daily", amount, 0, 0, "Incomplete nutrition", "event")).ToArray(), accepted, f.Owner);
+        var original = Terms(2, originalAt, 20, true);
+        SaveFinancial(f, original);
+        var access = new CoachAccountabilityPreviewService(f.Db, new CoachCenterService(f.Db), null!);
+        var ledger = new AccountabilityLedger(f.Db, access, f.Config);
+        var clock = new SettlementClock { Now = new DateTimeOffset(2026, 11, 9, 20, 0, 0, TimeSpan.Zero) };
+        var job = new AgreementSettlementJob(f.Db, f.Files, null!, null!, new SimpleCoachingService(f.Db, access, ledger),
+            ledger, f.Config, NullLogger<AgreementSettlementJob>.Instance, clock);
+        await job.RunAsync(default);
+        clock.Now = new(2026, 11, 12, 8, 0, 0, TimeSpan.Zero);
+        await job.RunAsync(default);
+        var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        var date = new DateOnly(2026, 11, 11);
+        Assert.Equal(20m, (await ledger.ReadAsync(row, default)).Where(x => x.Date == date).Sum(x => x.Amount));
+
+        // 01:00 UTC November 12 is still November 11 for this client.
+        var replacement = Terms(5, new DateTime(2026, 11, 12, 1, 0, 0, DateTimeKind.Utc), 5, enabled);
+        SaveFinancial(f, replacement with { AcceptedHistory = [original] });
+        clock.Now = clock.Now.AddMinutes(15);
+        await job.RunAsync(default);
+        var corrected = await ledger.ReadAsync(row, default);
+        Assert.Equal((decimal)expected, corrected.Where(x => x.Date == date).Sum(x => x.Amount));
+        Assert.Equal(20m, corrected.Where(x => x.Date == date.AddDays(-1)).Sum(x => x.Amount));
+        Assert.Contains(corrected, x => x.Date == date && x.TermsVersion == 5 && x.Description.StartsWith("Adjustment"));
+        clock.Now = clock.Now.AddMinutes(15);
+        await job.RunAsync(default);
+        Assert.Equal(corrected.Count, (await ledger.ReadAsync(row, default)).Count);
+
+        // A subsequent proposal must leave the latest accepted revision in force.
+        SaveFinancial(f, replacement with { Revision = 6, Status = "pending", AcceptedUtc = null,
+            AcceptedBy = null, AcceptedHistory = [original, replacement] });
+        clock.Now = new(2026, 11, 13, 8, 0, 0, TimeSpan.Zero);
+        await job.RunAsync(default);
+        Assert.Equal((decimal)expected, (await ledger.ReadAsync(row, default))
+            .Where(x => x.Date == date.AddDays(1)).Sum(x => x.Amount));
+    }
+
     [Fact]
     public async Task ScheduledCheatFoodFeeUsesDetectedCountThenSavedCountThenCoachOverride()
     {

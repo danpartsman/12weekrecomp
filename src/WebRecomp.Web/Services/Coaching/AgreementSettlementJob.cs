@@ -125,9 +125,9 @@ public sealed class AgreementSettlementJob(
             var through = periods.Max(x => x.End);
             var row = await db.CoachAccountabilityAgreements.SingleOrDefaultAsync(x => x.ClientId == clientId, ct);
             var dayEvidence = await LoadEvidenceAsync(client, owner, agreement, from, through,
-                periods.Any(p => p.RuleIndex < 4 || p.RuleIndex is 5 or 8),
-                periods.Any(p => p.RuleIndex == 7),
-                periods.Any(p => p.RuleIndex == 8 || (p.RuleIndex < 4 && p.Agreement.Rules[p.RuleIndex].LimitMode == "system-percent")), ct);
+                periods.Any(p => p.Agreement.Rules[p.RuleIndex].Enabled && (p.RuleIndex < 4 || p.RuleIndex is 5 or 8)),
+                periods.Any(p => p.Agreement.Rules[p.RuleIndex].Enabled && p.RuleIndex == 7),
+                periods.Any(p => p.Agreement.Rules[p.RuleIndex].Enabled && (p.RuleIndex == 8 || (p.RuleIndex < 4 && p.Agreement.Rules[p.RuleIndex].LimitMode == "system-percent"))), ct);
             var existing = row is null ? new List<AccountabilityLedgerEntry>() : await ledger.ReadAsync(row, ct);
             var charges = new List<(AccountabilityCharge Charge, int Revision)>();
             foreach (var period in periods)

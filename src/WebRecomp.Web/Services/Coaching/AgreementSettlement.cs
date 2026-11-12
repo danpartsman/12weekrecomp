@@ -26,11 +26,11 @@ internal static class AgreementSettlement
     {
         DateOnly EffectiveDay(CoachFinancialAgreement version) =>
             DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
-                DateTime.SpecifyKind(version.AcceptedUtc!.Value, DateTimeKind.Utc), zone)).AddDays(includeAcceptanceDay ? 0 : 1);
+                DateTime.SpecifyKind(version.AcceptedUtc!.Value, DateTimeKind.Utc), zone));
 
         var accepted = versions.Where(v => v.Status == "accepted" && v.AcceptedBy == owner
             && v.AcceptedUtc.HasValue && v.Rules.Count == 10)
-            .OrderBy(EffectiveDay).ThenBy(v => v.Revision).ToArray();
+            .OrderBy(v => v.AcceptedUtc).ThenBy(v => v.Revision).ToArray();
         var periods = new List<AgreementPeriod>();
         for (var date = earliestClose; date <= closedThrough; date = date.AddDays(1))
         {
@@ -39,7 +39,10 @@ internal static class AgreementSettlement
             for (var i = 0; i < version.Rules.Count; i++)
             {
                 var rule = version.Rules[i];
-                if (!rule.Enabled || rule.Amount <= 0 || rule.Frequency is not ("daily" or "weekly" or "monthly")) continue;
+                // Include disabled daily rules so previously posted fees can be reversed
+                // when the accepted replacement removes them.
+                if (rule.Frequency is not ("daily" or "weekly" or "monthly")) continue;
+                if ((!rule.Enabled || rule.Amount <= 0) && rule.Frequency != "daily") continue;
                 if (includeAcceptanceDay && rule.Frequency != "daily") continue;
                 var (start, end) = AccountabilityAssessment.Period(date, rule.Frequency);
                 if (rule.Frequency == "weekly" && version.PaymentSchedule == "weekly")
@@ -59,7 +62,7 @@ internal static class AgreementSettlement
     {
         var days = evidence.Where(day => !day.Excused).ToArray();
         var rule = period.Agreement.Rules[period.RuleIndex];
-        int? occurrences = days.Length == 0 ? 0 : period.RuleIndex switch
+        int? occurrences = !rule.Enabled || rule.Amount <= 0 || days.Length == 0 ? 0 : period.RuleIndex switch
         {
             < 4 => AnyViolation(days.Select(day => Outside(day, rule, period.RuleIndex))),
             4 => days.Any(day => day.WorkoutPlanned && !day.WorkoutCompleted) ? 1 : 0,
