@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
 function navigation({admin=false,demo=false,hasCoach=false}={}) {
- let html=fs.readFileSync('src/WebRecomp.Web/Views/Shared/_AppNavigation.cshtml','utf8').replace(/^@model.*$/m,'');
+ let html=fs.readFileSync('src/WebRecomp.Web/Views/Shared/_AppNavigation.cshtml','utf8').replace(/\r\n/g,'\n').replace(/^@model.*$/m,'');
  // Render only markup: the preamble queries the signed-in user's coach state.
  html=html.slice(html.indexOf('<nav'));
  const coachingStart=html.indexOf('    @if (!Model)');
