@@ -65,7 +65,7 @@ public sealed class MyCoachController(RecompDbContext db, AppUserContextService 
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         var id = await OwnedClientAsync(ct);
-        return id.HasValue ? View(await BuildAsync(id.Value, new(), ct)) : RedirectToAction("Index", "Intake");
+        return View(id.HasValue ? await BuildAsync(id.Value, new(), ct) : new MyCoachesViewModel([], new()));
     }
     [HttpPost("connect"), ValidateAntiForgeryToken, EnableRateLimiting("access-code")]
     public async Task<IActionResult> Connect(CoachConnectInput input, CancellationToken ct)

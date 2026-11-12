@@ -54,12 +54,26 @@ if(receipt?.Fingerprint!=fingerprint){coachHasNew=true;break;}
             <a asp-controller="Home" asp-action="Evidence">Evidence</a>
         </div>
     </details>
-    @if(hasCoach){<details class="app-nav-group"><summary><a class="app-nav-primary" asp-controller="MyCoach" asp-action="Index">My Coach @if(coachHasNew){<span aria-label="New coach assignments" style="color:#ffdf70">● New</span>}</a></summary><div class="app-nav-panel"><a asp-controller="MyCoach" asp-action="Index">Coach workspaces</a></div></details>}
+    @if (!Model)
+    {
+        @if (User.IsInRole("Coach") || User.IsInRole("Administrator"))
+        {
+            <details class="app-nav-group" data-coaching-menu>
+                <summary><a class="app-nav-primary" href="/coach?nav=coach-center">Coach Center</a></summary>
+                <div class="app-nav-panel">
+                    <a asp-controller="MyCoach" asp-action="Index">My Coach@if(coachHasNew){<span aria-label="New coach assignments" class="app-nav-new">● New</span>}</a>
+                </div>
+            </details>
+        }
+        else
+        {
+            <a class="app-nav-primary app-nav-direct" asp-controller="MyCoach" asp-action="Index">My Coach@if(coachHasNew){<span aria-label="New coach assignments" class="app-nav-new">● New</span>}</a>
+        }
+    }
     <details class="app-nav-group">
         <summary><a class="app-nav-primary" href="/Profile?nav=profile">Profile</a></summary>
         <div class="app-nav-panel">
             <a asp-controller="Profile" asp-action="Settings">Settings</a>
-            <a asp-controller="MyCoach" asp-action="Index">My Coach</a>
             <a asp-controller="Notifications" asp-action="Index">Notifications</a>
             @if (Model)
             {
@@ -67,10 +81,6 @@ if(receipt?.Fingerprint!=fingerprint){coachHasNew=true;break;}
                 <form asp-controller="Demo" asp-action="Exit" method="post">
                     <button type="submit" class="app-nav-signout">End Guided Demo</button>
                 </form>
-            }
-            @if (!Model && (User.IsInRole("Coach") || User.IsInRole("Administrator")))
-            {
-                <a asp-controller="Coach" asp-action="Index">Coach Center</a>
             }
             @if (!Model && User.IsInRole("Administrator"))
             {

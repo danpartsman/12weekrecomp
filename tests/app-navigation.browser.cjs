@@ -5,7 +5,12 @@ function navigation({admin=false,demo=false,hasCoach=false}={}) {
  let html=fs.readFileSync('src/WebRecomp.Web/Views/Shared/_AppNavigation.cshtml','utf8').replace(/^@model.*$/m,'');
  // Render only markup: the preamble queries the signed-in user's coach state.
  html=html.slice(html.indexOf('<nav'));
- html=html.replace(/^\s*@if\(hasCoach\).*$/m,hasCoach&&!demo?'<details class="app-nav-group"><summary><a class="app-nav-primary" href="/MyCoach">My Coach</a></summary><div class="app-nav-panel"><a href="/MyCoach">Coach workspaces</a></div></details>':'');
+ const coachingStart=html.indexOf('    @if (!Model)');
+ const profileStart=html.indexOf('    <details class="app-nav-group">\n        <summary><a class="app-nav-primary" href="/Profile',coachingStart);
+ const coachMenu=html.match(/<details class="app-nav-group" data-coaching-menu>[\s\S]*?<\/details>/)[0];
+ const clientLink=html.match(/<a class="app-nav-primary app-nav-direct"[\s\S]*?<\/a>/)[0];
+ const coaching=demo?'':(admin?coachMenu:clientLink).replace(/@if\(coachHasNew\)\{([\s\S]*?)\}/g,(_,badge)=>hasCoach?badge:'');
+ html=html.slice(0,coachingStart)+coaching+html.slice(profileStart);
  html=html.replace(/@if \(([^\n]+)\)\s*\{([\s\S]*?)\n            \}/g,(_,condition,body)=>{
   const show=condition==='Model'?demo:condition==='!Model'?!demo:!demo&&admin;
   return show?body:'';
@@ -25,16 +30,16 @@ function navigation({admin=false,demo=false,hasCoach=false}={}) {
   await page.addInitScript(()=>{Object.defineProperty(window,'sessionStorage',{get(){throw new Error('Storage disabled for regression test');}});});
   await page.goto('https://navigation.test/CommandCenter');
   const groups=page.locator('.app-nav-group');
-  assert.deepEqual(await page.locator('.app-nav-primary').allTextContents(),['Command Center','Daily Entries','Recomp Tips','Profile']);
+  assert.deepEqual(await page.locator('.app-nav-primary').allTextContents(),['Command Center','Daily Entries','Recomp Tips','Coach Center','Profile']);
   assert.equal(await page.locator('.app-nav-group[open]').count(),0);
-  const expected=[['Dashboard','Progress','Smart Intelligence'],['Recomp Tracking','Nutrition','Workout','Weekly Plan'],['How It Works','Evidence'],['Settings','My Coach','Notifications','Coach Center','Administration','Sign Out']];
-  const paths=['/CommandCenter','/DailyEntry','/tips','/Profile'];
+  const expected=[['Dashboard','Progress','Smart Intelligence'],['Recomp Tracking','Nutrition','Workout','Weekly Plan'],['How It Works','Evidence'],['My Coach'],['Settings','Notifications','Administration','Sign Out']];
+  const paths=['/CommandCenter','/DailyEntry','/tips','/coach','/Profile'];
   async function navigate(i){const button=groups.nth(i).locator('summary');const box=await button.boundingBox();await Promise.all([page.waitForNavigation(),i%2?button.click({position:{x:box.width-10,y:box.height/2}}):groups.nth(i).locator('.app-nav-primary').click()]);assert.equal(new URL(page.url()).pathname,paths[i]);assert.equal(await page.locator('h1').textContent(),paths[i]);assert.equal(new URL(page.url()).searchParams.has('nav'),false);await page.waitForFunction(()=>document.querySelectorAll('.app-nav-group[open]').length===1);}
-  for(let i=0;i<4;i++){
+  for(let i=0;i<paths.length;i++){
    await navigate(i);assert.deepEqual(await groups.nth(i).locator('.app-nav-panel a').allTextContents(),expected[i]);assert.equal(await groups.nth(i).locator('.app-nav-panel').isVisible(),true);
   }
   await page.keyboard.press('Escape');assert.equal(await page.locator('.app-nav-group[open]').count(),0);
-  await groups.nth(3).locator('.app-nav-primary').focus();await page.keyboard.press('ArrowDown');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Settings');
+  await groups.nth(4).locator('.app-nav-primary').focus();await page.keyboard.press('ArrowDown');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Settings');
   await page.keyboard.press('End');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Sign Out');
   await page.evaluate(()=>document.querySelector('#outside').click());assert.equal(await page.locator('.app-nav-group[open]').count(),0);
   await navigate(0);await page.mouse.move(700,700);await page.waitForFunction(()=>document.querySelectorAll('.app-nav-group[open]').length===0,{},{timeout:7000});
@@ -42,7 +47,7 @@ function navigation({admin=false,demo=false,hasCoach=false}={}) {
   for(const width of [820,390,320]){
    await page.setViewportSize({width,height:844});await page.evaluate(()=>document.querySelector('#outside').click());
    assert.equal(await page.locator('.app-nav-toggle').isVisible(),true);assert.equal(await groups.first().isVisible(),false);
-   for(let i=0;i<4;i++){
+   for(let i=0;i<paths.length;i++){
     await page.locator('.app-nav-toggle').click();await navigate(i);
     assert.equal(await page.locator('.app-nav-toggle').getAttribute('aria-expanded'),'true');
     const panel=await groups.nth(i).locator('.app-nav-panel').boundingBox();assert.ok(panel.x>=0&&panel.x+panel.width<=width+1);
@@ -60,8 +65,10 @@ function navigation({admin=false,demo=false,hasCoach=false}={}) {
   assert.equal(await page.locator('.app-nav-toggle').isVisible(),true);await page.locator('.app-nav-toggle').click();
   assert.equal(await groups.first().isVisible(),true);await navigate(0);
   assert.deepEqual(errors,[]);assert.equal(navigation().includes('Coach Center'),false);assert.equal(navigation().includes('Administration'),false);assert.equal(navigation({demo:true}).includes('End Guided Demo'),true);assert.equal(navigation({demo:true}).includes('Sign Out'),false);
-  assert.match(navigation({hasCoach:true}),/class="app-nav-primary" href="\/MyCoach">My Coach/);
-  assert.equal(navigation({hasCoach:true,demo:true}).includes('Coach workspaces'),false);
+  assert.match(navigation(),/class="app-nav-primary app-nav-direct" href="\/MyCoach">My Coach/);
+  assert.match(navigation({hasCoach:true}),/New coach assignments/);
+  assert.match(navigation({admin:true}),/data-coaching-menu/);
+  assert.equal(navigation({hasCoach:true,demo:true}).includes('data-coaching-menu'),false);
   assert.equal(navigation().includes('NavigationDb'),false);
   console.log('Primary navigation changes page and opens destination flyouts with storage blocked; timed dismissal, keyboard, mobile hamburger, viewport and roles passed.');
  } finally {await browser.close();}

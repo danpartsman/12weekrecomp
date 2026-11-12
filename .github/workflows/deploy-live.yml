@@ -56,6 +56,16 @@ jobs:
       - name: Verify accountability calculations
         run: node --test tests/accountability-preview.test.cjs
 
+      - name: Verify coaching navigation on desktop and mobile
+        shell: pwsh
+        run: |
+          npm install --prefix "$env:RUNNER_TEMP/navigation-browser" --no-audit --no-fund playwright@1.62.1
+          if ($LASTEXITCODE -ne 0) { throw "Could not prepare navigation browser checks." }
+          $env:NUTRITION_PLAYWRIGHT_MODULE = "$env:RUNNER_TEMP/navigation-browser/node_modules/playwright"
+          $env:NUTRITION_CHROME_PATH = "$env:ProgramFiles/Google/Chrome/Application/chrome.exe"
+          node tests/app-navigation.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Coaching navigation check failed." }
+
       - name: Publish web project
         run: dotnet publish ${{ env.WEB_PROJECT }} --configuration Release --no-build --output ./publish
 
