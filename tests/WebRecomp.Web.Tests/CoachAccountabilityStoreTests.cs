@@ -362,8 +362,10 @@ public sealed class CoachAccountabilityStoreTests
         Assert.Contains("No saved blocks yet.", await Page(url));
     }
 
-    [Fact]
-    public async Task CoachTimingPreviewIncludesWorkoutReservedHoursAndOverrideAndExcludesUnrelatedClients()
+    [Theory]
+    [InlineData("override",true)]
+    [InlineData("extend",false)]
+    public async Task CoachTimingPreviewIncludesWorkoutReservedHoursAndOverrideAndExcludesUnrelatedClients(string decision,bool ignored)
     {
         var f=await Fixture.Create();
         DateOnly date;
@@ -393,22 +395,29 @@ public sealed class CoachAccountabilityStoreTests
         Assert.Equal(6,(normalDeadline-overridden.RootElement.GetProperty("deadlineUtc").GetDateTimeOffset()).TotalHours);
         Assert.Equal(360,overridden.RootElement.GetProperty("days")[0].GetProperty("reservedMinutes").GetDouble());
         var html=await http.GetStringAsync($"/clients/{f.Client}/snap");
-        Assert.Contains("Override schedule",html);Assert.Contains("data-schedule-days",html);Assert.Contains("coaching-actions.css",html);
+        Assert.DoesNotContain("data-schedule-override",html);Assert.Contains("data-snap-conflict-dialog",html);Assert.Contains("Override conflict",html);Assert.Contains("data-schedule-days",html);Assert.Contains("coaching-actions.css",html);
         var assignmentPage=await http.GetAsync($"/clients/{f.Client}/snap");
         var assignmentHtml=await assignmentPage.Content.ReadAsStringAsync();
         var token=System.Text.RegularExpressions.Regex.Match(assignmentHtml,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         foreach(var cookie in assignmentPage.Headers.GetValues("Set-Cookie"))http.DefaultRequestHeaders.Add("Cookie",cookie.Split(';')[0]);
-        var posted=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(new Dictionary<string,string> {
+        var values=new Dictionary<string,string> {
             ["__RequestVerificationToken"]=token,["RequestId"]=Guid.NewGuid().ToString(),["Revision"]="0",
-            ["Name"]="Override assignment",["Date"]=date.ToString("yyyy-MM-dd"),["TimeAllowed"]="2",["OverrideSchedule"]="true",
-            ["Exercises[0].Name"]="Squat",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="0" }));
+            ["Name"]="Conflict assignment",["Date"]=date.ToString("yyyy-MM-dd"),["TimeAllowed"]="2",
+            ["Exercises[0].Name"]="Squat",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="0" };
+        var blocked=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(values));
+        Assert.Equal(System.Net.HttpStatusCode.OK,blocked.StatusCode);
+        Assert.Contains("data-conflict-required=\"true\"",await blocked.Content.ReadAsStringAsync());
+        using(var db=f.Db())Assert.False(await db.CoachAccountabilityAgreements.AnyAsync());
+        values["ConflictChoice"]=decision;
+        var posted=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(values));
         Assert.Equal(System.Net.HttpStatusCode.Redirect,posted.StatusCode);
         using(var db=f.Db())
         {
             var row=await db.CoachAccountabilityAgreements.SingleAsync();
             var saved=Assert.Single(AccountabilityDocument.Parse(row.StateJson).SnapWorkouts);
-            Assert.True(saved.OverrideSchedule);
-            Assert.Equal(overridden.RootElement.GetProperty("deadlineUtc").GetDateTimeOffset(),saved.DeadlineUtc);
+            Assert.Equal(ignored,saved.OverrideSchedule);
+            Assert.Equal(ignored?overridden.RootElement.GetProperty("deadlineUtc").GetDateTimeOffset():normalDeadline,saved.DeadlineUtc);
+            Assert.Equal(120,saved.TimeLimitMinutes);
         }
         Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync(url.Replace(f.Client.ToString(),Guid.NewGuid().ToString()))).StatusCode);
         http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","owner");

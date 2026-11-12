@@ -294,6 +294,11 @@ public sealed class CoachNotificationTests
         service.Add(f.Client,0,new() { Kind="work", StartDate=date, StartTime=new(9,0), EndTime=new(17,0) });
         AccountabilityWorkout Workout(bool ignored) => new() { Id=Guid.NewGuid().ToString("N"), Simple=true,
             OverrideSchedule=ignored, CreatedAtUtc=clock.Now, TimingStartUtc=clock.Now, TimeLimitMinutes=120, DeadlineUtc=clock.Now.AddHours(2) };
+        var conflict=await service.ConflictAsync(client,clock.Now,120,default);
+        Assert.True(conflict.HasConflict); Assert.True(conflict.CanOverride);
+        Assert.Equal(clock.Now.AddHours(2),conflict.RequestedDeadlineUtc);
+        Assert.Equal(clock.Now.AddHours(9),conflict.ExtendedDeadlineUtc);
+        Assert.Equal(9,conflict.ExtendedHours); Assert.Single(conflict.Conflicts);
         var protectedWorkout=Workout(false); var overrideWorkout=Workout(true);
         var state=new AccountabilityState { SnapWorkouts=[protectedWorkout,overrideWorkout] };
         await service.ApplyAsync(client,state,default);
@@ -304,6 +309,11 @@ public sealed class CoachNotificationTests
         await service.ApplyAsync(client,state,default);
         var recovered=new DateTimeOffset(date.AddDays(1).ToDateTime(new TimeOnly(2,0)),TimeSpan.Zero);
         Assert.Equal(recovered,protectedWorkout.DeadlineUtc); Assert.Equal(recovered,overrideWorkout.DeadlineUtc);
+        var illnessConflict=await service.ConflictAsync(client,clock.Now,120,default);
+        Assert.True(illnessConflict.HasConflict); Assert.False(illnessConflict.CanOverride);
+        Assert.Equal(recovered,illnessConflict.ExtendedDeadlineUtc);
+        var clear=await service.ConflictAsync(client,clock.Now.AddDays(1),120,default);
+        Assert.False(clear.HasConflict); Assert.Empty(clear.Conflicts);
         await service.ApplyAsync(client,state,default);
         Assert.Equal(recovered,overrideWorkout.DeadlineUtc);
     }

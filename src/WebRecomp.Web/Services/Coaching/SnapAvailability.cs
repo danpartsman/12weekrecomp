@@ -30,6 +30,10 @@ public sealed record AvailabilityWindow(DateTimeOffset Start, DateTimeOffset End
 public sealed record SnapTiming(DateTimeOffset? DeadlineUtc, DateTimeOffset? AvailableFromUtc,
     DateTimeOffset? PausedUntilUtc, double RemainingSeconds, string? Reason);
 
+public sealed record SnapScheduleConflict(bool HasConflict, bool CanOverride, DateTimeOffset StartUtc,
+    DateTimeOffset RequestedDeadlineUtc, DateTimeOffset? ExtendedDeadlineUtc, DateTimeOffset? OverrideDeadlineUtc,
+    double? ExtendedHours, IReadOnlyList<AvailabilityWindow> Conflicts);
+
 public static class SnapAvailabilityClock
 {
     public static TimeZoneInfo Zone(string id)
@@ -132,6 +136,26 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
     private readonly TimeProvider time = clock ?? TimeProvider.System;
     private static string Key(Guid client) => $"users/availability-{client:N}";
     public AvailabilityCalendar Read(Guid client) => files.Read<AvailabilityCalendar>(Key(client)) ?? new();
+
+    public async Task<SnapScheduleConflict> ConflictAsync(Client client, DateTimeOffset start, int minutes, CancellationToken ct)
+    {
+        var zone = SnapAvailabilityClock.Zone(client.TimeZone);
+        var from = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(start, zone).DateTime);
+        var through = from.AddDays(366);
+        var windows = await WindowsAsync(client, from, through, ct);
+        var horizon = SnapAvailabilityClock.Utc(through.AddDays(1), TimeOnly.MinValue, zone);
+        var regular = SnapAvailabilityClock.Calculate(start, minutes, start, windows, horizon);
+        var overridden = SnapAvailabilityClock.Calculate(start, minutes, start, windows.Where(w => w.Reason == "Illness"), horizon);
+        var requested = start.AddMinutes(minutes);
+        var conflict = regular.DeadlineUtc is null || regular.DeadlineUtc > requested;
+        var relevant = windows.Where(w => w.End > start && w.Start <= (regular.DeadlineUtc ?? horizon))
+            .OrderBy(w => w.Start).ToArray();
+        var canOverride = conflict && overridden.DeadlineUtc.HasValue
+            && (regular.DeadlineUtc is null || overridden.DeadlineUtc < regular.DeadlineUtc);
+        return new(conflict, canOverride, start, requested, regular.DeadlineUtc, overridden.DeadlineUtc,
+            regular.DeadlineUtc.HasValue ? (regular.DeadlineUtc.Value - start).TotalHours : null,
+            conflict ? relevant : []);
+    }
 
     public void Add(Guid client, int revision, AvailabilityBlock block, Guid? replaceId = null)
     {

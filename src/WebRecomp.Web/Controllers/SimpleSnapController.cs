@@ -13,7 +13,7 @@ public sealed record SimpleSnapCompletionPage(Guid ClientId, string ClientName, 
     bool IsCoach, int Revision, AccountabilityWorkout Workout, AccountabilityResult Result,
     IReadOnlyList<AccountabilityCharge> Charges, decimal PostedTotal, string TimeZone);
 [Authorize,Route("clients/{clientId:guid}/snap"),ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
-public sealed class SimpleSnapController(AppUserContextService users,SimpleCoachingService simple,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,IConfiguration configuration,SnapWorkoutEstimateService? estimates=null):Controller
+public sealed class SimpleSnapController(AppUserContextService users,SimpleCoachingService simple,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,IConfiguration configuration,SnapWorkoutEstimateService? estimates=null,SnapAvailabilityService? schedule=null,RecompDbContext? scheduleDb=null):Controller
 {
     // Snap Workout permissions are scoped to the active coach-client relationship, not role-claim spelling.
     private Task<bool> IsAssignedCoachAsync(Guid actor,Guid clientId,CancellationToken ct)=>access.CanAssignSnapAsync(actor,clientId,ct);
@@ -190,6 +190,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         var plans=await db.PlannedWorkouts.AsNoTracking().Where(p=>p.ClientId==clientId&&p.ProgramId==programId
             &&p.PlannedDate>=date&&p.PlannedDate<=through).ToListAsync(ct);
         var names=await PlannedWorkoutNames.LoadAsync(db,clientId,plans,ct);
+        var conflict=await availability.ConflictAsync(client,start,minutes,ct);
         var days=Enumerable.Range(0,7).Select(i=>
         {
             var day=date.AddDays(i);
@@ -202,7 +203,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
                     allDay=w.Start<=left&&w.End>=right }) };
         });
         return Json(new { workout.Timing!.DeadlineUtc,workout.Timing.AvailableFromUtc,workout.Timing.PausedUntilUtc,
-            workout.Timing.RemainingSeconds,workout.Timing.Reason,timeZone=client.TimeZone,overrideSchedule,days });
+            workout.Timing.RemainingSeconds,workout.Timing.Reason,timeZone=client.TimeZone,overrideSchedule,conflict,days });
     }
     [HttpPost("estimate"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(65536)]
     public async Task<IActionResult> Estimate(Guid clientId,AssignmentInput input,CancellationToken ct)
@@ -232,9 +233,28 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var prior=current is null?new List<AccountabilityWorkout>():AccountabilityDocument.Parse(current.StateJson).SnapWorkouts;
             var zone=(await ledger.ClockAsync(clientId,ct)).Zone;
             var now=TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(zone));
+            if(schedule is not null && scheduleDb is not null)
+            {
+                var client=await scheduleDb.Clients.AsNoTracking().SingleAsync(c=>c.ClientId==clientId,ct);
+                var today=AppUserContextService.GetClientToday(client);
+                if(input.Date<today||input.Date>today.AddDays(84))throw new ArgumentException("Choose today or a date within the next 12 weeks.");
+                var start=input.Date>today?SnapAvailabilityClock.Utc(input.Date,TimeOnly.MinValue,SnapAvailabilityClock.Zone(client.TimeZone)):DateTimeOffset.UtcNow;
+                var conflict=await schedule.ConflictAsync(client,start,(int)Math.Ceiling(input.TimeAllowed*60),ct);
+                if(conflict.HasConflict)
+                {
+                    var overrideRequested=input.ConflictChoice=="override"||input.OverrideSchedule;
+                    if((overrideRequested&&!conflict.CanOverride)||(!overrideRequested&&input.ConflictChoice!="extend")
+                        ||(!overrideRequested&&!conflict.ExtendedDeadlineUtc.HasValue))
+                    {
+                        ViewData["SnapConflictRequired"]=true;
+                        ModelState.AddModelError("", "This completion window conflicts with reserved time. Choose an extension or an available conflict override.");
+                        return await Page(clientId,input,ct);
+                    }
+                }
+            }
             var uniqueName=UniqueName(input.Name,prior,now);
             await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,new(){Name=uniqueName,CoachNote=string.IsNullOrWhiteSpace(input.CoachNote)?null:input.CoachNote.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
-                OverrideSchedule=input.OverrideSchedule,TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
+                OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
             TempData["SimpleStatus"]="Workout assigned. Your client can open it in their portal.";return RedirectToAction(nameof(Index),new{clientId});
         }
         catch(UnauthorizedAccessException){return NotFound();}
@@ -331,6 +351,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         public Guid RequestId{get;set;}=Guid.NewGuid();
         [StringLength(1000)]public string? CoachNote{get;set;}
         [Required,StringLength(100)]public string Name{get;set;}="Snap Workout";
+        [RegularExpression("^(extend|override)?$")]public string? ConflictChoice{get;set;}
         public bool OverrideSchedule{get;set;}
         public DateOnly Date{get;set;}
         [Range(typeof(decimal),"0.0166666667","168")]public decimal TimeAllowed{get;set;}=2;

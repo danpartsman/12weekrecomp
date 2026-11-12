@@ -14,15 +14,13 @@
 @if(Model.Coach)
 {
 <details class="card" id="snap-assignment-form" open><summary>Assign a Snap Workout</summary>
-<form asp-action="Assign" asp-route-clientId="@Model.ClientId" method="post" data-estimate-url="@Url.Action("Estimate",new{clientId=Model.ClientId})" data-simple-assignment data-timing-url="@Url.Action("Timing",new{clientId=Model.ClientId})" data-exercise-search-url="@Url.Action("Exercises",new{clientId=Model.ClientId})">
+<form asp-action="Assign" asp-route-clientId="@Model.ClientId" method="post" data-estimate-url="@Url.Action("Estimate",new{clientId=Model.ClientId})" data-simple-assignment data-conflict-required="@((ViewData["SnapConflictRequired"] is true).ToString().ToLowerInvariant())" data-timing-url="@Url.Action("Timing",new{clientId=Model.ClientId})" data-exercise-search-url="@Url.Action("Exercises",new{clientId=Model.ClientId})">
 <input type="hidden" name="Revision" value="@Model.Revision" /><input type="hidden" name="RequestId" value="@Model.Draft.RequestId" />
 <div class="simple-fields snap-assignment-row">
-<div class="snap-workout-picker"><label for="snap-workout-name">Workout</label><div class="snap-workout-input"><input id="snap-workout-name" name="Name" value="@Model.Draft.Name" maxlength="100" required /><button type="button" data-workout-toggle aria-label="Show previous Snap Workouts" aria-expanded="false" aria-controls="snap-workout-history">▾</button></div><div id="snap-workout-history" class="snap-workout-history" hidden>@foreach(var template in Model.RecentTemplates){<a href="@Url.Action("Template",new{clientId=Model.ClientId,workoutId=template.Id})#snap-assignment-form">@template.Name</a>}@if(Model.RecentTemplates.Count==0){<span>No previous Snap Workouts yet.</span>}</div></div><label>Date<input name="Date" type="date" min="@Model.Today.ToString("yyyy-MM-dd")" value="@Model.Draft.Date.ToString("yyyy-MM-dd")" required /></label><label>Time Allowed (hours)<input name="TimeAllowed" type="number" min="0.0166666667" max="168" step="any" value="@Model.Draft.TimeAllowed" required /></label><label>Required Completion Time<output data-required-completion data-time-zone="@Model.ClientTimeZone" data-client-today="@Model.Today.ToString("yyyy-MM-dd")" data-server-now="@DateTimeOffset.UtcNow.ToString("O")">Calculated when assigned</output></label></div>
-<div class="snap-schedule-controls">
-<input type="hidden" name="OverrideSchedule" value="@Model.Draft.OverrideSchedule.ToString().ToLowerInvariant()" />
-<button type="button" class="button secondary" data-schedule-override aria-pressed="@Model.Draft.OverrideSchedule.ToString().ToLowerInvariant()">@(Model.Draft.OverrideSchedule?"Use saved schedule":"Override schedule")</button>
-<p data-schedule-override-status>@(Model.Draft.OverrideSchedule?"This Snap ignores reserved sleep, work and workout hours. Illness days remain protected.":"The completion clock respects the client’s reserved hours.")</p>
-</div>
+<div class="snap-workout-picker"><label for="snap-workout-name">Workout</label><div class="snap-workout-input"><input id="snap-workout-name" name="Name" value="@Model.Draft.Name" maxlength="100" required /><button type="button" data-workout-toggle aria-label="Show previous Snap Workouts" aria-expanded="false" aria-controls="snap-workout-history">▾</button></div><div id="snap-workout-history" class="snap-workout-history" hidden>@foreach(var template in Model.RecentTemplates){<a href="@Url.Action("Template",new{clientId=Model.ClientId,workoutId=template.Id})#snap-assignment-form">@template.Name</a>}@if(Model.RecentTemplates.Count==0){<span>No previous Snap Workouts yet.</span>}</div></div><label>Date<input name="Date" type="date" min="@Model.Today.ToString("yyyy-MM-dd")" value="@Model.Draft.Date.ToString("yyyy-MM-dd")" required /></label><label>Available workout time (hours)<input name="TimeAllowed" type="number" min="0.0166666667" max="168" step="any" value="@Model.Draft.TimeAllowed" required /></label><label>Required Completion Time<output data-required-completion data-time-zone="@Model.ClientTimeZone" data-client-today="@Model.Today.ToString("yyyy-MM-dd")" data-server-now="@DateTimeOffset.UtcNow.ToString("O")">Calculated when assigned</output></label></div>
+<input type="hidden" name="OverrideSchedule" value="false" />
+<input type="hidden" name="ConflictChoice" value="" />
+<p class="muted">Reserved time extends the deadline while preserving the available workout hours. Conflicts are reviewed when you assign the workout.</p>
 <section class="snap-schedule-preview" aria-label="Client workout and reserved time">
 <h3>Client schedule</h3><p class="muted">Weekly workouts and reserved hours · @Model.ClientTimeZone</p>
 <div data-schedule-days aria-live="polite">Loading the client’s schedule…</div>
@@ -40,6 +38,19 @@
 <p class="snap-engine-estimate" data-snap-estimate role="status">Enter the exercises to preview estimated calories and glycogen.</p>
 <div class="snap-form-actions"><button type="button" class="button secondary" data-add-exercise>Add exercise</button><button type="submit" class="button">Assign workout</button></div>
 </form></details>
+<dialog class="snap-conflict-dialog" data-snap-conflict-dialog aria-labelledby="snap-conflict-title" aria-describedby="snap-conflict-description">
+<h2 id="snap-conflict-title">Schedule conflict</h2>
+<p id="snap-conflict-description">The selected completion window overlaps reserved time. Review the conflict before assigning this Snap Workout.</p>
+<ul data-conflict-list></ul>
+<label>Available workout hours<input type="number" min="0.0166666667" max="168" step="any" data-conflict-hours /></label>
+<p data-conflict-extension></p><p data-conflict-status role="status"></p>
+<p class="muted">Extending keeps the full available workout time and moves the deadline past reserved hours. Illness days always remain protected.</p>
+<div class="snap-conflict-actions">
+<button type="button" class="button" data-conflict-extend>Extend until after conflict</button>
+<button type="button" class="button secondary" data-conflict-override>Override conflict</button>
+<button type="button" class="button secondary" data-conflict-cancel>Cancel</button>
+</div>
+</dialog>
 }
 <section class="card"><h2>@(Model.Coach?"Assigned workouts & results":"Your assigned workouts")</h2>
 @if(Model.Coach){<p class="muted">Tap a workout to review its results. The assignment editor above can be collapsed when you are finished.</p>}
