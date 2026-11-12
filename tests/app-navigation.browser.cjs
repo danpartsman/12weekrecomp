@@ -32,7 +32,7 @@ function navigation({admin=false,demo=false,hasCoach=false}={}) {
   const groups=page.locator('.app-nav-group');
   assert.deepEqual(await page.locator('.app-nav-primary').allTextContents(),['Command Center','Daily Entries','Recomp Tips','Coach Center','Profile']);
   assert.equal(await page.locator('.app-nav-group[open]').count(),0);
-  const expected=[['Dashboard','Progress','Smart Intelligence'],['Recomp Tracking','Nutrition','Workout','Weekly Plan'],['How It Works','Evidence'],['My Coach'],['Settings','Notifications','Administration','Sign Out']];
+  const expected=[['Dashboard','Progress','Smart Intelligence'],['Recomp Tracking','Nutrition','Workout','Weekly Plan','My Calendar'],['How It Works','Evidence'],['My Coach'],['Settings','Notifications','Administration','Sign Out']];
   const paths=['/CommandCenter','/DailyEntry','/tips','/coach','/Profile'];
   async function navigate(i){const button=groups.nth(i).locator('summary');const box=await button.boundingBox();await Promise.all([page.waitForNavigation(),i%2?button.click({position:{x:box.width-10,y:box.height/2}}):groups.nth(i).locator('.app-nav-primary').click()]);assert.equal(new URL(page.url()).pathname,paths[i]);assert.equal(await page.locator('h1').textContent(),paths[i]);assert.equal(new URL(page.url()).searchParams.has('nav'),false);await page.waitForFunction(()=>document.querySelectorAll('.app-nav-group[open]').length===1);}
   for(let i=0;i<paths.length;i++){

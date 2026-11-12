@@ -283,6 +283,54 @@ public sealed class CoachNotificationTests
         Assert.Empty(await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default));
     }
     [Fact]
+    public async Task SnapClockUsesCalendarAndIllnessAndReversesFalseLateFeesWithoutDuplicates()
+    {
+        using var f = new Fixture();
+        await SeedFinancial(f);
+        f.Config["SimpleCoaching:Enabled"] = "true";
+        var client = await f.Db.Clients.SingleAsync(); client.TimeZone = "UTC";
+        await f.Db.SaveChangesAsync();
+        var today = AppUserContextService.GetClientToday(client);
+        var clock = new SettlementClock { Now = new DateTimeOffset(today.ToDateTime(new TimeOnly(10, 0)), TimeSpan.Zero) };
+        var availability = new SnapAvailabilityService(f.Db, f.Files, clock);
+        availability.Add(f.Client, 0, new() { Kind = "work", StartDate = today, StartTime = new(10, 0), EndTime = new(12, 0) });
+        var access = new CoachAccountabilityPreviewService(f.Db, new CoachCenterService(f.Db), null!);
+        var ledger = new AccountabilityLedger(f.Db, access, f.Config);
+        var simple = new SimpleCoachingService(f.Db, access, ledger, clock: clock, availability: availability);
+        await simple.AssignAsync(f.Coach, f.Client, 0, Guid.NewGuid(), new()
+        {
+            Name = "Calendar workout", Date = today.ToString("yyyy-MM-dd"), TimeLimitMinutes = 120, LatePenalty = 25,
+            Exercises = [new() { Name = "Squat", Sets = 1, Reps = 10, MaxWeight = 0 }]
+        }, default);
+        var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        var state = AccountabilityDocument.Parse(row.StateJson);
+        var workout = Assert.Single(state.SnapWorkouts);
+        Assert.Equal(clock.Now.AddHours(4), workout.DeadlineUtc);
+        clock.Now = clock.Now.AddHours(2.5);
+        await simple.RefreshAsync(f.Owner, f.Client, false, default);
+        Assert.Empty(await ledger.ReadAsync(row, default));
+        clock.Now = clock.Now.AddHours(2);
+        await simple.PostDueAsync(default);
+        Assert.Equal(25m, (await ledger.ReadAsync(row, default)).Sum(e => e.Amount));
+
+        f.Db.DailyCheckins.Add(new() { CheckinId = Guid.NewGuid(), ClientId = f.Client,
+            ProgramId = Guid.NewGuid(), CheckinDate = today, IllnessFlag = true });
+        await f.Db.SaveChangesAsync();
+        await simple.RefreshAsync(f.Owner, f.Client, false, default);
+        await simple.RefreshAsync(f.Owner, f.Client, false, default);
+        var corrected = await ledger.ReadAsync(row, default);
+        Assert.Equal(2, corrected.Count);
+        Assert.Equal(0m, corrected.Sum(e => e.Amount));
+        await simple.ApplyAvailabilityAsync(f.Client, state, default);
+        Assert.Equal(new DateTimeOffset(today.AddDays(1).ToDateTime(new TimeOnly(2, 0)), TimeSpan.Zero), workout.DeadlineUtc);
+        Assert.Equal("Unavailable", workout.Timing!.Reason); // Illness overlaps the saved work block.
+        var stable = workout.DeadlineUtc;
+        await simple.ApplyAvailabilityAsync(f.Client, state, default);
+        Assert.Equal(stable, workout.DeadlineUtc);
+        Assert.Empty(await availability.WindowsAsync(new Client { ClientId = Guid.NewGuid(), ClientName = "Other", TimeZone = "UTC" }, today, today, default));
+    }
+
+    [Fact]
     public async Task ScheduledSettlementPostsOnlyClosedPeriodsToEachCoachAndReconcilesEdits()
     {
         using var f = new Fixture();

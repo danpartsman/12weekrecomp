@@ -54,7 +54,7 @@ jobs:
         run: dotnet test ${{ env.TEST_PROJECT }} --configuration Release --no-restore
 
       - name: Verify accountability calculations
-        run: node --test tests/accountability-preview.test.cjs
+        run: node --test tests/accountability-preview.test.cjs tests/snap-availability-countdown.test.cjs
 
       - name: Verify coaching navigation on desktop and mobile
         shell: pwsh

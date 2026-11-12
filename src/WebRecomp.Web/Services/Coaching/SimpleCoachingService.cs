@@ -7,7 +7,7 @@ public static class SimpleCoaching
 {
     public static bool Enabled(IConfiguration? configuration)=>configuration?.GetValue<bool>("SimpleCoaching:Enabled")==true;
 }
-public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,WebRecomp.Web.Services.Notifications.CoachNotificationProcessor? notifications=null,TimeProvider? clock=null)
+public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,WebRecomp.Web.Services.Notifications.CoachNotificationProcessor? notifications=null,TimeProvider? clock=null,SnapAvailabilityService? availability=null)
 {
     private readonly TimeProvider time=clock??TimeProvider.System;
     internal Task<Dictionary<string, Guid>> AssignmentOwnersAsync(Guid client, CancellationToken ct) =>
@@ -50,11 +50,14 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
             TimeZoneInfo zone;try{zone=TimeZoneInfo.FindSystemTimeZoneById(local.TimeZone);}catch(TimeZoneNotFoundException){zone=TimeZoneInfo.Utc;}catch(InvalidTimeZoneException){zone=TimeZoneInfo.Utc;}
             start=new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(AccountabilityDocument.Date(workout.Date).ToDateTime(TimeOnly.MinValue),zone),TimeSpan.Zero);
         }
+        workout.TimingStartUtc=start;
         workout.DeadlineUtc=start.AddMinutes(minutes);
         if(workout.DeadlineUtc.HasValue&&workout.DeadlineUtc<=workout.CreatedAtUtc)throw new ArgumentException("Choose a future deadline.");
         foreach(var e in workout.Exercises){e.Id="exercise-"+Guid.NewGuid().ToString("N");e.CatalogId="";e.Weight=0;}
         if(state.Agreement.Start=="")state.Agreement.Start=today.ToString("yyyy-MM-dd");
-        state.SnapWorkouts.Add(workout);AccountabilityDocument.Validate(state);
+        state.SnapWorkouts.Add(workout);
+        if(availability is not null)await availability.ApplyAsync(local,state,ct);
+        AccountabilityDocument.Validate(state);
         row.StateJson=AccountabilityDocument.Serialize(state);Event(row,actor,"CONFIG",row.StateJson);await SaveAsync(ct);
         if(notifications is not null)try{await notifications.QueueConfigAsync(client,row.Revision,ct);}catch(Exception){/* Notification worker recovers the CONFIG event. */}
     }
@@ -92,6 +95,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         await SnapWorkoutEngine.SyncAsync(db,local,workout,result,ct);
         state.SnapResults[workoutId]=result;
         row.StateJson=AccountabilityDocument.Serialize(state);Event(row,actor,"RESULT",JsonSerializer.Serialize(new{workoutId,result},AccountabilityDocument.Json));
+        if(availability is not null)await availability.ApplyAsync(local,state,ct);
         var current=Charges(state,AppUserContextService.GetClientToday(local),time.GetUtcNow());
         var changes=AccountabilityLedger.Delta(current,await ledger.ReadAsync(row,ct),row.TermsVersion,actor);
         await ledger.PrepareAutomaticAsync(row,changes,ct);
@@ -183,6 +187,12 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         var row=await db.CoachAccountabilityAgreements.SingleOrDefaultAsync(x=>x.ClientId==client,ct);if(row is null)return;
         try{await PostAsync(row,actor,ct);}catch(AccountabilityConflictException){db.ChangeTracker.Clear();}
     }
+    public async Task ApplyAvailabilityAsync(Guid clientId,AccountabilityState state,CancellationToken ct)
+    {
+        if(availability is null)return;
+        var client=await db.Clients.AsNoTracking().SingleAsync(x=>x.ClientId==clientId,ct);
+        await availability.ApplyAsync(client,state,ct);
+    }
     private static bool LedgerOnly(string json)
     {
         using var doc=JsonDocument.Parse(json);return doc.RootElement.TryGetProperty("ledgerEntries",out _)&&!doc.RootElement.TryGetProperty("workoutId",out _);
@@ -190,6 +200,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
     private async Task PostAsync(CoachAccountabilityAgreement row,Guid actor,CancellationToken ct)
     {
         var state=AccountabilityDocument.Parse(row.StateJson);var local=await db.Clients.AsNoTracking().SingleAsync(x=>x.ClientId==row.ClientId,ct);
+        if(availability is not null)await availability.ApplyAsync(local,state,ct);
         var changes=AccountabilityLedger.Delta(Charges(state,AppUserContextService.GetClientToday(local),time.GetUtcNow()),await ledger.ReadAsync(row,ct),row.TermsVersion,actor);
         if(changes.Count==0)return;
         await ledger.PrepareAutomaticAsync(row,changes,ct);
@@ -201,7 +212,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         foreach(var candidate in ids)
         {
             var state=AccountabilityDocument.Parse(candidate.StateJson);
-            if(!state.SnapWorkouts.Any(w=>w.Simple&&w.LatePenalty>0&&w.DeadlineUtc<=time.GetUtcNow()))continue;
+            if(!state.SnapWorkouts.Any(w=>w.Simple&&w.LatePenalty>0))continue;
             var actor=await (from link in db.CoachClientRelationships join client in db.Clients on link.ClientId equals client.ClientId
                 where link.ClientId==candidate.ClientId&&link.StatusCode=="ACTIVE"&&link.RevokedAtUtc==null&&client.ClientStatusCode=="ACTIVE" select link.CoachUserId).FirstOrDefaultAsync(ct);
             if(actor==Guid.Empty)continue;

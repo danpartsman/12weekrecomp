@@ -29,6 +29,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             await simple.RefreshAsync(user.UserId,clientId,assignedCoach,ct);
             var row=await simple.ReadAsync(user.UserId,clientId,assignedCoach,ct);var clock=await ledger.ClockAsync(clientId,ct);
             var state=row is null?new AccountabilityState():AccountabilityDocument.Parse(row.StateJson);
+            await simple.ApplyAvailabilityAsync(clientId,state,ct);
             var scope=await ResolveScopeAsync(user.UserId,clientId,assignedCoach,coachUserId,ct);
             var owners=await simple.AssignmentOwnersAsync(clientId,ct);
             if(scope.HasValue)SnapWorkoutAssignments.Filter(state,owners,scope.Value);
@@ -158,11 +159,30 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var assignedCoach=await IsAssignedCoachAsync(user.UserId,clientId,ct);
             await simple.RefreshAsync(user.UserId,clientId,assignedCoach,ct);var row=await simple.ReadAsync(user.UserId,clientId,assignedCoach,ct);
             var state=row is null?new AccountabilityState():AccountabilityDocument.Parse(row.StateJson);
+            await simple.ApplyAvailabilityAsync(clientId,state,ct);
             var scope=await ResolveScopeAsync(user.UserId,clientId,assignedCoach,coachUserId,ct);
             if(scope.HasValue)SnapWorkoutAssignments.Filter(state,await simple.AssignmentOwnersAsync(clientId,ct),scope.Value);
-            return Json(new{nowUtc=DateTimeOffset.UtcNow,workouts=state.SnapWorkouts.Where(w=>w.Simple).Select(w=>new{w.Id,w.DeadlineUtc,finished=state.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true,finishedAtUtc=state.SnapResults.GetValueOrDefault(w.Id)?.CompletedAtUtc})});
+            return Json(new{nowUtc=DateTimeOffset.UtcNow,workouts=state.SnapWorkouts.Where(w=>w.Simple).Select(w=>new{w.Id,w.DeadlineUtc,timing=w.Timing,finished=state.SnapResults.GetValueOrDefault(w.Id)?.Finalized==true,finishedAtUtc=state.SnapResults.GetValueOrDefault(w.Id)?.CompletedAtUtc})});
         }
         catch(UnauthorizedAccessException){return NotFound();}
+    }
+    [HttpGet("timing")]
+    public async Task<IActionResult> Timing(Guid clientId, DateOnly date, int minutes,
+        [FromServices] SnapAvailabilityService availability, [FromServices] RecompDbContext db, CancellationToken ct)
+    {
+        if(!SimpleCoaching.Enabled(configuration))return NotFound();
+        var actor=(await users.GetAsync(HttpContext,ct)).User.UserId;
+        if(!await IsAssignedCoachAsync(actor,clientId,ct))return NotFound();
+        if(!ModelState.IsValid||minutes is <1 or >10080)return BadRequest();
+        var client=await db.Clients.AsNoTracking().SingleAsync(c=>c.ClientId==clientId,ct);
+        var today=AppUserContextService.GetClientToday(client);
+        if(date<today||date>today.AddDays(84))return BadRequest();
+        var now=DateTimeOffset.UtcNow;
+        var start=date>today?SnapAvailabilityClock.Utc(date,TimeOnly.MinValue,SnapAvailabilityClock.Zone(client.TimeZone)):now;
+        var workout=new AccountabilityWorkout{Simple=true,CreatedAtUtc=now,TimingStartUtc=start,TimeLimitMinutes=minutes,DeadlineUtc=start.AddMinutes(minutes)};
+        var state=new AccountabilityState{SnapWorkouts=[workout]};
+        await availability.ApplyAsync(client,state,ct);
+        return Json(workout.Timing);
     }
     [HttpPost("estimate"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(65536)]
     public async Task<IActionResult> Estimate(Guid clientId,AssignmentInput input,CancellationToken ct)
@@ -235,6 +255,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             await simple.RefreshAsync(actor, clientId, isCoach, ct);
             row = await simple.ReadAsync(actor, clientId, isCoach, ct);
             var state = AccountabilityDocument.Parse(row!.StateJson);
+            await simple.ApplyAvailabilityAsync(clientId,state,ct);
             var workout = state.SnapWorkouts.SingleOrDefault(w => w.Simple && w.Id == workoutId);
             if (workout is null || state.SnapResults.GetValueOrDefault(workoutId) is not { Finalized: true } result)
                 return NotFound();

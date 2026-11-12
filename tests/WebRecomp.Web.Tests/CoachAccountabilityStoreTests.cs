@@ -250,6 +250,45 @@ public sealed class CoachAccountabilityStoreTests
         http.DefaultRequestHeaders.Remove("X-Test-Actor");
         Assert.Equal(System.Net.HttpStatusCode.Unauthorized,(await http.GetAsync($"/clients/{f.Client}/coach-ledger")).StatusCode);
     }
+    [Theory]
+    [InlineData("owner", true)]
+    [InlineData("coach", false)]
+    [InlineData("other", false)]
+    public async Task CalendarIsEditableOnlyByOwnerAndScopedToActiveClient(string subject, bool canEdit)
+    {
+        var f = await Fixture.Create();
+        using var server = CreateServer(f, true);
+        using var http = server.CreateClient();
+        http.DefaultRequestHeaders.Add("X-Test-Actor", subject);
+        var response = await http.GetAsync($"/availability?clientId={f.Client}");
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Saved schedule", html);
+        Assert.Equal(canEdit, html.Contains("Add protected time"));
+        Assert.Equal(System.Net.HttpStatusCode.NotFound,
+            (await http.GetAsync($"/availability?clientId={Guid.NewGuid()}")).StatusCode);
+        if (!canEdit)
+        {
+            // Obtain a valid anti-forgery token for this coach, then attempt an owner-only mutation.
+            var tokenResponse = await http.GetAsync($"/clients/{f.Client}/snap");
+            var tokenHtml = await tokenResponse.Content.ReadAsStringAsync();
+            var token = System.Text.RegularExpressions.Regex.Match(tokenHtml, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+            Assert.NotEmpty(token);
+            foreach (var setCookie in tokenResponse.Headers.GetValues("Set-Cookie"))
+                http.DefaultRequestHeaders.Add("Cookie", setCookie.Split(';')[0]);
+            response = await http.PostAsync("/availability/block", new FormUrlEncodedContent(new Dictionary<string,string>
+            {
+                ["__RequestVerificationToken"] = token, ["clientId"] = f.Client.ToString(),
+                ["Revision"] = "0", ["Kind"] = "work", ["StartDate"] = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                ["StartTime"] = "09:00", ["EndTime"] = "10:00"
+            }));
+            Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+        }
+        http.DefaultRequestHeaders.Remove("X-Test-Actor");
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized,
+            (await http.GetAsync($"/availability?clientId={f.Client}")).StatusCode);
+    }
+
     private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f,bool simpleMode=false)
     {
         return new Microsoft.AspNetCore.TestHost.TestServer(new Microsoft.AspNetCore.Hosting.WebHostBuilder()
@@ -268,7 +307,7 @@ public sealed class CoachAccountabilityStoreTests
                 services.AddScoped<RecompDbContext>(_=>f.Db());
                 services.AddScoped<AppUserContextService>();services.AddScoped<CoachCenterService>();
                 services.AddScoped<CoachAccountabilityPreviewService>(_=>new CoachAccountabilityPreviewService(_.GetRequiredService<RecompDbContext>(),_.GetRequiredService<CoachCenterService>(),null!));
-                services.AddScoped<CoachAccountabilityStore>();services.AddScoped<AccountabilityLedger>();services.AddScoped<SimpleCoachingService>();
+                services.AddScoped<CoachAccountabilityStore>();services.AddScoped<AccountabilityLedger>();services.AddScoped<SimpleCoachingService>();services.AddScoped<SnapAvailabilityService>();
                 services.AddRateLimiter(o=>o.AddConcurrencyLimiter("access-code",p=>p.PermitLimit=100));
                 services.AddAuthentication("ledger-test").AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,LedgerTestAuthentication>("ledger-test",_=>{});
                 services.AddAuthorization();services.AddControllersWithViews().AddApplicationPart(typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly).AddControllersAsServices();
