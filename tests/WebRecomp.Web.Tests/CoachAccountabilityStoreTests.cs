@@ -289,6 +289,79 @@ public sealed class CoachAccountabilityStoreTests
             (await http.GetAsync($"/availability?clientId={f.Client}")).StatusCode);
     }
 
+    [Fact]
+    public async Task CalendarEditsAndDeletesSavedBlocksAndDisplaysActiveWeeklyWorkoutNames()
+    {
+        var f = await Fixture.Create();
+        DateOnly today;
+        using (var db = f.Db())
+        {
+            today = AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+            var program = await db.Programs.SingleAsync();
+            var monday = PlanningWeek.Start(today);
+            db.PlannedWorkouts.AddRange(
+                new PlannedWorkout { PlannedWorkoutId=Guid.NewGuid(), ClientId=f.Client, ProgramId=program.ProgramId,
+                    PlannedDate=monday, WorkoutTypeCode="REST" },
+                new PlannedWorkout { PlannedWorkoutId=Guid.NewGuid(), ClientId=f.Client, ProgramId=program.ProgramId,
+                    PlannedDate=monday.AddDays(1), WorkoutTypeCode="MAJOR_PUSH", SourceCode="WORKOUT_TARGET", Notes="Upper chest and delts plan" },
+                new PlannedWorkout { PlannedWorkoutId=Guid.NewGuid(), ClientId=f.Client, ProgramId=Guid.NewGuid(),
+                    PlannedDate=monday, WorkoutTypeCode="OLD_PROGRAM_SHOULD_NOT_APPEAR" });
+            await db.SaveChangesAsync();
+        }
+        using var server = CreateServer(f, true);
+        using var http = server.CreateClient();
+        http.DefaultRequestHeaders.Add("X-Test-Actor", "owner");
+        var cookieJar = new Dictionary<string,string>();
+        async Task<string> Page(string url)
+        {
+            var response = await http.GetAsync(url);
+            Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+            var html = await response.Content.ReadAsStringAsync();
+            if (response.Headers.TryGetValues("Set-Cookie", out var cookies))
+            {
+                foreach (var cookie in cookies)
+                {
+                    var pair = cookie.Split(';')[0].Split('=',2);
+                    cookieJar[pair[0]] = pair[1];
+                }
+                http.DefaultRequestHeaders.Remove("Cookie");
+                http.DefaultRequestHeaders.Add("Cookie", string.Join("; ", cookieJar.Select(c => c.Key+"="+c.Value)));
+            }
+            return html;
+        }
+        static string Token(string html) => System.Text.RegularExpressions.Regex.Match(html,
+            "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        var url = $"/availability?clientId={f.Client}";
+        var html = await Page(url);
+        Assert.Contains("Rest / Recovery", html);
+        Assert.Contains("Upper chest and delts plan", html);
+        Assert.DoesNotContain("OLD_PROGRAM_SHOULD_NOT_APPEAR", html);
+        var values = new Dictionary<string,string> { ["__RequestVerificationToken"]=Token(html), ["clientId"]=f.Client.ToString(),
+            ["Revision"]="0", ["Kind"]="work", ["StartDate"]=today.ToString("yyyy-MM-dd"),
+            ["StartTime"]="09:00", ["EndTime"]="17:00", ["Repeat"]="true", ["Days"]=today.DayOfWeek.ToString() };
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, (await http.PostAsync("/availability/block", new FormUrlEncodedContent(values))).StatusCode);
+        html = await Page(url);
+        Assert.Contains(">Edit</a>", html); Assert.Contains(">Delete</button>", html);
+        var files = server.Services.GetRequiredService<WebRecomp.Web.Services.Notifications.NotificationFiles>();
+        var key = $"users/availability-{f.Client:N}";
+        var original = Assert.Single(files.Read<AvailabilityCalendar>(key)!.Blocks);
+        html = await Page(url + $"&editId={original.Id}");
+        Assert.Contains("Edit saved schedule", html);
+        Assert.Contains("value=\"09:00\"", html); Assert.Contains("value=\"17:00\"", html);
+        values["__RequestVerificationToken"]=Token(html); values["Id"]=original.Id.ToString(); values["Revision"]="1";
+        values["StartTime"]="10:00"; values["EndTime"]="18:00";
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, (await http.PostAsync("/availability/block", new FormUrlEncodedContent(values))).StatusCode);
+        var calendar = files.Read<AvailabilityCalendar>(key)!;
+        var edited = Assert.Single(calendar.Blocks.Where(b => b.CancelledUtc is null));
+        Assert.Equal(new TimeOnly(10,0), edited.StartTime); Assert.Equal(new TimeOnly(18,0), edited.EndTime);
+        html = await Page(url);
+        Assert.Equal(System.Net.HttpStatusCode.Redirect, (await http.PostAsync("/availability/remove", new FormUrlEncodedContent(
+            new Dictionary<string,string> { ["__RequestVerificationToken"]=Token(html), ["clientId"]=f.Client.ToString(),
+                ["revision"]="2", ["id"]=edited.Id.ToString() }))).StatusCode);
+        Assert.All(files.Read<AvailabilityCalendar>(key)!.Blocks, b => Assert.NotNull(b.CancelledUtc));
+        Assert.Contains("No saved blocks yet.", await Page(url));
+    }
+
     private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f,bool simpleMode=false)
     {
         return new Microsoft.AspNetCore.TestHost.TestServer(new Microsoft.AspNetCore.Hosting.WebHostBuilder()

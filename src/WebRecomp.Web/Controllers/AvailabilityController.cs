@@ -11,12 +11,16 @@ namespace WebRecomp.Web.Controllers;
 
 public sealed record AvailabilityPage(Guid ClientId, string ClientName, string TimeZone, bool CanEdit,
     DateOnly Week, AvailabilityCalendar Calendar, IReadOnlyList<AvailabilityWindow> Windows,
-    IReadOnlyList<PlannedWorkout> Plans);
+    IReadOnlyList<PlannedWorkout> Plans)
+{
+    public AvailabilityBlock? EditBlock { get; init; }
+    public IReadOnlyDictionary<DateOnly,string> PlanNames { get; init; } = new Dictionary<DateOnly,string>();
+}
 
 [Authorize, Route("availability"), ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class AvailabilityController(AppUserContextService users, RecompDbContext db,
     CoachAccountabilityPreviewService access, SnapAvailabilityService availability,
-    SimpleCoachingService simple) : Controller
+    SimpleCoachingService simple, WeeklyPlanService? weeklyPlans = null) : Controller
 {
     private async Task<(Client Client, Guid Actor, bool Owner)?> Resolve(Guid? clientId, CancellationToken ct)
     {
@@ -30,7 +34,7 @@ public sealed class AvailabilityController(AppUserContextService users, RecompDb
     }
 
     [HttpGet("")]
-    public async Task<IActionResult> Index(Guid? clientId, DateOnly? week, CancellationToken ct)
+    public async Task<IActionResult> Index(Guid? clientId, DateOnly? week, CancellationToken ct, Guid? editId = null)
     {
         var resolved = await Resolve(clientId, ct);
         if (resolved is not { } auth) return NotFound();
@@ -39,12 +43,21 @@ public sealed class AvailabilityController(AppUserContextService users, RecompDb
         if (date < today.AddDays(-84) || date > today.AddDays(366)) return BadRequest("Choose a week within the next year or the past 12 weeks.");
         var monday = date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
         var through = monday.AddDays(6);
-        var plans = await db.PlannedWorkouts.AsNoTracking().Where(p => p.ClientId == auth.Client.ClientId
-            && p.PlannedDate >= monday && p.PlannedDate <= through && p.WorkoutTypeCode != "REST")
+        var calendar = availability.Read(auth.Client.ClientId);
+        var edit = editId.HasValue ? calendar.Blocks.SingleOrDefault(b => b.Id == editId && b.CancelledUtc == null) : null;
+        if (editId.HasValue && (!auth.Owner || edit is null)) return NotFound();
+        var program = await db.Programs.AsNoTracking().Where(p => p.ClientId == auth.Client.ClientId && p.ProgramStatusCode == "ACTIVE")
+            .OrderByDescending(p => p.StartDate).FirstOrDefaultAsync(ct);
+        if (program is not null && weeklyPlans is not null && monday == PlanningWeek.Start(today))
+            await weeklyPlans.EnsureCurrentWeekAsync(auth.Client, program, today, ct);
+        var programId = program?.ProgramId;
+        var plans = await db.PlannedWorkouts.AsNoTracking().Where(p => p.ClientId == auth.Client.ClientId && p.ProgramId == programId
+            && p.PlannedDate >= monday && p.PlannedDate <= through)
             .OrderBy(p => p.PlannedDate).ToListAsync(ct);
         return View(new AvailabilityPage(auth.Client.ClientId, auth.Client.ClientName, auth.Client.TimeZone, auth.Owner,
-            monday, availability.Read(auth.Client.ClientId),
-            await availability.WindowsAsync(auth.Client, monday, through, ct), plans));
+            monday, calendar,
+            await availability.WindowsAsync(auth.Client, monday, through, ct), plans)
+            { EditBlock = edit, PlanNames = await PlannedWorkoutNames.LoadAsync(db, auth.Client.ClientId, plans, ct) });
     }
 
     [HttpPost("block"), ValidateAntiForgeryToken, RequestSizeLimit(16384)]
@@ -57,7 +70,10 @@ public sealed class AvailabilityController(AppUserContextService users, RecompDb
         try
         {
             var today = AppUserContextService.GetClientToday(auth.Client);
-            if (input.StartDate < today.AddDays(input.Kind == "illness" ? -14 : 0)
+            var original = input.Id.HasValue ? availability.Read(clientId).Blocks.SingleOrDefault(b => b.Id == input.Id && b.CancelledUtc == null) : null;
+            if (input.Id.HasValue && original is null) throw new ArgumentException("This schedule changed. Reload before editing.");
+            var keepingStart = original is not null && input.StartDate == original.StartDate;
+            if ((!keepingStart && input.StartDate < today.AddDays(input.Kind == "illness" ? -14 : 0))
                 || input.StartDate > today.AddDays(366) || input.EndDate > today.AddDays(366))
                 throw new ArgumentException("Use a date within the next year. Illness can also be recorded for the past 14 days.");
             if (input.Kind == "illness" && input.Repeat) throw new ArgumentException("Use a date range for illness.");
@@ -74,15 +90,15 @@ public sealed class AvailabilityController(AppUserContextService users, RecompDb
                 Kind = input.Kind, StartDate = input.StartDate, EndDate = input.Kind == "illness" || input.Repeat ? input.EndDate : null,
                 StartTime = input.StartTime, EndTime = input.EndTime, AllDay = input.Kind == "illness",
                 Days = input.Repeat ? input.Days : [], PlannedWorkoutId = input.PlannedWorkoutId
-            });
+            }, input.Id);
             // Reconcile any late fees already posted before an illness/check-in correction.
             if (await access.CanViewAsync(auth.Actor, clientId, false, ct))
                 await simple.RefreshAsync(auth.Actor, clientId, false, ct);
-            TempData["AvailabilityStatus"] = "Protected time saved. Snap completion windows now follow your calendar.";
+            TempData["AvailabilityStatus"] = input.Id.HasValue ? "Schedule updated." : "Protected time saved. Snap completion windows now follow your calendar.";
         }
         catch (Exception e) when (e is ArgumentException or AccountabilityConflictException)
         { TempData["AvailabilityStatus"] = e.Message; }
-        return RedirectToAction(nameof(Index), new { clientId, week = input.StartDate.ToString("yyyy-MM-dd") });
+        return RedirectToAction(nameof(Index), new { clientId, week = input.Id.HasValue ? null : input.StartDate.ToString("yyyy-MM-dd") });
     }
 
     [HttpPost("remove"), ValidateAntiForgeryToken]
@@ -96,7 +112,7 @@ public sealed class AvailabilityController(AppUserContextService users, RecompDb
             availability.Remove(clientId, revision, id);
             if (await access.CanViewAsync(auth.Actor, clientId, false, ct))
                 await simple.RefreshAsync(auth.Actor, clientId, false, ct);
-            TempData["AvailabilityStatus"] = "Future blocked time removed. Elapsed protected time is retained.";
+            TempData["AvailabilityStatus"] = "Schedule deleted. Earlier protected time is retained.";
         }
         catch (Exception e) when (e is ArgumentException or AccountabilityConflictException)
         { TempData["AvailabilityStatus"] = e.Message; }
@@ -105,6 +121,7 @@ public sealed class AvailabilityController(AppUserContextService users, RecompDb
 
     public sealed class BlockInput
     {
+        public Guid? Id { get; set; }
         public int Revision { get; set; }
         [Required] public string Kind { get; set; } = "work";
         public DateOnly StartDate { get; set; }

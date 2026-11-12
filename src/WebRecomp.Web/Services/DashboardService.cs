@@ -17,7 +17,8 @@ public sealed class DashboardService(
     Engine30TrainingLoadRecoveryService trainingLoadRecovery,
     WorkoutActualService workoutActuals,
     IRecompRecommendationEngine recommendationEngine,
-    LearningOrchestratorService learning)
+    LearningOrchestratorService learning,
+    WeeklyPlanService? weeklyPlans = null)
 {
     public async Task<DashboardViewModel> BuildAsync(
         AppClientContext context,
@@ -29,6 +30,10 @@ public sealed class DashboardService(
 
         var client = context.Client;
         var program = context.Program;
+
+        // Match Weekly Plan's current-week rollover before projecting today.
+        if (weeklyPlans is not null && actionDate == AppUserContextService.GetClientToday(client))
+            await weeklyPlans.EnsureCurrentWeekAsync(client, program, actionDate, cancellationToken);
 
         // v1014A: current Dashboard recommendations are Engine 3.0 only.
         // The application consumes an engine-neutral recommendation contract;

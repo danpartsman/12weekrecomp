@@ -1006,6 +1006,8 @@ public sealed class Engine30DashboardProjectionService(
         if (plannedWorkoutOverrides is not null)
             planned = plannedWorkoutOverrides.Where(x => x.ClientId == client.ClientId && x.ProgramId == program.ProgramId && x.PlannedDate >= weekStart && x.PlannedDate <= weekEnd).ToList();
 
+        var plannedNames = await PlannedWorkoutNames.LoadAsync(db, client.ClientId, planned, cancellationToken);
+
         var plannedByDate =
             planned.ToDictionary(
                 x => x.PlannedDate,
@@ -1263,7 +1265,7 @@ public sealed class Engine30DashboardProjectionService(
                     WorkoutTypeCode:
                         item.WorkoutCode,
                     WorkoutDisplayName:
-                        (plannedByDate.TryGetValue(item.Runtime.ActionDate, out var dayPlan) && dayPlan.SourceCode == "WORKOUT_TARGET" ? dayPlan.Notes : null)
+                        plannedNames.GetValueOrDefault(item.Runtime.ActionDate)
                         ?? workout?.ProfileProvenance.WorkoutDisplayName
                         ?? "No workout planned",
                     WorkoutCategoryCode:

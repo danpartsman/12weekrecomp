@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "My Calendar";
     var zone = SnapAvailabilityClock.Zone(Model.TimeZone);
+    var edit = Model.EditBlock;
     var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
 }
 <link rel="stylesheet" href="~/css/availability.css" asp-append-version="true" />
@@ -31,8 +32,8 @@
     }
     @foreach(var plan in Model.Plans.Where(p=>p.PlannedDate==date)){
         var timed=Model.Calendar.Blocks.Any(b=>b.PlannedWorkoutId==plan.PlannedWorkoutId&&b.CancelledUtc==null);
-        <p><strong>@plan.WorkoutTypeCode.Replace('_',' ')</strong><br />@(timed?"Workout time protected":"Plan has no start time yet")</p>
-        @if(Model.CanEdit&&!timed&&date>=today){
+        <p><strong>@Model.PlanNames.GetValueOrDefault(plan.PlannedDate, plan.WorkoutTypeCode.Replace('_',' '))</strong><br />@(plan.WorkoutTypeCode=="REST"?"Planned recovery day":timed?"Workout time protected":"Plan has no start time yet")</p>
+        @if(Model.CanEdit&&!timed&&date>=today&&plan.WorkoutTypeCode!="REST"){
         <details><summary>Set workout time</summary>
         <form asp-action="Add" method="post" class="availability-form">
         <input type="hidden" name="clientId" value="@Model.ClientId" /><input type="hidden" name="Revision" value="@Model.Calendar.Revision" />
@@ -47,35 +48,37 @@
 }
 </div>
 @if(Model.CanEdit){
-<section class="card"><h2>Add protected time</h2>
+<section class="card" id="calendar-editor"><h2>@(edit is null?"Add protected time":"Edit saved schedule")</h2>
 <form asp-action="Add" method="post" class="availability-form" data-availability-form>
+<input type="hidden" name="Id" value="@edit?.Id" /><input type="hidden" name="PlannedWorkoutId" value="@edit?.PlannedWorkoutId" />
 <input type="hidden" name="clientId" value="@Model.ClientId" /><input type="hidden" name="Revision" value="@Model.Calendar.Revision" />
 <div class="availability-fields">
-<label>Type<select name="Kind" data-block-kind><option value="sleep">Sleep</option><option value="work">Work</option><option value="workout">Planned workout</option><option value="illness">Illness / recovery day</option></select></label>
-<label>First date<input type="date" name="StartDate" value="@today.ToString("yyyy-MM-dd")" required /></label>
-<label>Last date (optional)<input type="date" name="EndDate" /></label>
-<label data-block-time>Start<input type="time" name="StartTime" value="22:30" required /></label>
-<label data-block-time>End<input type="time" name="EndTime" value="06:00" required /></label>
+<label>Type<select name="Kind" data-block-kind><option value="sleep" selected="@(edit is null||edit.Kind=="sleep")">Sleep</option><option value="work" selected="@(edit?.Kind=="work")">Work</option><option value="workout" selected="@(edit?.Kind=="workout")">Planned workout</option><option value="illness" selected="@(edit?.Kind=="illness")">Illness / recovery day</option></select></label>
+<label>First date<input type="date" name="StartDate" value="@((edit?.StartDate??today).ToString("yyyy-MM-dd"))" required /></label>
+<label>Last date (optional)<input type="date" name="EndDate" value="@edit?.EndDate?.ToString("yyyy-MM-dd")" /></label>
+<label data-block-time>Start<input type="time" name="StartTime" value="@(edit?.StartTime.ToString("HH:mm")??"22:30")" required /></label>
+<label data-block-time>End<input type="time" name="EndTime" value="@(edit?.EndTime.ToString("HH:mm")??"06:00")" required /></label>
 </div>
-<div data-block-repeat><label><input type="checkbox" name="Repeat" value="true" data-repeat /> Repeat weekly</label>
+<div data-block-repeat><label><input type="checkbox" name="Repeat" value="true" checked="@(edit?.Days.Count>0)" data-repeat /> Repeat weekly</label>
 <fieldset data-repeat-days hidden><legend>Days the block starts</legend><div class="availability-days">
 @foreach(var day in new[]{DayOfWeek.Monday,DayOfWeek.Tuesday,DayOfWeek.Wednesday,DayOfWeek.Thursday,DayOfWeek.Friday,DayOfWeek.Saturday,DayOfWeek.Sunday}){
-<label><input type="checkbox" name="Days" value="@day" /> @day.ToString()[..3]</label>
+<label><input type="checkbox" name="Days" value="@day" checked="@(edit?.Days.Contains(day)==true)" /> @day.ToString()[..3]</label>
 }
 </div></fieldset></div>
 <p class="muted" data-block-help>Choose the days the block starts. For example, Monday 10:30 PM–6:00 AM protects Monday night through Tuesday morning.</p>
-<button type="submit">Add protected time</button>
+<button type="submit">@(edit is null?"Add protected time":"Save changes")</button>
+@if(edit is not null){<a class="button secondary" asp-action="Index" asp-route-clientId="@Model.ClientId">Cancel edit</a>}
 </form></section>
 }
 <section class="card"><h2>Saved schedule</h2>
-<p>New blocks protect time from when they are saved. Illness protects each full date in the selected range, including recently recorded illness. “Illness today” in Scale &amp; Feel also protects that day automatically.</p>
+<p>Edits and deletions apply from now; earlier protected time is retained. New blocks protect time from when they are saved. Illness protects each full date in the selected range, including recently recorded illness. “Illness today” in Scale &amp; Feel also protects that day automatically.</p>
 @if(!Model.Calendar.Blocks.Any(b=>b.CancelledUtc==null)){<p>No saved blocks yet.</p>}
 @foreach(var block in Model.Calendar.Blocks.Where(b=>b.CancelledUtc==null).OrderBy(b=>b.StartDate)){
 <div class="availability-saved"><p><strong>@SnapAvailabilityClock.Label(block.Kind)</strong> · @block.StartDate.ToString("MMM d, yyyy")
 @if(block.EndDate.HasValue){<span> through @block.EndDate.Value.ToString("MMM d, yyyy")</span>}
 <br />@(block.AllDay?"All day":$"{block.StartTime:h:mm tt} – {block.EndTime:h:mm tt}")
 @if(block.Days.Count>0){<span> · @string.Join(", ",block.Days.Select(d=>d.ToString()[..3]))</span>}</p>
-@if(Model.CanEdit){<form asp-action="Remove" method="post"><input type="hidden" name="clientId" value="@Model.ClientId" /><input type="hidden" name="revision" value="@Model.Calendar.Revision" /><input type="hidden" name="id" value="@block.Id" /><button type="submit" class="secondary">Remove future time</button></form>}
+@if(Model.CanEdit){<div class="availability-actions"><a class="button secondary" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-editId="@block.Id" asp-fragment="calendar-editor">Edit</a><form asp-action="Remove" method="post"><input type="hidden" name="clientId" value="@Model.ClientId" /><input type="hidden" name="revision" value="@Model.Calendar.Revision" /><input type="hidden" name="id" value="@block.Id" /><button type="submit" class="secondary">Delete</button></form></div>}
 </div>
 }
 </section>

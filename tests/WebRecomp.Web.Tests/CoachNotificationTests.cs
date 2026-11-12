@@ -283,6 +283,29 @@ public sealed class CoachNotificationTests
         Assert.Empty(await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default));
     }
     [Fact]
+    public void EditingCalendarRetainsElapsedTimeAndRejectsStaleChanges()
+    {
+        using var f = new Fixture();
+        var date = new DateOnly(2026,11,12);
+        var clock = new SettlementClock { Now = new DateTimeOffset(2026,11,12,9,0,0,TimeSpan.Zero) };
+        var service = new SnapAvailabilityService(f.Db,f.Files,clock);
+        service.Add(f.Client,0,new() { Kind="work", StartDate=date, StartTime=new(9,0), EndTime=new(17,0) });
+        var original = Assert.Single(service.Read(f.Client).Blocks);
+        clock.Now = clock.Now.AddHours(2);
+        service.Add(f.Client,1,new() { Kind="work", StartDate=date, StartTime=new(13,0), EndTime=new(18,0) },original.Id);
+        var calendar = service.Read(f.Client);
+        Assert.Equal(2,calendar.Revision);
+        Assert.Single(calendar.Blocks.Where(b=>b.CancelledUtc==null));
+        var windows = SnapAvailabilityClock.Expand(calendar.Blocks,TimeZoneInfo.Utc,date,date);
+        Assert.Equal(2,windows.Count);
+        Assert.Contains(windows,w=>w.Start.Hour==9&&w.End.Hour==11);
+        Assert.Contains(windows,w=>w.Start.Hour==13&&w.End.Hour==18);
+        var replacement = calendar.Blocks.Single(b=>b.CancelledUtc==null);
+        Assert.Throws<AccountabilityConflictException>(()=>service.Remove(f.Client,1,replacement.Id));
+        Assert.Single(service.Read(f.Client).Blocks.Where(b=>b.CancelledUtc==null));
+    }
+
+    [Fact]
     public async Task SnapClockUsesCalendarAndIllnessAndReversesFalseLateFeesWithoutDuplicates()
     {
         using var f = new Fixture();

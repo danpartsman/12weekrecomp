@@ -133,7 +133,7 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
     private static string Key(Guid client) => $"users/availability-{client:N}";
     public AvailabilityCalendar Read(Guid client) => files.Read<AvailabilityCalendar>(Key(client)) ?? new();
 
-    public void Add(Guid client, int revision, AvailabilityBlock block)
+    public void Add(Guid client, int revision, AvailabilityBlock block, Guid? replaceId = null)
     {
         if (block.Kind is not ("sleep" or "work" or "workout" or "illness")
             || block.StartDate.Year is < 2020 or > 2100 || block.EndDate < block.StartDate
@@ -145,6 +145,12 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
         var calendar = Read(client);
         if (calendar.Revision != revision) throw new AccountabilityConflictException();
         if (calendar.Blocks.Count >= 1000) throw new ArgumentException("The calendar has reached its block limit.");
+        if (replaceId.HasValue)
+        {
+            var previous = calendar.Blocks.SingleOrDefault(b => b.Id == replaceId && b.CancelledUtc == null)
+                ?? throw new ArgumentException("This schedule changed. Reload before editing.");
+            previous.CancelledUtc = time.GetUtcNow();
+        }
         block.CreatedUtc = time.GetUtcNow();
         calendar.Blocks.Add(block); calendar.Revision++;
         files.Write(Key(client), calendar);
