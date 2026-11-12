@@ -168,7 +168,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
     }
     [HttpGet("timing")]
     public async Task<IActionResult> Timing(Guid clientId, DateOnly date, int minutes,
-        [FromServices] SnapAvailabilityService availability, [FromServices] RecompDbContext db, CancellationToken ct)
+        [FromServices] SnapAvailabilityService availability, [FromServices] RecompDbContext db, CancellationToken ct, bool overrideSchedule = false)
     {
         if(!SimpleCoaching.Enabled(configuration))return NotFound();
         var actor=(await users.GetAsync(HttpContext,ct)).User.UserId;
@@ -179,10 +179,30 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         if(date<today||date>today.AddDays(84))return BadRequest();
         var now=DateTimeOffset.UtcNow;
         var start=date>today?SnapAvailabilityClock.Utc(date,TimeOnly.MinValue,SnapAvailabilityClock.Zone(client.TimeZone)):now;
-        var workout=new AccountabilityWorkout{Simple=true,CreatedAtUtc=now,TimingStartUtc=start,TimeLimitMinutes=minutes,DeadlineUtc=start.AddMinutes(minutes)};
+        var workout=new AccountabilityWorkout{Simple=true,OverrideSchedule=overrideSchedule,CreatedAtUtc=now,TimingStartUtc=start,TimeLimitMinutes=minutes,DeadlineUtc=start.AddMinutes(minutes)};
         var state=new AccountabilityState{SnapWorkouts=[workout]};
         await availability.ApplyAsync(client,state,ct);
-        return Json(workout.Timing);
+        var through=date.AddDays(6);
+        var zone=SnapAvailabilityClock.Zone(client.TimeZone);
+        var windows=await availability.WindowsAsync(client,date,through,ct);
+        var programId=await db.Programs.AsNoTracking().Where(p=>p.ClientId==clientId&&p.ProgramStatusCode=="ACTIVE")
+            .OrderByDescending(p=>p.StartDate).Select(p=>(Guid?)p.ProgramId).FirstOrDefaultAsync(ct);
+        var plans=await db.PlannedWorkouts.AsNoTracking().Where(p=>p.ClientId==clientId&&p.ProgramId==programId
+            &&p.PlannedDate>=date&&p.PlannedDate<=through).ToListAsync(ct);
+        var names=await PlannedWorkoutNames.LoadAsync(db,clientId,plans,ct);
+        var days=Enumerable.Range(0,7).Select(i=>
+        {
+            var day=date.AddDays(i);
+            var left=SnapAvailabilityClock.Utc(day,TimeOnly.MinValue,zone);
+            var right=SnapAvailabilityClock.Utc(day.AddDays(1),TimeOnly.MinValue,zone,true);
+            return new { date=day, label=day.ToString("ddd, MMM d"), workout=names.GetValueOrDefault(day)??"No weekly workout planned",
+                reservedMinutes=SnapAvailabilityClock.Merge(windows).Sum(w=>Math.Max(0,((w.End<right?w.End:right)-(w.Start>left?w.Start:left)).TotalMinutes)),
+                reserved=windows.Where(w=>w.Start<right&&w.End>left).OrderBy(w=>w.Start).Select(w=>new {
+                    label=w.Reason, start=w.Start<left?left:w.Start, end=w.End>right?right:w.End,
+                    allDay=w.Start<=left&&w.End>=right }) };
+        });
+        return Json(new { workout.Timing!.DeadlineUtc,workout.Timing.AvailableFromUtc,workout.Timing.PausedUntilUtc,
+            workout.Timing.RemainingSeconds,workout.Timing.Reason,timeZone=client.TimeZone,overrideSchedule,days });
     }
     [HttpPost("estimate"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(65536)]
     public async Task<IActionResult> Estimate(Guid clientId,AssignmentInput input,CancellationToken ct)
@@ -214,7 +234,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var now=TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(zone));
             var uniqueName=UniqueName(input.Name,prior,now);
             await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,new(){Name=uniqueName,CoachNote=string.IsNullOrWhiteSpace(input.CoachNote)?null:input.CoachNote.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
-                TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
+                OverrideSchedule=input.OverrideSchedule,TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
             TempData["SimpleStatus"]="Workout assigned. Your client can open it in their portal.";return RedirectToAction(nameof(Index),new{clientId});
         }
         catch(UnauthorizedAccessException){return NotFound();}
@@ -311,6 +331,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         public Guid RequestId{get;set;}=Guid.NewGuid();
         [StringLength(1000)]public string? CoachNote{get;set;}
         [Required,StringLength(100)]public string Name{get;set;}="Snap Workout";
+        public bool OverrideSchedule{get;set;}
         public DateOnly Date{get;set;}
         [Range(typeof(decimal),"0.0166666667","168")]public decimal TimeAllowed{get;set;}=2;
         [Range(typeof(decimal),"0","10000")]public decimal IncompleteExerciseFee{get;set;}

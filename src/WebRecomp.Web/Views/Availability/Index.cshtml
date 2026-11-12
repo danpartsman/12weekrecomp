@@ -6,6 +6,8 @@
     var edit = Model.EditBlock;
     var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
 }
+<link rel="stylesheet" href="~/css/coaching-actions.css" asp-append-version="true" />
+<div class="coaching-actions">
 <link rel="stylesheet" href="~/css/availability.css" asp-append-version="true" />
 <section class="page-header"><h1>@(Model.CanEdit ? "My Calendar" : Model.ClientName + " · Calendar")</h1>
 <p>Protect sleep, work and workout time. Snap completion clocks count available time only. Illness days pause the clock for the whole day.</p>
@@ -41,7 +43,7 @@
         <input type="hidden" name="PlannedWorkoutId" value="@plan.PlannedWorkoutId" />
         <label>Start<input type="time" name="StartTime" value="09:00" required /></label>
         <label>End<input type="time" name="EndTime" value="10:00" required /></label>
-        <button type="submit">Protect workout time</button></form></details>
+        <button class="button" type="submit">Protect workout time</button></form></details>
         }
     }
     </section>
@@ -66,7 +68,7 @@
 }
 </div></fieldset></div>
 <p class="muted" data-block-help>Choose the days the block starts. For example, Monday 10:30 PM–6:00 AM protects Monday night through Tuesday morning.</p>
-<button type="submit">@(edit is null?"Add protected time":"Save changes")</button>
+<button class="button" type="submit">@(edit is null?"Add protected time":"Save changes")</button>
 @if(edit is not null){<a class="button secondary" asp-action="Index" asp-route-clientId="@Model.ClientId">Cancel edit</a>}
 </form></section>
 }
@@ -78,8 +80,9 @@
 @if(block.EndDate.HasValue){<span> through @block.EndDate.Value.ToString("MMM d, yyyy")</span>}
 <br />@(block.AllDay?"All day":$"{block.StartTime:h:mm tt} – {block.EndTime:h:mm tt}")
 @if(block.Days.Count>0){<span> · @string.Join(", ",block.Days.Select(d=>d.ToString()[..3]))</span>}</p>
-@if(Model.CanEdit){<div class="availability-actions"><a class="button secondary" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-editId="@block.Id" asp-fragment="calendar-editor">Edit</a><form asp-action="Remove" method="post"><input type="hidden" name="clientId" value="@Model.ClientId" /><input type="hidden" name="revision" value="@Model.Calendar.Revision" /><input type="hidden" name="id" value="@block.Id" /><button type="submit" class="secondary">Delete</button></form></div>}
+@if(Model.CanEdit){<div class="availability-actions"><a class="button secondary" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-editId="@block.Id" asp-fragment="calendar-editor">Edit</a><form asp-action="Remove" method="post"><input type="hidden" name="clientId" value="@Model.ClientId" /><input type="hidden" name="revision" value="@Model.Calendar.Revision" /><input type="hidden" name="id" value="@block.Id" /><button type="submit" class="button secondary">Delete</button></form></div>}
 </div>
 }
 </section>
+</div>
 <script src="~/js/availability.js" asp-append-version="true" defer></script>

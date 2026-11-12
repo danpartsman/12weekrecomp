@@ -362,6 +362,59 @@ public sealed class CoachAccountabilityStoreTests
         Assert.Contains("No saved blocks yet.", await Page(url));
     }
 
+    [Fact]
+    public async Task CoachTimingPreviewIncludesWorkoutReservedHoursAndOverrideAndExcludesUnrelatedClients()
+    {
+        var f=await Fixture.Create();
+        DateOnly date;
+        using(var db=f.Db())
+        {
+            date=AppUserContextService.GetClientToday(await db.Clients.SingleAsync()).AddDays(1);
+            var program=await db.Programs.SingleAsync();
+            db.PlannedWorkouts.Add(new(){PlannedWorkoutId=Guid.NewGuid(),ClientId=f.Client,ProgramId=program.ProgramId,
+                PlannedDate=date,WorkoutTypeCode="MAJOR_PUSH",SourceCode="WORKOUT_TARGET",Notes="Upper chest plan"});
+            await db.SaveChangesAsync();
+        }
+        using var server=CreateServer(f,true); using var http=server.CreateClient();
+        var files=server.Services.GetRequiredService<WebRecomp.Web.Services.Notifications.NotificationFiles>();
+        var key=$"users/availability-{f.Client:N}";
+        files.Write(key,new AvailabilityCalendar { Blocks=[new(){Kind="sleep",StartDate=date,StartTime=new(0,0),EndTime=new(6,0)}] });
+        http.DefaultRequestHeaders.Add("X-Test-Actor","coach");
+        var url=$"/clients/{f.Client}/snap/timing?date={date:yyyy-MM-dd}&minutes=120";
+        var response=await http.GetAsync(url);Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);
+        using var regular=JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var day=regular.RootElement.GetProperty("days")[0];
+        Assert.Equal("Upper chest plan",day.GetProperty("workout").GetString());
+        Assert.Equal(360,day.GetProperty("reservedMinutes").GetDouble());
+        Assert.Equal("Sleep",day.GetProperty("reserved")[0].GetProperty("label").GetString());
+        var normalDeadline=regular.RootElement.GetProperty("deadlineUtc").GetDateTimeOffset();
+        using var overridden=JsonDocument.Parse(await http.GetStringAsync(url+"&overrideSchedule=true"));
+        Assert.True(overridden.RootElement.GetProperty("overrideSchedule").GetBoolean());
+        Assert.Equal(6,(normalDeadline-overridden.RootElement.GetProperty("deadlineUtc").GetDateTimeOffset()).TotalHours);
+        Assert.Equal(360,overridden.RootElement.GetProperty("days")[0].GetProperty("reservedMinutes").GetDouble());
+        var html=await http.GetStringAsync($"/clients/{f.Client}/snap");
+        Assert.Contains("Override schedule",html);Assert.Contains("data-schedule-days",html);Assert.Contains("coaching-actions.css",html);
+        var assignmentPage=await http.GetAsync($"/clients/{f.Client}/snap");
+        var assignmentHtml=await assignmentPage.Content.ReadAsStringAsync();
+        var token=System.Text.RegularExpressions.Regex.Match(assignmentHtml,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        foreach(var cookie in assignmentPage.Headers.GetValues("Set-Cookie"))http.DefaultRequestHeaders.Add("Cookie",cookie.Split(';')[0]);
+        var posted=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(new Dictionary<string,string> {
+            ["__RequestVerificationToken"]=token,["RequestId"]=Guid.NewGuid().ToString(),["Revision"]="0",
+            ["Name"]="Override assignment",["Date"]=date.ToString("yyyy-MM-dd"),["TimeAllowed"]="2",["OverrideSchedule"]="true",
+            ["Exercises[0].Name"]="Squat",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="0" }));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect,posted.StatusCode);
+        using(var db=f.Db())
+        {
+            var row=await db.CoachAccountabilityAgreements.SingleAsync();
+            var saved=Assert.Single(AccountabilityDocument.Parse(row.StateJson).SnapWorkouts);
+            Assert.True(saved.OverrideSchedule);
+            Assert.Equal(overridden.RootElement.GetProperty("deadlineUtc").GetDateTimeOffset(),saved.DeadlineUtc);
+        }
+        Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync(url.Replace(f.Client.ToString(),Guid.NewGuid().ToString()))).StatusCode);
+        http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","owner");
+        Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync(url)).StatusCode);
+    }
+
     private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f,bool simpleMode=false)
     {
         return new Microsoft.AspNetCore.TestHost.TestServer(new Microsoft.AspNetCore.Hosting.WebHostBuilder()

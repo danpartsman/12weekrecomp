@@ -1,6 +1,8 @@
 @model WebRecomp.Web.Controllers.SimpleSnapPage
 @using WebRecomp.Web.Services.Coaching
 @{ViewData["Title"]="Snap Workouts";if(Model.Coach){Layout="_CoachLayout";}var workouts=Model.State.SnapWorkouts.Where(w=>w.Simple).Reverse().ToList();}
+<link rel="stylesheet" href="~/css/coaching-actions.css" asp-append-version="true" />
+<div class="coaching-actions">
 <link rel="stylesheet" href="~/css/snap-completion.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/coach-center.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/simple-coaching.css" asp-append-version="true" />
@@ -16,6 +18,15 @@
 <input type="hidden" name="Revision" value="@Model.Revision" /><input type="hidden" name="RequestId" value="@Model.Draft.RequestId" />
 <div class="simple-fields snap-assignment-row">
 <div class="snap-workout-picker"><label for="snap-workout-name">Workout</label><div class="snap-workout-input"><input id="snap-workout-name" name="Name" value="@Model.Draft.Name" maxlength="100" required /><button type="button" data-workout-toggle aria-label="Show previous Snap Workouts" aria-expanded="false" aria-controls="snap-workout-history">▾</button></div><div id="snap-workout-history" class="snap-workout-history" hidden>@foreach(var template in Model.RecentTemplates){<a href="@Url.Action("Template",new{clientId=Model.ClientId,workoutId=template.Id})#snap-assignment-form">@template.Name</a>}@if(Model.RecentTemplates.Count==0){<span>No previous Snap Workouts yet.</span>}</div></div><label>Date<input name="Date" type="date" min="@Model.Today.ToString("yyyy-MM-dd")" value="@Model.Draft.Date.ToString("yyyy-MM-dd")" required /></label><label>Time Allowed (hours)<input name="TimeAllowed" type="number" min="0.0166666667" max="168" step="any" value="@Model.Draft.TimeAllowed" required /></label><label>Required Completion Time<output data-required-completion data-time-zone="@Model.ClientTimeZone" data-client-today="@Model.Today.ToString("yyyy-MM-dd")" data-server-now="@DateTimeOffset.UtcNow.ToString("O")">Calculated when assigned</output></label></div>
+<div class="snap-schedule-controls">
+<input type="hidden" name="OverrideSchedule" value="@Model.Draft.OverrideSchedule.ToString().ToLowerInvariant()" />
+<button type="button" class="button secondary" data-schedule-override aria-pressed="@Model.Draft.OverrideSchedule.ToString().ToLowerInvariant()">@(Model.Draft.OverrideSchedule?"Use saved schedule":"Override schedule")</button>
+<p data-schedule-override-status>@(Model.Draft.OverrideSchedule?"This Snap ignores reserved sleep, work and workout hours. Illness days remain protected.":"The completion clock respects the client’s reserved hours.")</p>
+</div>
+<section class="snap-schedule-preview" aria-label="Client workout and reserved time">
+<h3>Client schedule</h3><p class="muted">Weekly workouts and reserved hours · @Model.ClientTimeZone</p>
+<div data-schedule-days aria-live="polite">Loading the client’s schedule…</div>
+</section>
 <div class="simple-fields snap-assignment-row"><label>Late Fee ($)<input name="LatePenalty" type="number" min="0" max="10000" step=".01" value="@Model.Draft.LatePenalty" required /></label><label>Incomplete Exercise Fee ($)<input name="IncompleteExerciseFee" type="number" min="0" max="10000" step=".01" value="@Model.Draft.IncompleteExerciseFee" required /></label><label>Coach Incentive Per Rep ($)<input name="CoachIncentivePerRep" type="number" min="0" max="100" step=".01" value="@Model.Draft.CoachIncentivePerRep" required /></label><label>Maximum total charges ($)<input name="Cap" type="number" min="0" max="10000" step=".01" value="@Model.Draft.Cap" required /></label></div>
 <label class="snap-assignment-note">Note to client (optional)<textarea name="CoachNote" rows="3" maxlength="1000" placeholder="Instructions or encouragement for this workout">@Model.Draft.CoachNote</textarea></label>
 <p class="muted">All fees, penalties and extra-rep incentives are paid by the client to the coach. The cap limits their combined total for this workout, including the late fee. Shared exercise fees apply to each incomplete exercise; the incentive applies to each qualifying extra rep.</p>
@@ -23,11 +34,11 @@
 @for(var i=0;i<Model.Draft.Exercises.Count;i++){
  var exercise=Model.Draft.Exercises[i];
  <section class="simple-exercise" data-exercise><div class="simple-fields snap-exercise-row"><label>Exercise<input name="Exercises[@i].Name" value="@exercise.Name" maxlength="250" required /></label><label>Sets<input name="Exercises[@i].Sets" type="number" min="1" max="10" value="@exercise.Sets" required /></label><label>Reps per set<input name="Exercises[@i].Reps" type="number" min="1" max="100" value="@exercise.Reps" required /></label><label>Max weight (lb)<input name="Exercises[@i].MaxWeight" type="number" min="0" max="2000" step=".01" value="@exercise.MaxWeight" required /></label>
- <label>RPE (optional)<input name="Exercises[@i].Rpe" type="number" min="1" max="10" step=".1" value="@exercise.Rpe" /></label><label class="snap-muscle-focus">Muscle focus (optional)<input name="Exercises[@i].MuscleFocus" value="@exercise.MuscleFocus" maxlength="250" placeholder="chest, shoulders, triceps" /></label><button class="secondary" type="button" data-remove-exercise>Remove exercise</button></div></section>
+ <label>RPE (optional)<input name="Exercises[@i].Rpe" type="number" min="1" max="10" step=".1" value="@exercise.Rpe" /></label><label class="snap-muscle-focus">Muscle focus (optional)<input name="Exercises[@i].MuscleFocus" value="@exercise.MuscleFocus" maxlength="250" placeholder="chest, shoulders, triceps" /></label><button class="button secondary" type="button" data-remove-exercise>Remove exercise</button></div></section>
 }
 </div>
 <p class="snap-engine-estimate" data-snap-estimate role="status">Enter the exercises to preview estimated calories and glycogen.</p>
-<div class="snap-form-actions"><button type="button" class="secondary" data-add-exercise>Add exercise</button><button type="submit">Assign workout</button></div>
+<div class="snap-form-actions"><button type="button" class="button secondary" data-add-exercise>Add exercise</button><button type="submit" class="button">Assign workout</button></div>
 </form></details>
 }
 <section class="card"><h2>@(Model.Coach?"Assigned workouts & results":"Your assigned workouts")</h2>
@@ -46,6 +57,7 @@
 <strong>Assessed fees and incentives:</strong> @Model.AssessedCharges.GetValueOrDefault(w.Id).ToString("C2") · <strong>Posted net charges:</strong> @Model.PostedCharges.GetValueOrDefault(w.Id).ToString("C2").
 Payments are tracked at the coach/client account level rather than allocated to individual workouts; see <a asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId">fees and payments</a>.</p>
 }
+@if(w.OverrideSchedule){<p class="app-message">Schedule override: this Snap ignores reserved sleep, work and workout hours. Illness days remain protected.</p>}
 @if(!string.IsNullOrWhiteSpace(w.CoachNote)){<p class="snap-saved-note"><strong>@Model.AssignedBy.GetValueOrDefault(w.Id)'s note:</strong> @w.CoachNote</p>}
 @if(previous?.Finalized==true){
     <p><a class="button" asp-action="Completion" asp-route-clientId="@Model.ClientId" asp-route-workoutId="@w.Id">View fee summary &amp; notes</a></p>
@@ -85,6 +97,7 @@ Payments are tracked at the coach/client account level rather than allocated to 
 }
 </section>
 
+</div>
 <script src="~/js/simple-coaching.js" asp-append-version="true" defer></script>
 
 <script src="~/js/snap-countdown.js" asp-append-version="true" defer></script>

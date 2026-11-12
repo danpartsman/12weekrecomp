@@ -283,6 +283,32 @@ public sealed class CoachNotificationTests
         Assert.Empty(await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default));
     }
     [Fact]
+    public async Task CoachScheduleOverrideSkipsReservedTimeButAlwaysKeepsIllnessProtected()
+    {
+        using var f = new Fixture();
+        await SeedFinancial(f);
+        var client = await f.Db.Clients.SingleAsync(); client.TimeZone="UTC";
+        var date = AppUserContextService.GetClientToday(client);
+        var clock = new SettlementClock { Now=new DateTimeOffset(date.ToDateTime(new TimeOnly(10,0)),TimeSpan.Zero) };
+        var service = new SnapAvailabilityService(f.Db,f.Files,clock);
+        service.Add(f.Client,0,new() { Kind="work", StartDate=date, StartTime=new(9,0), EndTime=new(17,0) });
+        AccountabilityWorkout Workout(bool ignored) => new() { Id=Guid.NewGuid().ToString("N"), Simple=true,
+            OverrideSchedule=ignored, CreatedAtUtc=clock.Now, TimingStartUtc=clock.Now, TimeLimitMinutes=120, DeadlineUtc=clock.Now.AddHours(2) };
+        var protectedWorkout=Workout(false); var overrideWorkout=Workout(true);
+        var state=new AccountabilityState { SnapWorkouts=[protectedWorkout,overrideWorkout] };
+        await service.ApplyAsync(client,state,default);
+        Assert.Equal(clock.Now.AddHours(9),protectedWorkout.DeadlineUtc);
+        Assert.Equal(clock.Now.AddHours(2),overrideWorkout.DeadlineUtc);
+        f.Db.DailyCheckins.Add(new() { CheckinId=Guid.NewGuid(),ClientId=f.Client,ProgramId=Guid.NewGuid(),CheckinDate=date,IllnessFlag=true });
+        await f.Db.SaveChangesAsync();
+        await service.ApplyAsync(client,state,default);
+        var recovered=new DateTimeOffset(date.AddDays(1).ToDateTime(new TimeOnly(2,0)),TimeSpan.Zero);
+        Assert.Equal(recovered,protectedWorkout.DeadlineUtc); Assert.Equal(recovered,overrideWorkout.DeadlineUtc);
+        await service.ApplyAsync(client,state,default);
+        Assert.Equal(recovered,overrideWorkout.DeadlineUtc);
+    }
+
+    [Fact]
     public void EditingCalendarRetainsElapsedTimeAndRejectsStaleChanges()
     {
         using var f = new Fixture();

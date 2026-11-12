@@ -208,7 +208,7 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
             workout.TimeLimitMinutes = minutes;
             var effectiveNow = state.SnapResults.GetValueOrDefault(workout.Id) is { Finalized: true, CompletedAtUtc: { } completed }
                 ? completed : now;
-            workout.Timing = SnapAvailabilityClock.Calculate(workout.TimingStartUtc!.Value, minutes, effectiveNow, windows, horizon);
+            workout.Timing = SnapAvailabilityClock.Calculate(workout.TimingStartUtc!.Value, minutes, effectiveNow, workout.OverrideSchedule ? windows.Where(w => w.Reason == "Illness") : windows, horizon);
             workout.DeadlineUtc = workout.Timing.DeadlineUtc;
         }
     }
