@@ -65,6 +65,8 @@ jobs:
           $env:NUTRITION_CHROME_PATH = "$env:ProgramFiles/Google/Chrome/Application/chrome.exe"
           node tests/app-navigation.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Coaching navigation check failed." }
+          node tests/snap-exercise-search.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Snap exercise lookup check failed." }
 
       - name: Publish web project
         run: dotnet publish ${{ env.WEB_PROJECT }} --configuration Release --no-build --output ./publish

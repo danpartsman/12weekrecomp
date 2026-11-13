@@ -12,7 +12,7 @@ public static class SnapWorkoutEngine
     private static readonly Dictionary<string,string> Muscles=new(StringComparer.OrdinalIgnoreCase)
     {
         ["chest"]="UPPER_BODY",["pecs"]="UPPER_BODY",["shoulders"]="UPPER_BODY",["delts"]="UPPER_BODY",["front delts"]="UPPER_BODY",["rear delts"]="UPPER_BODY",["side delts"]="UPPER_BODY",
-        ["back"]="UPPER_BODY",["upper back"]="UPPER_BODY",["lower back"]="UPPER_BODY",["lats"]="UPPER_BODY",["traps"]="UPPER_BODY",["rhomboids"]="UPPER_BODY",["biceps"]="UPPER_BODY",["triceps"]="UPPER_BODY",["forearms"]="UPPER_BODY",["arms"]="UPPER_BODY",["abs"]="UPPER_BODY",["core"]="UPPER_BODY",["abdominals"]="UPPER_BODY",
+        ["middle back"]="UPPER_BODY",["neck"]="UPPER_BODY",["back"]="UPPER_BODY",["upper back"]="UPPER_BODY",["lower back"]="UPPER_BODY",["lats"]="UPPER_BODY",["traps"]="UPPER_BODY",["rhomboids"]="UPPER_BODY",["biceps"]="UPPER_BODY",["triceps"]="UPPER_BODY",["forearms"]="UPPER_BODY",["arms"]="UPPER_BODY",["abs"]="UPPER_BODY",["core"]="UPPER_BODY",["abdominals"]="UPPER_BODY",
         ["quads"]="LOWER_BODY",["quadriceps"]="LOWER_BODY",["hamstrings"]="LOWER_BODY",["glutes"]="LOWER_BODY",["calves"]="LOWER_BODY",["hips"]="LOWER_BODY",["hip flexors"]="LOWER_BODY",["adductors"]="LOWER_BODY",["abductors"]="LOWER_BODY",["legs"]="LOWER_BODY",["upper body"]="UPPER_BODY",["lower body"]="LOWER_BODY"
     };
     public static string[] Focus(string? value)=> (value??"").Split(',',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();

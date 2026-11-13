@@ -8,6 +8,18 @@ namespace WebRecomp.Web.Tests;
 public sealed class SnapWorkoutEngineTests
 {
     private static Engine30WorkoutAdminProfile Profile()=>new Engine30WorkoutProfileService(null!).BuildBaselineProfile(new WorkoutTypeDefinition{WorkoutTypeCode=SnapWorkoutEngine.WorkoutCode,DisplayName="Full body",WorkoutCategoryCode="STRENGTH",WeeklyRoleCode="STRENGTH",FuelPriorityCode="HIGH",SchedulePrincipleCode="STRENGTH"});
+    [Theory]
+    [InlineData("Middle Back")]
+    [InlineData("Neck")]
+    public void CatalogMuscleNamesAreAcceptedAndAssignedToUpperBody(string focus)
+    {
+        SnapWorkoutEngine.ValidateFocus(focus);
+        var workout=new AccountabilityWorkout{Exercises=[new(){Sets=1,Reps=10,MuscleFocus=focus}]};
+        var details=Assert.Single(SnapWorkoutEngine.Input(workout,null,Profile()).Segments!).Resistance!;
+        Assert.Equal(1,details.MuscleGroups!.Single(x=>x.MuscleGroupCode=="UPPER_BODY").HardSets);
+        Assert.Equal(0,details.MuscleGroups!.Single(x=>x.MuscleGroupCode=="LOWER_BODY").HardSets);
+    }
+
     [Fact]
     public void ActualInputUsesOnlyPerformedRepsAndReportedRpeAndMuscles()
     {
