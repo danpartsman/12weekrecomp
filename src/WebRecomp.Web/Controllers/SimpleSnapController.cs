@@ -207,7 +207,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         var workout=new AccountabilityWorkout{Simple=true,OverrideSchedule=overrideSchedule,OverrideHealthConflicts=overrideSchedule,CreatedAtUtc=now,TimingStartUtc=start,TimeLimitMinutes=minutes,DeadlineUtc=start.AddMinutes(minutes)};
         var state=new AccountabilityState{SnapWorkouts=[workout]};
         await availability.ApplyAsync(client,state,ct);
-        var through=date.AddDays(6);
+        var through=date;
         var zone=SnapAvailabilityClock.Zone(client.TimeZone);
         var windows=await availability.WindowsAsync(client,date,through,ct);
         var programId=await db.Programs.AsNoTracking().Where(p=>p.ClientId==clientId&&p.ProgramStatusCode=="ACTIVE")
@@ -216,7 +216,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             &&p.PlannedDate>=date&&p.PlannedDate<=through).ToListAsync(ct);
         var names=await PlannedWorkoutNames.LoadAsync(db,clientId,plans,ct);
         var conflict=await availability.ConflictAsync(client,start,minutes,ct);
-        var days=Enumerable.Range(0,7).Select(i=>
+        var days=Enumerable.Range(0,1).Select(i=>
         {
             var day=date.AddDays(i);
             var left=SnapAvailabilityClock.Utc(day,TimeOnly.MinValue,zone);

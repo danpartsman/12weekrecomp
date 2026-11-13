@@ -24,7 +24,7 @@
 <input type="hidden" name="ConflictChoice" value="" />
 <p class="muted">Reserved time extends the deadline while preserving the available workout hours. Conflicts are reviewed when you assign the workout.</p>
 <section class="snap-schedule-preview" aria-label="Client workout and reserved time">
-<h3>Client schedule</h3><p class="muted">Weekly workouts and reserved hours · @Model.ClientTimeZone</p>
+<h3>Client schedule</h3><p class="muted">Daily workout and reserved hours · @Model.ClientTimeZone</p>
 <div data-schedule-days aria-live="polite">Loading the client’s schedule…</div>
 </section>
 <div class="simple-fields snap-assignment-row"><label>Late Fee ($)<input name="LatePenalty" type="number" min="0" max="10000" step=".01" value="@Model.Draft.LatePenalty" required /></label><label>Incomplete Exercise Fee ($)<input name="IncompleteExerciseFee" type="number" min="0" max="10000" step=".01" value="@Model.Draft.IncompleteExerciseFee" required /></label><label>Coach Incentive Per Rep ($)<input name="CoachIncentivePerRep" type="number" min="0" max="100" step=".01" value="@Model.Draft.CoachIncentivePerRep" required /></label><label>Maximum total charges ($)<input name="Cap" type="number" min="0" max="10000" step=".01" value="@Model.Draft.Cap" required /></label></div>

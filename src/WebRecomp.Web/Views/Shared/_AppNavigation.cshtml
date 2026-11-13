@@ -1,31 +1,3 @@
-@inject WebRecomp.Web.Data.RecompDbContext NavigationDb
-@inject WebRecomp.Web.Services.AppUserContextService NavigationUsers
-@using Microsoft.Extensions.DependencyInjection
-@using System.Security.Cryptography
-@using System.Text
-@using Microsoft.EntityFrameworkCore
-@{
-bool hasCoach=false;
-bool coachHasNew=false;
-if(!Model){
-var current=(await NavigationUsers.GetAsync(Context,Context.RequestAborted)).User;
-var relationships=await NavigationDb.UserClientAccess.AsNoTracking().Where(x=>x.UserId==current.UserId&&x.AccessRoleCode=="OWNER"&&x.RevokedAtUtc==null)
-.Join(NavigationDb.CoachClientRelationships.AsNoTracking().Where(x=>x.StatusCode=="ACTIVE"&&x.RevokedAtUtc==null),owner=>owner.ClientId,link=>link.ClientId,(owner,link)=>new{link.ClientId,link.CoachUserId}).ToListAsync();
-hasCoach=relationships.Count>0;
-if(hasCoach){
-var clientIds=relationships.Select(x=>x.ClientId).Distinct().ToArray();
-var coachIds=relationships.Select(x=>x.CoachUserId).Distinct().ToArray();
-var latest=await NavigationDb.CoachPrescriptionRuleVersions.AsNoTracking().Where(x=>clientIds.Contains(x.ClientId)&&coachIds.Contains(x.CoachUserId)).OrderByDescending(x=>x.CreatedAtUtc).Take(40).ToListAsync();
-foreach(var version in latest){
-if(!relationships.Any(x=>x.ClientId==version.ClientId&&x.CoachUserId==version.CoachUserId))continue;
-var key=$"macro-acceptance/{version.ClientId:N}-{version.CoachUserId:N}-{version.CoachPrescriptionRuleVersionId:N}";
-var receipt=Context.RequestServices.GetService<WebRecomp.Web.Services.Notifications.NotificationFiles>()?.Read<WebRecomp.Web.Controllers.CoachMacroAcceptance>(key);
-var fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(version.CoachPrescriptionRuleVersionId+"|"+version.RulesJson+"|"+version.PreviewJson)));
-if(receipt?.Fingerprint!=fingerprint){coachHasNew=true;break;}
-}
-}
-}
-}
 @model bool
 <nav class="app-grouped-nav" aria-label="Application navigation" data-app-navigation>
     <button type="button" class="app-nav-toggle" aria-expanded="false" aria-controls="app-nav-items">☰ <span>Menu</span></button>
@@ -62,13 +34,13 @@ if(receipt?.Fingerprint!=fingerprint){coachHasNew=true;break;}
             <details class="app-nav-group" data-coaching-menu>
                 <summary><a class="app-nav-primary" href="/coach?nav=coach-center">Coach Center</a></summary>
                 <div class="app-nav-panel">
-                    <a asp-controller="MyCoach" asp-action="Index">My Coach@if(coachHasNew){<span aria-label="New coach assignments" class="app-nav-new">● New</span>}</a>
+                    <a asp-controller="MyCoach" asp-action="Index">My Coach</a>
                 </div>
             </details>
         }
         else
         {
-            <a class="app-nav-primary app-nav-direct" asp-controller="MyCoach" asp-action="Index">My Coach@if(coachHasNew){<span aria-label="New coach assignments" class="app-nav-new">● New</span>}</a>
+            <a class="app-nav-primary app-nav-direct" asp-controller="MyCoach" asp-action="Index">My Coach</a>
         }
     }
     <details class="app-nav-group">

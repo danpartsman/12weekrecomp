@@ -391,6 +391,7 @@ public sealed class CoachAccountabilityStoreTests
         var url=$"/clients/{f.Client}/snap/timing?date={date:yyyy-MM-dd}&minutes=120";
         var response=await http.GetAsync(url);Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);
         using var regular=JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(1,regular.RootElement.GetProperty("days").GetArrayLength());
         var day=regular.RootElement.GetProperty("days")[0];
         Assert.Equal("Upper chest plan",day.GetProperty("workout").GetString());
         Assert.Equal(kind=="sleep"?360:1440,day.GetProperty("reservedMinutes").GetDouble());

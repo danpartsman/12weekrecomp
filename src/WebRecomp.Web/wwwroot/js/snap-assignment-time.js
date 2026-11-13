@@ -14,7 +14,7 @@
     function renderDays(data){
         if(!scheduleDays)return;
         scheduleDays.replaceChildren();
-        for(const [index,day] of (data.days||[]).entries()){
+        for(const [index,day] of (data.days||[]).slice(0,1).entries()){
             const details=document.createElement('details'),summary=document.createElement('summary'),list=document.createElement('ul');
             details.open=index===0;
             const minutes=Math.round(day.reservedMinutes||0);

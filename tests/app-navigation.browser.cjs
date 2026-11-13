@@ -3,13 +3,13 @@ const fs=require('node:fs');
 const {chromium}=require(process.env.NUTRITION_PLAYWRIGHT_MODULE||'playwright');
 function navigation({admin=false,demo=false,hasCoach=false}={}) {
  let html=fs.readFileSync('src/WebRecomp.Web/Views/Shared/_AppNavigation.cshtml','utf8').replace(/\r\n/g,'\n').replace(/^@model.*$/m,'');
- // Render only markup: the preamble queries the signed-in user's coach state.
+ // Render only navigation markup.
  html=html.slice(html.indexOf('<nav'));
  const coachingStart=html.indexOf('    @if (!Model)');
  const profileStart=html.indexOf('    <details class="app-nav-group">\n        <summary><a class="app-nav-primary" href="/Profile',coachingStart);
  const coachMenu=html.match(/<details class="app-nav-group" data-coaching-menu>[\s\S]*?<\/details>/)[0];
  const clientLink=html.match(/<a class="app-nav-primary app-nav-direct"[\s\S]*?<\/a>/)[0];
- const coaching=demo?'':(admin?coachMenu:clientLink).replace(/@if\(coachHasNew\)\{([\s\S]*?)\}/g,(_,badge)=>hasCoach?badge:'');
+ const coaching=demo?'':(admin?coachMenu:clientLink);
  html=html.slice(0,coachingStart)+coaching+html.slice(profileStart);
  html=html.replace(/@if \(([^\n]+)\)\s*\{([\s\S]*?)\n            \}/g,(_,condition,body)=>{
   const show=condition==='Model'?demo:condition==='!Model'?!demo:!demo&&admin;
@@ -66,7 +66,8 @@ function navigation({admin=false,demo=false,hasCoach=false}={}) {
   assert.equal(await groups.first().isVisible(),true);await navigate(0);
   assert.deepEqual(errors,[]);assert.equal(navigation().includes('Coach Center'),false);assert.equal(navigation().includes('Administration'),false);assert.equal(navigation({demo:true}).includes('End Guided Demo'),true);assert.equal(navigation({demo:true}).includes('Sign Out'),false);
   assert.match(navigation(),/class="app-nav-primary app-nav-direct" href="\/MyCoach">My Coach/);
-  assert.match(navigation({hasCoach:true}),/New coach assignments/);
+  assert.doesNotMatch(navigation({hasCoach:true}),/coachHasNew|app-nav-new|New coach assignments|@if/);
+  assert.doesNotMatch(navigation({admin:true}),/coachHasNew|app-nav-new|New coach assignments|@if/);
   assert.match(navigation({admin:true}),/data-coaching-menu/);
   assert.equal(navigation({hasCoach:true,demo:true}).includes('data-coaching-menu'),false);
   assert.equal(navigation().includes('NavigationDb'),false);
