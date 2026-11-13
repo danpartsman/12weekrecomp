@@ -10,7 +10,7 @@
 <p>@if(!Model.Coach){<a class="button" asp-controller="Availability" asp-action="Index" asp-route-clientId="@Model.ClientId">My Calendar</a>} <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachUserId">Fees &amp; payments</a> @if(Model.Coach){<a class="button" asp-controller="Coach" asp-action="Index">Client list</a>}</p>
 <p class="muted">Sleep, work, timed planned workouts, illness and pain days pause the completion clock. Assignments received during protected time wait until you are available. Record workout results whenever you choose.</p>
 @if(TempData["SimpleStatus"] is string status){<div class="app-message" role="status">@status</div>}
-<div asp-validation-summary="All" class="app-message"></div>
+<div asp-validation-summary="All" class="app-message" tabindex="-1" role="alert" data-snap-validation></div>
 @if(Model.Coach)
 {
 <details class="card" id="snap-assignment-form" open><summary>@(Model.Draft.EditWorkoutId is null?"Assign a Snap Workout":"Edit assigned Snap Workout")</summary>
@@ -37,7 +37,7 @@
  <label><span class="snap-field-label">RPE (optional)</span><input name="Exercises[@i].Rpe" type="number" min="1" max="10" step=".1" value="@exercise.Rpe" /></label><label class="snap-muscle-focus"><span class="snap-field-label">Muscle focus (optional)</span><input name="Exercises[@i].MuscleFocus" value="@exercise.MuscleFocus" maxlength="250" placeholder="chest, shoulders, triceps" /></label><button class="button secondary" type="button" data-remove-exercise>Remove exercise</button></div></section>
 }
 </div>
-<p class="snap-engine-estimate" data-snap-estimate role="status">Enter the exercises to preview estimated calories and glycogen.</p>
+<p class="snap-engine-estimate" data-snap-estimate role="status">Calorie and glycogen estimates are optional. You can assign any free-form exercise name.</p>
 <div class="snap-form-actions"><button type="button" class="button secondary" data-add-exercise>Add exercise</button><button type="submit" class="button">@(Model.Draft.EditWorkoutId is null?"Assign workout":"Save changes")</button></div>
 </form></details>
 <dialog class="snap-conflict-dialog" data-snap-conflict-dialog aria-labelledby="snap-conflict-title" aria-describedby="snap-conflict-description">

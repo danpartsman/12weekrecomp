@@ -434,7 +434,7 @@ public sealed class CoachAccountabilityStoreTests
         Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync(url)).StatusCode);
     }
 
-    private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f,bool simpleMode=false,WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore? foods=null)
+    private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f,bool simpleMode=false,WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore? foods=null,bool withEstimates=false)
     {
         return new Microsoft.AspNetCore.TestHost.TestServer(new Microsoft.AspNetCore.Hosting.WebHostBuilder()
             .UseSetting(Microsoft.AspNetCore.Hosting.WebHostDefaults.ApplicationKey,typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly.GetName().Name)
@@ -454,6 +454,7 @@ public sealed class CoachAccountabilityStoreTests
                 services.AddScoped<CoachAccountabilityPreviewService>(_=>new CoachAccountabilityPreviewService(_.GetRequiredService<RecompDbContext>(),_.GetRequiredService<CoachCenterService>(),null!));
                 services.AddScoped<CoachAccountabilityStore>();services.AddScoped<AccountabilityLedger>();services.AddScoped<SimpleCoachingService>();services.AddScoped<SnapAvailabilityService>();
                 services.AddScoped<CoachWeeklySummaryService>();
+                if(withEstimates)services.AddScoped<SnapWorkoutEstimateService>(p=>new(p.GetRequiredService<RecompDbContext>(),null!,null!));
                 if(foods is not null)services.AddSingleton(foods);
                 services.AddRateLimiter(o=>{o.RejectionStatusCode=429;o.AddConcurrencyLimiter("access-code",p=>p.PermitLimit=100);SnapRequestRateLimits.Configure(o);});
                 services.AddAuthentication("ledger-test").AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,LedgerTestAuthentication>("ledger-test",_=>{});
@@ -861,6 +862,32 @@ public sealed class CoachAccountabilityStoreTests
         http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","coach");
         html=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger");Assert.Contains("ONLY_A_TRANSACTION",html);Assert.DoesNotContain("ONLY_B_TRANSACTION",html);Assert.DoesNotContain("value=\"fee\"",html);
     }
+    [Fact]
+    public async Task NewSnapAcceptsFreeFormExerciseWithBlankEditIdAndOptionalWeight()
+    {
+        var f=await Fixture.Create();using var server=CreateServer(f,true,withEstimates:true);using var http=server.CreateClient();
+        http.DefaultRequestHeaders.Add("X-Test-Actor","coach");
+        var page=await http.GetAsync($"/clients/{f.Client}/snap");var html=await page.Content.ReadAsStringAsync();
+        Assert.Equal(System.Net.HttpStatusCode.OK,page.StatusCode);
+        var token=System.Text.RegularExpressions.Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;Assert.NotEmpty(token);
+        http.DefaultRequestHeaders.Add("Cookie",string.Join("; ",page.Headers.GetValues("Set-Cookie").Select(x=>x.Split(';')[0])));
+        DateOnly date;using(var db=f.Db())date=AppUserContextService.GetClientToday(await db.Clients.SingleAsync()).AddDays(1);
+        var form=new Dictionary<string,string>{["__RequestVerificationToken"]=token,["RequestId"]=Guid.NewGuid().ToString(),["Revision"]="0",["EditWorkoutId"]="",["Name"]="Free form test",["Date"]=date.ToString("yyyy-MM-dd"),["TimeAllowed"]="2",["Exercises[0].Id"]="",["Exercises[0].Name"]="Push ups",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="",["Exercises[0].Rpe"]="8",["Exercises[0].MuscleFocus"]="chest, shoulders, triceps"};
+        var estimateForm=new Dictionary<string,string>(form){["Name"]="",["TimeAllowed"]=""};
+        var estimate=await http.PostAsync($"/clients/{f.Client}/snap/estimate",new FormUrlEncodedContent(estimateForm));
+        Assert.Equal(System.Net.HttpStatusCode.OK,estimate.StatusCode);
+        using(var db=f.Db())Assert.Empty(await db.CoachAccountabilityAgreements.ToListAsync());
+        var response=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(form));
+        Assert.True(response.StatusCode==System.Net.HttpStatusCode.Redirect,await response.Content.ReadAsStringAsync());
+        using(var db=f.Db())
+        {
+            var exercise=Assert.Single(Assert.Single(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapWorkouts).Exercises);
+            Assert.Equal("Push ups",exercise.Name);Assert.Equal("",exercise.CatalogId);Assert.NotEmpty(exercise.Id);Assert.Equal(0,exercise.MaxWeight);Assert.Equal(8,exercise.Rpe);
+        }
+        http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","owner");
+        html=await http.GetStringAsync($"/clients/{f.Client}/snap");Assert.Contains("Push ups",html);
+    }
+
     [Fact]
     public async Task AssignedCoachCanEditAndCancelSameSnapThroughPortalButOtherCoachCannot()
     {

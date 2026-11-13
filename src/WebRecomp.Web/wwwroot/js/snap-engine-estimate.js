@@ -9,4 +9,5 @@
   }catch(error){if(error.name!=='AbortError'&&current===version)output.textContent='Estimate unavailable. You can still assign this workout.';}
  },600);}
  form.addEventListener('input',schedule);form.addEventListener('click',event=>{if(event.target.closest('[data-add-exercise],[data-remove-exercise]'))schedule();});
+ schedule();
 })();

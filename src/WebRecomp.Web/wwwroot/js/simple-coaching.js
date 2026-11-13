@@ -1,4 +1,6 @@
 (() => {
+    const errors=document.querySelector('[data-snap-validation].validation-summary-errors');
+    if(errors){errors.focus();errors.scrollIntoView({block:'center'});}
     const form=document.querySelector('[data-simple-assignment]');if(!form)return;
     const picker=form.querySelector('.snap-workout-picker');
     const toggle=picker?.querySelector('[data-workout-toggle]');

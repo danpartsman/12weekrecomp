@@ -231,12 +231,13 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             workout.Timing.RemainingSeconds,workout.Timing.Reason,timeZone=client.TimeZone,overrideSchedule,conflict,days });
     }
     [HttpPost("estimate"),ValidateAntiForgeryToken,EnableRateLimiting(SnapRequestRateLimits.Estimates),RequestSizeLimit(65536)]
-    public async Task<IActionResult> Estimate(Guid clientId,AssignmentInput input,CancellationToken ct)
+    public async Task<IActionResult> Estimate(Guid clientId,EstimateInput input,CancellationToken ct)
     {
         if(!SimpleCoaching.Enabled(configuration)||estimates is null)return NotFound();
         var user=(await users.GetAsync(HttpContext,ct)).User;
         if(!await access.CanAssignSnapAsync(user.UserId,clientId,ct))return NotFound();
-        if(!ModelState.IsValid||input.Exercises.Count is <1 or >15||input.Exercises.Any(e=>e.Sets is <1 or >10||e.Reps is <1 or >100))return BadRequest(new{message="Enter exercise names, sets and reps to estimate."});
+        if(!ModelState.IsValid)return BadRequest(new{message="Estimate unavailable: "+string.Join(" ",ModelState.Values.SelectMany(v=>v.Errors).Select(e=>string.IsNullOrWhiteSpace(e.ErrorMessage)?"Check the exercise fields.":e.ErrorMessage).Distinct())+" You can still assign without an estimate."});
+        if(input.Exercises.Count is <1 or >15||input.Exercises.Any(e=>e.Sets is <1 or >10||e.Reps is <1 or >100))return BadRequest(new{message="For an optional estimate, enter 1–15 exercises, 1–10 sets and 1–100 reps per set."});
         try
         {
             foreach(var e in input.Exercises)SnapWorkoutEngine.ValidateFocus(e.MuscleFocus);
@@ -279,7 +280,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             }
             var uniqueName=UniqueName(input.Name,prior.Where(w=>w.Id!=input.EditWorkoutId).ToArray(),now);
             var workout=new AccountabilityWorkout{Name=uniqueName,CoachNote=string.IsNullOrWhiteSpace(input.CoachNote)?null:input.CoachNote.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
-                OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,OverrideHealthConflicts=input.ConflictChoice=="override",TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Id=input.EditWorkoutId is null?"":e.Id,Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()};
+                OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,OverrideHealthConflicts=input.ConflictChoice=="override",TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Id=input.EditWorkoutId is null?"":e.Id??"",Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()};
             if(input.EditWorkoutId is not null)await simple.UpdateAsync(user.UserId,clientId,input.Revision,input.EditWorkoutId,workout,ct);
             else await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,workout,ct);
             TempData["SimpleStatus"]=input.EditWorkoutId is null?"Workout assigned. Your client can open it in their portal.":"Snap Workout updated. The completion window has restarted.";return RedirectToAction(nameof(Index),new{clientId});
@@ -390,9 +391,13 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         public decimal CompletionReward{get;set;}
         public List<ExerciseInput> Exercises{get;set;}=[new()];
     }
+    public sealed class EstimateInput
+    {
+        public List<ExerciseInput> Exercises{get;set;}=[new()];
+    }
     public sealed class ExerciseInput
     {
-        [StringLength(64)]public string Id{get;set;}="";
+        [StringLength(64)]public string? Id{get;set;}
         [Required,StringLength(250)]public string Name{get;set;}="";
         [Range(typeof(decimal),"1","10")]public decimal? Rpe{get;set;}
         [StringLength(250)]public string? MuscleFocus{get;set;}
