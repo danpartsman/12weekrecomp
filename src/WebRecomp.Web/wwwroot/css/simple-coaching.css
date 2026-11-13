@@ -42,3 +42,5 @@
 .snap-exercise-options{display:grid;gap:.35rem;max-height:260px;overflow:auto;margin-top:.5rem;padding:.5rem;border:1px solid #475569;border-radius:8px;background:#101e31}.snap-exercise-options[hidden]{display:none}.snap-exercise-options button{width:100%;min-height:48px;text-align:left;white-space:normal;overflow-wrap:anywhere;background:#1d3853;color:#f1f5f9;border:1px solid #46627e;border-radius:8px;padding:.7rem;font:inherit}.snap-exercise-options button:focus-visible{outline:3px solid #7dd3fc;outline-offset:2px}.snap-exercise-lookup-status{display:block;margin-top:.4rem;color:#b9cce0;font-size:.85rem;line-height:1.5}
 
 [data-simple-assignment] input.snap-fee-default{color:var(--muted,#94a3b8);font-weight:400}
+
+.snap-fee-rates{grid-template-columns:repeat(3,minmax(0,1fr))}.snap-charge-bounds{grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}@media(max-width:700px){.snap-fee-rates{grid-template-columns:repeat(2,minmax(0,1fr))}.snap-fee-rates label:last-child{grid-column:1/-1}}

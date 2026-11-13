@@ -26,6 +26,7 @@
     }
     <section class="card" aria-labelledby="snap-fee-title">
         <h2 id="snap-fee-title">Penalty &amp; fee summary</h2>
+        @if(Model.Workout.MinimumCharge.HasValue){<p>On-time minimum coach charge: @Money(Model.Workout.MinimumCharge.Value) · Maximum total charges: @Money(Model.Workout.Cap). The minimum applies only when all prescribed work is completed on time.</p>}
         <dl class="snap-completion-charges">
         @foreach (var charge in Model.Charges.Where(charge => charge.RawAmount > 0 || charge.Kind == "late-penalty"))
         {

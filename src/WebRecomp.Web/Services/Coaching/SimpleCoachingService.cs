@@ -247,6 +247,12 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
                 var extra=complete?Math.Max(0,qualifying.Sum(s=>s.Reps??0)-e.Sets*e.Reps):0;
                 Add(e.Id+":reward","incentive-client",$"{e.Name} · {extra} extra reps × ${(e.ExtraRepRate??0):0.00}",extra*(e.ExtraRepRate??0));
             }
+            if(w.MinimumCharge.HasValue)
+            {
+                var onTime=wholeComplete&&result.CompletedAtUtc.HasValue&&w.DeadlineUtc.HasValue&&result.CompletedAtUtc<=w.DeadlineUtc;
+                var topUp=onTime?Math.Max(0,w.MinimumCharge.Value-(w.Cap-remaining)):0;
+                Add("minimum","incentive-client",$"On-time coach incentive · minimum total ${w.MinimumCharge.Value:0.00}",topUp);
+            }
         }
         return charges;
     }

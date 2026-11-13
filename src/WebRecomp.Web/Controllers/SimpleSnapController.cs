@@ -75,7 +75,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
 
     private static AssignmentInput FromWorkout(AccountabilityWorkout w,int revision,DateOnly today)=>new(){
         Revision=revision,RequestId=Guid.NewGuid(),Name=w.Name,Date=today,TimeAllowed=(w.TimeLimitMinutes??120)/60m,
-        LatePenalty=w.LatePenalty??0,Cap=w.Cap,CompletionReward=w.CompletionReward??0,CoachNote=w.CoachNote,
+        LatePenalty=w.LatePenalty??0,Cap=w.Cap,MinimumCharge=w.MinimumCharge??0,CompletionReward=w.CompletionReward??0,CoachNote=w.CoachNote,
         IncompleteExerciseFee=w.Exercises.FirstOrDefault()?.Penalty??0,CoachIncentivePerRep=w.Exercises.FirstOrDefault()?.ExtraRepRate??0,
         Exercises=w.Exercises.Select(e=>new ExerciseInput{Id=e.Id,Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight>0?e.MaxWeight:null,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,Type=e.Type,Basis=e.Basis,Rate=e.Rate}).ToList()
     };
@@ -251,6 +251,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
     public async Task<IActionResult> Assign(Guid clientId,AssignmentInput input,CancellationToken ct)
     {
         if(!SimpleCoaching.Enabled(configuration))return NotFound();
+        if(input.MinimumCharge>input.Cap)ModelState.AddModelError(nameof(input.MinimumCharge),"Minimum coach charge cannot exceed the maximum total charges.");
         if(!ModelState.IsValid)return await Page(clientId,input,ct);
         try
         {
@@ -279,7 +280,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
                 }
             }
             var uniqueName=UniqueName(input.Name,prior.Where(w=>w.Id!=input.EditWorkoutId).ToArray(),now);
-            var workout=new AccountabilityWorkout{Name=uniqueName,CoachNote=string.IsNullOrWhiteSpace(input.CoachNote)?null:input.CoachNote.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
+            var workout=new AccountabilityWorkout{Name=uniqueName,CoachNote=string.IsNullOrWhiteSpace(input.CoachNote)?null:input.CoachNote.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,MinimumCharge=input.MinimumCharge,CompletionReward=input.CompletionReward,
                 OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,OverrideHealthConflicts=input.ConflictChoice=="override",TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Id=input.EditWorkoutId is null?"":e.Id??"",Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()};
             if(input.EditWorkoutId is not null)await simple.UpdateAsync(user.UserId,clientId,input.Revision,input.EditWorkoutId,workout,ct);
             else await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,workout,ct);
@@ -387,6 +388,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         [Range(typeof(decimal),"0","10000")]public decimal IncompleteExerciseFee{get;set;}=5;
         [Range(typeof(decimal),"0","100")]public decimal CoachIncentivePerRep{get;set;}=1;
         public decimal LatePenalty{get;set;}=20;
+        [Range(typeof(decimal),"0","10000")]public decimal MinimumCharge{get;set;}=10;
         public decimal Cap{get;set;}=30;
         public decimal CompletionReward{get;set;}
         public List<ExerciseInput> Exercises{get;set;}=[new()];

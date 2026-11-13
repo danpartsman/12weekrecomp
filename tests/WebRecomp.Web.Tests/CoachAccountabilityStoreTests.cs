@@ -864,6 +864,26 @@ public sealed class CoachAccountabilityStoreTests
         html=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger");Assert.Contains("ONLY_A_TRANSACTION",html);Assert.DoesNotContain("ONLY_B_TRANSACTION",html);Assert.DoesNotContain("value=\"fee\"",html);
     }
     [Fact]
+    public async Task OnTimeMinimumIsPostedOnceToAssigningCoachAndCancellationReversesIt()
+    {
+        var f=await Fixture.Create();using var db=f.Db();
+        var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);
+        var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{["SimpleCoaching:Enabled"]="true"}).Build();
+        var ledger=new AccountabilityLedger(db,access,config);var simple=new SimpleCoachingService(db,access,ledger);
+        var today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        await simple.AssignAsync(f.Coach,f.Client,0,Guid.NewGuid(),new(){Name="On time minimum",Date=today.ToString("yyyy-MM-dd"),MinimumCharge=10,Cap=30,TimeLimitMinutes=120,Exercises=[new(){Name="Push ups",Sets=1,Reps=10,MaxWeight=0,Penalty=5,ExtraRepRate=1}]},default);
+        var row=await db.CoachAccountabilityAgreements.SingleAsync();var workout=Assert.Single(AccountabilityDocument.Parse(row.StateJson).SnapWorkouts);var exercise=workout.Exercises[0];
+        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,workout.Id,new(){Finalized=true,Sets=new(){[exercise.Id]=[new(){Reps=10,Weight=0}]}},default);
+        var entries=await ledger.ReadAsync(row,default);Assert.Equal(10,entries.Sum(e=>e.Amount));
+        var entry=Assert.Single(entries);Assert.Equal(f.Coach,entry.CoachUserId);Assert.EndsWith(":minimum",entry.SourceKey);
+        await simple.RefreshAsync(f.Owner,f.Client,false,default);await simple.RefreshAsync(f.Coach,f.Client,true,default);
+        Assert.Single(await ledger.ReadAsync(row,default));
+        await simple.CancelAsync(f.Coach,f.Client,row.Revision,workout.Id,default);
+        Assert.Equal(0,(await ledger.ReadAsync(row,default)).Sum(e=>e.Amount));
+        Assert.Single(await db.WorkoutSessions.Where(w=>w.CompletedFlag).ToListAsync());
+    }
+
+    [Fact]
     public async Task NewSnapAcceptsFreeFormExerciseWithBlankEditIdAndOptionalWeight()
     {
         var f=await Fixture.Create();using var server=CreateServer(f,true,withEstimates:true);using var http=server.CreateClient();
@@ -874,6 +894,11 @@ public sealed class CoachAccountabilityStoreTests
         http.DefaultRequestHeaders.Add("Cookie",string.Join("; ",page.Headers.GetValues("Set-Cookie").Select(x=>x.Split(';')[0])));
         DateOnly date;using(var db=f.Db())date=AppUserContextService.GetClientToday(await db.Clients.SingleAsync()).AddDays(1);
         var form=new Dictionary<string,string>{["__RequestVerificationToken"]=token,["RequestId"]=Guid.NewGuid().ToString(),["Revision"]="0",["EditWorkoutId"]="",["Name"]="Free form test",["Date"]=date.ToString("yyyy-MM-dd"),["TimeAllowed"]="2",["Exercises[0].Id"]="",["Exercises[0].Name"]="Push ups",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="",["Exercises[0].Rpe"]="8",["Exercises[0].MuscleFocus"]="chest, shoulders, triceps"};
+        form["MinimumCharge"]="14";form["Cap"]="30";
+        var invalidMinimum=new Dictionary<string,string>(form){["MinimumCharge"]="31"};
+        var rejected=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(invalidMinimum));
+        Assert.Equal(System.Net.HttpStatusCode.OK,rejected.StatusCode);Assert.Contains("Minimum coach charge cannot exceed",await rejected.Content.ReadAsStringAsync());
+        using(var empty=f.Db())Assert.Empty(await empty.CoachAccountabilityAgreements.ToListAsync());
         var estimateForm=new Dictionary<string,string>(form){["Name"]="",["TimeAllowed"]=""};
         var estimate=await http.PostAsync($"/clients/{f.Client}/snap/estimate",new FormUrlEncodedContent(estimateForm));
         Assert.Equal(System.Net.HttpStatusCode.OK,estimate.StatusCode);
@@ -882,7 +907,8 @@ public sealed class CoachAccountabilityStoreTests
         Assert.True(response.StatusCode==System.Net.HttpStatusCode.Redirect,await response.Content.ReadAsStringAsync());
         using(var db=f.Db())
         {
-            var exercise=Assert.Single(Assert.Single(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapWorkouts).Exercises);
+            var assigned=Assert.Single(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapWorkouts);Assert.Equal(14,assigned.MinimumCharge);
+            var exercise=Assert.Single(assigned.Exercises);
             Assert.Equal("Push ups",exercise.Name);Assert.Equal("",exercise.CatalogId);Assert.NotEmpty(exercise.Id);Assert.Equal(0,exercise.MaxWeight);Assert.Equal(8,exercise.Rpe);
         }
         http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","owner");
@@ -917,7 +943,7 @@ public sealed class CoachAccountabilityStoreTests
         async Task<string> Revision(){using var db=f.Db();return (await db.CoachAccountabilityAgreements.SingleAsync()).Revision.ToString();}
         var form=new Dictionary<string,string>{["__RequestVerificationToken"]=token,["Revision"]=await Revision(),["RequestId"]=Guid.NewGuid().ToString(),["EditWorkoutId"]=id,["Name"]="Portal edited",["Date"]=date.ToString("yyyy-MM-dd"),["TimeAllowed"]="3",["Exercises[0].Id"]=exerciseId,["Exercises[0].Name"]="Curl",["Exercises[0].Sets"]="2",["Exercises[0].Reps"]="12"};
         Assert.Equal(System.Net.HttpStatusCode.Redirect,(await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(form))).StatusCode);
-        using(var db=f.Db()){var workout=Assert.Single(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapWorkouts);Assert.Equal(id,workout.Id);Assert.Equal("Portal edited",workout.Name);Assert.Equal(12,workout.Exercises[0].Reps);}
+        using(var db=f.Db()){var workout=Assert.Single(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapWorkouts);Assert.Equal(10,workout.MinimumCharge);Assert.Equal(id,workout.Id);Assert.Equal("Portal edited",workout.Name);Assert.Equal(12,workout.Exercises[0].Reps);}
         http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","other");
         Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync($"/clients/{f.Client}/snap/edit/{id}")).StatusCode);
         html=await Page($"/clients/{f.Client}/snap");token=System.Text.RegularExpressions.Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
