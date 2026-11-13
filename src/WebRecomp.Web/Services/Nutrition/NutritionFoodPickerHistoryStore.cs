@@ -145,7 +145,7 @@ public sealed class NutritionFoodPickerHistoryStore(
                 LEFT JOIN nutrition.CustomFoods cf
                     ON cf.custom_food_id = li.custom_food_id
                 WHERE dl.client_id = @client_id
-                  AND dl.log_date < @before_date
+                  AND dl.log_date <= @before_date
                   AND li.energy_kcal IS NOT NULL
                   AND li.protein_g IS NOT NULL
                   AND li.carbohydrate_g IS NOT NULL

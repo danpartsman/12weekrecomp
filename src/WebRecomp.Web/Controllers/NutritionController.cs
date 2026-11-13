@@ -345,21 +345,11 @@ public sealed class NutritionController(
                 ? historyFoods
                     .Take(30)
                     .ToArray()
-                : historyFoods
-                    .Select(x => new
-                    {
-                        Item = x,
-                        Score = WordAwareFoodScore(
-                            normalizedQuery,
-                            x.Description,
-                            x.BrandName)
-                    })
-                    .Where(x => x.Score >= 500)
-                    .OrderByDescending(x => x.Score)
-                    .ThenByDescending(x => x.Item.UseCount)
-                    .ThenBy(x => x.Item.Description)
+                : FoodSearchRanking.OrderByPersonalUse(
+                    normalizedQuery,
+                    historyFoods.Where(x => WordAwareFoodScore(normalizedQuery,x.Description,x.BrandName) >= 500),
+                    x => x.Description,x => x.BrandName,x => x.UseCount)
                     .Take(30)
-                    .Select(x => x.Item)
                     .ToArray();
 
         var foods = new List<object>();
@@ -652,9 +642,12 @@ public sealed class NutritionController(
 
         if(normalizedQuery is not null)
         {
-            foods=foods.Select(food=>new {Food=food,Json=System.Text.Json.JsonSerializer.SerializeToElement(food)})
-                .Select(x=>new {x.Food,Score=FoodSearchRanking.Score(normalizedQuery,x.Json.GetProperty("description").GetString(),x.Json.TryGetProperty("brandName",out var brand)?brand.GetString():null),Usage=x.Json.TryGetProperty("usageCount",out var usage)?usage.GetInt32():0})
-                .OrderByDescending(x=>x.Score).ThenByDescending(x=>x.Usage).Select(x=>x.Food).ToList();
+            var candidates=foods.Select(food=>new {Food=food,Json=System.Text.Json.JsonSerializer.SerializeToElement(food)});
+            foods=FoodSearchRanking.OrderByPersonalUse(normalizedQuery,candidates,
+                x=>x.Json.GetProperty("description").GetString(),
+                x=>x.Json.TryGetProperty("brandName",out var brand)?brand.GetString():null,
+                x=>x.Json.TryGetProperty("usageCount",out var usage)?usage.GetInt32():0)
+                .Select(x=>x.Food).ToList();
         }
 
         return Json(

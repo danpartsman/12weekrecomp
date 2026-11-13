@@ -1,7 +1,7 @@
 using WebRecomp.Web.Services.Search;
 namespace WebRecomp.Web.Services.Nutrition;
 
-/// <summary>Food identity and requested attributes outrank source and personal usage.</summary>
+/// <summary>Word-aware food matching with personal usage ordering among matching foods.</summary>
 public static class FoodSearchRanking
 {
     public static string[] Words(string? text)=>FuzzySearch.Normalize(text).Split(' ',StringSplitOptions.RemoveEmptyEntries).Distinct().ToArray();
@@ -22,6 +22,19 @@ public static class FoodSearchRanking
         // A requested percentage/number must not be treated as a fuzzy substitute.
         foreach(var number in wanted.Where(w=>w.All(char.IsDigit)))if(!candidate.Contains(number))score-=250;
         return score;
+    }
+    public static IEnumerable<T> OrderByPersonalUse<T>(string query,IEnumerable<T> foods,
+        Func<T,string?> name,Func<T,string?> brand,Func<T,int> useCount)
+    {
+        var wanted=Words(query);
+        return foods.Select(food=>
+        {
+            var description=name(food);var owner=brand(food);var candidate=Words(description+" "+owner);
+            return new {Food=food,AllWords=wanted.All(candidate.Contains),Uses=useCount(food),MatchScore=Score(query,description,owner)};
+        }).OrderByDescending(x=>x.AllWords)
+            .ThenByDescending(x=>x.Uses)
+            .ThenByDescending(x=>x.MatchScore)
+            .Select(x=>x.Food);
     }
     public static bool IsRelevant(string query,string? name,string? brand=null)
     {
