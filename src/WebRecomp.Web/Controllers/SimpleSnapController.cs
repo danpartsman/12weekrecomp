@@ -77,7 +77,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         Revision=revision,RequestId=Guid.NewGuid(),Name=w.Name,Date=today,TimeAllowed=(w.TimeLimitMinutes??120)/60m,
         LatePenalty=w.LatePenalty??0,Cap=w.Cap,CompletionReward=w.CompletionReward??0,CoachNote=w.CoachNote,
         IncompleteExerciseFee=w.Exercises.FirstOrDefault()?.Penalty??0,CoachIncentivePerRep=w.Exercises.FirstOrDefault()?.ExtraRepRate??0,
-        Exercises=w.Exercises.Select(e=>new ExerciseInput{Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,Type=e.Type,Basis=e.Basis,Rate=e.Rate}).ToList()
+        Exercises=w.Exercises.Select(e=>new ExerciseInput{Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight>0?e.MaxWeight:null,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,Type=e.Type,Basis=e.Basis,Rate=e.Rate}).ToList()
     };
     [HttpGet("template")]
     public async Task<IActionResult> Template(Guid clientId,string workoutId,CancellationToken ct)
@@ -179,7 +179,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         if(date<today||date>today.AddDays(84))return BadRequest();
         var now=DateTimeOffset.UtcNow;
         var start=date>today?SnapAvailabilityClock.Utc(date,TimeOnly.MinValue,SnapAvailabilityClock.Zone(client.TimeZone)):now;
-        var workout=new AccountabilityWorkout{Simple=true,OverrideSchedule=overrideSchedule,CreatedAtUtc=now,TimingStartUtc=start,TimeLimitMinutes=minutes,DeadlineUtc=start.AddMinutes(minutes)};
+        var workout=new AccountabilityWorkout{Simple=true,OverrideSchedule=overrideSchedule,OverrideHealthConflicts=overrideSchedule,CreatedAtUtc=now,TimingStartUtc=start,TimeLimitMinutes=minutes,DeadlineUtc=start.AddMinutes(minutes)};
         var state=new AccountabilityState{SnapWorkouts=[workout]};
         await availability.ApplyAsync(client,state,ct);
         var through=date.AddDays(6);
@@ -215,7 +215,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         try
         {
             foreach(var e in input.Exercises)SnapWorkoutEngine.ValidateFocus(e.MuscleFocus);
-            var workout=new AccountabilityWorkout{Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus}).ToList()};
+            var workout=new AccountabilityWorkout{Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus}).ToList()};
             var reading=await estimates.EstimateAsync(clientId,workout,null,(await ledger.ClockAsync(clientId,ct)).Today,ct);
             return Json(new{estimate=reading,message=reading is null?"Add the client's weight, height, date of birth and sex to calculate estimates.":null});
         }
@@ -254,7 +254,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             }
             var uniqueName=UniqueName(input.Name,prior,now);
             await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,new(){Name=uniqueName,CoachNote=string.IsNullOrWhiteSpace(input.CoachNote)?null:input.CoachNote.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
-                OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
+                OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,OverrideHealthConflicts=input.ConflictChoice=="override",TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
             TempData["SimpleStatus"]="Workout assigned. Your client can open it in their portal.";return RedirectToAction(nameof(Index),new{clientId});
         }
         catch(UnauthorizedAccessException){return NotFound();}
@@ -367,7 +367,8 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         [Required,StringLength(250)]public string Name{get;set;}="";
         [Range(typeof(decimal),"1","10")]public decimal? Rpe{get;set;}
         [StringLength(250)]public string? MuscleFocus{get;set;}
-        public int Sets{get;set;}=3;public int Reps{get;set;}=10;public decimal MaxWeight{get;set;}
+        public int Sets{get;set;}=3;public int Reps{get;set;}=10;
+        [Range(typeof(decimal),"0","2000")]public decimal? MaxWeight{get;set;}
         public string Type{get;set;}="fine";public string Basis{get;set;}="incomplete-reps";public decimal Rate{get;set;}
         public decimal? Penalty{get;set;}=0;public decimal CompletionReward{get;set;}public decimal ExtraRepRate{get;set;}
     }

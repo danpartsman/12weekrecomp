@@ -13,7 +13,7 @@ class Element{
  showModal(){this.open=true;}
  close(){this.open=false;}
 }
-async function harness({conflict=true,canOverride=true,fail=false}={}){
+async function harness({conflict=true,canOverride=true,fail=false,reason='Work'}={}){
  const form=new Element(),dialog=new Element(),output=new Element();output.dataset.timeZone='UTC';
  const date=new Element(),hours=new Element(),override=new Element(),choice=new Element();
  date.value='2026-11-12';hours.value='2';override.value='false';
@@ -33,7 +33,7 @@ async function harness({conflict=true,canOverride=true,fail=false}={}){
  form.requestSubmit=submitter=>dispatch(submitter);
  const data=()=>({deadlineUtc:'2026-11-12T20:00:00Z',days:[],conflict:{hasConflict:conflict,canOverride,
   requestedDeadlineUtc:'2026-11-12T12:00:00Z',extendedDeadlineUtc:'2026-11-12T20:00:00Z',overrideDeadlineUtc:'2026-11-12T12:00:00Z',extendedHours:10,
-  conflicts:conflict?[{reason:canOverride?'Work':'Illness',start:'2026-11-12T10:00:00Z',end:'2026-11-12T18:00:00Z'}]:[]}});
+  conflicts:conflict?[{reason,start:'2026-11-12T10:00:00Z',end:'2026-11-12T18:00:00Z'}]:[]}});
  const context={document:{querySelectorAll:()=>[],querySelector:s=>s==='[data-simple-assignment]'?form:dialog,createElement:()=>new Element()},location:{origin:'https://12wr.test'},URL,Intl,Date,Math,Number,
   fetch:async url=>{requests.push(String(url));if(fail)throw Error('offline');return {ok:true,json:async()=>data()};},
   setTimeout:fn=>{timeout=fn;return 1;},clearTimeout:()=>{timeout=null;},setInterval:()=>1};
@@ -67,8 +67,13 @@ test('Changing hours inside the popup recalculates before a decision',async()=>{
  await h.flush();assert.match(h.requests.at(-1),/minutes=180/);assert.equal(h.nodes['conflict-extend'].disabled,false);
  await h.nodes['conflict-extend'].emit('click');assert.equal(h.count(),1);
 });
-test('Illness-only conflicts disable override; a failed schedule check cannot assign',async()=>{
- const h=await harness({canOverride:false});await h.submit();assert.equal(h.nodes['conflict-override'].disabled,true);
- await h.nodes['conflict-override'].emit('click');assert.equal(h.count(),0);
+test('Illness and pain conflicts both offer override',async()=>{
+ for(const reason of ['Illness','Pain']){
+  const h=await harness({reason});await h.submit();assert.equal(h.nodes['conflict-override'].disabled,false);
+  assert.match(h.nodes['conflict-list'].children[0].textContent,new RegExp(reason));
+  await h.nodes['conflict-override'].emit('click');assert.equal(h.count(),1);assert.equal(h.choice.value,'override');
+ }
+});
+test('A failed schedule check cannot assign',async()=>{
  const offline=await harness({fail:true});await offline.submit();assert.equal(offline.count(),0);assert.equal(offline.nodes['conflict-extend'].disabled,true);
 });

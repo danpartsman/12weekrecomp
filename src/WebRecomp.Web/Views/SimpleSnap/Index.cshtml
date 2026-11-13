@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="~/css/simple-coaching.css" asp-append-version="true" />
 <section class="page-header snap-hero"><div><span class="snap-eyebrow">TRAIN WITH PURPOSE</span><h1>@(Model.CoachName ?? Model.Name) · Snap Workouts</h1><p>Assign a workout, record the results, and track fees and payments in this client's account.</p></div><img src="/images/workout-detail-gym-20260929.jpg" alt="Strength training in the gym" /></section>
 <p><a class="button" asp-controller="Availability" asp-action="Index" asp-route-clientId="@Model.ClientId">@(Model.Coach?"Client calendar":"My Calendar")</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachUserId">Fees &amp; payments</a> @if(Model.Coach){<a class="button" asp-controller="Coach" asp-action="Index">Client list</a>}</p>
-<p class="muted">Sleep, work, timed planned workouts and illness days pause the completion clock. Assignments received during protected time wait until you are available. Record workout results whenever you choose.</p>
+<p class="muted">Sleep, work, timed planned workouts, illness and pain days pause the completion clock. Assignments received during protected time wait until you are available. Record workout results whenever you choose.</p>
 @if(TempData["SimpleStatus"] is string status){<div class="app-message" role="status">@status</div>}
 <div asp-validation-summary="All" class="app-message"></div>
 @if(Model.Coach)
@@ -31,8 +31,8 @@
 <div data-simple-exercises>
 @for(var i=0;i<Model.Draft.Exercises.Count;i++){
  var exercise=Model.Draft.Exercises[i];
- <section class="simple-exercise" data-exercise><div class="simple-fields snap-exercise-row"><label>Exercise<input name="Exercises[@i].Name" value="@exercise.Name" maxlength="250" required /></label><label>Sets<input name="Exercises[@i].Sets" type="number" min="1" max="10" value="@exercise.Sets" required /></label><label>Reps per set<input name="Exercises[@i].Reps" type="number" min="1" max="100" value="@exercise.Reps" required /></label><label>Max weight (lb)<input name="Exercises[@i].MaxWeight" type="number" min="0" max="2000" step=".01" value="@exercise.MaxWeight" required /></label>
- <label>RPE (optional)<input name="Exercises[@i].Rpe" type="number" min="1" max="10" step=".1" value="@exercise.Rpe" /></label><label class="snap-muscle-focus">Muscle focus (optional)<input name="Exercises[@i].MuscleFocus" value="@exercise.MuscleFocus" maxlength="250" placeholder="chest, shoulders, triceps" /></label><button class="button secondary" type="button" data-remove-exercise>Remove exercise</button></div></section>
+ <section class="simple-exercise" data-exercise><div class="simple-fields snap-exercise-row"><label><span class="snap-field-label">Exercise</span><input name="Exercises[@i].Name" value="@exercise.Name" maxlength="250" required /></label><label><span class="snap-field-label">Sets</span><input name="Exercises[@i].Sets" type="number" min="1" max="10" value="@exercise.Sets" required /></label><label><span class="snap-field-label">Reps per set</span><input name="Exercises[@i].Reps" type="number" min="1" max="100" value="@exercise.Reps" required /></label><label><span class="snap-field-label">Max weight (lb, optional)</span><input aria-label="Max weight in pounds (optional)" name="Exercises[@i].MaxWeight" type="number" min="0" max="2000" step=".01" value="@exercise.MaxWeight" placeholder="No limit" /></label>
+ <label><span class="snap-field-label">RPE (optional)</span><input name="Exercises[@i].Rpe" type="number" min="1" max="10" step=".1" value="@exercise.Rpe" /></label><label class="snap-muscle-focus"><span class="snap-field-label">Muscle focus (optional)</span><input name="Exercises[@i].MuscleFocus" value="@exercise.MuscleFocus" maxlength="250" placeholder="chest, shoulders, triceps" /></label><button class="button secondary" type="button" data-remove-exercise>Remove exercise</button></div></section>
 }
 </div>
 <p class="snap-engine-estimate" data-snap-estimate role="status">Enter the exercises to preview estimated calories and glycogen.</p>
@@ -44,7 +44,7 @@
 <ul data-conflict-list></ul>
 <label>Available workout hours<input type="number" min="0.0166666667" max="168" step="any" data-conflict-hours /></label>
 <p data-conflict-extension></p><p data-conflict-status role="status"></p>
-<p class="muted">Extending keeps the full available workout time and moves the deadline past reserved hours. Illness days always remain protected.</p>
+<p class="muted">Extending keeps the full available workout time and moves the deadline past reserved hours. Override conflict applies to this Snap only, including illness and pain conflicts.</p>
 <div class="snap-conflict-actions">
 <button type="button" class="button" data-conflict-extend>Extend until after conflict</button>
 <button type="button" class="button secondary" data-conflict-override>Override conflict</button>
@@ -68,7 +68,7 @@
 <strong>Assessed fees and incentives:</strong> @Model.AssessedCharges.GetValueOrDefault(w.Id).ToString("C2") · <strong>Posted net charges:</strong> @Model.PostedCharges.GetValueOrDefault(w.Id).ToString("C2").
 Payments are tracked at the coach/client account level rather than allocated to individual workouts; see <a asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId">fees and payments</a>.</p>
 }
-@if(w.OverrideSchedule){<p class="app-message">Schedule override: this Snap ignores reserved sleep, work and workout hours. Illness days remain protected.</p>}
+@if(w.OverrideSchedule){<p class="app-message">Schedule override: @(w.OverrideHealthConflicts?"this Snap ignores reserved time, including illness and pain flags.":"this earlier Snap ignores sleep, work and workout reservations; its original illness protection is retained.")</p>}
 @if(!string.IsNullOrWhiteSpace(w.CoachNote)){<p class="snap-saved-note"><strong>@Model.AssignedBy.GetValueOrDefault(w.Id)'s note:</strong> @w.CoachNote</p>}
 @if(previous?.Finalized==true){
     <p><a class="button" asp-action="Completion" asp-route-clientId="@Model.ClientId" asp-route-workoutId="@w.Id">View fee summary &amp; notes</a></p>

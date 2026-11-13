@@ -10,7 +10,7 @@
 <div class="coaching-actions">
 <link rel="stylesheet" href="~/css/availability.css" asp-append-version="true" />
 <section class="page-header"><h1>@(Model.CanEdit ? "My Calendar" : Model.ClientName + " · Calendar")</h1>
-<p>Protect sleep, work and workout time. Snap completion clocks count available time only. Illness days pause the clock for the whole day.</p>
+<p>Protect sleep, work and workout time. Snap completion clocks count available time only. Illness and pain check-ins pause the clock for the whole day unless the assigning coach overrides that Snap’s conflict.</p>
 <p>All times use <strong>@Model.TimeZone</strong>. An overnight block ends the following morning.</p></section>
 @if(TempData["AvailabilityStatus"] is string status){<p class="app-message" role="status">@status</p>}
 <div class="availability-actions">
@@ -73,7 +73,7 @@
 </form></section>
 }
 <section class="card"><h2>Saved schedule</h2>
-<p>Edits and deletions apply from now; earlier protected time is retained. New blocks protect time from when they are saved. Illness protects each full date in the selected range, including recently recorded illness. “Illness today” in Scale &amp; Feel also protects that day automatically.</p>
+<p>Edits and deletions apply from now; earlier protected time is retained. New blocks protect time from when they are saved. Illness protects each full date in the selected range, including recently recorded illness. Illness or pain recorded in Scale &amp; Feel also protects that day automatically; an assigned coach can override a conflict for an individual Snap.</p>
 @if(!Model.Calendar.Blocks.Any(b=>b.CancelledUtc==null)){<p>No saved blocks yet.</p>}
 @foreach(var block in Model.Calendar.Blocks.Where(b=>b.CancelledUtc==null).OrderBy(b=>b.StartDate)){
 <div class="availability-saved"><p><strong>@SnapAvailabilityClock.Label(block.Kind)</strong> · @block.StartDate.ToString("MMM d, yyyy")

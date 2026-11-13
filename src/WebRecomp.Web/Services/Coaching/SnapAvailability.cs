@@ -145,7 +145,7 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
         var windows = await WindowsAsync(client, from, through, ct);
         var horizon = SnapAvailabilityClock.Utc(through.AddDays(1), TimeOnly.MinValue, zone);
         var regular = SnapAvailabilityClock.Calculate(start, minutes, start, windows, horizon);
-        var overridden = SnapAvailabilityClock.Calculate(start, minutes, start, windows.Where(w => w.Reason == "Illness"), horizon);
+        var overridden = SnapAvailabilityClock.Calculate(start, minutes, start, [], horizon);
         var requested = start.AddMinutes(minutes);
         var conflict = regular.DeadlineUtc is null || regular.DeadlineUtc > requested;
         var relevant = windows.Where(w => w.End > start && w.Start <= (regular.DeadlineUtc ?? horizon))
@@ -205,11 +205,15 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
         var zone = SnapAvailabilityClock.Zone(client.TimeZone);
         var windows = SnapAvailabilityClock.Expand(blocks, zone, from, through);
         var illness = await db.DailyCheckins.AsNoTracking().Where(d => d.ClientId == client.ClientId
-            && d.CheckinDate >= from.AddDays(-1) && d.CheckinDate <= through && d.IllnessFlag)
-            .Select(d => d.CheckinDate).Distinct().ToListAsync(ct);
-        windows.AddRange(illness.Select(date => new AvailabilityWindow(
-            SnapAvailabilityClock.Utc(date, TimeOnly.MinValue, zone),
-            SnapAvailabilityClock.Utc(date.AddDays(1), TimeOnly.MinValue, zone, true), "Illness")));
+            && d.CheckinDate >= from.AddDays(-1) && d.CheckinDate <= through && (d.IllnessFlag || d.PainFlag))
+            .Select(d => new { d.CheckinDate, d.IllnessFlag, d.PainFlag }).Distinct().ToListAsync(ct);
+        foreach (var day in illness)
+        {
+            var start = SnapAvailabilityClock.Utc(day.CheckinDate, TimeOnly.MinValue, zone);
+            var end = SnapAvailabilityClock.Utc(day.CheckinDate.AddDays(1), TimeOnly.MinValue, zone, true);
+            if (day.IllnessFlag) windows.Add(new(start, end, "Illness"));
+            if (day.PainFlag) windows.Add(new(start, end, "Pain"));
+        }
         return windows;
     }
 
@@ -232,7 +236,11 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
             workout.TimeLimitMinutes = minutes;
             var effectiveNow = state.SnapResults.GetValueOrDefault(workout.Id) is { Finalized: true, CompletedAtUtc: { } completed }
                 ? completed : now;
-            workout.Timing = SnapAvailabilityClock.Calculate(workout.TimingStartUtc!.Value, minutes, effectiveNow, workout.OverrideSchedule ? windows.Where(w => w.Reason == "Illness") : windows, horizon);
+            // Legacy overrides retained illness protection. Only a new explicit conflict
+            // override may shorten that protection; do not reprice old issued workouts.
+            IEnumerable<AvailabilityWindow> protectedWindows = !workout.OverrideSchedule ? windows
+                : workout.OverrideHealthConflicts ? [] : windows.Where(w => w.Reason == "Illness");
+            workout.Timing = SnapAvailabilityClock.Calculate(workout.TimingStartUtc!.Value, minutes, effectiveNow, protectedWindows, horizon);
             workout.DeadlineUtc = workout.Timing.DeadlineUtc;
         }
     }

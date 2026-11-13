@@ -43,7 +43,7 @@
         if(conflict&&!conflict.hasConflict)extension.textContent=`This window is available. Completion: ${format(data.deadlineUtc)} (${zone}).`;
         status.textContent=conflict?.canOverride&&conflict.overrideDeadlineUtc
             ?`Override completion: ${format(conflict.overrideDeadlineUtc)} (${zone}).`
-            :conflict?.hasConflict?'Illness days cannot be overridden. Extend the deadline or change the date.':'';
+            :conflict?.hasConflict?'No available override window was found. Change the date or hours.':'';
         extendButton.textContent=conflict?.hasConflict?'Extend until after conflict':'Assign workout';
         extendButton.disabled=!conflict?.extendedDeadlineUtc;
         overrideButton.disabled=!conflict?.hasConflict||!conflict?.canOverride;
