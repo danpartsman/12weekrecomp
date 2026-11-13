@@ -384,10 +384,10 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         public bool OverrideSchedule{get;set;}
         public DateOnly Date{get;set;}
         [Range(typeof(decimal),"0.0166666667","168")]public decimal TimeAllowed{get;set;}=2;
-        [Range(typeof(decimal),"0","10000")]public decimal IncompleteExerciseFee{get;set;}
-        [Range(typeof(decimal),"0","100")]public decimal CoachIncentivePerRep{get;set;}
-        public decimal LatePenalty{get;set;}
-        public decimal Cap{get;set;}=100;
+        [Range(typeof(decimal),"0","10000")]public decimal IncompleteExerciseFee{get;set;}=5;
+        [Range(typeof(decimal),"0","100")]public decimal CoachIncentivePerRep{get;set;}=1;
+        public decimal LatePenalty{get;set;}=20;
+        public decimal Cap{get;set;}=30;
         public decimal CompletionReward{get;set;}
         public List<ExerciseInput> Exercises{get;set;}=[new()];
     }
