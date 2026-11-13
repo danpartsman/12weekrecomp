@@ -101,6 +101,75 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         await ledger.PrepareAutomaticAsync(row,changes,ct);
         ledger.Append(row,actor,changes);await SaveAsync(ct);
     }
+
+    public async Task UpdateAsync(Guid actor, Guid client, int expected, string id, AccountabilityWorkout updated, CancellationToken ct)
+    {
+        if(!await access.CanAssignSnapAsync(actor,client,ct)
+            ||(await AssignmentOwnersAsync(client,ct)).GetValueOrDefault(id)!=actor)throw new UnauthorizedAccessException();
+        var row=await db.CoachAccountabilityAgreements.SingleAsync(x=>x.ClientId==client,ct);
+        if(row.Revision!=expected)throw new AccountabilityConflictException();
+        var state=AccountabilityDocument.Parse(row.StateJson);
+        var old=state.SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==id)??throw new ArgumentException("This Snap is no longer assigned.");
+        var result=state.SnapResults.GetValueOrDefault(id);
+        if(result?.Finalized==true)throw new ArgumentException("Completed Snap Workouts cannot be edited. Cancel the assignment to withdraw its charges; the completed workout stays in history.");
+        var local=await db.Clients.AsNoTracking().SingleAsync(x=>x.ClientId==client,ct);
+        var today=AppUserContextService.GetClientToday(local);
+        var date=AccountabilityDocument.Date(updated.Date);
+        if(date<today||date>today.AddDays(84))throw new ArgumentException("Choose today or a date within the next 12 weeks.");
+        var minutes=updated.TimeLimitMinutes??120;
+        if(minutes is <1 or >10080)throw new ArgumentException("Choose a completion window between 1 minute and 7 days.");
+        updated.Id=id;updated.Simple=true;updated.CreatedAtUtc=old.CreatedAtUtc??time.GetUtcNow();
+        updated.TimingStartUtc=date>today?SnapAvailabilityClock.Utc(date,TimeOnly.MinValue,SnapAvailabilityClock.Zone(local.TimeZone)):time.GetUtcNow();
+        updated.DeadlineUtc=updated.TimingStartUtc.Value.AddMinutes(minutes);
+        updated.TimeLimitMinutes=minutes;
+        foreach(var exercise in updated.Exercises)
+        {
+            if(string.IsNullOrEmpty(exercise.Id))exercise.Id="exercise-"+Guid.NewGuid().ToString("N");
+            else if(!old.Exercises.Any(e=>e.Id==exercise.Id))throw new ArgumentException("Reload the assigned exercise rows before editing.");
+            exercise.CatalogId="";exercise.Weight=0;
+        }
+        if(result is not null)result.Sets=updated.Exercises.ToDictionary(e=>e.Id,e=>old.Exercises.Any(o=>o.Id==e.Id&&string.Equals(o.Name.Trim(),e.Name.Trim(),StringComparison.OrdinalIgnoreCase))?result.Sets.GetValueOrDefault(e.Id)??[]:[]);
+        state.SnapWorkouts[state.SnapWorkouts.IndexOf(old)]=updated;
+        if(availability is not null)await availability.ApplyAsync(local,state,ct);
+        AccountabilityDocument.Validate(state);
+        row.StateJson=AccountabilityDocument.Serialize(state);Event(row,actor,"CONFIG",row.StateJson);
+        var configRevision=row.Revision;
+        await ReconcileChangesAsync(row,actor,state,local,ct);
+        await SaveAsync(ct);
+        if(notifications is not null)try{await notifications.QueueConfigAsync(client,configRevision,ct);}catch(Exception){/* Worker recovers the CONFIG event. */}
+    }
+
+    public async Task CancelAsync(Guid actor, Guid client, int expected, string id, CancellationToken ct)
+    {
+        if(!await access.CanAssignSnapAsync(actor,client,ct)
+            ||(await AssignmentOwnersAsync(client,ct)).GetValueOrDefault(id)!=actor)throw new UnauthorizedAccessException();
+        var row=await db.CoachAccountabilityAgreements.SingleAsync(x=>x.ClientId==client,ct);
+        var state=AccountabilityDocument.Parse(row.StateJson);
+        var workout=state.SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==id);
+        if(workout is null)return; // Repeated cancellation cannot duplicate reversals.
+        if(row.Revision!=expected)throw new AccountabilityConflictException();
+        state.SnapWorkouts.Remove(workout);state.SnapResults.Remove(id);
+        AccountabilityDocument.Validate(state);
+        row.StateJson=AccountabilityDocument.Serialize(state);Event(row,actor,"CONFIG",row.StateJson);
+        var configRevision=row.Revision;
+        var existing=await ledger.ReadAsync(row,ct);
+        var prefix=$"snap:{id}:";
+        var zeros=existing.Where(e=>e.Automatic&&e.CoachUserId==actor&&e.SourceKey.StartsWith(prefix,StringComparison.Ordinal))
+            .GroupBy(e=>e.SourceKey).Select(g=>new AccountabilityCharge(g.Key,g.First().Date,g.First().Kind,
+                $"Cancelled Snap Workout · {workout.Name}",0,0));
+        var changes=AccountabilityLedger.Delta(zeros,existing,row.TermsVersion,actor);
+        foreach(var change in changes)change.CoachUserId=actor;
+        await ledger.PrepareAutomaticAsync(row,changes,ct);ledger.Append(row,actor,changes);
+        await SaveAsync(ct);
+        if(notifications is not null)try{await notifications.QueueConfigAsync(client,configRevision,ct);}catch(Exception){/* Worker recovers the CONFIG event. */}
+    }
+
+    private async Task ReconcileChangesAsync(CoachAccountabilityAgreement row,Guid actor,AccountabilityState state,Client client,CancellationToken ct)
+    {
+        var changes=AccountabilityLedger.Delta(Charges(state,AppUserContextService.GetClientToday(client),time.GetUtcNow()),
+            await ledger.ReadAsync(row,ct),row.TermsVersion,actor);
+        await ledger.PrepareAutomaticAsync(row,changes,ct);ledger.Append(row,actor,changes);
+    }
     public async Task SaveNoteAsync(Guid actor, Guid client, bool coach, int expected, string workoutId,
         string? note, CancellationToken ct)
     {

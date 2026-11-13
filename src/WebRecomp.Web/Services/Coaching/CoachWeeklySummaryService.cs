@@ -35,9 +35,7 @@ public sealed class CoachWeeklySummaryService(RecompDbContext db, CoachCenterSer
             .Where(x => ids.Contains(x.WorkoutSessionId)).ToListAsync(ct);
         var plans = await db.PlannedWorkouts.AsNoTracking().Where(x => x.ClientId == clientId
             && x.PlannedDate >= monday && x.PlannedDate <= sunday).ToListAsync(ct);
-        var templateIds = plans.Where(x => x.WorkoutTemplateId.HasValue).Select(x => x.WorkoutTemplateId!.Value).ToArray();
-        var templates = await db.WorkoutTemplates.AsNoTracking().Where(x => x.ClientId == clientId
-            && templateIds.Contains(x.WorkoutTemplateId)).ToDictionaryAsync(x => x.WorkoutTemplateId, x => x.TemplateName, ct);
+        var names=await PlannedWorkoutNames.LoadAsync(db,clientId,plans,ct);
         var targets = prescriptions is null ? new CoachSummaryTargets(new Dictionary<DateOnly, CoachSummaryPrescription>())
             : await prescriptions.LoadAsync(coachUserId, client, reference, ct);
         var days = Enumerable.Range(0, 9).Select(offset =>
@@ -46,13 +44,12 @@ public sealed class CoachWeeklySummaryService(RecompDbContext db, CoachCenterSer
             var readings = scales.Where(x => x.LocalMeasurementDate == d)
                 .OrderByDescending(x => x.MeasurementAtUtc).ThenByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.MeasurementId).ToArray();
             var plan = plans.Where(x => x.PlannedDate == d).OrderByDescending(x => x.UpdatedAtUtc).ThenBy(x => x.PlannedWorkoutId).FirstOrDefault();
-            var planName = plan is null ? null : plan.WorkoutTemplateId is Guid id && templates.TryGetValue(id, out var name)
-                ? name : plan.SystemWorkoutCode ?? plan.WorkoutTypeCode;
+            var planName = plan is null ? null : names.GetValueOrDefault(d);
             return new CoachSummaryDay(d, readings.FirstOrDefault(), readings.Length,
                 checkins.Where(x => x.CheckinDate == d).OrderByDescending(x => x.UpdatedAtUtc).ThenBy(x => x.CheckinId).FirstOrDefault(),
                 nutrition.Where(x => x.NutritionDate == d).OrderByDescending(x => x.UpdatedAtUtc).ThenBy(x => x.NutritionDayId).FirstOrDefault(),
                 planName, sessions.Where(x => x.WorkoutDate == d).Select(x => new CoachSummaryWorkout(x,
-                    exercises.Where(e => e.WorkoutSessionId == x.WorkoutSessionId).OrderBy(e => e.ExerciseOrder).ToArray())).ToArray()) { Prescription = targets.Days.GetValueOrDefault(d) };
+                    exercises.Where(e => e.WorkoutSessionId == x.WorkoutSessionId).OrderBy(e => e.ExerciseOrder).ToArray())).ToArray()) { Prescription = targets.Days.GetValueOrDefault(d), PlannedMinutes=plan?.PlannedDurationMin, PlannedRpe=plan?.PlannedRpe };
         }).ToArray();
         return new() { ClientId = clientId, ClientName = client.ClientName, Today = today, ReferenceDate = reference, Days = days, PrescriptionNotice = targets.Notice };
     }

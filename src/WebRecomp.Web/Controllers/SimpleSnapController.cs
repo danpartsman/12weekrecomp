@@ -77,7 +77,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         Revision=revision,RequestId=Guid.NewGuid(),Name=w.Name,Date=today,TimeAllowed=(w.TimeLimitMinutes??120)/60m,
         LatePenalty=w.LatePenalty??0,Cap=w.Cap,CompletionReward=w.CompletionReward??0,CoachNote=w.CoachNote,
         IncompleteExerciseFee=w.Exercises.FirstOrDefault()?.Penalty??0,CoachIncentivePerRep=w.Exercises.FirstOrDefault()?.ExtraRepRate??0,
-        Exercises=w.Exercises.Select(e=>new ExerciseInput{Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight>0?e.MaxWeight:null,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,Type=e.Type,Basis=e.Basis,Rate=e.Rate}).ToList()
+        Exercises=w.Exercises.Select(e=>new ExerciseInput{Id=e.Id,Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight>0?e.MaxWeight:null,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,Type=e.Type,Basis=e.Basis,Rate=e.Rate}).ToList()
     };
     [HttpGet("template")]
     public async Task<IActionResult> Template(Guid clientId,string workoutId,CancellationToken ct)
@@ -107,6 +107,31 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         }
         return candidate;
     }
+    [HttpGet("edit/{workoutId}")]
+    public async Task<IActionResult> Edit(Guid clientId,string workoutId,CancellationToken ct)
+    {
+        if(!SimpleCoaching.Enabled(configuration))return NotFound();
+        var actor=(await users.GetAsync(HttpContext,ct)).User.UserId;
+        if(!await IsAssignedCoachAsync(actor,clientId,ct)||(await simple.AssignmentOwnersAsync(clientId,ct)).GetValueOrDefault(workoutId)!=actor)return NotFound();
+        var row=await simple.ReadAsync(actor,clientId,true,ct);if(row is null)return NotFound();
+        var state=AccountabilityDocument.Parse(row.StateJson);
+        var workout=state.SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==workoutId);
+        if(workout is null)return NotFound();
+        if(state.SnapResults.GetValueOrDefault(workoutId)?.Finalized==true){TempData["SimpleStatus"]="Completed Snap Workouts cannot be edited. Cancel the assignment to withdraw its charges.";return RedirectToAction(nameof(Index),new{clientId});}
+        var draft=FromWorkout(workout,row.Revision,(await ledger.ClockAsync(clientId,ct)).Today);
+        draft.EditWorkoutId=workout.Id;draft.Date=AccountabilityDocument.Date(workout.Date);
+        return await Page(clientId,draft,ct);
+    }
+    [HttpPost("cancel/{workoutId}"),ValidateAntiForgeryToken,EnableRateLimiting(SnapRequestRateLimits.Submissions)]
+    public async Task<IActionResult> Cancel(Guid clientId,string workoutId,int revision,CancellationToken ct)
+    {
+        if(!SimpleCoaching.Enabled(configuration))return NotFound();
+        var actor=(await users.GetAsync(HttpContext,ct)).User.UserId;
+        try{await simple.CancelAsync(actor,clientId,revision,workoutId,ct);TempData["SimpleStatus"]="Snap Workout cancelled. Its automatic charges were reversed; completed training stays in history.";}
+        catch(UnauthorizedAccessException){return NotFound();}
+        catch(Exception e)when(e is ArgumentException or AccountabilityConflictException){TempData["SimpleStatus"]=e.Message;}
+        return RedirectToAction(nameof(Index),new{clientId});
+    }
     [HttpGet("reuse/{workoutId}")]
     public async Task<IActionResult> Reuse(Guid clientId,string workoutId,CancellationToken ct)
     {
@@ -121,7 +146,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         ViewData["LoadedTemplateId"]=workout.Id;
         return await Page(clientId,FromWorkout(workout,row.Revision,clock.Today),ct);
     }
-    [HttpPost("repeat/{workoutId}"),ValidateAntiForgeryToken,EnableRateLimiting("access-code")]
+    [HttpPost("repeat/{workoutId}"),ValidateAntiForgeryToken,EnableRateLimiting(SnapRequestRateLimits.Submissions)]
     public async Task<IActionResult> Repeat(Guid clientId,string workoutId,CancellationToken ct)
     {
         var actor=(await users.GetAsync(HttpContext,ct)).User.UserId;
@@ -205,7 +230,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         return Json(new { workout.Timing!.DeadlineUtc,workout.Timing.AvailableFromUtc,workout.Timing.PausedUntilUtc,
             workout.Timing.RemainingSeconds,workout.Timing.Reason,timeZone=client.TimeZone,overrideSchedule,conflict,days });
     }
-    [HttpPost("estimate"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(65536)]
+    [HttpPost("estimate"),ValidateAntiForgeryToken,EnableRateLimiting(SnapRequestRateLimits.Estimates),RequestSizeLimit(65536)]
     public async Task<IActionResult> Estimate(Guid clientId,AssignmentInput input,CancellationToken ct)
     {
         if(!SimpleCoaching.Enabled(configuration)||estimates is null)return NotFound();
@@ -221,7 +246,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         }
         catch(ArgumentException e){return BadRequest(new{message=e.Message});}
     }
-    [HttpPost("assign"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(65536)]
+    [HttpPost("assign"),ValidateAntiForgeryToken,EnableRateLimiting(SnapRequestRateLimits.Submissions),RequestSizeLimit(65536)]
     public async Task<IActionResult> Assign(Guid clientId,AssignmentInput input,CancellationToken ct)
     {
         if(!SimpleCoaching.Enabled(configuration))return NotFound();
@@ -252,15 +277,17 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
                     }
                 }
             }
-            var uniqueName=UniqueName(input.Name,prior,now);
-            await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,new(){Name=uniqueName,CoachNote=string.IsNullOrWhiteSpace(input.CoachNote)?null:input.CoachNote.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
-                OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,OverrideHealthConflicts=input.ConflictChoice=="override",TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()},ct);
-            TempData["SimpleStatus"]="Workout assigned. Your client can open it in their portal.";return RedirectToAction(nameof(Index),new{clientId});
+            var uniqueName=UniqueName(input.Name,prior.Where(w=>w.Id!=input.EditWorkoutId).ToArray(),now);
+            var workout=new AccountabilityWorkout{Name=uniqueName,CoachNote=string.IsNullOrWhiteSpace(input.CoachNote)?null:input.CoachNote.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,CompletionReward=input.CompletionReward,
+                OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,OverrideHealthConflicts=input.ConflictChoice=="override",TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Id=input.EditWorkoutId is null?"":e.Id,Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()};
+            if(input.EditWorkoutId is not null)await simple.UpdateAsync(user.UserId,clientId,input.Revision,input.EditWorkoutId,workout,ct);
+            else await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,workout,ct);
+            TempData["SimpleStatus"]=input.EditWorkoutId is null?"Workout assigned. Your client can open it in their portal.":"Snap Workout updated. The completion window has restarted.";return RedirectToAction(nameof(Index),new{clientId});
         }
         catch(UnauthorizedAccessException){return NotFound();}
         catch(Exception e)when(e is ArgumentException or AccountabilityConflictException){ModelState.AddModelError("",e.Message);return await Page(clientId,input,ct);}
     }
-    [HttpPost("result"),ValidateAntiForgeryToken,EnableRateLimiting("access-code"),RequestSizeLimit(65536)]
+    [HttpPost("result"),ValidateAntiForgeryToken,EnableRateLimiting(SnapRequestRateLimits.Submissions),RequestSizeLimit(65536)]
     public async Task<IActionResult> Result(Guid clientId,ResultInput input,CancellationToken ct,Guid? coachUserId=null)
     {
         if(!SimpleCoaching.Enabled(configuration))return NotFound();
@@ -315,7 +342,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         catch (UnauthorizedAccessException) { return NotFound(); }
     }
 
-    [HttpPost("completion/{workoutId}/note"), ValidateAntiForgeryToken, EnableRateLimiting("access-code")]
+    [HttpPost("completion/{workoutId}/note"), ValidateAntiForgeryToken, EnableRateLimiting(SnapRequestRateLimits.Submissions)]
     public async Task<IActionResult> CompletionNote(Guid clientId, string workoutId, CompletionNoteInput input, CancellationToken ct)
     {
         if (!SimpleCoaching.Enabled(configuration)) return NotFound();
@@ -347,6 +374,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
 
     public sealed class AssignmentInput
     {
+        [StringLength(64)]public string? EditWorkoutId{get;set;}
         public int Revision{get;set;}
         public Guid RequestId{get;set;}=Guid.NewGuid();
         [StringLength(1000)]public string? CoachNote{get;set;}
@@ -364,6 +392,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
     }
     public sealed class ExerciseInput
     {
+        [StringLength(64)]public string Id{get;set;}="";
         [Required,StringLength(250)]public string Name{get;set;}="";
         [Range(typeof(decimal),"1","10")]public decimal? Rpe{get;set;}
         [StringLength(250)]public string? MuscleFocus{get;set;}

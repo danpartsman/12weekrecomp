@@ -10,6 +10,8 @@ public sealed record CoachSummaryDay(DateOnly Date, Measurement? Scale, int Scal
     IReadOnlyList<CoachSummaryWorkout> Workouts)
 {
     public CoachSummaryPrescription? Prescription { get; init; }
+    public decimal? PlannedMinutes { get; init; }
+    public decimal? PlannedRpe { get; init; }
 }
 public sealed record CoachSummaryGauge(string Label, string Unit, decimal? Actual, decimal? Target, int LoggedDays, int TargetDays)
 {

@@ -1,0 +1,78 @@
+@model WebRecomp.Web.Controllers.CoachDailyReviewPage
+@using WebRecomp.Web.Services.Engine30
+@using WebRecomp.Web.Services.WorkoutTargeting
+@using WebRecomp.Web.Services.Coaching
+@{
+    Layout="_CoachLayout";
+    ViewData["Title"]=Model.Summary.ClientName+" · Daily Review";
+    var day=Model.Day;var summary=Model.Summary;
+    string N(decimal? value,string format="0.#")=>value?.ToString(format)??"—";
+    var body=BodyCheckinCodec.Read(day.Checkin?.Notes);
+}
+<link rel="stylesheet" href="~/css/coach-daily-review.css" asp-append-version="true" />
+<header class="coach-daily-heading"><h1>@summary.ClientName · Daily Review</h1><p>@day.Date.ToString("dddd, MMM d, yyyy")</p>
+<nav class="coach-daily-actions" aria-label="Client controls"><a class="button" asp-controller="Coach" asp-action="Client" asp-route-clientId="@summary.ClientId">Client page</a>
+<a class="button" asp-controller="Availability" asp-action="Index" asp-route-clientId="@summary.ClientId">Schedule</a>
+<a class="button" asp-action="Index" asp-route-clientId="@summary.ClientId" asp-route-date="@day.Date.ToString("yyyy-MM-dd")">Weekly summary</a></nav></header>
+<nav class="card coach-daily-actions" aria-label="Choose review date">
+@if(day.Date>new DateOnly(1900,1,8)){<a class="button" asp-action="Day" asp-route-clientId="@summary.ClientId" asp-route-date="@day.Date.AddDays(-1).ToString("yyyy-MM-dd")">Previous day</a>}
+<form method="get"><input type="hidden" name="clientId" value="@summary.ClientId" /><label for="daily-review-date">Date</label><input id="daily-review-date" type="date" name="date" value="@day.Date.ToString("yyyy-MM-dd")" min="1900-01-08" max="@summary.Today.ToString("yyyy-MM-dd")" required /><button class="button" type="submit">View day</button></form>
+<a class="button" asp-action="Day" asp-route-clientId="@summary.ClientId">Today</a>
+@if(day.Date<summary.Today){<a class="button" asp-action="Day" asp-route-clientId="@summary.ClientId" asp-route-date="@day.Date.AddDays(1).ToString("yyyy-MM-dd")">Next day</a>}
+</nav>
+@if(Model.FoodNotice is not null){<p class="app-message" role="status">@Model.FoodNotice</p>}
+<div class="coach-daily-grid">
+<section class="card"><h2>Scale readings</h2>
+@if(day.Scale is {} scale){
+<dl class="coach-daily-stats"><div><dt>Weight</dt><dd>@N(scale.WeightLb) lb</dd></div>
+<div><dt>Body fat</dt><dd>@N(Engine30DashboardProjectionService.NormalizeBodyFatFraction(scale.BodyFatPct)*100)%</dd></div>
+<div><dt>Skeletal muscle</dt><dd>@N(scale.SkeletalMuscleMassLb) lb</dd></div>
+<div><dt>Total muscle</dt><dd>@N(scale.MuscleMassLb) lb</dd></div>
+<div><dt>Body water</dt><dd>@N(scale.BodyWaterLb) lb</dd></div>
+<div><dt>Waist</dt><dd>@N(scale.WaistIn) in</dd></div></dl>
+<p class="muted">@day.ScaleCount reading(s) on this date · latest shown.</p>
+}else{<p>No scale reading on this date.</p>}
+</section>
+<section class="card"><h2>Nutrition totals</h2>
+<div class="coach-daily-table"><table><thead><tr><th>Nutrient</th><th>Logged</th><th>Prescribed</th></tr></thead><tbody>
+@foreach(var row in new[]{("Calories",day.Nutrition?.ActualCalories??Model.Food?.Totals?.EnergyKcal,day.Prescription?.Calories),
+    ("Protein (g)",day.Nutrition?.ActualProteinG??Model.Food?.Totals?.ProteinG,day.Prescription?.ProteinG),
+    ("Carbs (g)",day.Nutrition?.ActualCarbsG??Model.Food?.Totals?.CarbohydrateG,day.Prescription?.CarbsG),
+    ("Fat (g)",day.Nutrition?.ActualFatG??Model.Food?.Totals?.FatG,day.Prescription?.FatG)}){
+<tr><th>@row.Item1</th><td>@N(row.Item2)</td><td>@N(row.Item3)</td></tr>
+}</tbody></table></div>
+@if(day.Nutrition is null&&Model.Food?.Items.Count is not >0){<p>No nutrition logged on this date.</p>}
+@if(summary.PrescriptionNotice is not null){<p class="muted">@summary.PrescriptionNotice</p>}
+</section>
+<section class="card coach-daily-food"><h2>Food eaten</h2>
+@if(Model.Food?.Items.Count is >0){
+@foreach(var meal in Model.Food.Items.GroupBy(i=>i.MealSlotCode)){
+<h3>@meal.Key.Replace('_',' ')</h3>
+<ul class="coach-daily-food-list">@foreach(var item in meal.OrderBy(i=>i.ItemOrder)){
+<li><strong>@item.DescriptionSnapshot</strong><p>@N(item.Quantity) @item.QuantityUnitCode.Replace('_',' ').ToLowerInvariant()@(item.GramWeight.HasValue?$" · {N(item.GramWeight)} g":"")</p>
+<p>@N(item.EnergyKcal) kcal · Protein @N(item.ProteinG) g · Carbs @N(item.CarbohydrateG) g · Fat @N(item.FatG) g</p></li>
+}</ul>
+}
+}else{<p>No individual foods logged for this date. Manually entered daily totals may still be available above.</p>}
+</section>
+<section class="card"><h2>Planned workout</h2>
+<h3>@(day.PlannedWorkout??day.Prescription?.WorkoutName??"Not scheduled")</h3>
+<p>@N(day.PlannedMinutes??day.Prescription?.Minutes) minutes · RPE @N(day.PlannedRpe??day.Prescription?.Rpe) / 10</p>
+</section>
+<section class="card"><h2>Actual workouts</h2>
+@if(day.Workouts.Count==0){<p>No completed workout logged on this date.</p>}
+@foreach(var workout in day.Workouts){
+<h3>@(workout.Session.WorkoutName??workout.Session.WorkoutTypeCode.Replace('_',' '))</h3><p>@N(workout.Session.DurationMin) minutes · RPE @N(workout.Session.SessionRpe) / 10</p>
+@if(workout.Exercises.Count>0){<details><summary>Exercises and recorded sets</summary><ul>@foreach(var exercise in workout.Exercises){
+<li><strong>@exercise.ExerciseNameSnapshot</strong> · @string.Join("; ",exercise.Sets.OrderBy(s=>s.SetOrder).Select(s=>$"{s.Reps?.ToString()??"—"} reps × {N(CoachClientPlanService.Pounds(s.Load,s.LoadUnitCode))} lb"))</li>
+}</ul></details>}
+}
+</section>
+<section class="card"><h2>Recovery and notes</h2>
+<p>Sleep @N(day.Checkin?.SleepHours) hours · Energy @(day.Checkin?.EnergyScore?.ToString()??"—") / 10 · Soreness @(day.Checkin?.SorenessScore?.ToString()??"—") / 10</p>
+@if(day.Checkin?.IllnessFlag==true){<p>Illness reported</p>}
+@if(day.Checkin?.PainFlag==true){<p>Pain reported</p>}
+@if(!string.IsNullOrWhiteSpace(body.Note)){<p>@body.Note</p>}
+@if(!string.IsNullOrWhiteSpace(day.Nutrition?.Notes)){<p>Nutrition note: @day.Nutrition.Notes</p>}
+</section>
+</div>

@@ -282,6 +282,49 @@ public sealed class CoachNotificationTests
         var link=await f.Db.CoachClientRelationships.SingleAsync(x=>x.CoachUserId==f.Coach);link.RevokedAtUtc=DateTime.UtcNow;await f.Db.SaveChangesAsync();
         Assert.Empty(await CoachActivityNotices.ReadAsync(f.Db,f.Files,f.Coach,default));
     }
+    [Fact]
+    public async Task SnapEditKeepsProgressAndIdentityAndCancelReversesChargesButRetainsActualHistory()
+    {
+        using var f=new Fixture();await SeedFinancial(f);f.Config["SimpleCoaching:Enabled"]="true";
+        var client=await f.Db.Clients.SingleAsync();client.TimeZone="UTC";await f.Db.SaveChangesAsync();
+        var date=AppUserContextService.GetClientToday(client);
+        var clock=new SettlementClock{Now=new DateTimeOffset(date.ToDateTime(new TimeOnly(10,0)),TimeSpan.Zero)};
+        var access=new CoachAccountabilityPreviewService(f.Db,new CoachCenterService(f.Db),null!);
+        var ledger=new AccountabilityLedger(f.Db,access,f.Config);
+        var simple=new SimpleCoachingService(f.Db,access,ledger,clock:clock);
+        await simple.AssignAsync(f.Coach,f.Client,0,Guid.NewGuid(),new(){Name="Original Snap",Date=date.ToString("yyyy-MM-dd"),TimeLimitMinutes=30,LatePenalty=25,
+            Exercises=[new(){Name="Squat",Sets=1,Reps=10,MaxWeight=0,Penalty=5}]},default);
+        var row=await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        var old=AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.Single();var exercise=old.Exercises.Single();
+        await simple.ResultAsync(f.Owner,f.Client,false,row.Revision,old.Id,new(){Sets=new(){[exercise.Id]=[new(){Reps=4,Weight=0}]}},default);
+        clock.Now=clock.Now.AddHours(1);await simple.RefreshAsync(f.Owner,f.Client,false,default);
+        Assert.Equal(25m,(await ledger.ReadAsync(row,default)).Sum(e=>e.Amount));
+        var other=Guid.NewGuid();f.Db.CoachClientRelationships.Add(new(){CoachClientRelationshipId=Guid.NewGuid(),CoachUserId=other,ClientId=f.Client,StatusCode="ACTIVE"});await f.Db.SaveChangesAsync();
+        AccountabilityWorkout Edited()=>new(){Name="Edited Snap",Date=date.ToString("yyyy-MM-dd"),TimeLimitMinutes=120,LatePenalty=25,
+            Exercises=[new(){Id=exercise.Id,Name="Squat",Sets=1,Reps=12,MaxWeight=0,Penalty=5}]};
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>simple.UpdateAsync(other,f.Client,row.Revision,old.Id,Edited(),default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>simple.CancelAsync(other,f.Client,row.Revision,old.Id,default));
+        await Assert.ThrowsAsync<AccountabilityConflictException>(()=>simple.UpdateAsync(f.Coach,f.Client,0,old.Id,Edited(),default));
+        await simple.UpdateAsync(f.Coach,f.Client,row.Revision,old.Id,Edited(),default);
+        var state=AccountabilityDocument.Parse(row.StateJson);var updated=Assert.Single(state.SnapWorkouts);
+        Assert.Equal(old.Id,updated.Id);Assert.Equal("Edited Snap",updated.Name);
+        Assert.Equal(clock.Now.AddHours(2),updated.DeadlineUtc);
+        Assert.Equal(4,state.SnapResults[old.Id].Sets[exercise.Id][0].Reps);
+        Assert.Equal(0m,(await ledger.ReadAsync(row,default)).Sum(e=>e.Amount));
+        f.Db.WorkoutSessions.Add(new(){WorkoutSessionId=Guid.NewGuid(),ClientId=f.Client,ProgramId=Guid.NewGuid(),WorkoutDate=date,
+            WorkoutTypeCode=SnapWorkoutEngine.WorkoutCode,EntrySourceCode=SnapWorkoutEngine.Source,SourceRecordId=old.Id,CompletedFlag=true,DurationMin=10});
+        await f.Db.SaveChangesAsync();clock.Now=clock.Now.AddHours(3);await simple.RefreshAsync(f.Owner,f.Client,false,default);
+        Assert.Equal(25m,(await ledger.ReadAsync(row,default)).Sum(e=>e.Amount));
+        await simple.CancelAsync(f.Coach,f.Client,row.Revision,old.Id,default);
+        var count=(await ledger.ReadAsync(row,default)).Count;
+        await simple.CancelAsync(f.Coach,f.Client,0,old.Id,default);
+        Assert.Empty(AccountabilityDocument.Parse(row.StateJson).SnapWorkouts);
+        Assert.Equal(0m,(await ledger.ReadAsync(row,default)).Sum(e=>e.Amount));
+        Assert.Equal(count,(await ledger.ReadAsync(row,default)).Count);
+        Assert.True(await f.Db.WorkoutSessions.AnyAsync(w=>w.SourceRecordId==old.Id&&w.CompletedFlag));
+        Assert.Contains(await f.Db.CoachAccountabilityEvents.ToListAsync(),e=>e.Kind=="CONFIG"&&e.PayloadJson.Contains("Original Snap"));
+    }
+
     [Theory]
     [InlineData(true,false)]
     [InlineData(false,true)]

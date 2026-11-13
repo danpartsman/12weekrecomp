@@ -54,6 +54,8 @@
     <p class="eyebrow">CLIENT ROLLING SUMMARY</p>
     <h1>@Model.ClientName</h1>
     <p>Seven completed days · @Model.WeekStart.ToString("MMM d")–@Model.WeekEnd.ToString("MMM d, yyyy")</p>
+    <a class="button" asp-action="Day" asp-route-clientId="@Model.ClientId" asp-route-date="@Model.ReferenceDate.ToString("yyyy-MM-dd")">Daily Review</a>
+    <a class="button" asp-controller="Availability" asp-action="Index" asp-route-clientId="@Model.ClientId">Schedule</a>
     <a class="button" asp-controller="Coach" asp-action="Client" asp-route-clientId="@Model.ClientId">Plan &amp; coaching controls</a>
 </header>
 <nav class="coach-summary-navigation" aria-label="Choose rolling period">

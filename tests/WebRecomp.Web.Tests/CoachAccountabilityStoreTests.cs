@@ -434,7 +434,7 @@ public sealed class CoachAccountabilityStoreTests
         Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync(url)).StatusCode);
     }
 
-    private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f,bool simpleMode=false)
+    private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f,bool simpleMode=false,WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore? foods=null)
     {
         return new Microsoft.AspNetCore.TestHost.TestServer(new Microsoft.AspNetCore.Hosting.WebHostBuilder()
             .UseSetting(Microsoft.AspNetCore.Hosting.WebHostDefaults.ApplicationKey,typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly.GetName().Name)
@@ -453,7 +453,9 @@ public sealed class CoachAccountabilityStoreTests
                 services.AddScoped<AppUserContextService>();services.AddScoped<CoachCenterService>();
                 services.AddScoped<CoachAccountabilityPreviewService>(_=>new CoachAccountabilityPreviewService(_.GetRequiredService<RecompDbContext>(),_.GetRequiredService<CoachCenterService>(),null!));
                 services.AddScoped<CoachAccountabilityStore>();services.AddScoped<AccountabilityLedger>();services.AddScoped<SimpleCoachingService>();services.AddScoped<SnapAvailabilityService>();
-                services.AddRateLimiter(o=>o.AddConcurrencyLimiter("access-code",p=>p.PermitLimit=100));
+                services.AddScoped<CoachWeeklySummaryService>();
+                if(foods is not null)services.AddSingleton(foods);
+                services.AddRateLimiter(o=>{o.RejectionStatusCode=429;o.AddConcurrencyLimiter("access-code",p=>p.PermitLimit=100);SnapRequestRateLimits.Configure(o);});
                 services.AddAuthentication("ledger-test").AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,LedgerTestAuthentication>("ledger-test",_=>{});
                 services.AddAuthorization();services.AddControllersWithViews().AddApplicationPart(typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly).AddControllersAsServices();
                 services.AddTransient<WebRecomp.Web.Controllers.AccountabilityPreviewController>(provider=>new(provider.GetRequiredService<AppUserContextService>(),provider.GetRequiredService<CoachAccountabilityPreviewService>(),null!,null!,provider.GetRequiredService<IConfiguration>(),provider.GetRequiredService<CoachAccountabilityStore>()));
@@ -859,6 +861,84 @@ public sealed class CoachAccountabilityStoreTests
         http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","coach");
         html=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger");Assert.Contains("ONLY_A_TRANSACTION",html);Assert.DoesNotContain("ONLY_B_TRANSACTION",html);Assert.DoesNotContain("value=\"fee\"",html);
     }
+    [Fact]
+    public async Task AssignedCoachCanEditAndCancelSameSnapThroughPortalButOtherCoachCannot()
+    {
+        var f=await Fixture.Create();string id;string exerciseId;DateOnly date;
+        using(var db=f.Db())
+        {
+            date=AppUserContextService.GetClientToday(await db.Clients.SingleAsync()).AddDays(1);
+            var access=new CoachAccountabilityPreviewService(db,new CoachCenterService(db),null!);
+            var simple=new SimpleCoachingService(db,access,new AccountabilityLedger(db,access));
+            await simple.AssignAsync(f.Coach,f.Client,0,Guid.NewGuid(),new(){Name="Portal original",Date=date.ToString("yyyy-MM-dd"),TimeLimitMinutes=120,Exercises=[new(){Name="Curl",Sets=2,Reps=10,Type="fine",Basis="incomplete-reps",MaxWeight=0}]},default);
+            var workout=Assert.Single(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapWorkouts);
+            id=workout.Id;exerciseId=workout.Exercises[0].Id;
+        }
+        using var server=CreateServer(f,true);using var http=server.CreateClient();
+        http.DefaultRequestHeaders.Add("X-Test-Actor","coach");
+        var cookies=new Dictionary<string,string>();
+        async Task<string> Page(string url)
+        {
+            var response=await http.GetAsync(url);Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);
+            if(response.Headers.TryGetValues("Set-Cookie",out var values))foreach(var value in values){var cookie=value.Split(';')[0];cookies[cookie.Split('=')[0]]=cookie;}
+            http.DefaultRequestHeaders.Remove("Cookie");http.DefaultRequestHeaders.Add("Cookie",string.Join("; ",cookies.Values));
+            return await response.Content.ReadAsStringAsync();
+        }
+        var html=await Page($"/clients/{f.Client}/snap/edit/{id}");Assert.Contains("Portal original",html);Assert.Contains("Save changes",html);
+        var token=System.Text.RegularExpressions.Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;Assert.NotEmpty(token);
+        async Task<string> Revision(){using var db=f.Db();return (await db.CoachAccountabilityAgreements.SingleAsync()).Revision.ToString();}
+        var form=new Dictionary<string,string>{["__RequestVerificationToken"]=token,["Revision"]=await Revision(),["RequestId"]=Guid.NewGuid().ToString(),["EditWorkoutId"]=id,["Name"]="Portal edited",["Date"]=date.ToString("yyyy-MM-dd"),["TimeAllowed"]="3",["Exercises[0].Id"]=exerciseId,["Exercises[0].Name"]="Curl",["Exercises[0].Sets"]="2",["Exercises[0].Reps"]="12"};
+        Assert.Equal(System.Net.HttpStatusCode.Redirect,(await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(form))).StatusCode);
+        using(var db=f.Db()){var workout=Assert.Single(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapWorkouts);Assert.Equal(id,workout.Id);Assert.Equal("Portal edited",workout.Name);Assert.Equal(12,workout.Exercises[0].Reps);}
+        http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","other");
+        Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync($"/clients/{f.Client}/snap/edit/{id}")).StatusCode);
+        html=await Page($"/clients/{f.Client}/snap");token=System.Text.RegularExpressions.Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.PostAsync($"/clients/{f.Client}/snap/cancel/{id}",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["revision"]=await Revision()}))).StatusCode);
+        http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","coach");
+        html=await Page($"/clients/{f.Client}/snap");token=System.Text.RegularExpressions.Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        Assert.Contains("Cancel workout",html);
+        Assert.Equal(System.Net.HttpStatusCode.Redirect,(await http.PostAsync($"/clients/{f.Client}/snap/cancel/{id}",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["revision"]=await Revision()}))).StatusCode);
+        using(var db=f.Db())Assert.Empty(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapWorkouts);
+    }
+
+    public class DailyFoodStub:System.Reflection.DispatchProxy
+    {
+        public WebRecomp.NutritionIntelligence.Persistence.NutritionDailyLogReadModel Log {get;set;}=null!;
+        public int Reads{get;set;}
+        protected override object? Invoke(System.Reflection.MethodInfo? method,object?[]? args)
+        {
+            if(method?.Name!="GetDailyLogAsync")throw new NotSupportedException();
+            Reads++;return Task.FromResult(Log);
+        }
+    }
+
+    [Fact]
+    public async Task DailyReviewShowsFoodScalePlannedAndActualForSelectedDayAndProtectsClientData()
+    {
+        var f=await Fixture.Create();DateOnly date;
+        using(var db=f.Db())
+        {
+            date=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());var program=(await db.Programs.SingleAsync()).ProgramId;
+            db.Measurements.Add(new(){MeasurementId=Guid.NewGuid(),ClientId=f.Client,LocalMeasurementDate=date,WeightLb=210.4m,BodyFatPct=.25m});
+            db.PlannedWorkouts.Add(new(){PlannedWorkoutId=Guid.NewGuid(),ClientId=f.Client,ProgramId=program,PlannedDate=date,WorkoutTypeCode="MAJOR_PUSH",SourceCode="WORKOUT_TARGET",Notes="Upper chest plan",PlannedDurationMin=45,PlannedRpe=7});
+            db.WorkoutSessions.Add(new(){WorkoutSessionId=Guid.NewGuid(),ClientId=f.Client,ProgramId=program,WorkoutDate=date,WorkoutTypeCode="MAJOR_PUSH",WorkoutName="Completed push session",DurationMin=42,CompletedFlag=true});
+            await db.SaveChangesAsync();
+        }
+        var foods=System.Reflection.DispatchProxy.Create<WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore,DailyFoodStub>();
+        var stub=(DailyFoodStub)(object)foods;
+        stub.Log=new(null,date,[new(Guid.NewGuid(),"LUNCH",0,"Chicken and rice",1,"SERVING",250,400,40,45,8,null,null,null,null)],new(400,40,45,8,null,null,null,null,"COMPLETE"));
+        using var server=CreateServer(f,true,foods);using var http=server.CreateClient();http.DefaultRequestHeaders.Add("X-Test-Actor","coach");
+        var url=$"/coach/clients/{f.Client}/summary/day?date={date:yyyy-MM-dd}";
+        var response=await http.GetAsync(url);Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);var html=await response.Content.ReadAsStringAsync();
+        Assert.Contains("Chicken and rice",html);Assert.Contains("210.4",html);Assert.Contains("Upper chest plan",html);Assert.Contains("Completed push session",html);Assert.Contains("45 minutes",html);Assert.Contains("Schedule",html);
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest,(await http.GetAsync($"/coach/clients/{f.Client}/summary/day?date={date.AddDays(1):yyyy-MM-dd}")).StatusCode);
+        Assert.Equal(1,stub.Reads);
+        using(var db=f.Db()){var link=await db.CoachClientRelationships.SingleAsync(x=>x.CoachUserId==f.Coach);link.RevokedAtUtc=DateTime.UtcNow;await db.SaveChangesAsync();}
+        Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync(url)).StatusCode);Assert.Equal(1,stub.Reads);
+        http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor","owner");
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden,(await http.GetAsync(url)).StatusCode);
+    }
+
     private sealed class DeadlineClock:TimeProvider
     {
         public DateTimeOffset Now{get;set;}=DateTimeOffset.UtcNow;

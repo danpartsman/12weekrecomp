@@ -124,6 +124,7 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    WebRecomp.Web.Services.Coaching.SnapRequestRateLimits.Configure(options);
 
     options.AddPolicy("fitdays-preview", httpContext => RateLimitPartition.GetFixedWindowLimiter(
         httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
