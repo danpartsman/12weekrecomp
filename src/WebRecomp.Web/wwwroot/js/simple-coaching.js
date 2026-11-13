@@ -2,6 +2,11 @@
     const errors=document.querySelector('[data-snap-validation].validation-summary-errors');
     if(errors){errors.focus();errors.scrollIntoView({block:'center'});}
     const form=document.querySelector('[data-simple-assignment]');if(!form)return;
+    const editing=Boolean(form.querySelector('[name="EditWorkoutId"]')?.value);
+    form.querySelectorAll('[data-snap-fee-default]').forEach(input=>{
+        if(!editing&&Number(input.value)===Number(input.dataset.snapFeeDefault))input.classList.add('snap-fee-default');
+        input.addEventListener('input',()=>input.classList.remove('snap-fee-default'));
+    });
     const picker=form.querySelector('.snap-workout-picker');
     const toggle=picker?.querySelector('[data-workout-toggle]');
     const history=picker?.querySelector('.snap-workout-history');
