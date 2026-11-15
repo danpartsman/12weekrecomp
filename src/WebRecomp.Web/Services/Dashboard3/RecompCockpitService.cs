@@ -245,8 +245,10 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 : mealPlan.Bands.Any(x => x.Remaining > 0) && mealPlan.CanPlan ? mealPlan.Advice
                 : "Keep building weekly training, fueling and recovery. Equivalent substitutions and a weekly rest day fit the plan."
         };
+        var capturedTarget = result.EditableDays.Last() with
+        { AgreementCarbsTarget = mealPlan.Bands[1].Target - (day.RollingGlycogen?.CarbAdjustmentG ?? 0m) };
         var snapshot = new RecompScoreSnapshot(RecompScoreResult.Version, start, score.Score,
-            score.KnownNutritionDays, score.CompletedNutritionDays, days, training, score.Components, glycogen, commitments, result.EditableDays.Last());
+            score.KnownNutritionDays, score.CompletedNutritionDays, days, training, score.Components, glycogen, commitments, capturedTarget);
         var json = JsonSerializer.Serialize(snapshot);
         if (captureHistory && !historical && score.HasEvidence && snapshots.FirstOrDefault().Run?.DiagnosticJson != json)
         {

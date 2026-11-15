@@ -5,7 +5,11 @@ namespace WebRecomp.Web.Services.Dashboard3;
 public sealed record RecompDayEvidence(
     DateOnly Date, decimal ProteinTarget, decimal CarbsTarget, decimal FatTarget,
     decimal EnergyTarget, decimal? Protein, decimal? Carbs, decimal? Fat,
-    decimal? Energy, int? FlexibleItems, string TargetSource);
+    decimal? Energy, int? FlexibleItems, string TargetSource)
+{
+    // Financial assessment retains the baseline prescription, never an experimental fuel correction.
+    public decimal? AgreementCarbsTarget { get; init; }
+}
 
 public sealed record RecompTrainingGauge(
     string Key, string Label, int Completed, int Target, int RemainingPlanned, decimal Weight)

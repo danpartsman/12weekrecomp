@@ -35,6 +35,13 @@ public sealed class Engine30RollingGlycogenTests
         var a=Model(Days(140)); var b=Model(Days(140),100);
         Assert.True(b.TargetLowG>=a.TargetLowG); Assert.True(b.CarbAdjustmentG>=a.CarbAdjustmentG);
     }
+    [Fact] public void SavedEvidenceKeepsAgreementBaselineSeparateFromFuelReference()
+    {
+        var day = new WebRecomp.Web.Services.Dashboard3.RecompDayEvidence(Today,208,180,55,2000,180,170,60,1940,null,"test")
+            {AgreementCarbsTarget=160};
+        var copy=System.Text.Json.JsonSerializer.Deserialize<WebRecomp.Web.Services.Dashboard3.RecompDayEvidence>(System.Text.Json.JsonSerializer.Serialize(day))!;
+        Assert.Equal(180,copy.CarbsTarget); Assert.Equal(160,copy.AgreementCarbsTarget);
+    }
     [Fact] public void DuplicateOrGappedDatesAreRejected()
     {
         var days=Days(140);days[1]=days[0]; Assert.Throws<ArgumentException>(()=>Model(days));

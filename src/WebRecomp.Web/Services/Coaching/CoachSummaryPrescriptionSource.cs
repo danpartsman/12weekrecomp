@@ -47,7 +47,7 @@ public sealed class CoachSummaryPrescriptionSource(RecompDbContext db, Engine30D
             if (program is null) { notice = true; continue; }
             if (date < referenceDate && saved.TryGetValue((program.ProgramId, date), out var captured))
             {
-                result[date] = new(date, captured.ProteinTarget, captured.CarbsTarget, captured.FatTarget,
+                result[date] = new(date, captured.ProteinTarget, captured.AgreementCarbsTarget ?? captured.CarbsTarget, captured.FatTarget,
                     captured.EnergyTarget, null, null, null, "Captured same-day prescription");
                 continue;
             }
@@ -67,7 +67,7 @@ public sealed class CoachSummaryPrescriptionSource(RecompDbContext db, Engine30D
                 logger.LogWarning(ex, "Coach summary prescription unavailable for {Date}", date); notice = true;
             }
         }
-        // Today's and tomorrow's targets must match the client's current dashboard exactly.
+        // Share baseline targets with the dashboard; experimental fuel corrections never enter agreement assessments.
         if (referenceDate == AppUserContextService.GetClientToday(client))
         {
             var active = programs.FirstOrDefault(x => x.ProgramStatusCode == "ACTIVE" && x.StartDate <= referenceDate);
@@ -86,5 +86,5 @@ public sealed class CoachSummaryPrescriptionSource(RecompDbContext db, Engine30D
         return new(result, notice ? "Some prescriptions are unavailable. Complete the client's profile and active program to calculate missing targets." : null);
     }
     private static CoachSummaryPrescription From(Engine30DashboardDayProjection x, string source) =>
-        new(x.Date, x.ProteinG, x.RecommendedCarbsG, x.FatG, x.PrescribedEnergyKcal, x.WorkoutDisplayName, x.PlannedDurationMinutes, x.PlannedRpe, source);
+        new(x.Date, x.ProteinG, x.RecommendedCarbsG - (x.RollingGlycogen?.CarbAdjustmentG ?? 0m), x.FatG, x.PrescribedEnergyKcal, x.WorkoutDisplayName, x.PlannedDurationMinutes, x.PlannedRpe, source + (x.RollingGlycogen?.CarbAdjustmentG is not null and not 0m ? " · agreement baseline excludes fuel adjustment" : ""));
 }
