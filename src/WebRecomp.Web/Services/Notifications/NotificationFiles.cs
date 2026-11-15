@@ -24,6 +24,7 @@ public sealed class NotificationDelivery
     public required string Body { get; set; }
     public required string Url { get; set; }
     public bool Email { get; set; } = true;
+    public bool ForCoach { get; set; }
     public bool EmailDone { get; set; }
     public bool PushDone { get; set; }
     public List<string> DeliveredDevices { get; set; } = [];
@@ -54,6 +55,7 @@ public sealed class NotificationFiles
         Directory.CreateDirectory(Path.Combine(Root, "queue"));
         Directory.CreateDirectory(Path.Combine(Root, "devices"));
         Directory.CreateDirectory(Path.Combine(Root, "conversations"));
+        Directory.CreateDirectory(Path.Combine(Root, "snap-live"));
         Directory.CreateDirectory(Path.Combine(Root, "macro-acceptance"));
         Directory.CreateDirectory(Path.Combine(Root, "financial-agreements"));
         protector = protection.CreateProtector("12WR.CoachNotifications.v1");

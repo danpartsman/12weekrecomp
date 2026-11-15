@@ -8,12 +8,12 @@ using Microsoft.AspNetCore.RateLimiting;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.Controllers;
-public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Guid? CoachUserId{get;init;}public string? CoachName{get;init;}public Dictionary<string,string> AssignedBy{get;init;}=[];public Dictionary<string,Guid> AssignmentOwners{get;init;}=[];public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];public Dictionary<string,decimal> AssessedCharges{get;init;}=[];public Dictionary<string,decimal> PostedCharges{get;init;}=[];public List<(string Id,string Name,string Date)> RecentTemplates{get;init;}=[];}
+public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Guid? CoachUserId{get;init;}public string? CoachName{get;init;}public Dictionary<string,SnapLiveState> LiveSessions{get;init;}=[];public Dictionary<string,string> AssignedBy{get;init;}=[];public Dictionary<string,Guid> AssignmentOwners{get;init;}=[];public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];public Dictionary<string,decimal> AssessedCharges{get;init;}=[];public Dictionary<string,decimal> PostedCharges{get;init;}=[];public List<(string Id,string Name,string Date)> RecentTemplates{get;init;}=[];}
 public sealed record SimpleSnapCompletionPage(Guid ClientId, string ClientName, Guid CoachId, string CoachName,
     bool IsCoach, int Revision, AccountabilityWorkout Workout, AccountabilityResult Result,
     IReadOnlyList<AccountabilityCharge> Charges, decimal PostedTotal, string TimeZone);
 [Authorize,Route("clients/{clientId:guid}/snap"),ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
-public sealed class SimpleSnapController(AppUserContextService users,SimpleCoachingService simple,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,IConfiguration configuration,SnapWorkoutEstimateService? estimates=null,SnapAvailabilityService? schedule=null,RecompDbContext? scheduleDb=null):Controller
+public sealed class SimpleSnapController(AppUserContextService users,SimpleCoachingService simple,CoachAccountabilityPreviewService access,AccountabilityLedger ledger,IConfiguration configuration,SnapWorkoutEstimateService? estimates=null,SnapAvailabilityService? schedule=null,RecompDbContext? scheduleDb=null,SnapLiveService? live=null):Controller
 {
     // Snap Workout permissions are scoped to the active coach-client relationship, not role-claim spelling.
     private Task<bool> IsAssignedCoachAsync(Guid actor,Guid clientId,CancellationToken ct)=>access.CanAssignSnapAsync(actor,clientId,ct);
@@ -34,6 +34,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var owners=await simple.AssignmentOwnersAsync(clientId,ct);
             if(scope.HasValue)SnapWorkoutAssignments.Filter(state,owners,scope.Value);
             ViewData["SnapCoachScope"]=scope;
+            ViewData["SnapResultRetry"] = retry is not null;
             var selected=retry?.WorkoutId??Request.Query["assignment"].FirstOrDefault();
             if(scope.HasValue&&!string.IsNullOrWhiteSpace(selected)&&!state.SnapWorkouts.Any(w=>w.Simple&&w.Id==selected))
                 return NotFound();
@@ -51,13 +52,24 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
                 }
                 state.SnapResults[retryWorkout.Id]=result;
             }
+            var liveSessions = new Dictionary<string, SnapLiveState>();
+            if (live is not null)
+            {
+                foreach (var workout in state.SnapWorkouts.Where(w => w.Simple))
+                {
+                    var savedLive = live.ReadSaved(clientId, owners.GetValueOrDefault(workout.Id), workout);
+                    liveSessions[workout.Id] = savedLive;
+                    if (retry is null && savedLive.StartedUtc.HasValue && state.SnapResults.GetValueOrDefault(workout.Id)?.Finalized != true)
+                        state.SnapResults[workout.Id] = new() { Sets = savedLive.Sets };
+                }
+            }
             var readings=new Dictionary<string,SnapWorkoutEstimate?>();
             if(estimates is not null)foreach(var workout in state.SnapWorkouts.Where(w=>w.Simple)){var actual=state.SnapResults.GetValueOrDefault(workout.Id);readings[workout.Id]=await estimates.EstimateAsync(clientId,workout,actual?.Finalized==true?actual:null,clock.Today,ct);}
             var assessed=state.Rules.Count==AccountabilityDocument.RuleIds.Length?SimpleCoachingService.Charges(state,clock.Today).Where(x=>x.Ready).GroupBy(x=>x.Key.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount)):new Dictionary<string,decimal>();
             var posted=new Dictionary<string,decimal>();
             if(row is not null){var entries=await ledger.ReadAsync(row,ct);posted=entries.Where(x=>x.SourceKey.StartsWith("snap:")&&(!assignedCoach||x.CoachUserId==user.UserId)).GroupBy(x=>x.SourceKey.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount));}
             var recent=assignedCoach?state.SnapWorkouts.Where(w=>w.Simple).Reverse().OrderByDescending(w=>w.CreatedAtUtc??DateTimeOffset.MinValue).Select(w=>(w.Id,w.Name,w.Date)).ToList():new List<(string Id,string Name,string Date)>();
-            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today,Name="Snap Workout "+TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(clock.Zone)).ToString("M/d/yy h:mmtt",System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()},clock.Zone){Estimates=readings,AssessedCharges=assessed,PostedCharges=posted,RecentTemplates=recent,CoachUserId=scope,CoachName=scope.HasValue?names.GetValueOrDefault(scope.Value)??"Coach":null,AssignedBy=assignedBy,AssignmentOwners=owners});
+            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today,Name="Snap Workout "+TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(clock.Zone)).ToString("M/d/yy h:mmtt",System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()},clock.Zone){LiveSessions=liveSessions,Estimates=readings,AssessedCharges=assessed,PostedCharges=posted,RecentTemplates=recent,CoachUserId=scope,CoachName=scope.HasValue?names.GetValueOrDefault(scope.Value)??"Coach":null,AssignedBy=assignedBy,AssignmentOwners=owners});
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }
@@ -281,7 +293,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             }
             var uniqueName=UniqueName(input.Name,prior.Where(w=>w.Id!=input.EditWorkoutId).ToArray(),now);
             var workout=new AccountabilityWorkout{Name=uniqueName,CoachNote=string.IsNullOrWhiteSpace(input.CoachNote)?null:input.CoachNote.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,MinimumCharge=input.MinimumCharge,CompletionReward=input.CompletionReward,
-                OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,OverrideHealthConflicts=input.ConflictChoice=="override",TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Id=input.EditWorkoutId is null?"":e.Id??"",Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()};
+                FeeOnFinishOnly=input.EditWorkoutId is null,OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,OverrideHealthConflicts=input.ConflictChoice=="override",TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Id=input.EditWorkoutId is null?"":e.Id??"",Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()};
             if(input.EditWorkoutId is not null)await simple.UpdateAsync(user.UserId,clientId,input.Revision,input.EditWorkoutId,workout,ct);
             else await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,workout,ct);
             TempData["SimpleStatus"]=input.EditWorkoutId is null?"Workout assigned. Your client can open it in their portal.":"Snap Workout updated. The completion window has restarted.";return RedirectToAction(nameof(Index),new{clientId});
@@ -300,11 +312,24 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var user=(await users.GetAsync(HttpContext,ct)).User;
             var isCoach=await IsAssignedCoachAsync(user.UserId,clientId,ct);
             var scope=await ResolveScopeAsync(user.UserId,clientId,isCoach,coachUserId,ct);
-            await simple.ResultAsync(user.UserId,clientId,isCoach,input.Revision,input.WorkoutId,new(){Finalized=finish,DurationMinutes=null,Sets=input.Exercises.ToDictionary(e=>e.Id,e=>e.Sets.Select(s=>new AccountabilitySet{Reps=s.Reps,Weight=s.Weight,Rpe=e.Rpe}).ToList())},ct,scope);
+            if (live is not null)
+            {
+                if (isCoach) throw new UnauthorizedAccessException();
+                var allowed = await live.AllowedAsync(user.UserId, clientId, input.WorkoutId, ct);
+                if (scope.HasValue && allowed.CoachId != scope.Value) throw new UnauthorizedAccessException();
+                var sets = SnapLiveController.ToSets(input);
+                if (finish) await live.FinishAsync(user.UserId, clientId, input.WorkoutId, input.AssignmentToken, input.ProgressRevision, new() { Sets = sets }, ct);
+                else
+                {
+                    await live.StartAsync(user.UserId, clientId, input.WorkoutId, ct);
+                    await live.SaveAsync(user.UserId, clientId, input.WorkoutId, input.AssignmentToken, input.ProgressRevision, sets, ct);
+                }
+            }
+            else await simple.ResultAsync(user.UserId,clientId,isCoach,input.Revision,input.WorkoutId,new(){Finalized=finish,DurationMinutes=null,Sets=input.Exercises.ToDictionary(e=>e.Id,e=>e.Sets.Select(s=>new AccountabilitySet{Reps=s.Reps,Weight=s.Weight,Rpe=e.Rpe}).ToList())},ct,scope);
             TempData["SimpleStatus"]=finish?"Workout finished. Your coach can see the results and calculated account entries.":"Progress saved.";
         }
         catch(UnauthorizedAccessException){return NotFound();}
-        catch(Exception e)when(e is ArgumentException or AccountabilityConflictException){ModelState.AddModelError("",e.Message);return await Page(clientId,null,ct,input,coachUserId);}
+        catch(Exception e)when(e is ArgumentException or AccountabilityConflictException or IOException){ModelState.AddModelError("", e is IOException ? "An update is saving. Your entries are retained; try again." : e.Message);return await Page(clientId,null,ct,input,coachUserId);}
         return input.SubmitMode=="finish"||(Request.HasFormContentType&&Request.Form["Action"]=="finish")
             ? RedirectToAction(nameof(Completion),new{clientId,workoutId=input.WorkoutId})
             : RedirectToAction(nameof(Index),new{clientId,assignment=input.WorkoutId,coachUserId});
@@ -411,6 +436,8 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
     public sealed class ResultInput
     {
         public int Revision{get;set;}public string WorkoutId{get;set;}="";public string SubmitMode{get;set;}="progress";
+        public string AssignmentToken { get; set; } = "";
+        public int ProgressRevision { get; set; }
         public List<ExerciseResults> Exercises{get;set;}=[];
     }
     public sealed class ExerciseResults{[Range(typeof(decimal),"1","10")]public decimal? Rpe{get;set;}public string Id{get;set;}="";public List<SetInput> Sets{get;set;}=[];}

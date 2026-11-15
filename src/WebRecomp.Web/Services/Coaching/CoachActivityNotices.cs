@@ -5,7 +5,7 @@ using WebRecomp.Web.Data;
 using WebRecomp.Web.Services.Notifications;
 namespace WebRecomp.Web.Services.Coaching;
 
-public sealed record CoachActivityNotice(string Id, string Title, string Url, DateTime CreatedUtc);
+public sealed record CoachActivityNotice(string Id, string Title, string Url, DateTime CreatedUtc, string? ActionLabel = null);
 public static class CoachActivityNotices
 {
     public static string ReceiptKey(Guid coach) => $"users/coach-activity-{coach:N}";
@@ -64,6 +64,18 @@ public static class CoachActivityNotices
                 catch(Exception e) when(e is JsonException or ArgumentException) { /* Ignore invalid historical entries. */ }
             }
             notices.AddRange(completed.Values);
+            if (row is not null)
+            {
+                var current = AccountabilityDocument.Parse(row.StateJson);
+                foreach (var pair in assigned.Where(x => x.Value.Coach == coach && x.Value.Simple))
+                {
+                    if (!current.SnapWorkouts.Any(x => x.Id == pair.Key) || current.SnapResults.GetValueOrDefault(pair.Key)?.Finalized == true) continue;
+                    var live = files.Read<SnapLiveState>(SnapLiveService.Key(client!.Value, pair.Key));
+                    if (live?.CoachId == coach && live.StartedUtc is not null && live.StartedUtc.Value.UtcDateTime >= since)
+                        notices.Add(new($"snap-start-{client:N}-{pair.Key}", $"{name} started {pair.Value.Name}",
+                            SnapLiveService.ProgressUrl(client!.Value, pair.Key), live.StartedUtc.Value.UtcDateTime, "View workout progression"));
+                }
+            }
         }
         return notices.Where(x=>!seen.Contains(x.Id)).OrderByDescending(x=>x.CreatedUtc).Take(50).ToArray();
     }

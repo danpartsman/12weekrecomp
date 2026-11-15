@@ -59,8 +59,11 @@ jobs:
       - name: Verify coaching navigation on desktop and mobile
         shell: pwsh
         run: |
-          npm install --prefix "$env:RUNNER_TEMP/navigation-browser" --no-audit --no-fund playwright@1.62.1
+          npm install --prefix "$env:RUNNER_TEMP/navigation-browser" --no-audit --no-fund playwright@1.62.1 jsdom@26.1.0
           if ($LASTEXITCODE -ne 0) { throw "Could not prepare navigation browser checks." }
+          $env:SNAP_JSDOM_MODULE = "$env:RUNNER_TEMP/navigation-browser/node_modules/jsdom"
+          node --test tests/snap-live.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Snap live progression check failed." }
           $env:NUTRITION_PLAYWRIGHT_MODULE = "$env:RUNNER_TEMP/navigation-browser/node_modules/playwright"
           $env:NUTRITION_CHROME_PATH = "$env:ProgramFiles/Google/Chrome/Application/chrome.exe"
           node tests/app-navigation.browser.cjs

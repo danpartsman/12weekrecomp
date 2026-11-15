@@ -118,7 +118,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         if(date<today||date>today.AddDays(84))throw new ArgumentException("Choose today or a date within the next 12 weeks.");
         var minutes=updated.TimeLimitMinutes??120;
         if(minutes is <1 or >10080)throw new ArgumentException("Choose a completion window between 1 minute and 7 days.");
-        updated.Id=id;updated.Simple=true;updated.CreatedAtUtc=old.CreatedAtUtc??time.GetUtcNow();
+        updated.Id=id;updated.Simple=true;updated.FeeOnFinishOnly=old.FeeOnFinishOnly;updated.CreatedAtUtc=old.CreatedAtUtc??time.GetUtcNow();
         updated.TimingStartUtc=date>today?SnapAvailabilityClock.Utc(date,TimeOnly.MinValue,SnapAvailabilityClock.Zone(local.TimeZone)):time.GetUtcNow();
         updated.DeadlineUtc=updated.TimingStartUtc.Value.AddMinutes(minutes);
         updated.TimeLimitMinutes=minutes;
@@ -217,6 +217,7 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         foreach(var w in simple.SnapWorkouts)
         {
             simple.SnapResults.TryGetValue(w.Id,out var result);
+            if (w.FeeOnFinishOnly && result?.Finalized != true) continue;
             if(AccountabilityDocument.Date(w.Date)>today && result?.Finalized!=true)continue;
             decimal remaining=w.Cap;
             void Add(string suffix,string kind,string description,decimal raw)

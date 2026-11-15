@@ -28,6 +28,36 @@ public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationF
         files.Enqueue(new() { Id = "event-" + item.EventId.ToString("N"), ClientId = clientId, CoachUserId = item.ActorUserId,
             UserId = owner.UserId, Subject = change.Subject, Body = change.EmailBody(coach.PreferredDisplayName ?? coach.DisplayName ?? "Your coach", url, client.TimeZone), Url = path });
     }
+    public async Task QueueLiveStartAsync(Guid clientId, string workoutId, CancellationToken ct)
+    {
+        var live = files.Read<SnapLiveState>(SnapLiveService.Key(clientId, workoutId));
+        if (live?.StartedUtc is null || live.StartedUtc < DateTimeOffset.UtcNow.AddDays(-7)) return;
+        var owner = await OwnerAsync(clientId, live.CoachId, ct);
+        if (owner is null || (await SnapWorkoutAssignments.OwnersAsync(db, clientId, ct)).GetValueOrDefault(workoutId) != live.CoachId) return;
+        var row = await db.CoachAccountabilityAgreements.AsNoTracking().SingleOrDefaultAsync(x => x.ClientId == clientId, ct);
+        var workout = row is null ? null : AccountabilityDocument.Parse(row.StateJson).SnapWorkouts.SingleOrDefault(x => x.Simple && x.Id == workoutId);
+        if (workout is null) return;
+        var name = await db.Clients.Where(x => x.ClientId == clientId).Select(x => x.ClientName).SingleAsync(ct);
+        var path = SnapLiveService.ProgressUrl(clientId, workoutId);
+        files.Enqueue(new() { Id = $"snap-start-{clientId:N}-{workoutId}", ClientId = clientId, CoachUserId = live.CoachId,
+            UserId = live.CoachId, ForCoach = true, Subject = $"{name} started a Snap Workout",
+            Body = $"{name} started {workout.Name}. Open the workout to see saved reps and weights and join its conversation.\n\n{files.BaseUrl}{path}", Url = path });
+    }
+    private async Task RecoverLiveStartsAsync(CancellationToken ct)
+    {
+        foreach (var path in Directory.EnumerateFiles(Path.Combine(files.Root, "snap-live"), "*.json"))
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var state = files.Read<SnapLiveState>("snap-live/" + Path.GetFileNameWithoutExtension(path));
+                if (state?.StartedUtc is not null && state.StartedUtc >= DateTimeOffset.UtcNow.AddDays(-7)
+                    && files.Read<NotificationDelivery>($"queue/snap-start-{state.ClientId:N}-{state.WorkoutId}") is null)
+                    await QueueLiveStartAsync(state.ClientId, state.WorkoutId, ct);
+            }
+            catch (IOException) { /* A concurrent writer will be retried. */ }
+        }
+    }
     public static string FinancialDeliveryId(Guid client, Guid coach, int revision) => $"financial-{client:N}-{coach:N}-{revision}";
     private async Task QueueFinancialAgreementsAsync(CancellationToken ct)
     {
@@ -76,6 +106,7 @@ public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationF
             try { await QueueConfigAsync(item.ClientId, item.Revision, ct); }
             catch (IOException) { /* Another worker is already recording this event. */ }
         }
+        await RecoverLiveStartsAsync(ct);
         await QueueFinancialAgreementsAsync(ct);
         await QueueDailyReviewsAsync(ct);
         if (!files.DeliveryEnabled) return;
@@ -121,6 +152,8 @@ public sealed class CoachNotificationProcessor(RecompDbContext db, NotificationF
         {
             var item = files.Read<NotificationDelivery>($"queue/{id}"); if (item is null || item.Finished) return;
             var owner = await OwnerAsync(item.ClientId, item.CoachUserId, ct);
+            if (item.ForCoach && owner is not null && item.UserId == item.CoachUserId)
+                owner = await db.UserAccounts.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == item.CoachUserId && x.AccountStatusCode == "ACTIVE", ct);
             if (owner?.UserId != item.UserId) { item.EmailDone = item.PushDone = true; files.Write($"queue/{id}", item); return; }
             if (item.Id.StartsWith("financial-", StringComparison.Ordinal))
             {

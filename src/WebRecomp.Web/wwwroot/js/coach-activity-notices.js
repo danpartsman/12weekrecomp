@@ -59,6 +59,15 @@
                         const link = document.createElement('a');
                         link.textContent = notice.title;
                         link.href = notice.url;
+                        if (notice.actionLabel) {
+                            const title = document.createElement('p'); title.textContent = notice.title;
+                            link.textContent = notice.actionLabel; link.className = 'button'; item.append(title);
+                            link.addEventListener('click', async event => {
+                                event.preventDefault();
+                                try { await markRead([notice]); } catch { /* Navigation remains available. */ }
+                                window.location.assign(link.href);
+                            });
+                        }
                         item.append(link);
                     }
                     list.append(item);
@@ -92,7 +101,7 @@
         });
         window.addEventListener('focus', refresh);
         document.addEventListener('visibilitychange', refresh);
-        setInterval(refresh, 30000);
+        setInterval(refresh, feeMessage ? 30000 : 10000);
         refresh();
     }
 })();

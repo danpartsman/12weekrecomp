@@ -9,16 +9,17 @@ namespace WebRecomp.Web.Services.Coaching;
 public static class SnapRequestRateLimits
 {
     public const string Submissions = "snap-submissions";
+    public const string Live = "snap-live";
     public const string Estimates = "snap-estimates";
 
     public static void Configure(RateLimiterOptions options)
     {
-        foreach (var policy in new[] { Submissions, Estimates })
+        foreach (var policy in new[] { Submissions, Estimates, Live })
             options.AddPolicy(policy, context => RateLimitPartition.GetFixedWindowLimiter(
                 context.User.FindFirst("oid")?.Value ?? context.User.FindFirst("sub")?.Value
                     ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                     ?? context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                _ => new FixedWindowRateLimiterOptions { PermitLimit = policy == Estimates ? 120 : 60,
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = policy == Estimates || policy == Live ? 120 : 60,
                     Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
         options.OnRejected = ExplainAsync;
     }
@@ -27,11 +28,16 @@ public static class SnapRequestRateLimits
     {
         var http = rejected.HttpContext;
         var policy = http.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;
-        if (policy is not (Submissions or Estimates)) return;
+        if (policy is not (Submissions or Estimates or Live)) return;
         var seconds = rejected.Lease.TryGetMetadata(MetadataName.RetryAfter, out var wait)
             ? Math.Max(1, (int)Math.Ceiling(wait.TotalSeconds)) : 60;
         http.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
         http.Response.Headers.CacheControl = "no-store";
+        if (policy == Live)
+        {
+            await http.Response.WriteAsJsonAsync(new { message = $"Live updates paused. Your entries remain on screen. Retry in {seconds} seconds." }, ct);
+            return;
+        }
         if (policy == Estimates)
         {
             await http.Response.WriteAsJsonAsync(new { message = $"Estimate requests paused. Wait {seconds} seconds; you can still submit the workout." }, ct);

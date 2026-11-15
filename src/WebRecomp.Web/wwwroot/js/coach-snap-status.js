@@ -16,13 +16,13 @@
                 if (!snap?.assigned) { cell.textContent = 'No Snap Workouts assigned'; continue; }
                 const title = document.createElement('strong'); title.textContent = `${snap.status} · ${snap.latestName}`;
                 const counts = document.createElement('p'); counts.className='muted'; counts.textContent=`${snap.submitted} submitted · ${snap.completed} completed · ${snap.assigned} assigned`;
-                const link=document.createElement('a'); link.className='button'; link.textContent='Review Snap results';
-                link.href=`/accountability-preview/clients/${encodeURIComponent(cell.dataset.snapClient)}/snap?assignment=${encodeURIComponent(snap.latestWorkoutId)}#snap-${encodeURIComponent(snap.latestWorkoutId)}`;
+                const link=document.createElement('a'); link.className='button'; link.textContent='View workout progression';
+                link.href=`/clients/${encodeURIComponent(cell.dataset.snapClient)}/snap?assignment=${encodeURIComponent(snap.latestWorkoutId)}#live-${encodeURIComponent(snap.latestWorkoutId)}`;
                 cell.replaceChildren(title,counts,link);
             }
         } catch { /* Preserve the last known result if the connection fails. */ }
         finally { busy=false; }
     }
     window.addEventListener('focus',refresh); document.addEventListener('visibilitychange',refresh);
-    setInterval(refresh,30000); refresh();
+    setInterval(refresh,10000); refresh();
 })();
