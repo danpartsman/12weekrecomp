@@ -311,7 +311,8 @@ public sealed class RecompCockpitService(RecompDbContext db,
     private async Task<RecompWeeklyTrend> BuildWeeklyTrendAsync(AppClientContext context, DateOnly date, CancellationToken ct)
     {
         var clientId = context.Client!.ClientId; var programId = context.Program!.ProgramId;
-        var from = date.AddDays(-50); var end = date.AddDays(-1);
+        // Six weeks of points need fourteen preceding measurement days for the oldest comparison.
+        var from = date.AddDays(-55); var end = date.AddDays(-1);
         var measurements = await db.Measurements.AsNoTracking().Where(x => x.ClientId == clientId
             && x.ProgramId == programId && !x.IsDeleted && x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= date).ToListAsync(ct);
         var foods = await db.NutritionDays.AsNoTracking().Where(x => x.ClientId == clientId && x.ProgramId == programId
