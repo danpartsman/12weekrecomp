@@ -4,7 +4,7 @@
 <section class="d3-week-trend" data-week-trend aria-labelledby="d3-week-trend-title">
     <details>
         <summary id="d3-week-trend-title">1-week results trend · Compare periods</summary>
-        <p class="d3-sub">Slide through up to six weeks of history. Each point is the same 7-day change shown in the cards above: latest three-day average versus three-day average seven days earlier. Fat and muscle show weekly changes; the light-blue line shows the three-day average body weight in pounds.</p>
+        <p class="d3-sub">Slide through up to six weeks of history. Each point is the same 7-day change shown in the cards above: latest seven completed days versus the previous seven completed days, using the same recency weights in both periods. Fat and muscle show weekly changes; the light-blue line shows the seven-day average body weight in pounds.</p>
         @if (Model.Points.Count == 0) {
             <p>Seven completed program days are needed to begin this comparison.</p>
         } else {
@@ -14,7 +14,7 @@
                 <label for="d3-trend-a">Period A <output data-trend-date="a"></output><input id="d3-trend-a" data-trend-slider="a" type="range" min="0" max="@(Model.Points.Count - 1)" step="1" value="0" /></label>
                 <label for="d3-trend-b">Period B <output data-trend-date="b"></output><input id="d3-trend-b" data-trend-slider="b" type="range" min="0" max="@(Model.Points.Count - 1)" step="1" value="@(Model.Points.Count - 1)" /></label>
             </div>
-            <div class="d3-trend-actions"><button type="button" class="button secondary" data-trend-favorable>Find a favorable period</button><button type="button" class="button secondary" data-trend-latest>Compare with latest</button></div>
+            <div class="d3-trend-actions"><button type="button" class="button secondary" data-trend-favorable>Compare earlier period</button><button type="button" class="button secondary" data-trend-latest>Compare with latest</button></div>
             <div data-week-trend-comparison aria-live="polite"></div>
             <p class="d3-sub">The seven completed behavior days end the day before the selected morning scale date. Missing readings and logs are excluded, never filled with zero. Saved prescriptions appear only where a same-day capture exists. Adjacent rolling periods overlap; comparisons describe a pattern, not its cause.</p>
         }

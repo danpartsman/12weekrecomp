@@ -507,6 +507,7 @@ public sealed class DashboardService(
                 recommendation,
                 engine30Projection.Today.HasPlannedWorkout),
             Calories = engine30Projection.Today.PrescribedEnergyKcal,
+            RollingGlycogen = engine30Projection.Today.RollingGlycogen,
             ProteinG = engine30Projection.Today.ProteinG,
             CarbsG = engine30Projection.Today.RecommendedCarbsG,
             FatG = engine30Projection.Today.FatG,

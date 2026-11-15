@@ -39,6 +39,7 @@ public sealed record Engine30DashboardDayProjection(
 {
     // Keep the saved plan's physiology separate from the effective daily workload,
     // which switches to completed sessions for nutrition after a workout is logged.
+    public RollingGlycogenEstimate? RollingGlycogen { get; init; }
     public decimal PlannedGrossWorkoutEnergyKcal { get; init; }
     public decimal PlannedGlycogenDemandG { get; init; }
     public string? CoachPrescriptionNotice { get; init; }
@@ -226,8 +227,41 @@ public sealed class Engine30DashboardProjectionService(
                     cancellationToken);
         }
 
+        var todayProjection = todayWeek.Days[actionDate];
+        var from = actionDate.AddDays(-4);
+        var food = await db.NutritionDays.AsNoTracking().Where(x => x.ClientId == client.ClientId
+            && x.ProgramId == program.ProgramId && x.NutritionDate >= from && x.NutritionDate < actionDate).ToListAsync(cancellationToken);
+        var work = await db.WorkoutSessions.AsNoTracking().Where(x => x.ClientId == client.ClientId
+            && x.ProgramId == program.ProgramId && x.CompletedFlag && x.WorkoutDate >= from && x.WorkoutDate < actionDate).ToListAsync(cancellationToken);
+        work = (await DetailedWorkoutEngine30Adapter.CanonicalCompletedSessionsAsync(db, work, cancellationToken)).ToList();
+        var checkins = await db.DailyCheckins.AsNoTracking().Where(x => x.ProgramId == program.ProgramId
+            && x.CheckinDate >= from && x.CheckinDate < actionDate).Select(x => x.CheckinDate).ToListAsync(cancellationToken);
+        var ledger = new List<RollingGlycogenDay>();
+        for (var d = from; d < actionDate; d = d.AddDays(1))
+        {
+            var actual = await CalculateActualDayGlycogenAsync(client, d, work.Where(x => x.WorkoutDate == d).ToArray(), measurements, cancellationToken);
+            ledger.Add(new(d, actual.DemandG, todayProjection.BaseRestCarbsG,
+                food.SingleOrDefault(x => x.NutritionDate == d)?.ActualCarbsG,
+                work.Any(x => x.WorkoutDate == d) || checkins.Contains(d)));
+        }
+        var body = measurements.Where(x => x.WeightLb > 0 && x.LocalMeasurementDate <= actionDate)
+            .OrderByDescending(x => x.LocalMeasurementDate).ThenByDescending(x => x.MeasurementAtUtc).FirstOrDefault();
+        if (body?.WeightLb is > 0m)
+        {
+            var ffm = body.WeightLb.Value * (1m - (body.BodyFatPct is > 0m and < 1m ? body.BodyFatPct.Value : .25m));
+            var fuel = Engine30RollingGlycogen.Calculate(ffm, ledger,
+                Math.Max(todayProjection.GlycogenDemandG, tomorrowWeek.Days[tomorrow].PlannedGlycogenDemandG),
+                todayProjection.RecommendedCarbsG, todayProjection.PhysiologicalCarbFloorG,
+                todayProjection.PrescribedEnergyKcal, todayProjection.ProteinG, todayProjection.FatG);
+            // Coach-prescribed amounts take precedence. An existing calorie
+            // correction is not compounded with a second glycogen restriction.
+            var adjustment = todayProjection.CoachPrescriptionVersionId.HasValue
+                || todayProjection.EnergyCarryoverCorrectionKcal > 0m ? 0m : fuel.CarbAdjustmentG;
+            todayProjection = todayProjection with { RecommendedCarbsG = todayProjection.RecommendedCarbsG + adjustment,
+                RollingGlycogen = fuel with { CarbAdjustmentG = adjustment } };
+        }
         return new Engine30DashboardTodayTomorrowProjection(
-            Today: todayWeek.Days[actionDate],
+            Today: todayProjection,
             Tomorrow: tomorrowWeek.Days[tomorrow],
             EnergyCarryover: todayWeek.EnergyCarryover);
     }

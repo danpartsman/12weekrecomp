@@ -615,8 +615,8 @@ public sealed class Engine30DashboardAnalysisService
         else
         {
             css =
-                ratio >= 0.90m ? GoodCss :
-                ratio >= 0.80m ? WatchCss :
+                ratio >= 0.80m ? GoodCss :
+                ratio >= 0.70m ? WatchCss :
                 ratio >= 0.70m ? InvestigateCss :
                 ProblemCss;
         }
@@ -625,7 +625,7 @@ public sealed class Engine30DashboardAnalysisService
             label,
             css,
             $"{actual.Value:0} / {target.Value:0} g",
-            ratio >= 0.90m
+            ratio >= 0.80m
                 ? "Protein support is functionally covered."
                 : "Protein is below the preferred recovery / lean-mass support range.");
     }

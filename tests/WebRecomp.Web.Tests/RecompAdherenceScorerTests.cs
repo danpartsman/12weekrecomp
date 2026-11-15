@@ -28,15 +28,15 @@ public sealed class RecompAdherenceScorerTests
     {
         var days = Week(); days[0] = days[0] with { Protein = 0, Carbs = 500, Fat = 0 };
         Assert.Null(RecompAdherenceScorer.Score(Monday, days, Training()).DisplayScore);
-        Assert.Equal(32, RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training()).NutritionScore);
+        Assert.Equal(50, RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training()).NutritionScore);
     }
-    [Fact] public void SmallFatOverageIsAWholeDayCategoryMiss()
+    [Fact] public void BroadFatRangeDoesNotPenalizeASmallDailyOverage()
     {
         var days = Week(); days[0] = days[0] with { Protein = 210, Carbs = 250, Fat = 67 };
         var result = RecompAdherenceScorer.Score(Monday.AddDays(1), days, Training());
-        Assert.Equal(82, result.NutritionScore);
-        Assert.Equal(0, result.Components.Single(x => x.Label == "Fat balance").Earned);
-        Assert.Equal(25, result.Components.Single(x => x.Label == "Protein consistency").Earned);
+        Assert.Equal(64, result.NutritionScore);
+        Assert.Equal(10, result.Components.Single(x => x.Label == "Fat balance").Earned);
+        Assert.Equal(12.5m, result.Components.Single(x => x.Label == "Protein consistency").Earned);
     }
     [Fact] public void OneMissAcrossTwoKnownDaysLosesHalfTheCategory()
     {
@@ -45,16 +45,16 @@ public sealed class RecompAdherenceScorerTests
         var result = RecompAdherenceScorer.Score(Monday.AddDays(2), days, Training());
         Assert.Equal(75, result.NutritionScore); Assert.Equal(75, result.Score);
     }
-    [Fact] public void ProteinAllowsMoreOverageThanFat()
+    [Fact] public void ProteinUpperEndIsNotAMidpoint()
     {
         var bands = MacroDayPlanner.Bands(200, 250, 60, 220, 250, 72);
-        Assert.Equal(1m, RecompAdherenceScorer.Quality(bands[0].Eaten, bands[0].Low, bands[0].High, false));
-        Assert.Equal(0m, RecompAdherenceScorer.Quality(bands[2].Eaten, bands[2].Low, bands[2].High, false));
+        Assert.Equal(0m, RecompAdherenceScorer.Quality(bands[0].Eaten, bands[0].Low, bands[0].High, false));
+        Assert.Equal(1m, RecompAdherenceScorer.Quality(bands[2].Eaten, bands[2].Low, bands[2].High, false));
     }
     [Fact] public void ScheduledFutureTrainingDoesNotEarnCreditForPastMisses()
     {
         var result = RecompAdherenceScorer.Score(Monday.AddDays(3), Week(), Training(0, 2));
-        Assert.Equal(50, result.WorkoutScore);
+        Assert.Equal(0, result.WorkoutScore);
         Assert.False(result.Components.Single(x => x.Label == "Recovery").Included);
     }
     [Fact] public void CatchingUpWorkRestoresCreditWithoutErasingNutritionMiss()
@@ -64,12 +64,12 @@ public sealed class RecompAdherenceScorerTests
         var caught = RecompAdherenceScorer.Score(Monday.AddDays(3), days, Training(2, 1));
         Assert.True(caught.Score > behind.Score); Assert.True(caught.Score < 100);
     }
-    [Fact] public void ModeledWorkUsesDueWorkAndExtraBurnCannotReplaceResistance()
+    [Fact] public void ModeledWeeklyWorkAllowsSubstitutionsAndUsesAggregate()
     {
         var result = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), Training(0, 0), new(1000, 400, 0));
-        Assert.Equal(50, result.WorkoutScore);
+        Assert.Equal(100, result.WorkoutScore);
         var partial = RecompAdherenceScorer.Score(Monday.AddDays(4), Week(), Training(3, 0), new(100, 400, 0));
-        Assert.Equal(50, partial.WorkoutScore);
+        Assert.Equal(25, partial.WorkoutScore);
     }
     [Fact] public void UnconfirmedFlexibilityIsExcluded()
     {
@@ -97,7 +97,7 @@ public sealed class RecompAdherenceScorerTests
         var result = RecompAdherenceScorer.Score(Monday, days, []);
         Assert.Equal(Monday.AddDays(-7), start);
         Assert.Equal(7, result.CompletedNutritionDays); Assert.Equal(7, result.KnownNutritionDays);
-        Assert.Equal(97, result.NutritionScore);
+        Assert.Equal(95, result.NutritionScore);
         Assert.Equal(6.5m / 7m * 25m, result.Components[0].Earned);
     }
     [Fact] public void NewProgramUsesAvailableCompletedDaysWithoutInventingEarlierEvidence()

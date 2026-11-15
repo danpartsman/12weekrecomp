@@ -5,8 +5,8 @@ namespace WebRecomp.Web.Services.Dashboard2;
 
 public sealed record MacroBand(string Key, string Name, string Color, decimal Target, decimal Low, decimal High, decimal? Eaten)
 {
-    public decimal YellowLow => Target * (Key == "protein" ? .90m : .75m);
-    public decimal YellowHigh => Target * (Key == "protein" ? 1.20m : 1.10m);
+    public decimal YellowLow => Key == "fat" ? Low * .9m : Target * .70m;
+    public decimal YellowHigh => Key == "fat" ? High * 1.1m : Target * (Key == "protein" ? 1.10m : 1.30m);
     private decimal BaseQuality => !Eaten.HasValue || Target <= 0 ? 0m : Eaten >= Low && Eaten <= High ? 1m
         : Eaten >= YellowLow && Eaten <= YellowHigh ? .5m : 0m;
     // Intake below prescription gets half the penalty; above-prescription scoring stays unchanged.
@@ -51,11 +51,11 @@ public static class MacroDayPlanner
 {
     private static readonly string[] Slots = ["BREAKFAST", "LUNCH", "DINNER", "SNACK"];
     public static List<MacroBand> Bands(decimal protein, decimal carbs, decimal fat,
-        decimal? actualProtein = null, decimal? actualCarbs = null, decimal? actualFat = null) =>
+        decimal? actualProtein = null, decimal? actualCarbs = null, decimal? actualFat = null, decimal? energy = null) =>
     [
-        new("protein", "Protein", "#168CFF", protein, protein * .95m, protein * 1.15m, actualProtein),
-        new("carbs", "Carbs", "#FFD400", carbs, carbs * .95m, carbs * 1.05m, actualCarbs),
-        new("fat", "Fat", "#24D96B", fat, fat * .95m, fat * 1.05m, actualFat)
+        new("protein", "Protein", "#168CFF", protein, protein * .80m, protein, actualProtein),
+        new("carbs", "Carbs", "#FFD400", carbs, carbs * .80m, carbs * 1.20m, actualCarbs),
+        new("fat", "Fat", "#24D96B", fat, (energy ?? (protein * 4 + carbs * 4 + fat * 9)) * .20m / 9m, (energy ?? (protein * 4 + carbs * 4 + fat * 9)) * .35m / 9m, actualFat)
     ];
 
     public static MacroDayPlan Build(DashboardViewModel day, NutritionDailyLogReadModel? log,
@@ -88,7 +88,7 @@ public static class MacroDayPlanner
         var count = Math.Clamp(occasions ?? (dinnerLogged || localHour >= 21 ? 1 : lunchLogged || localHour >= 14 ? 2 : localHour >= 10 ? 3 : 4), 1, 4);
         var plan = new MacroDayPlan
         {
-            Bands = Bands(day.ProteinG, day.CarbsG, day.FatG, p, c, f), Meals = meals,
+            Bands = Bands(day.ProteinG, day.CarbsG, day.FatG, p, c, f, day.Calories), Meals = meals,
             EnergyEaten = energy, EnergyTarget = day.Calories, HasLog = known,
             CanPlan = known && !mismatch && day.Calories > 0 && day.ProteinG > 0,
             MacroEnergyMismatch = mismatch, Occasions = count,
@@ -103,7 +103,7 @@ public static class MacroDayPlanner
                 : plan.SourceNote;
             return plan;
         }
-        var dp = Math.Max(0, day.ProteinG - p!.Value);
+        var dp = Math.Max(0, day.ProteinG * .90m - p!.Value);
         var dc = Math.Max(0, day.CarbsG - c!.Value);
         var df = Math.Max(0, day.FatG - f!.Value);
         var budget = plan.EnergyRemaining;
@@ -112,7 +112,7 @@ public static class MacroDayPlanner
         var fatFloor = Math.Max(0, plan.Bands[2].Low - f.Value);
         var af = Math.Min(fatFloor, Math.Floor(budget / 9)); budget -= af * 9;
         var ac = Math.Min(dc, Math.Floor(budget / 4)); budget -= ac * 4;
-        var extraFat = Math.Min(df - af, Math.Floor(budget / 9)); af += extraFat;
+        // Never add fat solely to fill the calorie allocation.
         plan.UnallocatedProtein = dp - ap; plan.UnallocatedCarbs = dc - ac; plan.UnallocatedFat = df - af;
         var labels = count switch
         {
@@ -137,7 +137,7 @@ public static class MacroDayPlanner
             : plan.UnallocatedProtein + plan.UnallocatedCarbs + plan.UnallocatedFat > 0
             ? "The remaining energy allocation cannot cover every macro target. This is a tradeoff to review, not an instruction to skip needed food. Start with lean protein and check the full meal's nutrients."
             : plan.Suggestions.Count == 0
-            ? "Today's central macro targets are covered. There is no need to eat more just to reach the upper edges of the bands."
+            ? "Your practical macro needs are covered. There is no need to eat more just to reach the upper edges of the bands."
             : $"Spread the remaining {dp:0} g protein across {count} eating occasion(s). The portions below also reserve carbohydrate and fat within today's remaining energy allocation.";
         return plan;
     }

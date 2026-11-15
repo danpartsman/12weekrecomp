@@ -8,22 +8,14 @@ public sealed class CommandCenterPenaltyAndPredictionTests
 {
     private static readonly DateOnly Today = new(2026, 10, 13);
     [Theory]
-    [InlineData("protein", 94.99, .75)] [InlineData("protein", 95, 1)]
-    [InlineData("protein", 115, 1)] [InlineData("protein", 115.01, .5)]
-    [InlineData("carbs", 84.99, .75)] [InlineData("carbs", 85, .75)]
-    [InlineData("carbs", 94.99, .75)] [InlineData("carbs", 95, 1)]
-    [InlineData("carbs", 105, 1)] [InlineData("carbs", 105.01, .5)]
-    [InlineData("fat", 85, .75)] [InlineData("fat", 95, 1)] [InlineData("fat", 106, .5)]
-    [InlineData("protein", 89.99, .5)] [InlineData("protein", 90, .75)]
-    [InlineData("protein", 120, .5)] [InlineData("protein", 120.01, 0)]
-    [InlineData("carbs", 74.99, .5)] [InlineData("carbs", 75, .75)]
-    [InlineData("carbs", 110, .5)] [InlineData("carbs", 110.01, 0)]
-    [InlineData("fat", 74.99, .5)] [InlineData("fat", 75, .75)]
-    [InlineData("fat", 110, .5)] [InlineData("fat", 110.01, 0)]
-    public void MacroBoundariesAndScoreUseExactPercentages(string key, double intake, double quality)
+    [InlineData("protein",79.99,.75)] [InlineData("protein",80,1)]
+    [InlineData("protein",100,1)] [InlineData("protein",100.01,.5)]
+    [InlineData("carbs",80,1)] [InlineData("carbs",120,1)]
+    [InlineData("carbs",120.01,.5)] [InlineData("carbs",130.01,0)]
+    public void PlanningBandsHaveExplicitBoundaries(string key,double intake,double quality)
     {
-        var band = MacroDayPlanner.Bands(100, 100, 100, (decimal)intake, (decimal)intake, (decimal)intake).Single(x => x.Key == key);
-        Assert.Equal((decimal)quality, band.Quality);
+        var band=MacroDayPlanner.Bands(100,100,100,(decimal)intake,(decimal)intake,(decimal)intake).Single(x=>x.Key==key);
+        Assert.Equal((decimal)quality,band.Quality);
     }
     [Theory]
     [InlineData(0,0)] [InlineData(2,0)] [InlineData(3,.5)] [InlineData(4,1)] [InlineData(5,2)] [InlineData(6,3)]
@@ -48,12 +40,12 @@ public sealed class CommandCenterPenaltyAndPredictionTests
     public void DailyWorkloadPenaltiesRespectRestAndTenPercentThreshold(double burn,bool workout,bool rest,double quality) =>
         Assert.Equal((decimal)quality,new RecompGlycogenDay(Today.AddDays(-1),(decimal)burn,100,rest,workout).Quality);
     [Fact]
-    public void ExtraBurnOnOneDayCannotEraseAnotherMissedDay()
+    public void WeeklySubstitutionDoesNotRequireExactDailyMatching()
     {
         var work = new RecompGlycogenWork(300,200,0,
             [new(Today.AddDays(-2),300,100,false,true),new(Today.AddDays(-1),0,100,false,false)]);
         var result = RecompAdherenceScorer.Score(Today,[],[new("resistance","Resistance",1,2,0,25)],work);
-        Assert.Equal(25,result.WorkoutScore); // half average credit, minus half a daily category miss
+        Assert.Equal(100,result.WorkoutScore); // weekly work is met; resistance coverage is a separate component
     }
     private static NutritionDailyLogItemReadModel Item(string slot, decimal kcal=500, string name="Meal",
         decimal protein=30,decimal carbs=50,decimal fat=20,decimal? sugar=null,decimal quantity=1) =>

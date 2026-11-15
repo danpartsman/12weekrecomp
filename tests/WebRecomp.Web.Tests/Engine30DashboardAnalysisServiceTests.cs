@@ -121,8 +121,8 @@ public sealed class Engine30DashboardAnalysisServiceTests
     [Theory]
     [InlineData(1.00, "green")]
     [InlineData(0.92, "green")]
-    [InlineData(0.85, "yellow")]
-    [InlineData(0.75, "orange")]
+    [InlineData(0.85, "green")]
+    [InlineData(0.75, "yellow")]
     [InlineData(0.60, "red")]
     public void ProteinBands_AreStableAcrossDayTypes(
         double actualRatio,

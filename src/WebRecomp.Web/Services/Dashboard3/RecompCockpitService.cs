@@ -86,11 +86,11 @@ public sealed class RecompCockpitService(RecompDbContext db,
             && x.CheckinDate >= activeStart && x.CheckinDate <= today).ToListAsync(ct);
         var records = await db.AnalysisRuns.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.ActionDate >= activeStart && x.ActionDate <= today
-            && (x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5") || x.EngineVersion == FlexVersion))
+            && (x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6") || x.EngineVersion == FlexVersion))
             .OrderByDescending(x => x.StartedAtUtc).ThenByDescending(x => x.AnalysisRunId).ToListAsync(ct);
         var flex = records.Where(x => x.EngineVersion == FlexVersion).GroupBy(x => x.ActionDate)
             .ToDictionary(x => x.Key, x => ReadFlexibleCount(x.First().DiagnosticJson));
-        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5"))
+        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6"))
             .Select(x => (Run: x, Snapshot: Read<RecompScoreSnapshot>(x.DiagnosticJson)))
             .Where(x => x.Snapshot is not null).ToArray();
         var logs = new List<NutritionDailyLogReadModel>();
@@ -142,29 +142,36 @@ public sealed class RecompCockpitService(RecompDbContext db,
             .GroupBy(x => (x.Date, x.Key))
             .Select(g => new RecompTrainingCommitment(g.Key.Date, g.Key.Key, g.Max(x => x.GlycogenG)))
             .OrderBy(x => x.Date).ThenBy(x => x.Key).ToList();
-        var training = new List<RecompTrainingGauge>();
-        foreach (var (key, label, weight) in new[] { ("resistance", "Resistance", 25m),
-            ("cardio", "Cardio / mobility", 8m), ("recovery", "Recovery / Zone 2", 7m) })
+        var resistanceDays = sessions.Where(x => Group(x.WorkoutTypeCode, types) == "resistance" && x.DurationMin > 0)
+            .Select(x => x.WorkoutDate).Distinct().Count();
+        var plannedResistance = commitments.Where(x => x.Key == "resistance").Select(x => x.Date).Distinct().Count();
+        var restDates = sessions.Where(x => Engine30WorkoutUiCatalogService.NormalizeCode(x.WorkoutTypeCode) == "REST")
+            .Select(x => x.WorkoutDate).Concat(plans.Where(x => x.WorkoutTypeCode == "REST"
+                && checkins.Any(c => c.CheckinDate == x.PlannedDate)
+                && !sessions.Any(s => s.WorkoutDate == x.PlannedDate && s.DurationMin > 0)).Select(x => x.PlannedDate)).Distinct().Count();
+        var training = new List<RecompTrainingGauge>
         {
-            var matching = commitments.Where(x => x.Key == key).ToArray();
-            var completed = sessions.Where(x => Group(x.WorkoutTypeCode, types) == key
-                && (x.DurationMin > 0 || Engine30WorkoutUiCatalogService.NormalizeCode(x.WorkoutTypeCode) == "REST")).Select(x => x.WorkoutDate).Distinct().Count();
-            if (key == "recovery")
-                completed += plans.Count(p => p.WorkoutTypeCode == "REST"
-                    && checkins.Any(c => c.CheckinDate == p.PlannedDate)
-                    && !sessions.Any(s => s.WorkoutDate == p.PlannedDate && (Group(s.WorkoutTypeCode, types) == "resistance"
-                        || Group(s.WorkoutTypeCode, types) == "cardio" || s.WorkoutTypeCode == "REST")));
-            // Every date in this window is complete. There are no future credits.
-            training.Add(new(key, label, completed, matching.Select(x => x.Date).Distinct().Count(), 0, weight));
-        }
+            new("resistance", "Weekly workload", resistanceDays, commitments.Count, 0, 25m),
+            new("cardio", "Resistance coverage", resistanceDays, Math.Min(2, plannedResistance), 0, 8m),
+            new("recovery", "Recovery / rest", restDates, plans.Count > 0 && end.DayNumber - activeStart.DayNumber >= 5 ? 1 : 0, 0, 7m)
+        };
         var burns = new Dictionary<DateOnly, decimal>();
+        var actualEnergy = 0m;
         foreach (var date in sessions.Select(x => x.WorkoutDate).Distinct())
-            burns[date] = Math.Max(0m, (await projection.BuildActualWorkoutAsync(context, date, ct)).GlycogenDemandG);
-        var workDays = plans.GroupBy(x => x.PlannedDate).Select(g => new RecompGlycogenDay(g.Key,
-            burns.GetValueOrDefault(g.Key), commitments.Where(x => x.Date == g.Key).Sum(x => x.GlycogenG),
-            g.All(x => Engine30WorkoutUiCatalogService.NormalizeCode(x.WorkoutTypeCode) == "REST"),
-            sessions.Any(x => x.WorkoutDate == g.Key && x.DurationMin > 0))).ToArray();
-        var glycogen = new RecompGlycogenWork(burns.Values.Sum(), commitments.Sum(x => Math.Max(0m, x.GlycogenG)), 0m, workDays);
+        {
+            var actual = await projection.BuildActualWorkoutAsync(context, date, ct);
+            burns[date] = Math.Max(0m, actual.GlycogenDemandG);
+            actualEnergy += Math.Max(0m, actual.GrossWorkoutEnergyKcal);
+        }
+        var glycogen = new RecompGlycogenWork(burns.Values.Sum(), commitments.GroupBy(x => x.Date).Sum(g => Math.Max(0m, g.Max(x => x.GlycogenG))), 0m)
+        {
+            CompletedEnergyKcal = actualEnergy,
+            TargetEnergyKcal = plans.Select(x => x.PlannedDate).Distinct().Sum(d => targets.GetValueOrDefault(d)?.PlannedGrossWorkoutEnergyKcal ?? 0m)
+        };
+        var workFraction = glycogen.TargetG <= 0 ? 1m : Math.Min(1m, glycogen.CompletedG / glycogen.TargetG);
+        if (glycogen.TargetEnergyKcal is > 0m)
+            workFraction = Math.Min(workFraction, Math.Min(1m, actualEnergy / glycogen.TargetEnergyKcal.Value));
+        training[0] = new("resistance", "Weekly workload (%)", (int)Math.Round(workFraction * 100m), glycogen.TargetG > 0 ? 100 : 0, 0, 25m);
         var upcomingPlans = await db.PlannedWorkouts.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.PlannedDate > today && x.PlannedDate <= today.AddDays(2)).ToListAsync(ct);
         var templateIds = upcomingPlans.Where(x => x.WorkoutTemplateId.HasValue).Select(x => x.WorkoutTemplateId!.Value).ToArray();
@@ -229,14 +236,14 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 ? $"Saved score · {today:MMM d} · {capture.Version}. Daily cards show the saved entries."
                 : "Reconstructed rolling score from saved entries and the available plan. No score was captured on this day; browsing does not create history.",
             DataNotice = plans.Count == 0 ? "Save a weekly training plan before judging training adherence."
-                : training.Single(x => x.Key == "resistance").Target == 0
+                : plannedResistance == 0
                 ? "The last seven completed days have no resistance goal. Review the plan before using the score to evaluate a recomp strategy."
                 : score.KnownNutritionDays < score.CompletedNutritionDays
                 ? "Some completed days have unknown intake. Unknown days are excluded from the score." : null,
             NextAction = behind is not null ? $"{behind.Label} is behind the saved schedule. Review the next planned session and continue the strategy."
-                : mealPlan.Bands.Any(x => x.Eaten > x.High) ? "Review today's combined intake, then return to the next planned day."
+                : mealPlan.Bands.Any(x => x.Eaten > x.High) ? "Review combined intake and longer-term outcomes; an isolated daily deviation is not a failed week."
                 : mealPlan.Bands.Any(x => x.Remaining > 0) && mealPlan.CanPlan ? mealPlan.Advice
-                : "Keep following your planned training, fueling and recovery. Extra sessions do not add score points."
+                : "Keep building weekly training, fueling and recovery. Equivalent substitutions and a weekly rest day fit the plan."
         };
         var snapshot = new RecompScoreSnapshot(RecompScoreResult.Version, start, score.Score,
             score.KnownNutritionDays, score.CompletedNutritionDays, days, training, score.Components, glycogen, commitments, result.EditableDays.Last());
@@ -292,7 +299,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         DateOnly date, CancellationToken ct)
     {
         // The 30-day comparison needs the seven-day baseline ending 30 days ago.
-        var from = date.AddDays(-36);
+        var from = date.AddDays(-37);
         var rows = await db.Measurements.AsNoTracking().Where(x => x.ClientId == context.Client!.ClientId
             && x.ProgramId == context.Program!.ProgramId && !x.IsDeleted
             && x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= date).ToListAsync(ct);

@@ -23,6 +23,8 @@ public sealed record RecompGlycogenDay(DateOnly Date, decimal ActualG, decimal T
 public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, decimal RemainingPlannedG,
     IReadOnlyList<RecompGlycogenDay>? Days = null)
 {
+    public decimal? CompletedEnergyKcal { get; init; }
+    public decimal? TargetEnergyKcal { get; init; }
     public decimal ProjectedFraction => TargetG <= 0 ? 1m
         : Math.Clamp((CompletedG + RemainingPlannedG) / TargetG, 0m, 1m);
 }
@@ -30,7 +32,7 @@ public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, dec
 public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation, bool Included = true);
 public sealed class RecompScoreResult
 {
-    public const string Version = "RECOMP_SCORE_V6";
+    public const string Version = "RECOMP_SCORE_V7";
     public int Score { get; init; }
     public string Band => !HasEvidence ? "gray" : Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
     public string Status => !HasEvidence ? "Awaiting completed evidence" : Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";
@@ -66,48 +68,34 @@ public static class RecompAdherenceScorer
         IReadOnlyList<RecompTrainingGauge> training, RecompGlycogenWork? glycogen = null)
     {
         var components = new List<RecompScoreComponent>();
-        foreach (var (key, label, weight) in new[] { ("protein", "Protein consistency", 25m),
-            ("carbs", "Training-day carbohydrate", 20m), ("fat", "Fat balance", 10m) })
-        {
-            var bands = days.Where(d => d.Date < today).Select(d =>
-                MacroDayPlanner.Bands(d.ProteinTarget, d.CarbsTarget, d.FatTarget,
-                    d.Protein, d.Carbs, d.Fat).Single(x => x.Key == key))
-                .Where(b => b.Eaten.HasValue && b.Target > 0m).ToArray();
-            var hits = bands.Count(b => b.Quality == 1m);
-            var half = bands.Count(b => b.Quality == .5m);
-            var included = bands.Length > 0;
-            var fraction = included ? bands.Sum(b => b.Quality) / bands.Length : 0m;
-            components.Add(new(label, weight, weight * fraction,
-                included ? $"{hits}/{bands.Length} green days; {half} yellow days. Over-target: existing yellow/red penalties; under-target: yellow/red penalties are halved."
-                    : "Pending: unfinished and unknown days are excluded from the score.", included));
-        }
+        var complete = days.Where(x => x.Date < today).ToArray();
+        var protein = complete.Where(x => x.Protein.HasValue && x.ProteinTarget > 0).Select(x =>
+            MacroDayPlanner.Bands(x.ProteinTarget, x.CarbsTarget, x.FatTarget, x.Protein, x.Carbs, x.Fat, x.EnergyTarget)[0]).ToArray();
+        components.Add(new("Protein consistency", 25m, protein.Length == 0 ? 0m : 25m * protein.Average(x => x.Quality),
+            "Protein green range is 80–100% of the configured upper end (approximately 0.8–1 g/lb when that upper end is 1 g/lb). Meal planning aims at 90%; no top-up to the upper end is required. Unknown days are excluded.", protein.Length > 0));
+        components.Add(new("Rolling carbohydrate context", 20m, 0m,
+            "Daily carbohydrate deviations do not deduct points. The experimental four-day glycogen range informs bounded recommendations, not a validated compliance or financial threshold. Review sustained energy intake separately.", false));
+        var fats = complete.Where(x => x.Fat.HasValue && x.EnergyTarget > 0).ToArray();
+        var fatBand = fats.Length == 0 ? null : MacroDayPlanner.Bands(1, 1, fats.Average(x => x.FatTarget),
+            actualFat: fats.Average(x => x.Fat!.Value), energy: fats.Average(x => x.EnergyTarget))[2];
+        components.Add(new("Fat balance", 10m, fatBand is null ? 0m : fatBand.Quality * 10m,
+            "Completed-period average fat is compared with 20–35% of the average prescribed energy allocation. This is broad adult guidance, not an exact individual requirement; isolated higher or lower days are not penalized separately.", fatBand is not null));
         foreach (var gauge in training)
         {
-            var due = Math.Max(gauge.Completed, Math.Max(0, gauge.Target - gauge.RemainingPlanned));
-            var included = due > 0;
-            var missed = Math.Max(0, due - gauge.Completed);
-            var fraction = included ? Math.Max(0m, 1m - .5m * missed / due) : 0m;
+            var due = Math.Max(0, gauge.Target - gauge.RemainingPlanned);
+            var included = due > 0 || gauge.Completed > 0;
+            var fraction = due <= 0 ? 1m : Math.Min(1m, (decimal)gauge.Completed / due);
             var label = gauge.Label;
-            var explanation = included
-                ? $"{gauge.Completed}/{due} prescribed category days completed. Each missing day adds half a daily penalty. Future sessions earn no points."
-                : "Pending: no completed or due sessions in this category yet; excluded from the score.";
+            var explanation = $"{gauge.Completed}/{due} completed-period goal. Comparable substitutions and moved sessions are allowed; extra work adds no bonus points.";
             if (gauge.Key == "resistance" && glycogen is not null)
             {
-                var dueWork = Math.Max(glycogen.CompletedG, Math.Max(0m, glycogen.TargetG - glycogen.RemainingPlannedG));
-                var workDays = glycogen.Days?.Where(x => x.Date < today && !x.Rest).ToArray();
-                if (workDays?.Length > 0)
-                {
-                    included = true;
-                    fraction = Math.Max(0m, workDays.Average(x => x.Quality) - (due > 0 ? .5m * missed / due : 0m));
-                }
-                else if (included && dueWork > 0m)
-                {
-                    var workQuality = glycogen.CompletedG < Math.Max(1m, dueWork * .10m) ? 0m
-                        : glycogen.CompletedG < dueWork ? .5m : 1m;
-                    fraction = Math.Max(0m, workQuality - .5m * missed / due);
-                }
-                label = "Glycogen work + resistance";
-                explanation += $" Modeled work: {glycogen.CompletedG:0} g completed, {dueWork:0} g due so far. No workout or burn below 10% of prescription: full daily penalty. Other below-prescription workouts: half. Rest days are exempt. Category shortfalls add half a daily penalty each.";
+                var target = Math.Max(0, glycogen.TargetG - glycogen.RemainingPlannedG);
+                included = target > 0;
+                fraction = target <= 0 ? 1m : Math.Min(1m, glycogen.CompletedG / target);
+                if (glycogen.TargetEnergyKcal is > 0m && glycogen.CompletedEnergyKcal.HasValue)
+                    fraction = Math.Min(fraction, Math.Min(1m, glycogen.CompletedEnergyKcal.Value / glycogen.TargetEnergyKcal.Value));
+                label = "Weekly workload";
+                explanation = $"{glycogen.CompletedG:0}/{target:0} g modeled glycogen work across the completed period. Calorie work is also checked when available. No day-by-day matching or workout-name penalty. Resistance coverage is checked separately; calorie burn alone cannot replace muscle-building work.";
             }
             components.Add(new(label, gauge.Weight, gauge.Weight * fraction, explanation, included));
         }

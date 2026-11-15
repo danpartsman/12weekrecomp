@@ -23,7 +23,7 @@ public class MacroDayPlannerTests
     {
         var result = MacroDayPlanner.Build(Day(), Log(), true, 14);
         Assert.Equal(2, result.Suggestions.Count);
-        Assert.All(result.Suggestions, x => Assert.Equal(50m, x.Protein));
+        Assert.All(result.Suggestions, x => Assert.Equal(40m, x.Protein));
         Assert.Equal(100m, result.Bands[0].Eaten);
         Assert.Equal(2, result.Meals.Count);
         Assert.True(result.Suggestions.Sum(x => x.Energy) <= result.EnergyRemaining);
@@ -33,7 +33,7 @@ public class MacroDayPlannerTests
         var result = MacroDayPlanner.Build(Day(150), Log(), false, 14, 2);
         Assert.Empty(result.Meals);
         Assert.Equal(150m, result.Bands[0].Eaten);
-        Assert.Equal(50m, result.Suggestions.Sum(x => x.Protein));
+        Assert.Equal(30m, result.Suggestions.Sum(x => x.Protein));
     }
     [Fact] public void MissingIntakeDoesNotBecomeZeroOrGenerateMeals()
     {
@@ -51,12 +51,12 @@ public class MacroDayPlannerTests
     {
         var result = MacroDayPlanner.Build(Day(100, 400, 100), null, false, 14);
         Assert.True(result.OverEnergy); Assert.Empty(result.Suggestions);
-        Assert.Equal(100m, result.UnallocatedProtein);
+        Assert.Equal(80m, result.UnallocatedProtein);
     }
     [Fact] public void InBudgetBandsDoNotOverrideCombinedEnergyCheck()
     {
         var result = MacroDayPlanner.Build(Day(230, 262.5m, 63), null, false, 14);
-        Assert.All(result.Bands, x => Assert.Equal("Within range", x.Status));
+        Assert.Equal("Above planned range", result.Bands[0].Status);
         Assert.True(result.OverEnergy); Assert.Empty(result.Suggestions);
     }
     [Fact] public void ConflictingMacroAndCalorieRecordsPauseAllocator()
@@ -70,7 +70,7 @@ public class MacroDayPlannerTests
     {
         var result = MacroDayPlanner.Build(Day(), null, false, 14, input);
         Assert.Equal(expected, result.Occasions);
-        Assert.Equal(100m, result.Suggestions.Sum(x => x.Protein));
+        Assert.Equal(80m, result.Suggestions.Sum(x => x.Protein));
     }
     [Fact] public void CoveredCentralTargetsDoNotEncourageEatingToUpperBands()
     {

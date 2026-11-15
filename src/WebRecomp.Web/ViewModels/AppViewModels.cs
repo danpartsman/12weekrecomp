@@ -258,6 +258,7 @@ public sealed class WorkoutTemplateOptionViewModel
 
 public sealed class DashboardViewModel
 {
+    public WebRecomp.Web.Services.Engine30.RollingGlycogenEstimate? RollingGlycogen { get; set; }
     public DateOnly ActionDate { get; set; }
     public string ClientName { get; set; } = "";
     public int ProgramWeek { get; set; }

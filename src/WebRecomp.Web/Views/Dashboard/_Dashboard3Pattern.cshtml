@@ -42,8 +42,8 @@
 
             var todayProteinCss =
                 !todayProteinRatio.HasValue ? "gray" :
-                todayProteinRatio.Value < 0.90m ? "gray" :
-                todayProteinRatio.Value <= 1.50m ? "green" :
+                todayProteinRatio.Value < 0.80m ? "gray" :
+                todayProteinRatio.Value <= 1.00m ? "green" :
                 "yellow";
 
             var todayFatCss =
@@ -129,7 +129,7 @@ else {
                                     <span>
                                         @(todayCarbsRatio.HasValue && !historical && todayCarbsRatio.Value < 0.80m
                                             ? "In progress — unfinished carbohydrate intake is not graded as a completed-day shortfall."
-                                            : "Current carbohydrate intake versus today's prescription.")
+                                            : "Daily carbohydrate reference; rolling fuel context allows flexibility without a daily score deduction.")
                                     </span>
                                 </div>
                                 <b>@(Model.ActualCarbsG?.ToString("0") ?? "—") / @Model.CarbsG.ToString("0") g</b>
@@ -140,9 +140,9 @@ else {
                                 <div>
                                     <strong>Protein</strong>
                                     <span>
-                                        @(todayProteinRatio.HasValue && !historical && todayProteinRatio.Value < 0.90m
+                                        @(todayProteinRatio.HasValue && !historical && todayProteinRatio.Value < 0.80m
                                             ? "In progress — protein is not called low simply because the day is unfinished."
-                                            : "Current protein intake versus today's prescription.")
+                                            : "Protein range: 80–100% of the configured upper end; no need to reach the ceiling.")
                                     </span>
                                 </div>
                                 <b>@(Model.ActualProteinG?.ToString("0") ?? "—") / @Model.ProteinG.ToString("0") g</b>

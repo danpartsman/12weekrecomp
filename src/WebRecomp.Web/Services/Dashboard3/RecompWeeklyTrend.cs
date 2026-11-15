@@ -43,7 +43,7 @@ public sealed record RecompWeeklyTrend(IReadOnlyList<RecompWeeklyTrendPoint> Poi
             var scheduled = schedule.Where(x => x.PlannedDate >= start && x.PlannedDate <= last).ToArray();
             var effort = completed.Where(x => x.SessionRpe.HasValue).ToArray();
             var flex = treats.Where(x => x.Key >= start && x.Key <= last && x.Value.HasValue).ToArray();
-            var status = Outcome(composition.Fat.DisplayChangeLb, composition.Muscle.DisplayChangeLb);
+            var status = composition.Fat.Sparse || composition.Muscle.Sparse ? "Partial evidence" : "Estimated direction · unconfirmed";
             points.Add(new(end, start, last, composition.Fat.DisplayChangeLb, composition.Muscle.DisplayChangeLb, WeightTrend(end, measurements),
                 composition.Muscle.Label, status, status == "Favorable" ? "green" : status == "Needs review" ? "red" : status == "Partial evidence" ? "gray" : "yellow",
                 composition.Fat.Latest.Count, composition.Fat.Previous.Count, composition.Muscle.Latest.Count, composition.Muscle.Previous.Count,
@@ -60,9 +60,9 @@ public sealed record RecompWeeklyTrend(IReadOnlyList<RecompWeeklyTrendPoint> Poi
     private static decimal? WeightTrend(DateOnly date, Measurement[] readings)
     {
         // Three-day rolling average of recorded scale weight, shown as pounds rather than week-over-week change.
-        var start = date.AddDays(-2);
+        var start = date.AddDays(-7);
         var daily = readings.Where(x => !x.IsDeleted && x.WeightLb is > 0m
-                && x.LocalMeasurementDate >= start && x.LocalMeasurementDate <= date)
+                && x.LocalMeasurementDate >= start && x.LocalMeasurementDate < date)
             .GroupBy(x => x.LocalMeasurementDate)
             .Select(g => g.OrderByDescending(x => x.MeasurementAtUtc).ThenByDescending(x => x.CreatedAtUtc)
                 .ThenByDescending(x => x.MeasurementId).First())

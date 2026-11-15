@@ -22,7 +22,7 @@ public sealed class RecompWeeklyTrendTests
             new NutritionDay {NutritionDate=Today.AddDays(-1),ActualCalories=2000,ActualProteinG=200,ActualCarbsG=150,ActualFatG=60},
             new NutritionDay {NutritionDate=Today,ActualCalories=100,ActualProteinG=1,ActualCarbsG=1,ActualFatG=1},
             new NutritionDay {NutritionDate=Today.AddDays(-2),ActualCalories=1000} };
-        var result=RecompWeeklyTrend.Build(Today,Today.AddDays(-20),[Reading(-7),Reading(0,196,81)],foods,[],[],new Dictionary<DateOnly,RecompDayEvidence>(),new Dictionary<DateOnly,int?>());
+        var result=RecompWeeklyTrend.Build(Today,Today.AddDays(-20),[Reading(-8),Reading(-1,196,81)],foods,[],[],new Dictionary<DateOnly,RecompDayEvidence>(),new Dictionary<DateOnly,int?>());
         var point=result.Points.Last();
         Assert.Equal(Today.AddDays(-7),point.WeekStart); Assert.Equal(Today.AddDays(-1),point.WeekEnd);
         Assert.Equal(1,point.NutritionDays); Assert.Equal(2000m,point.Calories); Assert.Equal(200m,point.Protein);
@@ -31,9 +31,9 @@ public sealed class RecompWeeklyTrendTests
     }
     [Fact] public void HistoryHasAtMostFortyTwoDailyPointsAndKeepsWeeklyCardCalculation()
     {
-        var result=RecompWeeklyTrend.Build(Today,Today.AddDays(-100),[Reading(-7),Reading(0,196,81)],[],[],[],new Dictionary<DateOnly,RecompDayEvidence>(),new Dictionary<DateOnly,int?>());
+        var result=RecompWeeklyTrend.Build(Today,Today.AddDays(-100),[Reading(-8),Reading(-1,196,81)],[],[],[],new Dictionary<DateOnly,RecompDayEvidence>(),new Dictionary<DateOnly,int?>());
         Assert.Equal(42,result.Points.Count); Assert.Equal(Today.AddDays(-41),result.Points.First().Date);
-        var card=RecompBodyCompositionComparison.Build(Today,[Reading(-7),Reading(0,196,81)]);
+        var card=RecompBodyCompositionComparison.Build(Today,[Reading(-8),Reading(-1,196,81)]);
         Assert.Equal(card.Fat.DisplayChangeLb,result.Points.Last().FatChangeLb);
         Assert.Equal(card.Muscle.DisplayChangeLb,result.Points.Last().MuscleChangeLb);
     }
