@@ -52,39 +52,8 @@
         <a class="button" asp-controller="AccountabilityLedger" asp-action="Index"
            asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">View this coach's ledger</a>
     </section>
-    <section class="card">
-        <h2>@Model.CoachName's note</h2>
-        @if (!string.IsNullOrWhiteSpace(Model.Workout.CoachNote))
-        {
-            <p class="snap-completion-note">@Model.Workout.CoachNote</p>
-        }
-        else
-        {
-            <p>No coach note for this workout.</p>
-        }
-        @if (Model.IsCoach)
-        {
-            <form asp-action="CompletionNote" asp-route-clientId="@Model.ClientId" asp-route-workoutId="@Model.Workout.Id" method="post">
-                <input type="hidden" name="Revision" value="@Model.Revision" />
-                <label>Note to client<textarea name="Note" rows="3" maxlength="1000">@Model.Workout.CoachNote</textarea></label>
-                <button type="submit">Save note to client</button>
-            </form>
-        }
-    </section>
-    <section class="card">
-        <h2>@(Model.IsCoach ? "Client's note" : "Send a note to your coach")</h2>
-        @if (Model.IsCoach)
-        {
-            <p class="snap-completion-note">@(string.IsNullOrWhiteSpace(Model.Result.ClientNote) ? "No client note yet." : Model.Result.ClientNote)</p>
-        }
-        else
-        {
-            <form asp-action="CompletionNote" asp-route-clientId="@Model.ClientId" asp-route-workoutId="@Model.Workout.Id" method="post">
-                <input type="hidden" name="Revision" value="@Model.Revision" />
-                <label>Short note for @Model.CoachName (optional)<textarea name="Note" rows="3" maxlength="1000" placeholder="How did the workout go?">@Model.Result.ClientNote</textarea></label>
-                <button type="submit">Send note to coach</button>
-            </form>
-        }
+    <section class="card snap-live" data-snap-live data-coach="@Model.IsCoach.ToString().ToLowerInvariant()" data-live-url="@Url.Action("Snapshot","SnapLive",new{clientId=Model.ClientId,workoutId=Model.Workout.Id})">
+        <partial name="_SnapNotes" model="new WebRecomp.Web.Services.Coaching.SnapNotesPanel(Model.ClientId,Model.Workout.Id)" />
     </section>
     <nav class="snap-completion-actions" aria-label="Completed workout links">
         <a class="button secondary" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">More workouts from @Model.CoachName</a>
@@ -92,3 +61,6 @@
            asp-route-assignment="@Model.Workout.Id" asp-fragment="snap-@Model.Workout.Id">Review or correct exercise results</a>
     </nav>
 </div>
+
+<link rel="stylesheet" href="~/css/snap-live.css" asp-append-version="true" />
+<script src="~/js/snap-live.js" asp-append-version="true" defer></script>

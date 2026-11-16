@@ -435,7 +435,7 @@ public sealed class CoachAccountabilityStoreTests
         Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync(url)).StatusCode);
     }
 
-    private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f,bool simpleMode=false,WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore? foods=null,bool withEstimates=false)
+    private static Microsoft.AspNetCore.TestHost.TestServer CreateServer(Fixture f,bool simpleMode=false,WebRecomp.NutritionIntelligence.Persistence.INutritionFoodLogStore? foods=null,bool withEstimates=false,bool withLive=false)
     {
         return new Microsoft.AspNetCore.TestHost.TestServer(new Microsoft.AspNetCore.Hosting.WebHostBuilder()
             .UseSetting(Microsoft.AspNetCore.Hosting.WebHostDefaults.ApplicationKey,typeof(WebRecomp.Web.Controllers.AccountabilityLedgerController).Assembly.GetName().Name)
@@ -455,6 +455,7 @@ public sealed class CoachAccountabilityStoreTests
                 services.AddScoped<CoachAccountabilityPreviewService>(_=>new CoachAccountabilityPreviewService(_.GetRequiredService<RecompDbContext>(),_.GetRequiredService<CoachCenterService>(),null!));
                 services.AddScoped<CoachAccountabilityStore>();services.AddScoped<AccountabilityLedger>();services.AddScoped<SimpleCoachingService>();services.AddScoped<SnapAvailabilityService>();
                 services.AddScoped<CoachWeeklySummaryService>();
+                if(withLive)services.AddScoped<SnapLiveService>();
                 if(withEstimates)services.AddScoped<SnapWorkoutEstimateService>(p=>new(p.GetRequiredService<RecompDbContext>(),null!,null!));
                 if(foods is not null)services.AddSingleton(foods);
                 services.AddRateLimiter(o=>{o.RejectionStatusCode=429;o.AddConcurrencyLimiter("access-code",p=>p.PermitLimit=100);SnapRequestRateLimits.Configure(o);});
@@ -612,14 +613,16 @@ public sealed class CoachAccountabilityStoreTests
         var summary=await http.GetStringAsync(summaryUrl);
         Assert.Contains("Penalty &amp; fee summary",summary);
         Assert.Contains("$30.00",summary);
-        Assert.Contains("Stay controlled and finish strong.",summary);
+        Assert.Contains("data-snap-chat",summary);
+        Assert.Equal(1,System.Text.RegularExpressions.Regex.Matches(summary,"name=\"Body\"").Count);
+        Assert.DoesNotContain("name=\"Note\"",summary);
         using(var db=f.Db())revision=(await db.CoachAccountabilityAgreements.SingleAsync()).Revision;
         response=await http.PostAsync(summaryUrl+"/note",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["Revision"]=revision.ToString(),["Note"]="Tough but done!"}));
         Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
         using(var db=f.Db())Assert.Equal("Tough but done!",AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapResults[id].ClientNote);
         Actor("coach");Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync(summaryUrl)).StatusCode);
         Actor("other");
-        var coachSummary=await http.GetStringAsync(summaryUrl);Assert.Contains("Tough but done!",coachSummary);
+        var coachSummary=await http.GetStringAsync(summaryUrl);Assert.Contains("data-snap-chat",coachSummary);
         using(var json=JsonDocument.Parse(await http.GetStringAsync("/coach/activity-notices")))
         {
             var notice=Assert.Single(json.RootElement.GetProperty("notices").EnumerateArray());
@@ -630,7 +633,8 @@ public sealed class CoachAccountabilityStoreTests
         using(var db=f.Db())revision=(await db.CoachAccountabilityAgreements.SingleAsync()).Revision;
         response=await http.PostAsync(summaryUrl+"/note",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=token,["Revision"]=revision.ToString(),["Note"]="Great effort."}));
         Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
-        Actor("owner");Assert.Contains("Great effort.",await http.GetStringAsync(summaryUrl));
+        Actor("owner");Assert.Contains("data-snap-chat",await http.GetStringAsync(summaryUrl));
+        using(var db=f.Db())Assert.Equal("Great effort.",AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapWorkouts.Single().CoachNote);
         using(var db=f.Db()){var session=Assert.Single(await db.WorkoutSessions.ToListAsync());Assert.Equal(SnapWorkoutEngine.Source,session.EntrySourceCode);Assert.True(session.CompletedFlag);Assert.Equal(2,session.DurationMin);Assert.Equal(8,session.SessionRpe);}
         var account=await http.GetStringAsync($"/clients/{f.Client}/coach-ledger");Assert.Contains("$30.00",account);Assert.DoesNotContain("waiting for the client's approval",account);
         using(var db=f.Db()){Assert.Empty(await db.CoachAccountabilityApprovals.ToListAsync());Assert.True(AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapResults[id].Finalized);}
@@ -644,6 +648,54 @@ public sealed class CoachAccountabilityStoreTests
         Assert.Contains("$15.00",await http.GetStringAsync($"/clients/{f.Client}/coach-ledger"));
         using(var pending=JsonDocument.Parse(await http.GetStringAsync("/my-coach/pending-snaps")))Assert.Equal(0,pending.RootElement.GetProperty("workouts").GetArrayLength());
     }
+    [Fact]
+    public async Task SharedSnapNotesHttpInterfaceKeepsOpeningAndRepliesTogetherAndPrivate()
+    {
+        var f=await Fixture.Create();using var server=CreateServer(f,true,withLive:true);using var http=server.CreateClient();
+        void Actor(string actor){http.DefaultRequestHeaders.Remove("X-Test-Actor");http.DefaultRequestHeaders.Add("X-Test-Actor",actor);http.DefaultRequestHeaders.Remove("Cookie");}
+        async Task<(string Token,string Html)> Page(string url)
+        {
+            var response=await http.GetAsync(url);Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);
+            var html=await response.Content.ReadAsStringAsync();
+            if(response.Headers.TryGetValues("Set-Cookie",out var cookies))
+            {
+                http.DefaultRequestHeaders.Remove("Cookie");http.DefaultRequestHeaders.Add("Cookie",string.Join("; ",cookies.Select(x=>x.Split(';')[0])));
+            }
+            return (System.Text.RegularExpressions.Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value,html);
+        }
+        Actor("other");var page=await Page($"/clients/{f.Client}/snap");DateOnly today;
+        using(var db=f.Db())today=AppUserContextService.GetClientToday(await db.Clients.SingleAsync());
+        var response=await http.PostAsync($"/clients/{f.Client}/snap/assign",new FormUrlEncodedContent(new Dictionary<string,string>{
+            ["__RequestVerificationToken"]=page.Token,["RequestId"]=Guid.NewGuid().ToString(),["Revision"]="0",["Name"]="Shared notes workout",["CoachNote"]="Start slowly and keep good form.",
+            ["Date"]=today.ToString("yyyy-MM-dd"),["Cap"]="30",["Exercises[0].Name"]="Push ups",["Exercises[0].Sets"]="1",["Exercises[0].Reps"]="10",["Exercises[0].MaxWeight"]="0"}));
+        Assert.Equal(System.Net.HttpStatusCode.Redirect,response.StatusCode);
+        string id;using(var db=f.Db())id=AccountabilityDocument.Parse((await db.CoachAccountabilityAgreements.SingleAsync()).StateJson).SnapWorkouts.Single().Id;
+        var endpoint=$"/clients/{f.Client}/snap/live/{id}";
+        Actor("owner");page=await Page($"/clients/{f.Client}/snap?assignment={id}");
+        Assert.Equal(1,System.Text.RegularExpressions.Regex.Matches(page.Html,"name=\"Body\"").Count);
+        Assert.DoesNotContain("snap-saved-note",page.Html);Assert.DoesNotContain("name=\"Note\"",page.Html);
+        int unchangedRevision;using(var db=f.Db())unchangedRevision=(await db.CoachAccountabilityAgreements.SingleAsync()).Revision;
+        for(var n=0;n<2;n++)
+        {
+            using var json=JsonDocument.Parse(await http.GetStringAsync(endpoint));
+            var opening=Assert.Single(json.RootElement.GetProperty("messages").EnumerateArray());
+            Assert.Equal("Start slowly and keep good form.",opening.GetProperty("body").GetString());
+            Assert.True(opening.GetProperty("coach").GetBoolean());
+            Assert.Equal(JsonValueKind.Null,json.RootElement.GetProperty("startedUtc").ValueKind);
+        }
+        response=await http.PostAsync(endpoint+"/message",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=page.Token,["RequestId"]=Guid.NewGuid().ToString(),["Body"]="Should I pause between sets?"}));
+        Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);
+        Actor("coach");Assert.Equal(System.Net.HttpStatusCode.NotFound,(await http.GetAsync(endpoint)).StatusCode);
+        Actor("other");page=await Page($"/clients/{f.Client}/snap?assignment={id}");
+        response=await http.PostAsync(endpoint+"/message",new FormUrlEncodedContent(new Dictionary<string,string>{["__RequestVerificationToken"]=page.Token,["RequestId"]=Guid.NewGuid().ToString(),["Body"]="Yes, rest for one minute."}));
+        Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);
+        using(var json=JsonDocument.Parse(await response.Content.ReadAsStringAsync()))
+            Assert.Equal(new[]{"Start slowly and keep good form.","Should I pause between sets?","Yes, rest for one minute."},json.RootElement.GetProperty("messages").EnumerateArray().Select(x=>x.GetProperty("body").GetString()));
+        response=await http.PostAsync(endpoint+"/message",new FormUrlEncodedContent(new Dictionary<string,string>{["RequestId"]=Guid.NewGuid().ToString(),["Body"]="No verification token"}));
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest,response.StatusCode);
+        using(var db=f.Db()){Assert.Equal(unchangedRevision,(await db.CoachAccountabilityAgreements.SingleAsync()).Revision);Assert.Empty(await db.WorkoutSessions.ToListAsync());}
+    }
+
     [Fact]
     public async Task SimpleSnapScopesClientLinksAndCoachAccessToTheOriginalAssigner()
     {

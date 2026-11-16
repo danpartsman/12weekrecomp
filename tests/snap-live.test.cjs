@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const {JSDOM}=require(process.env.SNAP_JSDOM_MODULE||'jsdom');
 const source=fs.readFileSync('src/WebRecomp.Web/wwwroot/js/snap-live.js','utf8');
 const flush=async()=>{for(let i=0;i<12;i++)await new Promise(setImmediate);};
-function setup({coach=false,finished=false}={}){
+function setup({coach=false,finished=false,notesOnly=false}={}){
  const dom=new JSDOM(`<details open><section data-snap-live data-live-url="/live" data-coach="${coach}">
  <span data-live-status></span><span data-live-saved></span><span data-live-lifecycle></span><span data-live-count></span>
  <button data-live-start>Start</button><button data-live-correct>Correct</button>
@@ -14,7 +14,7 @@ function setup({coach=false,finished=false}={}){
  <div data-chat-posts></div><button data-chat-earlier hidden>Earlier</button><span data-chat-status></span>
  <form data-snap-chat><input name="__RequestVerificationToken" value="csrf"><input name="RequestId" value="initial"><textarea name="Body" required></textarea><button type="submit">Send</button></form>
  </section></details>`,{url:'https://example.com',runScripts:'outside-only',pretendToBeVisual:true});
- const w=dom.window,d=w.document;w.CSS={escape:s=>s};w.setInterval=()=>0;
+ const w=dom.window,d=w.document;if(notesOnly){d.querySelector('[data-snap-results]').remove();const root=d.querySelector('[data-snap-live]');d.querySelector('details').replaceWith(root);root.querySelector('[data-live-status]').remove();}w.CSS={escape:s=>s};w.setInterval=()=>0;
  let timeouts=[];w.setTimeout=fn=>{timeouts.push(fn);return timeouts.length;};w.clearTimeout=()=>{};
  let state={revision:1,progressRevision:0,assignmentToken:'token',startedUtc:null,savedUtc:null,finished,sets:{},messages:[],hasEarlierMessages:false};
  const calls=[];let fail=null,nativeFinishes=0;
@@ -23,7 +23,7 @@ function setup({coach=false,finished=false}={}){
  if(url.endsWith('/progress')){state.progressRevision++;state.savedUtc=new Date().toISOString();state.sets={e1:[{reps:Number(options.body.get('Exercises[0].Sets[0].Reps')),weight:Number(options.body.get('Exercises[0].Sets[0].Weight'))}]};}
  if(url.endsWith('/message'))state.messages.push({id:options.body.get('RequestId'),sequence:state.messages.length+1,body:options.body.get('Body'),authorName:'Client',coach:false,createdUtc:new Date().toISOString()});
  return {ok:true,status:200,headers:{get:()=>null},json:async()=>structuredClone(state)};};
- const form=d.querySelector('[data-snap-results]');if(coach)form.querySelectorAll('input[type=number]').forEach(f=>f.disabled=true);form.requestSubmit=()=>nativeFinishes++;
+ const form=d.querySelector('[data-snap-results]');if(form){if(coach)form.querySelectorAll('input[type=number]').forEach(f=>f.disabled=true);form.requestSubmit=()=>nativeFinishes++;}
  w.eval(source);
  const input=d.querySelector('input[type=number]');
  return {dom,w,d,form,input,calls,get state(){return state;},set state(v){state=v;},fail(v){fail=v;},get finishes(){return nativeFinishes;},async start(){d.querySelector('[data-live-start]').click();await flush();},async edit(value){input.value=value;input.dispatchEvent(new w.Event('input',{bubbles:true}));await flush();},async save(){form.dispatchEvent(new w.SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:form.querySelector('[value=progress]')}));await flush();},async finish(){form.dispatchEvent(new w.SubmitEvent('submit',{bubbles:true,cancelable:true,submitter:form.querySelector('[value=finish]')}));await flush();},async poll(){w.dispatchEvent(new w.Event('focus'));await flush();},async timers(){const tasks=timeouts;timeouts=[];for(const fn of tasks)fn();await flush();}};
@@ -60,4 +60,29 @@ test('A delayed refresh cannot replace a newer saved draft',async t=>{
  const pending=h.poll();await flush();await h.edit('23');await h.save();
  resolve({ok:true,status:200,headers:{get:()=>null},json:async()=>old});await pending;
  assert.equal(h.input.value,'23');assert.equal(h.form.querySelector('[name=ProgressRevision]').value,'1');
+});
+
+for(const coach of [false,true])test(`Notes-only completion interface works for ${coach?'coach':'client'} without a result form`,async t=>{
+ const h=setup({finished:true,notesOnly:true,coach});t.after(()=>h.dom.window.close());await flush();
+ assert.equal(h.form,null);assert.equal(h.calls.length,1);
+ const textarea=h.d.querySelector('textarea');textarea.value='Keep the same weight next time.';
+ h.d.querySelector('[data-snap-chat]').dispatchEvent(new h.w.Event('submit',{bubbles:true,cancelable:true}));await flush();
+ assert.equal(h.d.querySelectorAll('[data-message-id]').length,1);assert.equal(textarea.value,'');
+ await h.poll();assert.equal(h.d.querySelectorAll('[data-message-id]').length,1);
+ assert.equal(h.calls.filter(c=>c.body).every(c=>c.url.endsWith('/message')),true);assert.equal(h.finishes,0);
+});
+test('Imported notes sort by time while older-note pagination uses the smallest sequence',async t=>{
+ const h=setup({notesOnly:true,finished:true});t.after(()=>h.dom.window.close());await flush();
+ h.state.messages=[{id:'old-chat',sequence:2,body:'Reply',authorName:'Client',createdUtc:'2026-11-16T12:00:00Z'},
+ {id:'imported-note',sequence:12,body:'Opening instruction',authorName:'Coach',coach:true,createdUtc:'2026-11-16T11:00:00Z'}];
+ h.state.hasEarlierMessages=true;await h.poll();assert.match(h.d.querySelector('[data-message-id] p').textContent,/Opening instruction/);
+ h.d.querySelector('[data-chat-earlier]').click();await flush();assert.equal(h.calls.at(-1).url,'/live?before=2');
+});
+
+test('Replies still arrive when an exercise edit requires a workout reload',async t=>{
+ const h=setup();t.after(()=>h.dom.window.close());await flush();await h.start();await h.edit('19');
+ h.state.assignmentToken='changed';h.state.messages=[{id:'coach-reply',sequence:1,coach:true,authorName:'Coach',body:'Keep your saved reps; I updated the next set.',createdUtc:new Date().toISOString()}];
+ await h.poll();assert.equal(h.input.value,'19');assert.match(h.d.querySelector('[data-chat-posts]').textContent,/updated the next set/);
+ const textarea=h.d.querySelector('textarea');textarea.value='Understood.';h.d.querySelector('[data-snap-chat]').dispatchEvent(new h.w.Event('submit',{bubbles:true,cancelable:true}));await flush();
+ assert.equal(h.d.querySelectorAll('[data-message-id]').length,2);assert.equal(h.finishes,0);
 });

@@ -129,6 +129,40 @@ public sealed class SnapLiveTests
         Assert.True(AccountabilityDocument.Parse(row.StateJson).SnapResults["live-test"].LateFeeOutsideCap);
         Assert.Equal(50m,(await f.Ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
     }
+    [Fact] public async Task OpeningAndLegacyCompletionNotesJoinTheSameThreadOnceWithoutStartingOrBilling()
+    {
+        using var f=new Fixture();await f.Seed();
+        var row=await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        var state=AccountabilityDocument.Parse(row.StateJson);
+        state.SnapWorkouts[0].CoachNote="Keep your shoulders steady.";
+        state.SnapResults["live-test"]=new(){ClientNote="That helped, thanks.",Sets=Sets(10)};
+        row.StateJson=AccountabilityDocument.Serialize(state);await f.Db.SaveChangesAsync();
+        var first=f.Live.View(await f.Live.AllowedAsync(f.Owner,f.Client,"live-test",default));
+        Assert.Equal(2,first.Messages.Count);
+        var opening=Assert.Single(first.Messages,m=>m.Coach);
+        Assert.Equal(f.Coach,opening.AuthorId);Assert.Equal("Coach",opening.AuthorName);
+        Assert.Equal("Keep your shoulders steady.",opening.Body);
+        Assert.Equal(f.Owner,Assert.Single(first.Messages,m=>!m.Coach).AuthorId);
+        Assert.Null(first.StartedUtc);Assert.Equal(0,first.ProgressRevision);Assert.Null(first.SavedUtc);
+        Assert.Equal(1,row.Revision);Assert.Empty(f.Files.QueueIds());Assert.Empty(f.Db.WorkoutSessions);
+        Assert.Empty(await f.Ledger.ReadAsync(row,default));
+        Assert.Equal(2,f.Live.View(await f.Live.AllowedAsync(f.Coach,f.Client,"live-test",default)).Messages.Count);
+        await f.Live.MessageAsync(f.Owner,f.Client,"live-test",Guid.NewGuid(),"Should I add weight?",default);
+        var reply=await f.Live.MessageAsync(f.Coach,f.Client,"live-test",Guid.NewGuid(),"Stay at this weight for today.",default);
+        Assert.Equal(4,reply.Messages.Count);Assert.Equal(opening.Id,reply.Messages[0].Id);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>f.Live.AllowedAsync(f.OtherCoach,f.Client,"live-test",default));
+    }
+    [Fact] public async Task ChangedOpeningNoteIsAppendedAndExistingRepliesAreKept()
+    {
+        using var f=new Fixture();await f.Seed();
+        var row=await f.Db.CoachAccountabilityAgreements.SingleAsync();var state=AccountabilityDocument.Parse(row.StateJson);
+        state.SnapWorkouts[0].CoachNote="Start easy.";row.StateJson=AccountabilityDocument.Serialize(state);await f.Db.SaveChangesAsync();
+        await f.Live.MessageAsync(f.Owner,f.Client,"live-test",Guid.NewGuid(),"Ready.",default);
+        state.SnapWorkouts[0].CoachNote="Use the lighter dumbbells.";row.StateJson=AccountabilityDocument.Serialize(state);await f.Db.SaveChangesAsync();
+        var notes=f.Live.View(await f.Live.AllowedAsync(f.Owner,f.Client,"live-test",default));
+        Assert.Equal(new[]{"Start easy.","Ready.","Use the lighter dumbbells."},notes.Messages.Select(m=>m.Body));
+        Assert.Equal(3,f.Live.View(await f.Live.AllowedAsync(f.Coach,f.Client,"live-test",default)).Messages.Count);
+    }
     private static Dictionary<string,List<AccountabilitySet>> Sets(int reps)=>new(){["e1"]=[new(){Reps=reps,Weight=0}]};
     private sealed class Fixture:IDisposable
     {

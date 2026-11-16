@@ -20,13 +20,20 @@ public sealed class SnapLiveState
     public Dictionary<string, string> ExerciseTokens { get; set; } = [];
     public Dictionary<string, List<AccountabilitySet>> Sets { get; set; } = [];
     public List<SnapChatPost> Messages { get; set; } = [];
+    public HashSet<string> ImportedNoteKeys { get; set; } = [];
 }
 public sealed record SnapLiveView(int Revision, string AssignmentToken, int ProgressRevision,
     DateTimeOffset? StartedUtc, DateTimeOffset? SavedUtc, bool Finished, DateTimeOffset? FinishedUtc,
     Dictionary<string, List<AccountabilitySet>> Sets, IReadOnlyList<SnapChatPost> Messages,
     bool HasEarlierMessages, string WorkoutName);
+public sealed record SnapNotesPanel(Guid ClientId, string WorkoutId);
 public sealed record SnapLiveAccess(CoachAccountabilityAgreement Agreement, AccountabilityState State,
-    AccountabilityWorkout Workout, Guid CoachId, bool IsCoach, UserAccount Actor);
+    AccountabilityWorkout Workout, Guid CoachId, bool IsCoach, UserAccount Actor)
+{
+    public Guid ClientUserId { get; init; }
+    public string ClientName { get; init; } = "Client";
+    public string CoachName { get; init; } = "Coach";
+}
 
 /// <summary>Private, encrypted App Service storage. Draft writes never call the
 /// financial ledger or the canonical workout engine. File leases serialize tabs,
@@ -59,14 +66,61 @@ public sealed class SnapLiveService(RecompDbContext db, NotificationFiles files,
         var owners = await db.UserClientAccess.AsNoTracking().Where(x => x.ClientId == client && x.AccessRoleCode == "OWNER" && x.RevokedAtUtc == null)
             .Select(x => x.UserId).Distinct().Take(2).ToArrayAsync(ct);
         if (owners.Length != 1 || (actor != owners[0] && actor != coach)) throw new UnauthorizedAccessException();
-        var user = await db.UserAccounts.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == actor && x.AccountStatusCode == "ACTIVE", ct)
-            ?? throw new UnauthorizedAccessException();
-        return new(row, state, workout, coach, actor == coach && actor != owners[0], user);
+        var participants = await db.UserAccounts.AsNoTracking().Where(x => (x.UserId == owners[0] || x.UserId == coach)
+            && x.AccountStatusCode == "ACTIVE").ToArrayAsync(ct);
+        var user = participants.SingleOrDefault(x => x.UserId == actor) ?? throw new UnauthorizedAccessException();
+        var clientUser = participants.SingleOrDefault(x => x.UserId == owners[0]) ?? throw new UnauthorizedAccessException();
+        var coachUser = participants.SingleOrDefault(x => x.UserId == coach) ?? throw new UnauthorizedAccessException();
+        var allowed = new SnapLiveAccess(row, state, workout, coach, actor == coach && actor != owners[0], user)
+        {
+            ClientUserId = clientUser.UserId, ClientName = Name(clientUser, "Client"), CoachName = Name(coachUser, "Coach")
+        };
+        ImportNotes(allowed);
+        return allowed;
+    }
+    private static string Name(UserAccount user, string fallback) => user.PreferredDisplayName ?? user.DisplayName ?? fallback;
+    private void ImportNotes(SnapLiveAccess allowed)
+    {
+        // Retain original assignment/completion notes in the same append-only thread.
+        // Stable content keys make refreshes and retries safe without touching billing.
+        var result = allowed.State.SnapResults.GetValueOrDefault(allowed.Workout.Id);
+        var created = allowed.Workout.CreatedAtUtc ?? new DateTimeOffset(AccountabilityDocument.Date(allowed.Workout.Date).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var candidates = new[]
+        {
+            (Role: "coach", Body: allowed.Workout.CoachNote, Author: allowed.CoachId, AuthorName: allowed.CoachName, At: created),
+            (Role: "client", Body: result?.ClientNote, Author: allowed.ClientUserId, AuthorName: allowed.ClientName, At: result?.CompletedAtUtc ?? created)
+        }.Where(x => !string.IsNullOrWhiteSpace(x.Body)).Select(x => (Note: x,
+            Key: x.Role + ":" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(x.Body!.Trim()))))).ToArray();
+        if (candidates.Length == 0) return;
+        var key = Key(allowed.Agreement.ClientId, allowed.Workout.Id);
+        var saved = ReadStored(allowed.Agreement.ClientId, allowed.CoachId, allowed.Workout.Id);
+        if (candidates.All(x => saved.ImportedNoteKeys.Contains(x.Key))) return;
+        using (files.Lease(key))
+        {
+            var live = ReadStored(allowed.Agreement.ClientId, allowed.CoachId, allowed.Workout.Id);
+            var changed = false;
+            foreach (var candidate in candidates)
+            {
+                if (live.ImportedNoteKeys.Contains(candidate.Key)) continue;
+                var note = candidate.Note;
+                var first = !live.ImportedNoteKeys.Any(x => x.StartsWith(note.Role + ":", StringComparison.Ordinal));
+                var id = new Guid(SHA256.HashData(Encoding.UTF8.GetBytes(key + ":" + candidate.Key)).AsSpan(0, 16));
+                live.Messages.Add(new(id, (live.Messages.LastOrDefault()?.Sequence ?? 0) + 1, note.Author,
+                    note.AuthorName, note.Role == "coach", note.Body!.Trim(), first ? note.At : time.GetUtcNow()));
+                live.ImportedNoteKeys.Add(candidate.Key); changed = true;
+            }
+            if (changed) files.Write(key, live);
+        }
+    }
+    private SnapLiveState ReadStored(Guid client, Guid coach, string workoutId)
+    {
+        var state = files.Read<SnapLiveState>(Key(client, workoutId)) ?? new() { ClientId = client, CoachId = coach, WorkoutId = workoutId };
+        if (state.ClientId != client || state.CoachId != coach || state.WorkoutId != workoutId) throw new UnauthorizedAccessException();
+        return state;
     }
     public SnapLiveState ReadSaved(Guid client, Guid coach, AccountabilityWorkout workout)
     {
-        var state = files.Read<SnapLiveState>(Key(client, workout.Id)) ?? new() { ClientId = client, CoachId = coach, WorkoutId = workout.Id };
-        if (state.ClientId != client || state.CoachId != coach || state.WorkoutId != workout.Id) throw new UnauthorizedAccessException();
+        var state = ReadStored(client, coach, workout.Id);
         // Assignment edits retain draft sets only for unchanged exercise rows.
         state.Sets = workout.Exercises.Where(e => state.ExerciseTokens.GetValueOrDefault(e.Id) == ExerciseToken(e))
             .Where(e => state.Sets.ContainsKey(e.Id)).ToDictionary(e => e.Id, e => state.Sets[e.Id]);

@@ -382,11 +382,12 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         {
             var actor = (await users.GetAsync(HttpContext, ct)).User.UserId;
             var isCoach = await IsAssignedCoachAsync(actor, clientId, ct);
-            await simple.SaveNoteAsync(actor, clientId, isCoach, input.Revision, workoutId, input.Note, ct);
+            if (live is not null) await live.MessageAsync(actor, clientId, workoutId, Guid.NewGuid(), input.Note ?? "", ct);
+            else await simple.SaveNoteAsync(actor, clientId, isCoach, input.Revision, workoutId, input.Note, ct);
             TempData["SnapCompletionStatus"] = "Note saved.";
         }
         catch (UnauthorizedAccessException) { return NotFound(); }
-        catch (Exception error) when (error is ArgumentException or AccountabilityConflictException)
+        catch (Exception error) when (error is ArgumentException or AccountabilityConflictException or IOException)
         {
             TempData["SnapCompletionStatus"] = error.Message;
         }

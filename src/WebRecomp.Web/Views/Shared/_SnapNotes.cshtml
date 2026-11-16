@@ -1,0 +1,12 @@
+@model WebRecomp.Web.Services.Coaching.SnapNotesPanel
+<section class="snap-thread" aria-label="Workout notes"><h3>Notes</h3>
+    <p class="muted">The coach's opening note and all replies stay together here. Private to this client and the assigning coach, before, during and after the workout.</p>
+    <button type="button" class="button secondary" data-chat-earlier hidden>Load earlier notes</button>
+    <div class="snap-chat-posts" data-chat-posts role="log" aria-live="polite" aria-relevant="additions"></div>
+    <form data-snap-chat method="post" action="@Url.Action("Message","SnapLive",new{clientId=Model.ClientId,workoutId=Model.WorkoutId})">
+        @Html.AntiForgeryToken()
+        <label>Add a note or reply<textarea name="Body" maxlength="2000" rows="3" required placeholder="Write a note to your coach or client"></textarea></label>
+        <input type="hidden" name="RequestId" value="@Guid.NewGuid()" />
+        <button type="submit" class="button">Send note</button><p data-chat-status role="status"></p>
+    </form>
+</section>

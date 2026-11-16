@@ -3,15 +3,15 @@
     for (const root of document.querySelectorAll('[data-snap-live]')) {
         const url = root.dataset.liveUrl, coach = root.dataset.coach === 'true';
         const form = root.querySelector('[data-snap-results]'), chat = root.querySelector('[data-snap-chat]');
-        if (!url || !form || !chat) continue;
-        const status = root.querySelector('[data-live-status]'), saved = root.querySelector('[data-live-saved]');
+        if (!url || !chat) continue;
+        const status = root.querySelector('[data-live-status]') || root.querySelector('[data-chat-status]'), saved = root.querySelector('[data-live-saved]');
         const start = root.querySelector('[data-live-start]'), lifecycle = root.querySelector('[data-live-lifecycle]');
         const posts = root.querySelector('[data-chat-posts]'), earlier = root.querySelector('[data-chat-earlier]');
         const chatStatus = root.querySelector('[data-chat-status]'), messageBox = chat.querySelector('textarea');
         const token = () => chat.querySelector('[name=__RequestVerificationToken]').value;
-        const fields = () => [...form.querySelectorAll('input[type=number]')];
+        const fields = () => [...(form?.querySelectorAll('input[type=number]') || [])];
         let correcting = false;
-        let started = false, finished = form.dataset.finished === 'true', ready = false, dirty = root.dataset.retry === 'true';
+        let started = false, finished = form?.dataset.finished === 'true', ready = false, dirty = root.dataset.retry === 'true';
         let timer, posting = null, polling = false, blocked = false, finishing = false, editSequence = 0, mutation = 0;
         let oldest = null, messageSending = false, lastMessageBody = '', lastPoll = 0;
         const messages = new Map();
@@ -55,10 +55,10 @@
             const nearBottom = posts.scrollHeight - posts.scrollTop - posts.clientHeight < 70;
             const oldHeight = posts.scrollHeight; let added = 0;
             for (const message of data.messages || []) {
-                if (messages.has(message.id)) continue;
-                messages.set(message.id, message); added++;
+                if (!messages.has(message.id)) added++;
+                messages.set(message.id, message);
             }
-            const sorted = [...messages.values()].sort((a, b) => a.sequence - b.sequence);
+            const sorted = [...messages.values()].sort((a, b) => new Date(a.createdUtc) - new Date(b.createdUtc) || a.sequence - b.sequence);
             for (const message of sorted) {
                 let article = posts.querySelector(`[data-message-id="${CSS.escape(message.id)}"]`);
                 if (!article) {
@@ -72,17 +72,18 @@
                 }
                 posts.append(article);
             }
-            if (!sorted.length) posts.textContent = 'No messages yet. Start the conversation below.';
+            if (!sorted.length) posts.textContent = 'No notes yet. Add your first note below.';
             else {
                 for (const node of [...posts.childNodes]) if (node.nodeType === Node.TEXT_NODE) node.remove();
-                oldest = sorted[0].sequence;
+                oldest = Math.min(...sorted.map(message => message.sequence));
             }
             if (older || messages.size <= 100) earlier.hidden = !data.hasEarlierMessages;
             if (older) posts.scrollTop += posts.scrollHeight - oldHeight;
             else if (nearBottom) posts.scrollTop = posts.scrollHeight;
-            else if (added) chatStatus.textContent = `${added} new message${added === 1 ? '' : 's'} in this workout.`;
+            else if (added) chatStatus.textContent = `${added} new note${added === 1 ? '' : 's'} in this workout.`;
         }
         function apply(data, allowFill = true) {
+            addMessages(data); lastPoll = Date.now();
             if (ready && form.querySelector('[name=AssignmentToken]').value !== data.assignmentToken) {
                 blocked = true; status.textContent = 'Your coach changed this assignment. Your entries remain here; reload to review the updated workout.'; return;
             }
@@ -98,12 +99,15 @@
                 form.querySelectorAll('button[type=submit]').forEach(b => { b.disabled = true; });
                 status.textContent = 'Workout finished. Reload to review the submitted results and fee summary.';
             }
-            addMessages(data); ready = true; lastPoll = Date.now();
+            ready = true;
         }
         async function poll(force = false) {
-            if (polling || document.hidden || (!force && !root.closest('details')?.open)) return;
+            const details = root.closest('details');
+            if (polling || document.hidden || (!force && details && !details.open)) return;
             polling = true; const version = mutation;
-            try { const data = await request(); if (version !== mutation) return; apply(data); if (!dirty && !blocked) status.textContent = coach ? 'Live view connected. Saved sets update automatically.' : finished ? 'Submitted results. Any correction requires an explicit Finish workout submission.' : started ? 'Automatic saving is on. Finish workout submits results and calculates fees.' : 'Press Start workout to notify your coach and record sets.'; }
+            try { const data = await request(); if (version !== mutation) return;
+                if (!form) { addMessages(data); lastPoll = Date.now(); return; }
+                apply(data); if (!dirty && !blocked) status.textContent = coach ? 'Live view connected. Saved sets update automatically.' : finished ? 'Submitted results. Any correction requires an explicit Finish workout submission.' : started ? 'Automatic saving is on. Finish workout submits results and calculates fees.' : 'Press Start workout to notify your coach and record sets.'; }
             catch (error) { status.textContent = `Updates unavailable: ${error.message} Last saved data is still shown.`; }
             finally { polling = false; }
         }
@@ -145,15 +149,15 @@
             } catch (error) { status.textContent = error.message; }
             finally { start.disabled = false; mutation++; }
         });
-        form.addEventListener('input', event => {
+        form?.addEventListener('input', event => {
             if (coach || !event.target.matches('input[type=number]')) return;
             if (finished) { if (correcting) dirty = true; return; }
             dirty = true; editSequence++; clearTimeout(timer); timer = setTimeout(save, 1200);
             status.textContent = 'Unsaved changes…';
         });
-        form.addEventListener('change', () => { if (dirty) { clearTimeout(timer); timer = setTimeout(save, 350); } });
+        form?.addEventListener('change', () => { if (dirty) { clearTimeout(timer); timer = setTimeout(save, 350); } });
         let submitting = false;
-        form.addEventListener('submit', async event => {
+        form?.addEventListener('submit', async event => {
             if (submitting || coach) return;
             if (finished) { if (!correcting) event.preventDefault(); else { dirty = false; submitting = true; } return; }
             event.preventDefault();
@@ -182,8 +186,8 @@
             try {
                 const data = await request('/message', body); addMessages(data);
                 if (messageBox.value.trim() === text) messageBox.value = '';
-                lastMessageBody = ''; chat.querySelector('[name=RequestId]').value = crypto.randomUUID(); chatStatus.textContent = 'Message sent.';
-            } catch (error) { chatStatus.textContent = `${error.message} Your message is retained; retry to send it.`; }
+                lastMessageBody = ''; chat.querySelector('[name=RequestId]').value = crypto.randomUUID(); chatStatus.textContent = 'Note sent.';
+            } catch (error) { chatStatus.textContent = `${error.message} Your note is retained; retry to send it.`; }
             finally { messageSending = false; button.disabled = false; }
         });
         earlier.addEventListener('click', async () => {
@@ -198,6 +202,6 @@
         window.addEventListener('online', () => { if (dirty && !blocked) save(); poll(); });
         window.addEventListener('beforeunload', event => { if (dirty || messageSending) { event.preventDefault(); event.returnValue = ''; } });
         setInterval(() => { if (Date.now() - lastPoll > 3000) poll(); }, 3000);
-        if (root.closest('details')?.open) poll(true);
+        if (!root.closest('details') || root.closest('details').open) poll(true);
     }
 })();
