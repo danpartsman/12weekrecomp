@@ -25,7 +25,7 @@ function navigation({admin=false,demo=false,hasCoach=false}={}) {
   page.on('pageerror',e=>errors.push(e.message));
   const css=['site.css','test-live-preview.css','design-system-v1012.css','app-navigation.css'].map(f=>fs.readFileSync('src/WebRecomp.Web/wwwroot/css/'+f,'utf8')).join('\n');
   const script=fs.readFileSync('src/WebRecomp.Web/wwwroot/js/app-navigation.js','utf8');
-  const html=`<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><style>${css}</style></head><body class="app-shell test-live-preview"><header class="topbar"><div class="brand"><a href="/CommandCenter">12 WEEK RECOMP</a></div>${navigation({admin:true})}</header><main class="container"><h1>Section main page</h1><section class="card"><button id="outside">Outside</button></section></main><script>${script}</script></body></html>`;
+  const html=`<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body class="app-shell test-live-preview"><header class="topbar"><div class="brand"><a href="/CommandCenter">12 WEEK RECOMP</a></div>${navigation({admin:true})}</header><main class="container"><h1>Section main page</h1><section class="card"><button id="outside">Outside</button></section></main><script>${script}</script></body></html>`;
   await page.route('https://navigation.test/**',route=>route.fulfill({contentType:'text/html',body:html.replace('Section main page',new URL(route.request().url()).pathname)}));
   await page.addInitScript(()=>{Object.defineProperty(window,'sessionStorage',{get(){throw new Error('Storage disabled for regression test');}});});
   await page.goto('https://navigation.test/CommandCenter');
@@ -71,6 +71,24 @@ function navigation({admin=false,demo=false,hasCoach=false}={}) {
   assert.match(navigation({admin:true}),/data-coaching-menu/);
   assert.equal(navigation({hasCoach:true,demo:true}).includes('data-coaching-menu'),false);
   assert.equal(navigation().includes('NavigationDb'),false);
+  // A real touch context exposes sticky focus/hover that resizing a mouse page misses.
+  const touchContext=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
+  try {
+   const phone=await touchContext.newPage();
+   phone.on('pageerror',e=>errors.push(e.message));
+   await phone.route('https://navigation.test/**',route=>route.fulfill({contentType:'text/html',body:html.replace('Section main page',new URL(route.request().url()).pathname)}));
+   await phone.goto('https://navigation.test/Profile');
+   await phone.locator('.app-nav-toggle').tap();
+   await Promise.all([phone.waitForNavigation(),phone.locator('.app-nav-primary').filter({hasText:'Command Center'}).tap()]);
+   assert.equal(new URL(phone.url()).pathname,'/CommandCenter');
+   const touchPanel=phone.locator('.app-nav-group[open] .app-nav-panel');
+   assert.equal(await touchPanel.isVisible(),true);
+   await touchPanel.dispatchEvent('pointerenter',{pointerType:'touch'});
+   await touchPanel.locator('a').first().focus();
+   await phone.waitForFunction(()=>document.querySelectorAll('.app-nav-group[open]').length===0,{},{timeout:7000});
+   assert.equal(await phone.locator('.app-nav-toggle').getAttribute('aria-expanded'),'false');
+   assert.deepEqual(errors,[]);
+  } finally { await touchContext.close(); }
   console.log('Primary navigation changes page and opens destination flyouts with storage blocked; timed dismissal, keyboard, mobile hamburger, viewport and roles passed.');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
