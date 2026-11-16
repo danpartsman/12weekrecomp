@@ -36,7 +36,7 @@ public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, dec
 public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation, bool Included = true);
 public sealed class RecompScoreResult
 {
-    public const string Version = "RECOMP_SCORE_V7";
+    public const string Version = "RECOMP_SCORE_V8";
     public int Score { get; init; }
     public string Band => !HasEvidence ? "gray" : Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
     public string Status => !HasEvidence ? "Awaiting completed evidence" : Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";
@@ -77,8 +77,22 @@ public static class RecompAdherenceScorer
             MacroDayPlanner.Bands(x.ProteinTarget, x.CarbsTarget, x.FatTarget, x.Protein, x.Carbs, x.Fat, x.EnergyTarget)[0]).ToArray();
         components.Add(new("Protein consistency", 25m, protein.Length == 0 ? 0m : 25m * protein.Average(x => x.Quality),
             "Protein green range is 80–100% of the configured upper end (approximately 0.8–1 g/lb when that upper end is 1 g/lb). Meal planning aims at 90%; no top-up to the upper end is required. Unknown days are excluded.", protein.Length > 0));
-        components.Add(new("Rolling carbohydrate context", 20m, 0m,
-            "Daily carbohydrate deviations do not deduct points. The experimental four-day glycogen range informs bounded recommendations, not a validated compliance or financial threshold. Review sustained energy intake separately.", false));
+        // Carb adherence is assessed across completed days, not as a single-day fuel ceiling.
+        // A modest deviation is tolerated, while sustained excess and under-fueling reduce points.
+        var carbDays = complete.Where(x => x.Carbs.HasValue && x.CarbsTarget > 0).ToArray();
+        var carbQuality = carbDays.Length == 0 ? 0m : carbDays.Average(x =>
+        {
+            var ratio = x.Carbs!.Value / x.CarbsTarget;
+            // Product tolerance: +/-20% is full credit; beyond this, gradually reduce
+            // credit instead of imposing an abrupt all-or-nothing deduction.
+            var deviation = Math.Max(0m, Math.Abs(ratio - 1m) - .20m);
+            return Math.Clamp(1m - deviation / .60m, 0m, 1m);
+        });
+        var carbOver = carbDays.Count(x => x.Carbs!.Value > x.CarbsTarget * 1.20m);
+        var carbUnder = carbDays.Count(x => x.Carbs!.Value < x.CarbsTarget * .80m);
+        components.Add(new("Rolling carbohydrate adherence", 20m, 20m * carbQuality,
+            carbDays.Length == 0 ? "No completed carbohydrate logs: score excluded, not zero."
+            : $"{carbDays.Length} recorded days: {carbOver} above the +20% planning band and {carbUnder} below the -20% planning band. A deviation beyond that band gradually reduces points. Review food choices and training demand; do not eat extra merely to reach a calorie number. This is a product adherence metric, not a validated glycogen or fee threshold.", carbDays.Length > 0));
         var fats = complete.Where(x => x.Fat.HasValue && x.EnergyTarget > 0).ToArray();
         var fatBand = fats.Length == 0 ? null : MacroDayPlanner.Bands(1, 1, fats.Average(x => x.FatTarget),
             actualFat: fats.Average(x => x.Fat!.Value), energy: fats.Average(x => x.EnergyTarget))[2];
