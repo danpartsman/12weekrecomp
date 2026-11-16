@@ -78,6 +78,8 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         // Allow results for an already assigned workout before its scheduled date.
         var previous=state.SnapResults.GetValueOrDefault(workoutId);
         result.ClientNote = previous?.ClientNote;
+        // Preserve completed billing history; first submissions use the separate late fee.
+        result.LateFeeOutsideCap = previous?.Finalized == true ? previous.LateFeeOutsideCap : true;
         result.Finalized=result.Finalized||previous?.Finalized==true;
         result.CompletedAtUtc=result.Finalized?(previous?.Finalized==true?previous.CompletedAtUtc??time.GetUtcNow():time.GetUtcNow()):null;
         if(result.Sets.Keys.Any(id=>workout.Exercises.All(e=>e.Id!=id)))throw new ArgumentException("Choose the assigned exercise rows.");
@@ -208,6 +210,8 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         await SaveAsync(ct);
     }
 
+    public static bool LateFeeIsSeparate(AccountabilityResult? result) => result?.Finalized != true || result.LateFeeOutsideCap;
+
     public static IReadOnlyList<AccountabilityCharge> Charges(AccountabilityState saved,DateOnly today,DateTimeOffset? asOf=null)
     {
         var simple=AccountabilityDocument.Parse(AccountabilityDocument.Serialize(saved));
@@ -220,16 +224,17 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
             if (w.FeeOnFinishOnly && result?.Finalized != true) continue;
             if(AccountabilityDocument.Date(w.Date)>today && result?.Finalized!=true)continue;
             decimal remaining=w.Cap;
-            void Add(string suffix,string kind,string description,decimal raw)
+            void Add(string suffix,string kind,string description,decimal raw,bool outsideCap=false)
             {
-                var amount=AccountabilityAssessment.Cents(Math.Min(raw,remaining));remaining-=amount;
+                var amount=AccountabilityAssessment.Cents(outsideCap?raw:Math.Min(raw,remaining));
+                if(!outsideCap)remaining-=amount;
                 charges.Add(new($"snap:{w.Id}:{suffix}",AccountabilityDocument.Date(w.Date),kind,$"{w.Name} · {description}",amount,AccountabilityAssessment.Cents(raw)));
             }
             if(w.LatePenalty.HasValue&&w.DeadlineUtc.HasValue)
             {
                 var finishedOnTime=result?.Finalized==true&&result.CompletedAtUtc.HasValue&&result.CompletedAtUtc<=w.DeadlineUtc;
                 var due=(asOf??DateTimeOffset.UtcNow)>=w.DeadlineUtc&&!finishedOnTime;
-                Add("late","late-penalty","Late completion fine",due?w.LatePenalty.Value:0);
+                Add("late","late-penalty","Late completion fine",due?w.LatePenalty.Value:0,LateFeeIsSeparate(result));
             }
             if(result?.Finalized!=true)continue;
             var wholeComplete=SnapWorkoutLibrary.Completed(w,result);

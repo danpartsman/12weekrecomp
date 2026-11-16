@@ -112,6 +112,23 @@ public sealed class SnapLiveTests
         await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>f.Live.AllowedAsync(f.Owner,f.Client,"live-test",default));
         await f.Processor.RunAsync(default);Assert.Empty(f.Email.Messages);
     }
+    [Fact] public async Task FirstFinishSeparatesLateFeeAndCorrectionsPreserveThatPolicy()
+    {
+        using var f=new Fixture();await f.Seed();
+        var row=await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        var state=AccountabilityDocument.Parse(row.StateJson);
+        state.SnapWorkouts[0].DeadlineUtc=DateTimeOffset.UtcNow.AddHours(-1);
+        row.StateJson=AccountabilityDocument.Serialize(state);await f.Db.SaveChangesAsync();
+        var started=await f.Live.StartAsync(f.Owner,f.Client,"live-test",default);
+        await f.Live.FinishAsync(f.Owner,f.Client,"live-test",started.AssignmentToken,0,new(){Sets=Sets(50)},default);
+        var result=AccountabilityDocument.Parse(row.StateJson).SnapResults["live-test"];
+        Assert.True(result.LateFeeOutsideCap);
+        Assert.Equal(50m,(await f.Ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+        var final=f.Live.View(await f.Live.AllowedAsync(f.Owner,f.Client,"live-test",default));
+        await f.Live.FinishAsync(f.Owner,f.Client,"live-test",final.AssignmentToken,final.ProgressRevision,new(){Sets=Sets(50)},default);
+        Assert.True(AccountabilityDocument.Parse(row.StateJson).SnapResults["live-test"].LateFeeOutsideCap);
+        Assert.Equal(50m,(await f.Ledger.ReadAsync(row,default)).Sum(x=>x.Amount));
+    }
     private static Dictionary<string,List<AccountabilitySet>> Sets(int reps)=>new(){["e1"]=[new(){Reps=reps,Weight=0}]};
     private sealed class Fixture:IDisposable
     {
