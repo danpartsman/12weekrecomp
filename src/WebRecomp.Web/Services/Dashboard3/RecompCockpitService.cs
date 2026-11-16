@@ -86,11 +86,11 @@ public sealed class RecompCockpitService(RecompDbContext db,
             && x.CheckinDate >= activeStart && x.CheckinDate <= today).ToListAsync(ct);
         var records = await db.AnalysisRuns.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.ActionDate >= activeStart && x.ActionDate <= today
-            && (x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6") || x.EngineVersion == FlexVersion))
+            && (x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6" || x.EngineVersion == "RECOMP_SCORE_V7") || x.EngineVersion == FlexVersion))
             .OrderByDescending(x => x.StartedAtUtc).ThenByDescending(x => x.AnalysisRunId).ToListAsync(ct);
         var flex = records.Where(x => x.EngineVersion == FlexVersion).GroupBy(x => x.ActionDate)
             .ToDictionary(x => x.Key, x => ReadFlexibleCount(x.First().DiagnosticJson));
-        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6"))
+        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6" || x.EngineVersion == "RECOMP_SCORE_V7"))
             .Select(x => (Run: x, Snapshot: Read<RecompScoreSnapshot>(x.DiagnosticJson)))
             .Where(x => x.Snapshot is not null).ToArray();
         var logs = new List<NutritionDailyLogReadModel>();

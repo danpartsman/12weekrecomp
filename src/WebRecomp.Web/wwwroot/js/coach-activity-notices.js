@@ -8,15 +8,19 @@
             ?.dataset.feeLedgerEntries || '').split(' '));
         const status = dialog.querySelector('[role=status]');
         const postponed = new Set();
+        const acknowledged = new Set();
+        let dismissing = false;
         let busy = false;
         let current = [];
 
         async function markRead(notices) {
+            if (!notices.length) return;
             const body = new URLSearchParams();
             body.set('__RequestVerificationToken', dialog.querySelector('input[name=__RequestVerificationToken]').value);
             for (const notice of notices) body.append('ids', notice.id);
             const response = await fetch(endpoint + '/dismiss', { method: 'POST', credentials: 'same-origin', body });
             if (!response.ok) throw new Error();
+            for (const notice of notices) acknowledged.add(notice.id);
         }
 
         async function refresh() {
@@ -31,7 +35,7 @@
                 if (!Array.isArray(data.notices) || document.querySelector('dialog[open]')) return;
                 current = data.notices.filter(notice => typeof notice.id === 'string'
                     && typeof notice.title === 'string' && typeof notice.url === 'string'
-                    && /^\/(coach-workspace|clients)\//.test(notice.url) && !postponed.has(notice.id));
+                    && /^\/(coach-workspace|clients)\//.test(notice.url) && !postponed.has(notice.id) && !acknowledged.has(notice.id));
                 if (!current.length) return;
 
                 if (feeMessage) {
@@ -93,8 +97,31 @@
                 busy = false;
             }
         });
-        ledgerLink?.addEventListener('click', () => dialog.close());
-        dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
+        async function acknowledgeAndClose() {
+            if (dismissing) return;
+            dismissing = true;
+            try {
+                await markRead(current);
+                for (const notice of current) postponed.add(notice.id);
+                dialog.close();
+            } catch {
+                status.textContent = 'Could not save acknowledgement. Please try again.';
+            } finally {
+                dismissing = false;
+            }
+        }
+        ledgerLink?.addEventListener('click', event => {
+            event.preventDefault();
+            const url = ledgerLink.href;
+            acknowledgeAndClose().then(() => {
+                if (!dialog.open) window.location.assign(url);
+            });
+        });
+        dialog.querySelector('[data-close]').addEventListener('click', acknowledgeAndClose);
+        dialog.addEventListener('cancel', event => {
+            event.preventDefault();
+            acknowledgeAndClose();
+        });
         dialog.addEventListener('close', () => {
             if (dialog.hasAttribute('data-notice-endpoint'))
                 for (const notice of current) postponed.add(notice.id);
