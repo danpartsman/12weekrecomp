@@ -421,9 +421,21 @@ jobs:
       - name: Verify LIVE account creation and sign-in
         shell: pwsh
         run: |
-          $base = "https://recomp-live.azurewebsites.net"
-          $create = Invoke-WebRequest -Uri "$base/Account/CreateAccount?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 30
-          $signIn = Invoke-WebRequest -Uri "$base/Account/SignIn?v=${{ github.sha }}" -UseBasicParsing -TimeoutSec 30
+          $ErrorActionPreference = "Stop"
+          $base = "https://12weekrecomp.com"
+          function Get-LiveAccountPage([string] $path) {
+              for ($attempt = 1; $attempt -le 6; $attempt++) {
+                  try {
+                      return Invoke-WebRequest -Uri "$base$path`?v=${{ github.sha }}&attempt=$attempt" -Headers @{ 'Cache-Control'='no-cache' } -UseBasicParsing -TimeoutSec 30
+                  } catch {
+                      if ($attempt -eq 6) { throw }
+                      Write-Host "LIVE account page retry ($attempt/6) for $path : $($_.Exception.Message)"
+                      Start-Sleep -Seconds 5
+                  }
+              }
+          }
+          $create = Get-LiveAccountPage '/Account/CreateAccount'
+          $signIn = Get-LiveAccountPage '/Account/SignIn'
 
           if ($create.StatusCode -ne 200 -or $signIn.StatusCode -ne 200) {
               throw "LIVE account pages did not return HTTP 200."
