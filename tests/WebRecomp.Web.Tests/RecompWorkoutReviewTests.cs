@@ -94,14 +94,14 @@ public sealed class RecompWorkoutReviewTests
         var result=RecompWorkoutReviewService.Build(Today,Today.AddDays(-2),[],[],[],[]);
         Assert.False(result.FullWindow);Assert.Null(result.Score);Assert.Equal(0,result.Deductions);
     }
-    [Fact] public void OverallScoreSubtractsActualFivePointDeductionsWithoutReweighting()
+    [Fact] public void OverallScoreWeightsWorkoutCoverageAtThirtyFivePercent()
     {
         var all=Review(Session("FULL_BODY_STRENGTH"),Session("GENERAL_CARDIO",30,-1),Session("ORANGETHEORY",60,-2),Session("REST",0,-3));
         var missingRest=Review(Session("FULL_BODY_STRENGTH"),Session("GENERAL_CARDIO",30,-1),Session("ORANGETHEORY",60,-2));
         var days=new[]{new RecompDayEvidence(Today.AddDays(-1),200,200,60,2000,180,200,60,2000,0,"test")};
         var before=RecompAdherenceScorer.Score(Today,days,[],workoutReview:all);
         var after=RecompAdherenceScorer.Score(Today,days,[],workoutReview:missingRest);
-        Assert.Equal(100,before.Score);Assert.Equal(95,after.Score);Assert.Equal(95,after.WorkoutScore);Assert.Equal(100,after.NutritionScore);
+        Assert.Equal(100,before.Score);Assert.Equal(98,after.Score);Assert.Equal(95,after.WorkoutScore);Assert.Equal(100,after.NutritionScore);
         Assert.Equal(70,RecompAdherenceScorer.Score(Today,[],[],workoutReview:Review()).Score);
     }
     [Fact] public void CapturedV8AndEarlierScoresKeepTheirOriginalComponentsAndChecklist()
