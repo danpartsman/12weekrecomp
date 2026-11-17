@@ -29,9 +29,9 @@ public sealed class CommandCenterPenaltyAndPredictionTests
             new(Today.AddDays(-2),100,100,100,1700,200,200,200,3400,2,"test"),
             new(Today.AddDays(-1),100,100,100,1700,100,100,100,1700,2,"test") };
         var result = RecompAdherenceScorer.Score(Today, days, []);
-        Assert.Equal(4m, result.Components.Last().Earned);
+        Assert.Equal(4m, result.Components.Single(x => x.Label == "Planned flexibility").Earned);
         var onlyFree = RecompAdherenceScorer.Score(Today, days.Take(1).ToList(), []);
-        Assert.Equal(5m, onlyFree.Components.Last().Earned);
+        Assert.Equal(5m, onlyFree.Components.Single(x => x.Label == "Planned flexibility").Earned);
     }
     [Theory]
     [InlineData(0,false,false,0)] [InlineData(9,true,false,0)]
