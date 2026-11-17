@@ -46,7 +46,7 @@ public sealed class RecompBodyCompositionComparisonTests
         var rows=Enumerable.Range(1,14).Select(i=>R(-i,200,i<=7?.27m:.25m,i<=7?78:80));
         var c=RecompBodyCompositionComparison.Build(Today,rows);
         Assert.Equal(0,c.WeightChangeLb); Assert.Equal(4,c.Fat.ChangeLb); Assert.Equal(-2,c.Muscle.ChangeLb);
-        Assert.Equal("yellow",c.Fat.Band); Assert.Contains("unconfirmed",c.Fat.Status);
+        Assert.Equal("red",c.Fat.Band); Assert.Contains("unconfirmed",c.Fat.Status);
         Assert.Contains("Stable weight cannot",c.Interpretation);
     }
     [Fact] public void DeletedAndSupersededReadingsDoNotGetExtraWeight()
