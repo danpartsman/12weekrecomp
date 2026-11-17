@@ -19,7 +19,9 @@ public sealed record RecompCompositionChange(string Key, string Label, RecompCom
     // presented as confirmed tissue gain/loss or a measured 95% confidence result.
     public bool Sparse => Latest.Count < 4 || Previous.Count < 4;
     public decimal ObservedVariationLb => Math.Max(Latest.DailyVariationLb ?? 0m, Previous.DailyVariationLb ?? 0m);
-    public string Band => ChangeLb is null || Sparse ? "gray" : "yellow";
+    public string Band => ChangeLb is null || Sparse ? "gray"
+        : Math.Abs(ChangeLb.Value) <= Math.Max(.2m, ObservedVariationLb) ? "yellow"
+        : (ChangeLb.Value > 0m) == GainIsFavorable ? "green" : "red";
     public string Status => DisplayChangeLb is not decimal change ? "Comparison unavailable"
         : Sparse ? "Sparse evidence"
         : Math.Abs(change) <= Math.Max(.2m, ObservedVariationLb) ? "Within observed variation"
