@@ -120,6 +120,28 @@ public static class RecompAdherenceScorer
             components.Add(new(label, gauge.Weight, gauge.Weight * fraction, explanation, included));
         }
 
+        // Report observed combinations only; food names and motives cannot be inferred
+        // from daily totals, so never claim that a specific meal caused an overage.
+        var overlap = complete.Where(x => x.Protein.HasValue && x.Carbs.HasValue && x.Fat.HasValue
+            && x.ProteinTarget > 0 && x.CarbsTarget > 0 && x.FatTarget > 0).ToArray();
+        var highCarbHighFat = overlap.Count(x => x.Carbs!.Value > x.CarbsTarget * 1.20m
+            && x.Fat!.Value > x.FatTarget * 1.10m);
+        var lowProtein = overlap.Count(x => x.Protein!.Value < x.ProteinTarget * .80m);
+        var lowProteinHighCarb = overlap.Count(x => x.Protein!.Value < x.ProteinTarget * .80m
+            && x.Carbs!.Value > x.CarbsTarget * 1.20m);
+        if (overlap.Length > 0)
+        {
+            var advice = new List<string>();
+            if (highCarbHighFat > 0)
+                advice.Add($"{highCarbHighFat} day(s) had both high carbohydrate and high fat; review logged portions and food choices");
+            if (lowProtein > 0)
+                advice.Add($"{lowProtein} day(s) were below the protein planning range; consider spreading protein through meals");
+            if (lowProteinHighCarb > 0)
+                advice.Add($"{lowProteinHighCarb} day(s) combined excess carbohydrate with below-range protein; consider protein-first meal planning without topping up calories");
+            if (advice.Count > 0)
+                components.Add(new("Nutrition pattern analysis", 0m, 0m,
+                    string.Join(". ", advice) + ". These observations do not identify particular cheat meals or prove why choices were made.", false));
+        }
         var knownFlex = days.Where(x => x.Date < today && x.FlexibleItems.HasValue).ToArray();
         int? flex = knownFlex.Length == 0 ? null : knownFlex.Sum(x => x.FlexibleItems!.Value);
         var flexOver = false;
