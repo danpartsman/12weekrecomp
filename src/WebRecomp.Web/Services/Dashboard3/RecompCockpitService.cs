@@ -206,7 +206,8 @@ public sealed class RecompCockpitService(RecompDbContext db,
                     ? SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(selected, type.DefaultMinutes) : type?.DefaultMinutes),
                 scheduled.PlannedRpe, sample?.SystemCode, tone, true));
         }
-        var score = RecompAdherenceScorer.Score(today, days, training, glycogen, workoutReview);
+        var composition = await BuildBodyCompositionAsync(context, today, ct);
+        var score = RecompAdherenceScorer.Score(today, days, training, glycogen, workoutReview, composition);
         var capture = historical ? snapshots.FirstOrDefault(x => x.Run.ActionDate == today).Snapshot : null;
         if (capture is not null)
         {
@@ -228,7 +229,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 mealPlan.Bands[0].Target, mealPlan.Bands[1].Target, mealPlan.Bands[2].Target,
                 mealPlan.EnergyTarget, mealPlan.Bands[0].Eaten, mealPlan.Bands[1].Eaten, mealPlan.Bands[2].Eaten,
                 mealPlan.EnergyEaten, Flex(today), "Current engine prescription")).ToList(),
-            BodyComposition = await BuildBodyCompositionAsync(context, today, ct),
+            BodyComposition = composition,
             WeeklyTrend = await BuildWeeklyTrendAsync(context, today, ct),
             Score = score, Training = training, Glycogen = glycogen, Days = days, History = history, UpcomingWorkouts = upcoming,
             Change = !score.HasEvidence || previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
@@ -288,7 +289,8 @@ public sealed class RecompCockpitService(RecompDbContext db,
         return new RecompScoreResult
         {
             Score = capture.Score, Components = capture.Components.ToList(), WorkoutReview = capture.WorkoutReview,
-            NutritionBaseScore = capture.WorkoutReview is null ? null : RecompScoreResult.ComponentScore(capture.Components.Take(3).Append(capture.Components.Last())),
+            NutritionBaseScore = RecompScoreResult.ComponentScore(capture.Components.Take(3).Concat(capture.Components.Where(x => x.Label == "Planned flexibility"))),
+            OutcomeScore = RecompScoreResult.ComponentScore(capture.Components.Where(x => x.Label.EndsWith(" trend"))),
             KnownNutritionDays = capture.EvidenceDays, CompletedNutritionDays = capture.CompletedDays,
             FlexibleItems = evidence.FlexibleItems, FlexibleConfirmedDays = evidence.FlexibleConfirmedDays,
             FlexibleDayOverMacros = evidence.FlexibleDayOverMacros
