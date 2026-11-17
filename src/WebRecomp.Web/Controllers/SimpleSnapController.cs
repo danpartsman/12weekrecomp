@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.Controllers;
-public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Guid? CoachUserId{get;init;}public string? CoachName{get;init;}public Dictionary<string,SnapLiveState> LiveSessions{get;init;}=[];public Dictionary<string,string> AssignedBy{get;init;}=[];public Dictionary<string,Guid> AssignmentOwners{get;init;}=[];public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];public Dictionary<string,decimal> AssessedCharges{get;init;}=[];public Dictionary<string,decimal> PostedCharges{get;init;}=[];public List<(string Id,string Name,string Date)> RecentTemplates{get;init;}=[];}
+public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Guid? CoachUserId{get;init;}public string? CoachName{get;init;}public Dictionary<string,SnapLiveState> LiveSessions{get;init;}=[];public Dictionary<string,string> AssignedBy{get;init;}=[];public Dictionary<string,Guid> AssignmentOwners{get;init;}=[];public HashSet<string> CatalogExerciseNames{get;init;}=[];public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];public Dictionary<string,decimal> AssessedCharges{get;init;}=[];public Dictionary<string,decimal> PostedCharges{get;init;}=[];public List<(string Id,string Name,string Date)> RecentTemplates{get;init;}=[];}
 public sealed record SimpleSnapCompletionPage(Guid ClientId, string ClientName, Guid CoachId, string CoachName,
     bool IsCoach, int Revision, AccountabilityWorkout Workout, AccountabilityResult Result,
     IReadOnlyList<AccountabilityCharge> Charges, decimal PostedTotal, string TimeZone);
@@ -69,7 +69,13 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var posted=new Dictionary<string,decimal>();
             if(row is not null){var entries=await ledger.ReadAsync(row,ct);posted=entries.Where(x=>x.SourceKey.StartsWith("snap:")&&(!assignedCoach||x.CoachUserId==user.UserId)).GroupBy(x=>x.SourceKey.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount));}
             var recent=assignedCoach?state.SnapWorkouts.Where(w=>w.Simple).Reverse().OrderByDescending(w=>w.CreatedAtUtc??DateTimeOffset.MinValue).Select(w=>(w.Id,w.Name,w.Date)).ToList():new List<(string Id,string Name,string Date)>();
-            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today,Name="Snap Workout "+TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(clock.Zone)).ToString("M/d/yy h:mmtt",System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()},clock.Zone){LiveSessions=liveSessions,Estimates=readings,AssessedCharges=assessed,PostedCharges=posted,RecentTemplates=recent,CoachUserId=scope,CoachName=scope.HasValue?names.GetValueOrDefault(scope.Value)??"Coach":null,AssignedBy=assignedBy,AssignmentOwners=owners});
+            var namesInWorkouts = state.SnapWorkouts.Where(w => w.Simple).SelectMany(w => w.Exercises)
+                .Select(e => e.Name).Distinct().ToArray();
+            var catalogNames = scheduleDb is null ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                : (await scheduleDb.ExerciseCatalogItems.AsNoTracking()
+                    .Where(x => x.IsActive && x.SourceCode != "12WR_CSV_UNMAPPED" && namesInWorkouts.Contains(x.Name))
+                    .Select(x => x.Name).ToListAsync(ct)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today,Name="Snap Workout "+TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(clock.Zone)).ToString("M/d/yy h:mmtt",System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()},clock.Zone){LiveSessions=liveSessions,Estimates=readings,AssessedCharges=assessed,PostedCharges=posted,RecentTemplates=recent,CoachUserId=scope,CoachName=scope.HasValue?names.GetValueOrDefault(scope.Value)??"Coach":null,AssignedBy=assignedBy,AssignmentOwners=owners,CatalogExerciseNames=catalogNames});
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }
@@ -91,6 +97,32 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         IncompleteExerciseFee=w.Exercises.FirstOrDefault()?.Penalty??0,CoachIncentivePerRep=w.Exercises.FirstOrDefault()?.ExtraRepRate??0,
         Exercises=w.Exercises.Select(e=>new ExerciseInput{Id=e.Id,Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight>0?e.MaxWeight:null,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,Type=e.Type,Basis=e.Basis,Rate=e.Rate}).ToList()
     };
+    [HttpGet("technique")]
+    public async Task<IActionResult> Technique(Guid clientId, string workoutId, string exerciseName, CancellationToken ct)
+    {
+        if (!SimpleCoaching.Enabled(configuration) || scheduleDb is null
+            || string.IsNullOrWhiteSpace(workoutId) || string.IsNullOrWhiteSpace(exerciseName)) return NotFound();
+        var actor = (await users.GetAsync(HttpContext, ct)).User.UserId;
+        var isCoach = await IsAssignedCoachAsync(actor, clientId, ct);
+        try
+        {
+            var row = await simple.ReadAsync(actor, clientId, isCoach, ct);
+            if (row is null) return NotFound();
+            var state = AccountabilityDocument.Parse(row.StateJson);
+            var owners = await simple.AssignmentOwnersAsync(clientId, ct);
+            if (isCoach && owners.GetValueOrDefault(workoutId) != actor) return NotFound();
+            var workout = state.SnapWorkouts.SingleOrDefault(w => w.Simple && w.Id == workoutId);
+            if (workout is null || !workout.Exercises.Any(e => e.Name == exerciseName)) return NotFound();
+            var item = await scheduleDb.ExerciseCatalogItems.AsNoTracking()
+                .Where(x => x.IsActive && x.SourceCode != "12WR_CSV_UNMAPPED" && x.Name == exerciseName)
+                .Select(x => new { x.Name, x.InstructionsJson }).FirstOrDefaultAsync(ct);
+            if (item is null) return NotFound();
+            ViewData["ExerciseName"] = item.Name;
+            ViewData["InstructionText"] = item.InstructionsJson;
+            return View("Technique");
+        }
+        catch (UnauthorizedAccessException) { return NotFound(); }
+    }
     [HttpGet("template")]
     public async Task<IActionResult> Template(Guid clientId,string workoutId,CancellationToken ct)
     {

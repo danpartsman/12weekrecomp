@@ -93,8 +93,29 @@
                 busy = false;
             }
         });
-        ledgerLink?.addEventListener('click', () => dialog.close());
-        dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
+        let acknowledging = false;
+        async function acknowledgeAndClose(navigateTo) {
+            if (acknowledging) return;
+            acknowledging = true;
+            try {
+                await markRead(current);
+                dialog.close();
+                if (navigateTo) window.location.assign(navigateTo);
+            } catch {
+                status.textContent = 'Acknowledgement could not be saved; please try again.';
+            } finally {
+                acknowledging = false;
+            }
+        }
+        ledgerLink?.addEventListener('click', event => {
+            event.preventDefault();
+            acknowledgeAndClose(ledgerLink.href);
+        });
+        dialog.querySelector('[data-close]').addEventListener('click', () => acknowledgeAndClose());
+        dialog.addEventListener('cancel', event => {
+            event.preventDefault();
+            acknowledgeAndClose();
+        });
         dialog.addEventListener('close', () => {
             if (dialog.hasAttribute('data-notice-endpoint'))
                 for (const notice of current) postponed.add(notice.id);

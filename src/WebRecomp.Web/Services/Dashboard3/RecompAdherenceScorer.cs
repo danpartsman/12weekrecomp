@@ -36,7 +36,7 @@ public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, dec
 public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation, bool Included = true);
 public sealed class RecompScoreResult
 {
-    public const string Version = "RECOMP_SCORE_V8";
+    public const string Version = "RECOMP_SCORE_V9";
     public int Score { get; init; }
     public string Band => !HasEvidence ? "gray" : Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
     public string Status => !HasEvidence ? "Awaiting completed evidence" : Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";
@@ -46,6 +46,7 @@ public sealed class RecompScoreResult
     public int? NutritionScore => ComponentScore(Components.Take(3));
     public RecompWorkoutReview? WorkoutReview { get; init; }
     public int? NutritionBaseScore { get; init; }
+    public int? OutcomeScore { get; init; }
     public int? WorkoutScore => WorkoutReview is not null ? WorkoutReview.Score : ComponentScore(Components.Skip(3).SkipLast(1));
     internal static int? ComponentScore(IEnumerable<RecompScoreComponent> components)
     {
@@ -71,7 +72,8 @@ public sealed class RecompScoreResult
 public static class RecompAdherenceScorer
 {
     public static RecompScoreResult Score(DateOnly today, IReadOnlyList<RecompDayEvidence> days,
-        IReadOnlyList<RecompTrainingGauge> training, RecompGlycogenWork? glycogen = null, RecompWorkoutReview? workoutReview = null)
+        IReadOnlyList<RecompTrainingGauge> training, RecompGlycogenWork? glycogen = null, RecompWorkoutReview? workoutReview = null,
+        RecompBodyCompositionTrends? composition = null)
     {
         var components = new List<RecompScoreComponent>();
         var complete = days.Where(x => x.Date < today).ToArray();
@@ -79,8 +81,17 @@ public static class RecompAdherenceScorer
             MacroDayPlanner.Bands(x.ProteinTarget, x.CarbsTarget, x.FatTarget, x.Protein, x.Carbs, x.Fat, x.EnergyTarget)[0]).ToArray();
         components.Add(new("Protein consistency", 25m, protein.Length == 0 ? 0m : 25m * protein.Average(x => x.Quality),
             "Protein green range is 80–100% of the configured upper end (approximately 0.8–1 g/lb when that upper end is 1 g/lb). Meal planning aims at 90%; no top-up to the upper end is required. Unknown days are excluded.", protein.Length > 0));
-        components.Add(new("Rolling carbohydrate context", 20m, 0m,
-            "Daily carbohydrate deviations do not deduct points. The experimental four-day glycogen range informs bounded recommendations, not a validated compliance or financial threshold. Review sustained energy intake separately.", false));
+        var carbDays = complete.Where(x => x.Carbs.HasValue && x.CarbsTarget > 0).ToArray();
+        var carbQuality = carbDays.Length == 0 ? 0m : carbDays.Average(x =>
+        {
+            var ratio = x.Carbs!.Value / x.CarbsTarget;
+            return Math.Clamp(1m - Math.Max(0m, Math.Abs(ratio - 1m) - .20m) / .60m, 0m, 1m);
+        });
+        var carbHigh = carbDays.Count(x => x.Carbs!.Value > x.CarbsTarget * 1.20m);
+        var carbLow = carbDays.Count(x => x.Carbs!.Value < x.CarbsTarget * .80m);
+        components.Add(new("Rolling carbohydrate adherence", 20m, 20m * carbQuality,
+            carbDays.Length == 0 ? "No completed carbohydrate logs. Missing evidence is excluded, not treated as a failure."
+            : $"{carbDays.Length} days assessed: {carbHigh} above +20% and {carbLow} below -20% of the applicable daily target. Repeated deviations reduce points gradually. Training fuel needs vary; this product tolerance is not a biological or financial threshold.", carbDays.Length > 0));
         var fats = complete.Where(x => x.Fat.HasValue && x.EnergyTarget > 0).ToArray();
         var fatBand = fats.Length == 0 ? null : MacroDayPlanner.Bands(1, 1, fats.Average(x => x.FatTarget),
             actualFat: fats.Average(x => x.Fat!.Value), energy: fats.Average(x => x.EnergyTarget))[2];
@@ -119,12 +130,42 @@ public static class RecompAdherenceScorer
         components.Add(new("Planned flexibility", 5m, flexEarned,
             flex is null ? "Pending: not confirmed on a completed day; excluded from the score."
             : $"{flex} treat portions in the completed scoring period. First 2 free; portions 3–4 each cost 0.5 point; each additional portion costs 1 point. {flexPenalty:0.#} penalty points (5-point component floors at zero). Macro penalties are separate.", flex.HasValue));
-        var nutritionBase = RecompScoreResult.ComponentScore(components.Take(3).Append(components.Last()));
+        var knownMacroDays = complete.Where(x => x.Protein.HasValue && x.Carbs.HasValue && x.Fat.HasValue
+            && x.ProteinTarget > 0 && x.CarbsTarget > 0 && x.FatTarget > 0).ToArray();
+        if (knownMacroDays.Length > 0)
+        {
+            var overlap = knownMacroDays.Count(x => x.Carbs!.Value > x.CarbsTarget * 1.20m
+                && x.Fat!.Value > x.FatTarget * 1.10m);
+            var lowProtein = knownMacroDays.Count(x => x.Protein!.Value < x.ProteinTarget * .80m);
+            if (overlap > 0 || lowProtein > 0)
+                components.Add(new("Nutrition pattern notes", 0m, 0m,
+                    $"{overlap} days combined above-range carbs and fat; {lowProtein} days had below-range protein. Review food portions and meal composition; daily totals cannot identify the meal or why an overage occurred.", false));
+        }
+        var nutritionBase = RecompScoreResult.ComponentScore(components.Take(3).Concat(components.Where(x => x.Label == "Planned flexibility")));
+        var trend = composition?.ThirtyDay;
+        var outcomeComponents = new List<RecompScoreComponent>();
+        foreach (var change in new[] { trend?.Fat, trend?.Muscle })
+        {
+            if (change is null) continue;
+            var included = !change.Sparse && change.ChangeLb.HasValue;
+            var earned = !included ? 0m : change.Band == "green" ? 10m : change.Band == "yellow" ? 5m : 0m;
+            outcomeComponents.Add(new(change.Label + " trend", 10m, earned,
+                !included ? "Insufficient comparable scale evidence; excluded from the score."
+                : $"{change.DisplayChangeLb:+0.0;-0.0;0.0} lb estimated 30-day change ({change.Band}). Scale estimates are not confirmed tissue changes.", included));
+        }
+        components.AddRange(outcomeComponents);
+        var outcomeScore = RecompScoreResult.ComponentScore(outcomeComponents);
+        var workoutScore = workoutReview?.Score;
+        var weighted = new[] { (Score: nutritionBase, Weight: 45m),
+            (Score: workoutScore, Weight: 35m), (Score: outcomeScore, Weight: 20m) };
+        var available = weighted.Where(x => x.Score.HasValue).Sum(x => x.Weight);
+        var combined = available <= 0 ? 0 : (int)Math.Round(
+            weighted.Where(x => x.Score.HasValue).Sum(x => x.Score!.Value * x.Weight) / available,
+            MidpointRounding.AwayFromZero);
         return new()
         {
-            WorkoutReview = workoutReview, NutritionBaseScore = workoutReview is null ? null : nutritionBase,
-            Score = workoutReview is null ? RecompScoreResult.ComponentScore(components) ?? 0
-                : Math.Max(0, (nutritionBase ?? workoutReview.Score ?? 0) - (nutritionBase.HasValue ? workoutReview.Deductions : 0)),
+            WorkoutReview = workoutReview, OutcomeScore = outcomeScore, NutritionBaseScore = nutritionBase,
+            Score = workoutReview is null ? RecompScoreResult.ComponentScore(components.Where(x => !x.Label.EndsWith(" trend"))) ?? 0 : combined,
             Components = components, FlexibleItems = flex, FlexibleDayOverMacros = flexOver,
             FlexibleConfirmedDays = knownFlex.Length,
             CompletedNutritionDays = days.Count(x => x.Date < today),
