@@ -36,7 +36,7 @@ public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, dec
 public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation, bool Included = true);
 public sealed class RecompScoreResult
 {
-    public const string Version = "RECOMP_SCORE_V8";
+    public const string Version = "RECOMP_SCORE_V9";
     public int Score { get; init; }
     public string Band => !HasEvidence ? "gray" : Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
     public string Status => !HasEvidence ? "Awaiting completed evidence" : Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";
@@ -44,7 +44,7 @@ public sealed class RecompScoreResult
     public bool HasEvidence => Components.Any(x => x.Included);
     public int? DisplayScore => HasEvidence ? Score : null;
     public int? NutritionScore => ComponentScore(Components.Take(3));
-    public int? WorkoutScore => ComponentScore(Components.Skip(3).SkipLast(1));
+    public int? WorkoutScore => ComponentScore(Components.Where(x => x.Label is "Upper push" or "Upper pull" or "Legs" or "Cardio / 2G / 3G / HIIT" or "Rest day"));
     internal static int? ComponentScore(IEnumerable<RecompScoreComponent> components)
     {
         var parts = components.Where(x => x.Included).ToArray();
@@ -52,6 +52,7 @@ public sealed class RecompScoreResult
         return total <= 0 ? null : (int)Math.Round(parts.Sum(x => x.Earned) / total * 100m,
             MidpointRounding.AwayFromZero);
     }
+    public int? OutcomeScore { get; init; }
     public int CompletedNutritionDays { get; init; }
     public int KnownNutritionDays { get; init; }
     public int? FlexibleItems { get; init; }
@@ -69,7 +70,8 @@ public sealed class RecompScoreResult
 public static class RecompAdherenceScorer
 {
     public static RecompScoreResult Score(DateOnly today, IReadOnlyList<RecompDayEvidence> days,
-        IReadOnlyList<RecompTrainingGauge> training, RecompGlycogenWork? glycogen = null)
+        IReadOnlyList<RecompTrainingGauge> training, RecompGlycogenWork? glycogen = null,
+        RecompBodyCompositionTrends? composition = null)
     {
         var components = new List<RecompScoreComponent>();
         var complete = days.Where(x => x.Date < today).ToArray();
@@ -126,9 +128,35 @@ public static class RecompAdherenceScorer
         components.Add(new("Planned flexibility", 5m, flexEarned,
             flex is null ? "Pending: not confirmed on a completed day; excluded from the score."
             : $"{flex} treat portions in the completed scoring period. First 2 free; portions 3–4 each cost 0.5 point; each additional portion costs 1 point. {flexPenalty:0.#} penalty points (5-point component floors at zero). Macro penalties are separate.", flex.HasValue));
+        var outcomes = composition?.ThirtyDay;
+        var fat = outcomes?.Fat;
+        var muscle = outcomes?.Muscle;
+        bool enoughFat = fat is not null && !fat.Sparse && fat.ChangeLb.HasValue;
+        bool enoughMuscle = muscle is not null && !muscle.Sparse && muscle.ChangeLb.HasValue;
+        // These are descriptive estimates from the scale, not confirmed changes in tissue.
+        decimal OutcomePoints(RecompCompositionChange change) =>
+            change.Band == "yellow" ? 5m : change.Band == "green" ? 10m : 0m;
+        var outcomeEarned = (enoughFat ? OutcomePoints(fat!) : 0m)
+            + (enoughMuscle ? OutcomePoints(muscle!) : 0m);
+        var outcomeWeight = (enoughFat ? 10m : 0m) + (enoughMuscle ? 10m : 0m);
+        components.Add(new("Body composition trend", 20m,
+            outcomeWeight == 0 ? 0 : 20m * outcomeEarned / outcomeWeight,
+            outcomeWeight == 0 ? "Insufficient comparable scale measurements: outcomes are unscored, not perfect."
+            : $"30-day scale estimates: fat {fat?.DisplayChangeLb:+0.0;-0.0;0.0} lb; muscle {muscle?.DisplayChangeLb:+0.0;-0.0;0.0} lb. Small/noisy change earns neutral credit. This is not proof of tissue gain or loss.", outcomeWeight > 0));
+        var nutritionParts = components.Take(3).Concat(components.Where(x => x.Label == "Planned flexibility")).ToArray();
+        var workoutParts = components.Where(x => x.Label is "Upper push" or "Upper pull" or "Legs" or "Cardio / 2G / 3G / HIIT" or "Rest day").ToArray();
+        var outcomeParts = components.Where(x => x.Label == "Body composition trend").ToArray();
+        var groups = new[] { (Score: RecompScoreResult.ComponentScore(nutritionParts), Weight: 45m),
+            (Score: RecompScoreResult.ComponentScore(workoutParts), Weight: 35m),
+            (Score: RecompScoreResult.ComponentScore(outcomeParts), Weight: 20m) };
+        var availableWeight = groups.Where(x => x.Score.HasValue).Sum(x => x.Weight);
+        var combinedScore = availableWeight == 0 ? 0 :
+            (int)Math.Round(groups.Where(x => x.Score.HasValue).Sum(x => x.Score!.Value * x.Weight)
+                / availableWeight, MidpointRounding.AwayFromZero);
         return new()
         {
-            Score = RecompScoreResult.ComponentScore(components) ?? 0,
+            Score = combinedScore,
+            OutcomeScore = RecompScoreResult.ComponentScore(outcomeParts),
             Components = components, FlexibleItems = flex, FlexibleDayOverMacros = flexOver,
             FlexibleConfirmedDays = knownFlex.Length,
             CompletedNutritionDays = days.Count(x => x.Date < today),
