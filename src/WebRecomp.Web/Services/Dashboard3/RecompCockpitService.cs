@@ -207,7 +207,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var workFraction = glycogen.TargetG <= 0 ? 1m : Math.Min(1m, glycogen.CompletedG / glycogen.TargetG);
         if (glycogen.TargetEnergyKcal is > 0m)
             workFraction = Math.Min(workFraction, Math.Min(1m, actualEnergy / glycogen.TargetEnergyKcal.Value));
-        training[0] = new("resistance", "Weekly workload (%)", (int)Math.Round(workFraction * 100m), glycogen.TargetG > 0 ? 100 : 0, 0, 25m);
+        // Workload projection remains available as context; it must not replace muscle-group coverage scoring.
         var upcomingPlans = await db.PlannedWorkouts.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.PlannedDate > today && x.PlannedDate <= today.AddDays(2)).ToListAsync(ct);
         var templateIds = upcomingPlans.Where(x => x.WorkoutTemplateId.HasValue).Select(x => x.WorkoutTemplateId!.Value).ToArray();
