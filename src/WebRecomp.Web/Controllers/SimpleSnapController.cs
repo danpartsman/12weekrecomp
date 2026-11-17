@@ -91,6 +91,34 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         IncompleteExerciseFee=w.Exercises.FirstOrDefault()?.Penalty??0,CoachIncentivePerRep=w.Exercises.FirstOrDefault()?.ExtraRepRate??0,
         Exercises=w.Exercises.Select(e=>new ExerciseInput{Id=e.Id,Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight>0?e.MaxWeight:null,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,Type=e.Type,Basis=e.Basis,Rate=e.Rate}).ToList()
     };
+    // Only catalog-backed exercises get a technique page. Authorize through the
+    // same client/coach relationship as the workout; never expose an arbitrary id.
+    [HttpGet("technique")]
+    public async Task<IActionResult> Technique(Guid clientId, string workoutId, string exerciseName, CancellationToken ct)
+    {
+        if (!SimpleCoaching.Enabled(configuration) || scheduleDb is null
+            || string.IsNullOrWhiteSpace(workoutId) || string.IsNullOrWhiteSpace(exerciseName))
+            return NotFound();
+        var actor = (await users.GetAsync(HttpContext, ct)).User.UserId;
+        var assignedCoach = await IsAssignedCoachAsync(actor, clientId, ct);
+        AccountabilityState state;
+        try
+        {
+            var row = await simple.ReadAsync(actor, clientId, assignedCoach, ct);
+            if (row is null) return NotFound();
+            state = AccountabilityDocument.Parse(row.StateJson);
+        }
+        catch (UnauthorizedAccessException) { return NotFound(); }
+        var workout = state.SnapWorkouts.SingleOrDefault(w => w.Simple && w.Id == workoutId);
+        if (workout is null || !workout.Exercises.Any(e => e.Name == exerciseName)) return NotFound();
+        var catalogItem = await scheduleDb.ExerciseCatalogItems.AsNoTracking()
+            .Where(x => x.IsActive && x.Name == exerciseName && x.SourceCode != "12WR_CSV_UNMAPPED")
+            .Select(x => new { x.Name, x.InstructionsJson }).FirstOrDefaultAsync(ct);
+        if (catalogItem is null) return NotFound();
+        ViewData["ExerciseName"] = catalogItem.Name;
+        ViewData["InstructionText"] = catalogItem.InstructionsJson;
+        return View("Technique");
+    }
     [HttpGet("template")]
     public async Task<IActionResult> Template(Guid clientId,string workoutId,CancellationToken ct)
     {
