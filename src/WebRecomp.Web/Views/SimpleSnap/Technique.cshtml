@@ -1,0 +1,27 @@
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Exercise technique";
+    var exerciseName = ViewData["ExerciseName"] as string ?? "Exercise";
+    var raw = ViewData["InstructionText"] as string ?? "[]";
+    string[] instructions;
+    try { instructions = JsonSerializer.Deserialize<string[]>(raw) ?? []; }
+    catch (JsonException) { instructions = []; }
+}
+<main class="container">
+    <h1>@exerciseName</h1>
+    <p>System exercise catalog technique instructions</p>
+    @if (instructions.Length == 0)
+    {
+        <p>No detailed steps are available for this exercise in the system catalog.</p>
+    }
+    else
+    {
+        <ol>
+        @foreach (var step in instructions)
+        {
+            <li>@step</li>
+        }
+        </ol>
+    }
+    <p>Use a comfortable range of motion and stop if an exercise causes pain.</p>
+</main>
