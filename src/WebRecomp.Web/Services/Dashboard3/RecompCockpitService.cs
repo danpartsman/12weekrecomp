@@ -86,11 +86,11 @@ public sealed class RecompCockpitService(RecompDbContext db,
             && x.CheckinDate >= activeStart && x.CheckinDate <= today).ToListAsync(ct);
         var records = await db.AnalysisRuns.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.ActionDate >= activeStart && x.ActionDate <= today
-            && (x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6" || x.EngineVersion == "RECOMP_SCORE_V7") || x.EngineVersion == FlexVersion))
+            && (x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6" || x.EngineVersion == "RECOMP_SCORE_V7" || x.EngineVersion == "RECOMP_SCORE_V8") || x.EngineVersion == FlexVersion))
             .OrderByDescending(x => x.StartedAtUtc).ThenByDescending(x => x.AnalysisRunId).ToListAsync(ct);
         var flex = records.Where(x => x.EngineVersion == FlexVersion).GroupBy(x => x.ActionDate)
             .ToDictionary(x => x.Key, x => ReadFlexibleCount(x.First().DiagnosticJson));
-        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6" || x.EngineVersion == "RECOMP_SCORE_V7"))
+        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6" || x.EngineVersion == "RECOMP_SCORE_V7" || x.EngineVersion == "RECOMP_SCORE_V8"))
             .Select(x => (Run: x, Snapshot: Read<RecompScoreSnapshot>(x.DiagnosticJson)))
             .Where(x => x.Snapshot is not null).ToArray();
         var logs = new List<NutritionDailyLogReadModel>();
@@ -237,7 +237,8 @@ public sealed class RecompCockpitService(RecompDbContext db,
                     ? SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(selected, type.DefaultMinutes) : type?.DefaultMinutes),
                 scheduled.PlannedRpe, sample?.SystemCode, tone, true));
         }
-        var score = RecompAdherenceScorer.Score(today, days, training, glycogen);
+        var composition = await BuildBodyCompositionAsync(context, today, ct);
+        var score = RecompAdherenceScorer.Score(today, days, training, glycogen, composition);
         var capture = historical ? snapshots.FirstOrDefault(x => x.Run.ActionDate == today).Snapshot : null;
         if (capture is not null)
         {
@@ -259,7 +260,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 mealPlan.Bands[0].Target, mealPlan.Bands[1].Target, mealPlan.Bands[2].Target,
                 mealPlan.EnergyTarget, mealPlan.Bands[0].Eaten, mealPlan.Bands[1].Eaten, mealPlan.Bands[2].Eaten,
                 mealPlan.EnergyEaten, Flex(today), "Current engine prescription")).ToList(),
-            BodyComposition = await BuildBodyCompositionAsync(context, today, ct),
+            BodyComposition = composition,
             WeeklyTrend = await BuildWeeklyTrendAsync(context, today, ct),
             Score = score, Training = training, Glycogen = glycogen, Days = days, History = history, UpcomingWorkouts = upcoming,
             Change = !score.HasEvidence || previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
@@ -316,6 +317,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         {
             Score = capture.Score, Components = capture.Components.ToList(),
             KnownNutritionDays = capture.EvidenceDays, CompletedNutritionDays = capture.CompletedDays,
+            OutcomeScore = evidence.OutcomeScore,
             FlexibleItems = evidence.FlexibleItems, FlexibleConfirmedDays = evidence.FlexibleConfirmedDays,
             FlexibleDayOverMacros = evidence.FlexibleDayOverMacros
         };
