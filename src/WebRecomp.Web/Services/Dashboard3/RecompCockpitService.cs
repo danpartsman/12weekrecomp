@@ -18,7 +18,7 @@ public sealed record RecompTrainingCommitment(DateOnly Date, string Key, decimal
 public sealed record RecompScoreSnapshot(string Version, DateOnly WeekStart, int Score,
     int EvidenceDays, int CompletedDays, IReadOnlyList<RecompDayEvidence> Days,
     IReadOnlyList<RecompTrainingGauge> Training, IReadOnlyList<RecompScoreComponent> Components,
-    RecompGlycogenWork? Glycogen = null, IReadOnlyList<RecompTrainingCommitment>? Commitments = null, RecompDayEvidence? TargetCapture = null);
+    RecompGlycogenWork? Glycogen = null, IReadOnlyList<RecompTrainingCommitment>? Commitments = null, RecompDayEvidence? TargetCapture = null, RecompWorkoutReview? WorkoutReview = null);
 public sealed class RecompCockpit
 {
     public DateOnly WeekStart { get; init; }
@@ -46,7 +46,7 @@ public sealed class RecompCockpit
 
 public sealed class RecompCockpitService(RecompDbContext db,
     Engine30DashboardProjectionService projection, Engine30WorkoutUiCatalogService catalog,
-    ProgramPlanService planSelection, INutritionFoodLogStore foodLog, ILogger<RecompCockpitService> logger)
+    ProgramPlanService planSelection, INutritionFoodLogStore foodLog, ILogger<RecompCockpitService> logger, IConfiguration? configuration = null)
 {
     internal const string FlexVersion = "RECOMP_FLEX_V1";
 
@@ -76,21 +76,26 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var nutrition = await db.NutritionDays.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.NutritionDate >= activeStart && x.NutritionDate <= today).ToListAsync(ct);
         var sessions = await db.WorkoutSessions.AsNoTracking().Where(x => x.ClientId == client.ClientId
-            && x.ProgramId == program.ProgramId && x.WorkoutDate >= activeStart && x.WorkoutDate <= end
+            && x.ProgramId == program.ProgramId && x.WorkoutDate >= activeStart && x.WorkoutDate <= today
             && x.CompletedFlag).ToListAsync(ct);
         sessions = (await WebRecomp.Web.Services.WorkoutIntelligence.DetailedWorkoutEngine30Adapter
             .CanonicalCompletedSessionsAsync(db, sessions, ct)).ToList();
+        var recentSessions = sessions.ToArray();
+        sessions = sessions.Where(x => x.WorkoutDate <= end).ToList();
         var plans = await db.PlannedWorkouts.AsNoTracking().Where(x => x.ClientId == client.ClientId
-            && x.ProgramId == program.ProgramId && x.PlannedDate >= activeStart && x.PlannedDate <= end).ToListAsync(ct);
+            && x.ProgramId == program.ProgramId && x.PlannedDate >= activeStart && x.PlannedDate <= today).ToListAsync(ct);
         var checkins = await db.DailyCheckins.AsNoTracking().Where(x => x.ProgramId == program.ProgramId
             && x.CheckinDate >= activeStart && x.CheckinDate <= today).ToListAsync(ct);
+        var recentPlans = plans.ToArray();
+        plans = plans.Where(x => x.PlannedDate <= end).ToList();
+        var workoutReview = await new RecompWorkoutReviewService(db, configuration).BuildAsync(context, today, recentSessions, recentPlans, checkins, ct);
         var records = await db.AnalysisRuns.AsNoTracking().Where(x => x.ClientId == client.ClientId
             && x.ProgramId == program.ProgramId && x.ActionDate >= activeStart && x.ActionDate <= today
-            && (x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6") || x.EngineVersion == FlexVersion))
+            && (x.EngineVersion.StartsWith("RECOMP_SCORE_") || x.EngineVersion == FlexVersion))
             .OrderByDescending(x => x.StartedAtUtc).ThenByDescending(x => x.AnalysisRunId).ToListAsync(ct);
         var flex = records.Where(x => x.EngineVersion == FlexVersion).GroupBy(x => x.ActionDate)
             .ToDictionary(x => x.Key, x => ReadFlexibleCount(x.First().DiagnosticJson));
-        var snapshots = records.Where(x => x.EngineVersion == RecompScoreResult.Version || (x.EngineVersion == "RECOMP_SCORE_V1" || x.EngineVersion == "RECOMP_SCORE_V2" || x.EngineVersion == "RECOMP_SCORE_V3" || x.EngineVersion == "RECOMP_SCORE_V4" || x.EngineVersion == "RECOMP_SCORE_V5" || x.EngineVersion == "RECOMP_SCORE_V6"))
+        var snapshots = records.Where(x => x.EngineVersion.StartsWith("RECOMP_SCORE_"))
             .Select(x => (Run: x, Snapshot: Read<RecompScoreSnapshot>(x.DiagnosticJson)))
             .Where(x => x.Snapshot is not null).ToArray();
         var logs = new List<NutritionDailyLogReadModel>();
@@ -201,7 +206,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
                     ? SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(selected, type.DefaultMinutes) : type?.DefaultMinutes),
                 scheduled.PlannedRpe, sample?.SystemCode, tone, true));
         }
-        var score = RecompAdherenceScorer.Score(today, days, training, glycogen);
+        var score = RecompAdherenceScorer.Score(today, days, training, glycogen, workoutReview);
         var capture = historical ? snapshots.FirstOrDefault(x => x.Run.ActionDate == today).Snapshot : null;
         if (capture is not null)
         {
@@ -217,8 +222,8 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var result = new RecompCockpit
         {
             WeekStart = capture?.WeekStart ?? start,
-            RollingScore = capture is null || capture.Version == RecompScoreResult.Version,
-            ScoreEnd = capture is not null && capture.Version != RecompScoreResult.Version ? capture.WeekStart.AddDays(6) : end,
+            RollingScore = capture is null || capture.Version == RecompScoreResult.Version || capture.Version == "RECOMP_SCORE_V7",
+            ScoreEnd = capture is not null && capture.Version != RecompScoreResult.Version && capture.Version != "RECOMP_SCORE_V7" ? capture.WeekStart.AddDays(6) : end,
             EditableDays = days.Where(x => x.Date < today).Append(new RecompDayEvidence(today,
                 mealPlan.Bands[0].Target, mealPlan.Bands[1].Target, mealPlan.Bands[2].Target,
                 mealPlan.EnergyTarget, mealPlan.Bands[0].Eaten, mealPlan.Bands[1].Eaten, mealPlan.Bands[2].Eaten,
@@ -235,12 +240,16 @@ public sealed class RecompCockpitService(RecompDbContext db,
             HistoryNotice = !historical ? null : capture is not null
                 ? $"Saved score · {today:MMM d} · {capture.Version}. Daily cards show the saved entries."
                 : "Reconstructed rolling score from saved entries and the available plan. No score was captured on this day; browsing does not create history.",
-            DataNotice = plans.Count == 0 ? "Save a weekly training plan before judging training adherence."
+            DataNotice = score.WorkoutReview is { } currentReview
+                ? !currentReview.FullWindow ? "Building the first seven-day workout baseline; deductions have not started."
+                    : currentReview.UnmappedExercises > 0 ? "Some working reps need exercise/muscle mapping before they can count toward strength coverage."
+                    : score.KnownNutritionDays < score.CompletedNutritionDays ? "Some completed days have unknown intake. Unknown nutrition is excluded." : null
+                : plans.Count == 0 ? "Save a weekly training plan before judging training adherence."
                 : plannedResistance == 0
                 ? "The last seven completed days have no resistance goal. Review the plan before using the score to evaluate a recomp strategy."
                 : score.KnownNutritionDays < score.CompletedNutritionDays
                 ? "Some completed days have unknown intake. Unknown days are excluded from the score." : null,
-            NextAction = behind is not null ? $"{behind.Label} is behind the saved schedule. Review the next planned session and continue the strategy."
+            NextAction = score.WorkoutReview is not null ? score.WorkoutReview.Requirements.Any(x => !x.Met) || !score.WorkoutReview.FullWindow ? score.WorkoutReview.NextAction : mealPlan.Advice : behind is not null ? $"{behind.Label} is behind the saved schedule. Review the next planned session and continue the strategy."
                 : mealPlan.Bands.Any(x => x.Eaten > x.High) ? "Review combined intake and longer-term outcomes; an isolated daily deviation is not a failed week."
                 : mealPlan.Bands.Any(x => x.Remaining > 0) && mealPlan.CanPlan ? mealPlan.Advice
                 : "Keep building weekly training, fueling and recovery. Equivalent substitutions and a weekly rest day fit the plan."
@@ -248,7 +257,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var capturedTarget = result.EditableDays.Last() with
         { AgreementCarbsTarget = mealPlan.Bands[1].Target - (day.RollingGlycogen?.CarbAdjustmentG ?? 0m) };
         var snapshot = new RecompScoreSnapshot(RecompScoreResult.Version, start, score.Score,
-            score.KnownNutritionDays, score.CompletedNutritionDays, days, training, score.Components, glycogen, commitments, capturedTarget);
+            score.KnownNutritionDays, score.CompletedNutritionDays, days, training, score.Components, glycogen, commitments, capturedTarget, score.WorkoutReview);
         var json = JsonSerializer.Serialize(snapshot);
         if (captureHistory && !historical && score.HasEvidence && snapshots.FirstOrDefault().Run?.DiagnosticJson != json)
         {
@@ -278,7 +287,8 @@ public sealed class RecompCockpitService(RecompDbContext db,
         var evidence = RecompAdherenceScorer.Score(date, capture.Days, capture.Training, capture.Glycogen);
         return new RecompScoreResult
         {
-            Score = capture.Score, Components = capture.Components.ToList(),
+            Score = capture.Score, Components = capture.Components.ToList(), WorkoutReview = capture.WorkoutReview,
+            NutritionBaseScore = capture.WorkoutReview is null ? null : RecompScoreResult.ComponentScore(capture.Components.Take(3).Append(capture.Components.Last())),
             KnownNutritionDays = capture.EvidenceDays, CompletedNutritionDays = capture.CompletedDays,
             FlexibleItems = evidence.FlexibleItems, FlexibleConfirmedDays = evidence.FlexibleConfirmedDays,
             FlexibleDayOverMacros = evidence.FlexibleDayOverMacros

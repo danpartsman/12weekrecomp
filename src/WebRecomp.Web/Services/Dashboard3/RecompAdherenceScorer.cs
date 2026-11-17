@@ -36,7 +36,7 @@ public sealed record RecompGlycogenWork(decimal CompletedG, decimal TargetG, dec
 public sealed record RecompScoreComponent(string Label, decimal Weight, decimal Earned, string Explanation, bool Included = true);
 public sealed class RecompScoreResult
 {
-    public const string Version = "RECOMP_SCORE_V7";
+    public const string Version = "RECOMP_SCORE_V8";
     public int Score { get; init; }
     public string Band => !HasEvidence ? "gray" : Score >= 80 ? "green" : Score >= 60 ? "yellow" : "red";
     public string Status => !HasEvidence ? "Awaiting completed evidence" : Score >= 80 ? "On course" : Score >= 60 ? "Build your momentum" : "Time to reset the plan";
@@ -44,7 +44,9 @@ public sealed class RecompScoreResult
     public bool HasEvidence => Components.Any(x => x.Included);
     public int? DisplayScore => HasEvidence ? Score : null;
     public int? NutritionScore => ComponentScore(Components.Take(3));
-    public int? WorkoutScore => ComponentScore(Components.Skip(3).SkipLast(1));
+    public RecompWorkoutReview? WorkoutReview { get; init; }
+    public int? NutritionBaseScore { get; init; }
+    public int? WorkoutScore => WorkoutReview is not null ? WorkoutReview.Score : ComponentScore(Components.Skip(3).SkipLast(1));
     internal static int? ComponentScore(IEnumerable<RecompScoreComponent> components)
     {
         var parts = components.Where(x => x.Included).ToArray();
@@ -69,7 +71,7 @@ public sealed class RecompScoreResult
 public static class RecompAdherenceScorer
 {
     public static RecompScoreResult Score(DateOnly today, IReadOnlyList<RecompDayEvidence> days,
-        IReadOnlyList<RecompTrainingGauge> training, RecompGlycogenWork? glycogen = null)
+        IReadOnlyList<RecompTrainingGauge> training, RecompGlycogenWork? glycogen = null, RecompWorkoutReview? workoutReview = null)
     {
         var components = new List<RecompScoreComponent>();
         var complete = days.Where(x => x.Date < today).ToArray();
@@ -84,7 +86,12 @@ public static class RecompAdherenceScorer
             actualFat: fats.Average(x => x.Fat!.Value), energy: fats.Average(x => x.EnergyTarget))[2];
         components.Add(new("Fat balance", 10m, fatBand is null ? 0m : fatBand.Quality * 10m,
             "Completed-period average fat is compared with 20–35% of the average prescribed energy allocation. This is broad adult guidance, not an exact individual requirement; isolated higher or lower days are not penalized separately.", fatBand is not null));
-        foreach (var gauge in training)
+        if (workoutReview is not null)
+        {
+            foreach (var requirement in workoutReview.Requirements)
+                components.Add(new(requirement.Label, 5m, requirement.Met ? 5m : 0m, requirement.Evidence + ". " + requirement.NextAction, workoutReview.FullWindow));
+        }
+        else foreach (var gauge in training)
         {
             var due = Math.Max(0, gauge.Target - gauge.RemainingPlanned);
             var included = due > 0 || gauge.Completed > 0;
@@ -112,9 +119,12 @@ public static class RecompAdherenceScorer
         components.Add(new("Planned flexibility", 5m, flexEarned,
             flex is null ? "Pending: not confirmed on a completed day; excluded from the score."
             : $"{flex} treat portions in the completed scoring period. First 2 free; portions 3–4 each cost 0.5 point; each additional portion costs 1 point. {flexPenalty:0.#} penalty points (5-point component floors at zero). Macro penalties are separate.", flex.HasValue));
+        var nutritionBase = RecompScoreResult.ComponentScore(components.Take(3).Append(components.Last()));
         return new()
         {
-            Score = RecompScoreResult.ComponentScore(components) ?? 0,
+            WorkoutReview = workoutReview, NutritionBaseScore = workoutReview is null ? null : nutritionBase,
+            Score = workoutReview is null ? RecompScoreResult.ComponentScore(components) ?? 0
+                : Math.Max(0, (nutritionBase ?? workoutReview.Score ?? 0) - (nutritionBase.HasValue ? workoutReview.Deductions : 0)),
             Components = components, FlexibleItems = flex, FlexibleDayOverMacros = flexOver,
             FlexibleConfirmedDays = knownFlex.Length,
             CompletedNutritionDays = days.Count(x => x.Date < today),

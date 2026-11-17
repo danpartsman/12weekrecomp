@@ -62,12 +62,14 @@ jobs:
           npm install --prefix "$env:RUNNER_TEMP/navigation-browser" --no-audit --no-fund playwright@1.62.1 jsdom@26.1.0
           if ($LASTEXITCODE -ne 0) { throw "Could not prepare navigation browser checks." }
           $env:SNAP_JSDOM_MODULE = "$env:RUNNER_TEMP/navigation-browser/node_modules/jsdom"
-          node --test tests/snap-live.test.cjs tests/app-navigation.test.cjs
+          node --test tests/snap-live.test.cjs tests/app-navigation.test.cjs tests/command-center-workout.test.cjs
           if ($LASTEXITCODE -ne 0) { throw "Snap live progression check failed." }
           $env:NUTRITION_PLAYWRIGHT_MODULE = "$env:RUNNER_TEMP/navigation-browser/node_modules/playwright"
           $env:NUTRITION_CHROME_PATH = "$env:ProgramFiles/Google/Chrome/Application/chrome.exe"
           node tests/app-navigation.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Coaching navigation check failed." }
+          node tests/command-center-workout.browser.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Command Center workout checklist check failed." }
           node tests/snap-exercise-search.browser.cjs
           if ($LASTEXITCODE -ne 0) { throw "Snap exercise lookup check failed." }
 
