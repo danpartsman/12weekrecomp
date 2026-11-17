@@ -182,7 +182,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         }
         // Allocate a total-body class to only one otherwise-uncovered category.
         foreach (var key in new[] { "push", "pull", "legs" })
-            if (groupCounts[key] == 0 && fullBodyCredits-- > 0) groupCounts[key]++;
+            if (groupCounts[key] == 0 && fullBodyCredits > 0) { groupCounts[key]++; fullBodyCredits--; }
         training = new List<RecompTrainingGauge>
         {
             new("push", "Upper push", groupCounts["push"], 1, 0, 5m),
@@ -317,7 +317,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
         {
             Score = capture.Score, Components = capture.Components.ToList(),
             KnownNutritionDays = capture.EvidenceDays, CompletedNutritionDays = capture.CompletedDays,
-            OutcomeScore = evidence.OutcomeScore,
+            OutcomeScore = RecompScoreResult.ComponentScore(capture.Components.Where(x => x.Label == "Body composition trend")),
             FlexibleItems = evidence.FlexibleItems, FlexibleConfirmedDays = evidence.FlexibleConfirmedDays,
             FlexibleDayOverMacros = evidence.FlexibleDayOverMacros
         };
