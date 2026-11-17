@@ -155,6 +155,42 @@ public sealed class RecompCockpitService(RecompDbContext db,
             new("cardio", "Resistance coverage", resistanceDays, Math.Min(2, plannedResistance), 0, 8m),
             new("recovery", "Recovery / rest", restDates, plans.Count > 0 && end.DayNumber - activeStart.DayNumber >= 5 ? 1 : 0, 0, 7m)
         };
+        // Explicit seven-day training coverage. A named strength split provides provisional
+        // evidence of coverage; an unspecified resistance session cannot prove a muscle
+        // group was adequately trained. S50 receives one credit, never three.
+        var groupCounts = new Dictionary<string, int> { ["push"] = 0, ["pull"] = 0, ["legs"] = 0 };
+        var cardioCount = 0;
+        var fullBodyCredits = 0;
+        foreach (var session in sessions.Where(x => x.DurationMin > 0))
+        {
+            var code = Engine30WorkoutUiCatalogService.NormalizeCode(session.WorkoutTypeCode);
+            var normalized = code.Replace("_", "").Replace("-", "");
+            if (normalized.Contains("STRENGTH50") || normalized.Contains("OTFS50") || normalized.Contains("OTFSTRENGTH"))
+            {
+                fullBodyCredits++;
+                continue;
+            }
+            if (normalized.Contains("UPPERPUSH") || normalized == "PUSH" || normalized.Contains("CHESTTRICEP"))
+                groupCounts["push"]++;
+            else if (normalized.Contains("UPPERPULL") || normalized == "PULL" || normalized.Contains("BACKBICEP"))
+                groupCounts["pull"]++;
+            else if (normalized.Contains("LEG") || normalized.Contains("LOWERBODY") || normalized.Contains("QUAD") || normalized.Contains("GLUTEHAM"))
+                groupCounts["legs"]++;
+            if (normalized.Contains("CARDIO") || normalized.Contains("HIIT") || normalized.Contains("ORANGETHEORY")
+                || normalized.Contains("OTF2G") || normalized.Contains("OTF3G") || normalized.Contains("ZONE2"))
+                cardioCount++;
+        }
+        // Allocate a total-body class to only one otherwise-uncovered category.
+        foreach (var key in new[] { "push", "pull", "legs" })
+            if (groupCounts[key] == 0 && fullBodyCredits-- > 0) groupCounts[key]++;
+        training = new List<RecompTrainingGauge>
+        {
+            new("push", "Upper push", groupCounts["push"], 1, 0, 5m),
+            new("pull", "Upper pull", groupCounts["pull"], 1, 0, 5m),
+            new("legs", "Legs", groupCounts["legs"], 1, 0, 5m),
+            new("cardio", "Cardio / 2G / 3G / HIIT", Math.Min(2, cardioCount), 2, 0, 10m),
+            new("recovery", "Rest day", restDates, 1, 0, 5m)
+        };
         var burns = new Dictionary<DateOnly, decimal>();
         var actualEnergy = 0m;
         foreach (var date in sessions.Select(x => x.WorkoutDate).Distinct())
