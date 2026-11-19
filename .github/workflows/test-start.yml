@@ -1,0 +1,22 @@
+name: TEST ON - Start App Service
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: recomp-test-environment
+  cancel-in-progress: false
+jobs:
+  start-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: a81057ec-568b-4cec-9a95-1d4d3ff549a0
+          tenant-id: e5e2dff4-ed49-4038-95d0-63d75304d52e
+          subscription-id: 14564a14-42f9-4d2e-8a0b-a7c844dfb5c0
+      - name: Start TEST only
+        run: |
+          az webapp start -g recomp_group -n recomp-test
+          az webapp show -g recomp_group -n recomp-test --query state -o tsv
