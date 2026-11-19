@@ -1,0 +1,55 @@
+name: TEST Environment ON or OFF
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Turn TEST on or off (LIVE is never changed)"
+        required: true
+        type: choice
+        options:
+          - "off"
+          - "on"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: recomp-test-environment
+  cancel-in-progress: false
+
+jobs:
+  control-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: a81057ec-568b-4cec-9a95-1d4d3ff549a0
+          tenant-id: e5e2dff4-ed49-4038-95d0-63d75304d52e
+          subscription-id: 14564a14-42f9-4d2e-8a0b-a7c844dfb5c0
+      - name: Control TEST App Service only
+        shell: bash
+        env:
+          REQUESTED_ACTION: ${{ inputs.action }}
+        run: |
+          set -euo pipefail
+          if [[ "$REQUESTED_ACTION" == "off" ]]; then
+            az webapp stop --resource-group recomp_group --name recomp-test --only-show-errors
+            echo "TEST App Service stopped. SQL serverless auto-pause is asynchronous; other callers can still resume it." >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$REQUESTED_ACTION" == "on" ]]; then
+            az webapp start --resource-group recomp_group --name recomp-test --only-show-errors
+            echo "TEST App Service started. Run Deploy 12WR TEST separately if a new release is needed." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Invalid action" >&2
+            exit 1
+          fi
+      - name: Read TEST resource status without SQL connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "### TEST App Service state" >> "$GITHUB_STEP_SUMMARY"
+          az webapp show -g recomp_group -n recomp-test --query '{name:name,state:state}' -o json >> "$GITHUB_STEP_SUMMARY"
+          echo "### TEST SQL resource status (management plane only)" >> "$GITHUB_STEP_SUMMARY"
+          az sql db show -g recomp_group -s sql-recomp -n sqldb-recomp --query '{name:name,status:status,autoPauseDelay:autoPauseDelay}' -o json >> "$GITHUB_STEP_SUMMARY" || echo "SQL metadata unavailable; no SQL connection attempted." >> "$GITHUB_STEP_SUMMARY"
