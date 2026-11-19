@@ -68,10 +68,28 @@ public sealed class DashboardService(
                                        && x.CheckinDate == actionDate,
                                   cancellationToken);
 
+        // The weekly Schedule row is authoritative for the "Planned" card.
+        // Engine 3.0 may report no modeled workout for a custom/coach/system
+        // selection; that must not turn an existing saved plan into "No workout planned".
+        var savedCards = await db.PlannedWorkouts.AsNoTracking()
+            .Where(x => x.ClientId == client.ClientId && x.ProgramId == program.ProgramId
+                && (x.PlannedDate == actionDate || x.PlannedDate == actionDate.AddDays(1)))
+            .ToListAsync(cancellationToken);
+        var savedNames = await PlannedWorkoutNames.LoadAsync(db, client.ClientId, savedCards, cancellationToken);
+        var savedToday = savedCards.FirstOrDefault(x => x.PlannedDate == actionDate);
+        var savedTomorrow = savedCards.FirstOrDefault(x => x.PlannedDate == actionDate.AddDays(1));
+        var hasTodayPlan = savedToday is not null || engine30Projection.Today.HasPlannedWorkout;
+        var hasTomorrowPlan = savedTomorrow is not null || engine30Projection.Tomorrow.HasPlannedWorkout;
+        var todayPlanName = savedToday is not null
+            ? savedNames.GetValueOrDefault(actionDate) ?? PlannedWorkoutNames.Resolve(savedToday)
+            : engine30Projection.Today.WorkoutDisplayName;
+        var tomorrowPlanName = savedTomorrow is not null
+            ? savedNames.GetValueOrDefault(actionDate.AddDays(1)) ?? PlannedWorkoutNames.Resolve(savedTomorrow)
+            : engine30Projection.Tomorrow.WorkoutDisplayName;
         WorkoutTypeDefinition? todayPlannedType =
             ResolveWorkoutType(
                 workoutTypes,
-                engine30Projection.Today.WorkoutTypeCode);
+                savedToday?.WorkoutTypeCode ?? engine30Projection.Today.WorkoutTypeCode);
 
         var actualSessions =
             await workoutActuals.GetCompletedSessionsAsync(
@@ -95,7 +113,7 @@ public sealed class DashboardService(
         WorkoutTypeDefinition? tomorrowType =
             ResolveWorkoutType(
                 workoutTypes,
-                engine30Projection.Tomorrow.WorkoutTypeCode);
+                savedTomorrow?.WorkoutTypeCode ?? engine30Projection.Tomorrow.WorkoutTypeCode);
 
         // ------------------------------------------------------------
         // v1009 Dashboard analysis evidence.
@@ -456,7 +474,7 @@ public sealed class DashboardService(
             Engine30WorkoutProfileVersionCode = engine30Projection.Today.WorkoutProfileVersionCode,
             Engine30WorkoutProfileSourceCode = engine30Projection.Today.WorkoutProfileSourceCode,
             Engine30WorkoutCategoryCode = engine30Projection.Today.WorkoutCategoryCode,
-            Engine30WorkoutTypeCode = engine30Projection.Today.WorkoutTypeCode,
+            Engine30WorkoutTypeCode = savedToday?.WorkoutTypeCode ?? engine30Projection.Today.WorkoutTypeCode,
             CoachPrescriptionNotice = engine30Projection.Today.CoachPrescriptionNotice,
             CoachAdjustedWorkout = await db.PlannedWorkouts.AsNoTracking().AnyAsync(x => x.ClientId == client.ClientId && x.ProgramId == program.ProgramId && x.PlannedDate == actionDate && x.SourceCode == "COACH", cancellationToken),
             Engine30CarbGoverningRuleCode = engine30Projection.Today.CarbGoverningRuleCode,
@@ -468,22 +486,22 @@ public sealed class DashboardService(
 
             TodayStatusLabel = BuildStatusLabel(recommendation),
             TodayStatusClass = BuildStatusClass(recommendation),
-            PlannedWorkout = engine30Projection.Today.HasPlannedWorkout ? engine30Projection.Today.WorkoutDisplayName : "No workout planned",
+            PlannedWorkout = hasTodayPlan ? todayPlanName : "No workout planned",
             RecommendedWorkout = recommendation.RecommendedWorkoutDisplayName,
             ScheduleChangeRecommended = recommendation.WorkoutChangeRecommended,
-            WorkoutRecommendationLabel = !engine30Projection.Today.HasPlannedWorkout
+            WorkoutRecommendationLabel = !hasTodayPlan
                 ? $"Use {recommendation.RecommendedWorkoutDisplayName}"
                 : recommendation.WorkoutChangeRecommended
                     ? $"Change to {recommendation.RecommendedWorkoutDisplayName}"
-                    : $"Keep {engine30Projection.Today.WorkoutDisplayName}",
+                    : $"Keep {todayPlanName}",
             WorkoutFocus = recommendedType is null
                 ? HumanizeCode(engine30Projection.Today.WorkoutCategoryCode)
                 : BuildWorkoutFocus(recommendedType),
             WorkoutDescription = recommendedType is null
                 ? recommendation.Summary
                 : BuildWorkoutDescription(recommendedType),
-            WorkoutDurationMin = engine30Projection.Today.PlannedDurationMinutes,
-            WorkoutEffort = engine30Projection.Today.PlannedRpe.HasValue ? $"RPE {engine30Projection.Today.PlannedRpe.Value:0.#}" : "Recovery / no planned effort",
+            WorkoutDurationMin = savedToday?.PlannedDurationMin ?? engine30Projection.Today.PlannedDurationMinutes,
+            WorkoutEffort = (savedToday?.PlannedRpe ?? engine30Projection.Today.PlannedRpe) is decimal plannedRpe ? $"RPE {plannedRpe:0.#}" : "Recovery / no planned effort",
             WorkoutActual = engine30ActualWorkout.HasActualWorkout
                 ? engine30ActualWorkout.WorkoutSummary ?? workoutActual
                 : null,
@@ -568,13 +586,13 @@ public sealed class DashboardService(
             EnergyCarryoverSummary = engine30Impact.EnergyCarryoverSummary,
 
             TomorrowDate = tomorrowDate,
-            TomorrowPlanAvailable = engine30Projection.Tomorrow.HasPlannedWorkout,
-            TomorrowWorkout = engine30Projection.Tomorrow.HasPlannedWorkout ? engine30Projection.Tomorrow.WorkoutDisplayName : null,
+            TomorrowPlanAvailable = hasTomorrowPlan,
+            TomorrowWorkout = hasTomorrowPlan ? tomorrowPlanName : null,
             TomorrowEngine30WorkoutTypeCode = engine30Projection.Tomorrow.WorkoutTypeCode,
             TomorrowFocus = tomorrowType is null ? null : BuildWorkoutFocus(tomorrowType),
             TomorrowDescription = tomorrowType is null ? null : BuildWorkoutDescription(tomorrowType),
-            TomorrowDurationMin = engine30Projection.Tomorrow.HasPlannedWorkout ? engine30Projection.Tomorrow.PlannedDurationMinutes : null,
-            TomorrowEffort = engine30Projection.Tomorrow.PlannedRpe.HasValue ? $"RPE {engine30Projection.Tomorrow.PlannedRpe.Value:0.#}" : null,
+            TomorrowDurationMin = hasTomorrowPlan ? savedTomorrow?.PlannedDurationMin ?? engine30Projection.Tomorrow.PlannedDurationMinutes : null,
+            TomorrowEffort = (savedTomorrow?.PlannedRpe ?? engine30Projection.Tomorrow.PlannedRpe) is decimal tomorrowRpe ? $"RPE {tomorrowRpe:0.#}" : null,
             TomorrowCalories = engine30Projection.Tomorrow.PrescribedEnergyKcal,
             TomorrowProteinG = engine30Projection.Tomorrow.ProteinG,
             TomorrowCarbsG = engine30Projection.Tomorrow.RecommendedCarbsG,
