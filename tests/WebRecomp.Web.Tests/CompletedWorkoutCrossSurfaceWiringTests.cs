@@ -97,7 +97,7 @@ public sealed class CompletedWorkoutCrossSurfaceWiringTests
         var dashboardService = Read(root, "Services", "DashboardService.cs");
 
         Assert.Contains(
-            "PlannedWorkout = engine30Projection.Today.HasPlannedWorkout ? engine30Projection.Today.WorkoutDisplayName : \"No workout planned\"",
+            "PlannedWorkout = hasTodayPlan ? todayPlanName : \"No workout planned\"",
             dashboardService,
             StringComparison.Ordinal);
 
