@@ -656,7 +656,6 @@
             "Regular dieting can reduce muscle along with fat. Recomp combines resistance training, high protein, and controlled calories to lose fat while protecting - and when possible building - lean muscle."
         })
 
-@if (ViewData["SavedWeeklyWorkouts"] is WebRecomp.Web.ViewModels.SavedWeeklyWorkoutDay[] savedWeekdays) { @await Html.PartialAsync("_SavedWeeklyWorkoutPlan", savedWeekdays) }
 @await Component.InvokeAsync("WorkoutRecommendations", new { date = Model.ActionDate })
 <div class="dash-primary-grid">
         <section class="dash-panel dash-workout dash-planactual-panel">
