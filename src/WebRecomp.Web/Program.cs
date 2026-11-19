@@ -37,12 +37,9 @@ builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SimpleCoachingService
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapLiveService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapAvailabilityService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapWorkoutEstimateService>();
-builder.Services.AddScheduledJob<WebRecomp.Web.Services.Coaching.SimpleDeadlineJob>(TimeSpan.FromHours(1));
-builder.Services.AddScheduledJob<WebRecomp.Web.Services.Coaching.AgreementSettlementJob>(TimeSpan.FromHours(1));
 builder.Services.AddSingleton<WebRecomp.Web.Services.Notifications.NotificationFiles>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Notifications.CoachNotificationProcessor>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Notifications.IPhoneNotificationSender, WebRecomp.Web.Services.Notifications.WebPushDelivery>();
-builder.Services.AddHostedService<WebRecomp.Web.Services.Notifications.CoachNotificationWorker>();
 builder.Services.AddSingleton<WebRecomp.Web.Services.Coaching.AccountabilityApprovalReceipt>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachClientPlanService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachWeekService>();
