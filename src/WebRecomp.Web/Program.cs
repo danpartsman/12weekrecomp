@@ -323,6 +323,41 @@ app.UseMiddleware<TestPersonaMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 
+// Process queued coach notifications only when a signed-in user is already using 12WR.
+// Never wake SQL from an idle timer or a monitoring /health request.
+var notificationProcessingGate = new SemaphoreSlim(1, 1);
+var nextNotificationProcessingUtc = DateTimeOffset.MinValue;
+app.Use(async (context, next) =>
+{
+    await next();
+
+    if (context.User.Identity?.IsAuthenticated != true
+        || context.Request.Path.StartsWithSegments("/notifications/run")
+        || DateTimeOffset.UtcNow < nextNotificationProcessingUtc
+        || !notificationProcessingGate.Wait(0))
+        return;
+
+    nextNotificationProcessingUtc = DateTimeOffset.UtcNow.AddMinutes(2);
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<WebRecomp.Web.Services.Notifications.CoachNotificationProcessor>()
+                .RunAsync(app.Lifetime.ApplicationStopping);
+        }
+        catch (OperationCanceledException) when (app.Lifetime.ApplicationStopping.IsCancellationRequested) { }
+        catch (Exception error)
+        {
+            app.Logger.LogWarning(error, "Request-triggered coach notification delivery will retry on a future authenticated request.");
+        }
+        finally
+        {
+            notificationProcessingGate.Release();
+        }
+    });
+});
+
 app.MapHealthChecks("/health").AllowAnonymous();
 app.MapControllers();
 
