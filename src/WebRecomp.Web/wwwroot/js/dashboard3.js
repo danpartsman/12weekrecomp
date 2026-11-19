@@ -30,7 +30,6 @@
             [b.Low / maximum, b.High / maximum, 'green'],
             [b.High / maximum, b.YellowHigh / maximum, 'yellow'],
             [b.YellowHigh / maximum, 1, 'red']];
-        if (b.Key === 'carbs') zones.forEach(zone => { if (zone[2] === 'red') zone[2] = 'gray'; });
         draw(b.Key, b.Eaten, maximum, zones, `${b.Name}: ${b.Eaten == null ? 'not logged' : b.Eaten + ' grams'}, target ${b.Low} to ${b.High} grams`, ' g');
     });
     const needle = root.querySelector('[data-energy-needle]');
