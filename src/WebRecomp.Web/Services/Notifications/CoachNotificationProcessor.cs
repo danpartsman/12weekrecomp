@@ -211,7 +211,7 @@ public sealed class CoachNotificationWorker(IServiceScopeFactory scopes, Notific
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _ = files.Identity;
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(20));
+        using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
         do
         {
             try { using var scope = scopes.CreateScope(); await scope.ServiceProvider.GetRequiredService<CoachNotificationProcessor>().RunAsync(stoppingToken); }
