@@ -1,7 +1,7 @@
 name: Deliver coach notifications and process Snap deadlines
 on:
   schedule:
-    - cron: '7,22,37,52 * * * *'
+    - cron: '7 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
