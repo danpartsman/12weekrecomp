@@ -1,0 +1,70 @@
+name: Deploy 12WR TEST
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/deploy-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: recomp-test-deployment
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+      - name: Restore, build, and test
+        shell: pwsh
+        run: |
+          dotnet restore src/WebRecomp.Web/WebRecomp.Web.csproj
+          if ($LASTEXITCODE -ne 0) { throw "Restore failed" }
+          dotnet build src/WebRecomp.Web/WebRecomp.Web.csproj -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw "Build failed" }
+          dotnet test tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { throw "Tests failed" }
+      - name: Publish and package
+        shell: pwsh
+        run: |
+          dotnet publish src/WebRecomp.Web/WebRecomp.Web.csproj -c Release --no-build -o ./publish
+          if ($LASTEXITCODE -ne 0) { throw "Publish failed" }
+          @("12 Week Recomp TEST release","source_sha=${{ github.sha }}","deployed_from=main") | Set-Content ./publish/wwwroot/release-version.txt
+          Compress-Archive -Path ./publish/* -DestinationPath ./publish-test.zip -Force
+      - uses: azure/login@v2
+        with:
+          client-id: a81057ec-568b-4cec-9a95-1d4d3ff549a0
+          tenant-id: e5e2dff4-ed49-4038-95d0-63d75304d52e
+          subscription-id: 14564a14-42f9-4d2e-8a0b-a7c844dfb5c0
+      - name: Verify TEST database is configured
+        shell: pwsh
+        run: |
+          $connection = az webapp config connection-string list -g recomp_group -n recomp-test --query "[?name=='RecompDatabase'].name | [0]" -o tsv
+          if ($LASTEXITCODE -ne 0 -or !$connection) { throw "TEST RecompDatabase connection missing; not deploying" }
+      - name: Deploy to TEST
+        shell: pwsh
+        run: |
+          az webapp deploy -g recomp_group -n recomp-test --src-path ./publish-test.zip --type zip --restart true --only-show-errors
+          if ($LASTEXITCODE -ne 0) { throw "TEST deployment failed" }
+      - name: Verify TEST health
+        shell: pwsh
+        run: |
+          $healthy = $false
+          for ($i=0; $i -lt 8; $i++) {
+            try {
+              $resp=Invoke-WebRequest -Uri "https://test.12weekrecomp.com/health" -TimeoutSec 30
+              if ($resp.StatusCode -eq 200) { $healthy=$true; break }
+            } catch { Start-Sleep -Seconds 10 }
+          }
+          if (!$healthy) { throw "TEST health check failed" }
