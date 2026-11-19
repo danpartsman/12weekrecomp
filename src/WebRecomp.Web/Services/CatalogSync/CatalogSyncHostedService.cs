@@ -7,7 +7,7 @@ public sealed class CatalogSyncHostedService(
     ILogger<CatalogSyncHostedService> logger) : BackgroundService
 {
     private static readonly TimeSpan InitialDelay = TimeSpan.FromMinutes(2);
-    private static readonly TimeSpan PollInterval = TimeSpan.FromHours(1);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromHours(12);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
