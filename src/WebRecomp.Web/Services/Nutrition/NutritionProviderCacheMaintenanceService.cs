@@ -14,7 +14,7 @@ public sealed class NutritionProviderCacheMaintenanceService(
 
         using var timer =
             new PeriodicTimer(
-                TimeSpan.FromMinutes(30));
+                TimeSpan.FromHours(6));
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
             await PurgeAsync(stoppingToken);
