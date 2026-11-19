@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="~/css/dashboard2.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/dashboard3.css" asp-append-version="true" />
 <main class="d3 d2" data-dashboard3 data-coach-code="@coach.Code">
+@if (ViewData["SavedWeeklyWorkouts"] is WebRecomp.Web.ViewModels.SavedWeeklyWorkoutDay[] savedWeekdays) { @await Html.PartialAsync("_SavedWeeklyWorkoutPlan", savedWeekdays) }
     <header class="d3-heading d3-team-header">
         <button type="button" class="d3-team-photo d3-team-open" data-open-team aria-haspopup="dialog" aria-label="Meet your Recomp coaches"><img src="~/images/coach/recomp-trainer-team.webp" asp-append-version="true" alt="All eight Recomp trainers together in the gym: Grant, Owen, Cassie, Marcus, Marisol, Aisha, Lucía and Nina" width="1536" height="512" fetchpriority="high" /><span>Meet your coaches ↗</span></button>
         <div class="d3-date-panel"><div class="d3-title-block"><p class="d3-eyebrow">YOUR RECOMP TEAM</p><h1>Command Center</h1><p>Week @Model.ProgramWeek · <time datetime="@Model.ActionDate.ToString("yyyy-MM-dd")">@Model.ActionDate.ToString("ddd, MMM d")</time> · @(historical ? "Saved day" : "Today")</p></div>

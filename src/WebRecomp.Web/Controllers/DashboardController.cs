@@ -124,6 +124,26 @@ public sealed class DashboardController(
         ViewData["AccountabilityClientId"] = client.ClientId;
         ViewData["DashboardToday"] = today;
         ViewData["DashboardStart"] = program.StartDate;
+        // Weekly Plan is the source of truth for the saved schedule. Show all seven
+        // days on both Dashboard and Command Center, independent of Engine 3.0
+        // recommendation or the two-day upcoming preview.
+        var displayDate = selectedDate ?? today;
+        var weekStart = WebRecomp.Web.Services.PlanningWeek.Start(displayDate);
+        var weekEnd = weekStart.AddDays(6);
+        var savedWeek = await db.PlannedWorkouts.AsNoTracking()
+            .Where(x => x.ClientId == client.ClientId && x.ProgramId == program.ProgramId
+                && x.PlannedDate >= weekStart && x.PlannedDate <= weekEnd)
+            .OrderBy(x => x.PlannedDate).ThenByDescending(x => x.UpdatedAtUtc)
+            .ToListAsync(cancellationToken);
+        var weekNames = await PlannedWorkoutNames.LoadAsync(db, client.ClientId, savedWeek, cancellationToken);
+        ViewData["SavedWeeklyWorkouts"] = Enumerable.Range(0, 7).Select(i =>
+        {
+            var date = weekStart.AddDays(i);
+            var saved = savedWeek.FirstOrDefault(x => x.PlannedDate == date);
+            return new WebRecomp.Web.ViewModels.SavedWeeklyWorkoutDay(date,
+                saved is not null ? weekNames.GetValueOrDefault(date) : null,
+                saved?.WorkoutTypeCode, saved?.PlannedDurationMin, saved?.PlannedRpe);
+        }).ToArray();
         var vm = await dashboard.BuildAsync(context, selectedDate ?? today, cancellationToken);
         return View(vm);
     }
