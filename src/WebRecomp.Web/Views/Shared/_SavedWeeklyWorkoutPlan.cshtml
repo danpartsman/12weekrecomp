@@ -1,0 +1,24 @@
+@model IReadOnlyList<WebRecomp.Web.ViewModels.SavedWeeklyWorkoutDay>
+@if (Model is { Count: > 0 })
+{
+    <section class="saved-weekly-plan" aria-labelledby="saved-weekly-plan-heading" style="margin:1.5rem 0;padding:1rem;border:1px solid var(--border-color,#c9c9c9);border-radius:12px">
+        <div style="display:flex;gap:1rem;align-items:center;justify-content:space-between;flex-wrap:wrap">
+            <h2 id="saved-weekly-plan-heading" style="margin:0">Saved Weekly Plan</h2>
+            <a asp-controller="WeeklyPlan" asp-action="Index">View / edit weekly plan</a>
+        </div>
+        <p class="muted">These are your saved workouts, not the Engine's suggested replacements. Dates without an entry are shown as unscheduled.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.65rem">
+            @foreach (var day in Model)
+            {
+                <article style="padding:.75rem;border:1px solid var(--border-color,#ddd);border-radius:8px">
+                    <strong>@day.Date.ToString("ddd, MMM d")</strong>
+                    <p style="margin:.4rem 0">@(day.Name ?? "Not scheduled")</p>
+                    @if (day.Name is not null && (day.DurationMinutes.HasValue || day.Rpe.HasValue))
+                    {
+                        <small>@(day.DurationMinutes.HasValue ? $"{day.DurationMinutes:0} min" : "") @(day.Rpe.HasValue ? $"· RPE {day.Rpe:0.#}" : "")</small>
+                    }
+                </article>
+            }
+        </div>
+    </section>
+}
