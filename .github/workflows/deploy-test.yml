@@ -1,12 +1,6 @@
 name: Deploy 12WR TEST
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - '.github/workflows/deploy-test.yml'
   workflow_dispatch:
 
 permissions:
