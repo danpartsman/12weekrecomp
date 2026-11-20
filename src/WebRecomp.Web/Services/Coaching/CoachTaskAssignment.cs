@@ -2,7 +2,7 @@ namespace WebRecomp.Web.Services.Coaching;
 
 public sealed record CoachTaskAssignment(
     Guid Id, Guid CoachId, Guid OwnerId, Guid RelationshipId, string Title, string? Notes, string Billing,
-    string Unit, decimal? Minimum, decimal? Maximum, decimal Rate, decimal LateFee, DateTimeOffset DueUtc,
+    string Unit, decimal? Minimum, decimal? Maximum, decimal Rate, decimal LateFee, DateTimeOffset? DueUtc,
     DateTimeOffset AssignedUtc)
 {
     public int Version { get; init; } = 1;

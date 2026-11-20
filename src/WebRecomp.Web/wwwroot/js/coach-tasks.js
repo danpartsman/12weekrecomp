@@ -2,17 +2,36 @@
     const editor = document.querySelector('[data-task-editor]');
     if (editor) {
         const mode = editor.querySelector('[data-task-billing]');
+        const due = editor.querySelector('[data-task-due]');
+        const unit = editor.querySelector('[data-task-unit]');
+        const bounds = editor.querySelector('[data-task-bounds]');
+        const suggestDue = () => {
+            try {
+                const formatter = new Intl.DateTimeFormat('en-GB', {
+                    timeZone: editor.dataset.timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+                });
+                const parts = Object.fromEntries(formatter.formatToParts(Date.now() + 2 * 60 * 60 * 1000)
+                    .map(({ type, value }) => [type, value]));
+                return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+            } catch {
+                return editor.dataset.defaultDue;
+            }
+        };
         const sync = () => {
             const quantity = mode.value === 'quantity';
             const timed = mode.value === 'minute' || mode.value === 'hour';
-            for (const field of editor.querySelectorAll('[data-task-unit], [data-task-bounds]')) {
-                const enabled = quantity || (timed && !field.hasAttribute('data-task-unit'));
-                field.hidden = !enabled;
-                field.querySelector('input').disabled = !enabled;
-                field.querySelector('input').required = quantity;
+            for (const field of editor.querySelectorAll('[data-task-timed]')) {
+                field.hidden = !timed;
+                field.querySelector('input').disabled = !timed;
             }
-            editor.querySelector('[data-task-minimum]').textContent = timed ? 'Minimum active minutes (optional)' : 'Minimum quantity';
-            editor.querySelector('[data-task-maximum]').textContent = timed ? 'Maximum active minutes (optional)' : 'Maximum quantity';
+            if (timed && !due.value) due.value = suggestDue();
+            unit.hidden = !quantity;
+            unit.querySelector('input').disabled = !quantity;
+            unit.querySelector('input').required = quantity;
+            bounds.hidden = bounds.disabled = !quantity && !timed;
+            for (const input of bounds.querySelectorAll('input')) input.required = quantity;
+            editor.querySelector('[data-task-bounds-label]').textContent = timed ? 'Active minutes (optional)' : 'Quantity limits';
             editor.querySelector('[data-task-rate]').textContent = timed ? `Fee per ${mode.value} (USD)`
                 : quantity ? 'Fee per unit (USD)' : 'Flat fee (USD)';
         };

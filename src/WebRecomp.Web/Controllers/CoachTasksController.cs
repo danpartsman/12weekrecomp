@@ -17,8 +17,8 @@ public sealed class CoachTaskInput
     public decimal? Maximum { get; set; }
     public bool AllowProofPhoto { get; set; }
     [Required] public decimal? Rate { get; set; } = 0;
-    [Required] public decimal? LateFee { get; set; } = 0;
-    [Required] public DateTime? DueLocal { get; set; }
+    public decimal? LateFee { get; set; } = 0;
+    public DateTime? DueLocal { get; set; }
 }
 
 public sealed record CoachTasksPage(CoachTaskParty Party, bool IsCoach, CoachTaskInput Input,
@@ -44,12 +44,12 @@ public sealed class CoachTasksController(AppUserContextService users, CoachTaskS
         var access = await AccessAsync(clientId, coachId, ct);
         if (access is null) return NotFound();
         if (!access.Value.IsCoach) return Forbid();
-        if (ModelState.IsValid && input.DueLocal.HasValue && input.Rate.HasValue && input.LateFee.HasValue)
+        if (ModelState.IsValid && input.Rate.HasValue)
         {
             try
             {
                 await tasks.AssignAsync(access.Value.Party, input.RequestId, input.Title, input.Notes, input.Billing,
-                    input.Unit, input.Minimum, input.Maximum, input.Rate.Value, input.LateFee.Value, input.DueLocal.Value,
+                    input.Unit, input.Minimum, input.Maximum, input.Rate.Value, input.LateFee ?? 0, input.DueLocal,
                     ct, input.AllowProofPhoto);
                 TempData["TaskStatus"] = "Task assigned.";
                 return RedirectToAction(nameof(Index), new { clientId, coachId });

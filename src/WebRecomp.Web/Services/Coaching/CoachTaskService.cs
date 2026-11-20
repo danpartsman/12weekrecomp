@@ -34,10 +34,11 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
 
     public async Task<IReadOnlyList<CoachTaskAssignment>> ReadAsync(CoachTaskParty party, CancellationToken ct) =>
         (await LatestAsync(party.ClientId, ct)).Where(task => BelongsTo(task, party))
-            .OrderBy(task => task.CompletedUtc.HasValue).ThenBy(task => task.DueUtc).ToArray();
+            .OrderBy(task => task.CompletedUtc.HasValue).ThenBy(task => task.DueUtc is null)
+            .ThenBy(task => task.DueUtc).ThenByDescending(task => task.AssignedUtc).ToArray();
 
     public async Task AssignAsync(CoachTaskParty party, Guid requestId, string? title, string? notes, string billing,
-        string? unit, decimal? minimum, decimal? maximum, decimal rate, decimal lateFee, DateTime dueLocal,
+        string? unit, decimal? minimum, decimal? maximum, decimal rate, decimal lateFee, DateTime? dueLocal,
         CancellationToken ct, bool allowProofPhoto = false)
     {
         var cleanTitle = (title ?? "").Trim();
@@ -46,6 +47,8 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
             throw new ArgumentException("Enter a title up to 120 characters and notes up to 2,000 characters.");
         if (billing is not ("fixed" or "quantity" or "minute" or "hour"))
             throw new ArgumentException("Choose a fee type.");
+        var timed = billing is "minute" or "hour";
+        if (!timed) lateFee = 0;
         var label = billing == "quantity" ? (unit ?? "").Trim() : billing == "fixed" ? "task" : "minutes";
         if (label.Length is 0 or > 40) throw new ArgumentException("Enter a quantity unit up to 40 characters.");
         var min = billing == "fixed" ? 1m : minimum;
@@ -61,11 +64,14 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
             throw new ArgumentException("Use dollar amounts with up to two decimal places and a maximum task fee of $10,000.");
 
         var now = time.GetUtcNow();
-        var zone = SnapAvailabilityClock.Zone(party.TimeZone);
-        if (zone.IsInvalidTime(dueLocal))
-            throw new ArgumentException("Choose a deadline outside the skipped local hour.");
-        var due = SnapAvailabilityClock.Utc(DateOnly.FromDateTime(dueLocal), TimeOnly.FromDateTime(dueLocal), zone, end: true);
-        if (due <= now) throw new ArgumentException("Choose a deadline in the future.");
+        DateTimeOffset? due = timed ? now.AddHours(2) : null;
+        if (timed && dueLocal is { } local)
+        {
+            var zone = SnapAvailabilityClock.Zone(party.TimeZone);
+            if (zone.IsInvalidTime(local)) throw new ArgumentException("Choose a deadline outside the skipped local hour.");
+            due = SnapAvailabilityClock.Utc(DateOnly.FromDateTime(local), TimeOnly.FromDateTime(local), zone, end: true);
+            if (due <= now) throw new ArgumentException("Choose a deadline in the future.");
+        }
         var row = await coaching.EnsureAsync(party.CoachId, party.ClientId, ct);
         if ((await LatestAsync(party.ClientId, ct)).Any(task => task.Id == requestId)) return;
         var created = new CoachTaskAssignment(requestId, party.CoachId, party.OwnerId, party.RelationshipId,
@@ -207,14 +213,14 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
         task.CoachId == party.CoachId && task.OwnerId == party.OwnerId && task.RelationshipId == party.RelationshipId;
 
     private static bool IsLate(CoachTaskAssignment task, DateTimeOffset now) =>
-        task.LateFee > 0 && !task.LateFeePosted && now > task.DueUtc
-        && (task.CompletedUtc is null || task.CompletedUtc > task.DueUtc);
+        task.DueUtc is { } due && task.LateFee > 0 && !task.LateFeePosted && now > due
+        && (task.CompletedUtc is null || task.CompletedUtc > due);
 
     private static CoachTaskAssignment AssessLate(CoachTaskAssignment task, CoachTaskParty party,
         CoachAccountabilityAgreement row, Guid actor, DateTimeOffset now, List<AccountabilityLedgerEntry> entries)
     {
-        if (!IsLate(task, now)) return task;
-        entries.Add(Entry(task, party, row, actor, task.DueUtc, "late", "late-penalty", "Task deadline penalty", task.LateFee));
+        if (task.DueUtc is not { } due || !IsLate(task, now)) return task;
+        entries.Add(Entry(task, party, row, actor, due, "late", "late-penalty", "Task deadline penalty", task.LateFee));
         return task with { LateFeePosted = true };
     }
 

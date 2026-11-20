@@ -4,6 +4,15 @@
 .task-fields input, .task-fields textarea, .task-fields select, .task-actions input { box-sizing: border-box; width: 100%; font-size: 1rem; }
 .task-fields [hidden] { display: none; }
 .task-full { grid-column: 1 / -1; }
+.task-fields label { min-width: 0; }
+.task-fields small { font-weight: 400; }
+.task-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.task-bounds, .task-pricing { max-width: 25rem; width: 100%; }
+.task-bounds { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
+.task-bounds legend { padding: 0; margin-bottom: .3rem; font-weight: 600; }
+.task-pair input, .task-fields textarea { margin: 0; min-inline-size: 0; }
+.task-editor .task-proof-option { display: flex; flex-direction: row; align-items: center; gap: .55rem; margin: .55rem 0 .75rem; width: fit-content; min-height: 2rem; }
+.task-editor .task-proof-option input[type="checkbox"] { flex: none; width: 1.1rem; height: 1.1rem; min-height: 0; padding: 0; margin: 0; }
 .task-card { margin-block: 1rem; overflow-wrap: anywhere; scroll-margin-top: 1rem; }
 .task-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .4rem 1rem; }
 .task-heading h2 { margin: 0; }
@@ -13,9 +22,13 @@
 .task-clock { font-variant-numeric: tabular-nums; }
 .task-actions, .task-actions form { display: flex; flex-wrap: wrap; gap: .65rem; align-items: end; }
 .task-actions button { min-height: 44px; }
-.task-schedule { display: grid; gap: .75rem 1.2rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
-.task-schedule h3 { margin-block: 0 .25rem; }
-.task-schedule p, .task-schedule ul { margin-block: .25rem .5rem; }
+.task-editor .task-schedule-card { padding: .65rem .85rem; margin: .6rem 0; }
+.task-schedule-card h2 { font-size: 1rem; margin: 0 0 .4rem; }
+.task-schedule { display: grid; gap: .45rem 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+.task-schedule section { min-width: 0; }
+.task-schedule h3 { margin: 0 0 .15rem; font-size: .9rem; }
+.task-schedule ul { margin: 0; padding: 0; list-style: none; }
+.task-schedule li { font-size: .9rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .task-proof-thumbnail { display: inline-block; margin-block: .5rem; }
 .task-proof-thumbnail img { display: block; width: 8rem; height: 6rem; object-fit: contain; border-radius: .4rem; }
 .task-proof-dialog { max-width: min(94vw, 70rem); max-height: 94vh; }
