@@ -15,17 +15,19 @@ public sealed class CoachTaskInput
     [StringLength(40)] public string? Unit { get; set; }
     public decimal? Minimum { get; set; }
     public decimal? Maximum { get; set; }
+    public bool AllowProofPhoto { get; set; }
     [Required] public decimal? Rate { get; set; } = 0;
     [Required] public decimal? LateFee { get; set; } = 0;
     [Required] public DateTime? DueLocal { get; set; }
 }
 
 public sealed record CoachTasksPage(CoachTaskParty Party, bool IsCoach, CoachTaskInput Input,
-    IReadOnlyList<CoachTaskAssignment> Tasks, DateTimeOffset Now);
+    IReadOnlyList<CoachTaskAssignment> Tasks, DateTimeOffset Now, IReadOnlyList<CoachScheduleDay> Schedule);
 
 [Authorize, Route("coach-workspace/{clientId:guid}/{coachId:guid}/tasks")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class CoachTasksController(AppUserContextService users, CoachTaskService tasks, IConfiguration configuration) : Controller
+public sealed class CoachTasksController(AppUserContextService users, CoachTaskService tasks,
+    SnapAvailabilityService availability, IConfiguration configuration) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(Guid clientId, Guid coachId, CancellationToken ct)
@@ -47,7 +49,8 @@ public sealed class CoachTasksController(AppUserContextService users, CoachTaskS
             try
             {
                 await tasks.AssignAsync(access.Value.Party, input.RequestId, input.Title, input.Notes, input.Billing,
-                    input.Unit, input.Minimum, input.Maximum, input.Rate.Value, input.LateFee.Value, input.DueLocal.Value, ct);
+                    input.Unit, input.Minimum, input.Maximum, input.Rate.Value, input.LateFee.Value, input.DueLocal.Value,
+                    ct, input.AllowProofPhoto);
                 TempData["TaskStatus"] = "Task assigned.";
                 return RedirectToAction(nameof(Index), new { clientId, coachId });
             }
@@ -55,6 +58,37 @@ public sealed class CoachTasksController(AppUserContextService users, CoachTaskS
             catch (AccountabilityConflictException) { ModelState.AddModelError("", "The account changed. Submit the task again."); }
         }
         return View("Index", await PageAsync(access.Value.Party, true, input, ct));
+    }
+
+    [HttpPost("{id:guid}/proof"), ValidateAntiForgeryToken]
+    [RequestSizeLimit(CoachTaskProofStore.MaxBytes + 65536)]
+    [RequestFormLimits(MultipartBodyLengthLimit = CoachTaskProofStore.MaxBytes + 65536)]
+    public async Task<IActionResult> AttachProof(Guid clientId, Guid coachId, Guid id, IFormFile? picture, CancellationToken ct)
+    {
+        var access = await AccessAsync(clientId, coachId, ct);
+        if (access is null) return NotFound();
+        if (access.Value.IsCoach) return Forbid();
+        try
+        {
+            if (picture is null) throw new ArgumentException("Choose a proof picture to attach.");
+            await using var upload = picture.OpenReadStream();
+            if (!await tasks.AttachProofAsync(access.Value.Party, id, upload, picture.Length, ct)) return NotFound();
+            TempData["TaskStatus"] = "Proof picture attached.";
+            return RedirectToAction(nameof(Index), null, new { clientId, coachId }, $"task-{id:N}");
+        }
+        catch (ArgumentException error) { TempData["TaskError"] = error.Message; }
+        catch (AccountabilityConflictException) { TempData["TaskError"] = "The task changed. Choose the picture again to retry."; }
+        catch (EndOfStreamException) { TempData["TaskError"] = "The picture upload was incomplete. Choose the picture again."; }
+        return RedirectToAction(nameof(Index), new { clientId, coachId });
+    }
+
+    [HttpGet("{id:guid}/proof")]
+    public async Task<IActionResult> Proof(Guid clientId, Guid coachId, Guid id, CancellationToken ct)
+    {
+        var access = await AccessAsync(clientId, coachId, ct);
+        if (access is null || await tasks.ReadProofAsync(access.Value.Party, id, ct) is not { } proof) return NotFound();
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        return File(proof.Image, proof.ContentType);
     }
 
     [HttpPost("{id:guid}"), ValidateAntiForgeryToken]
@@ -97,6 +131,10 @@ public sealed class CoachTasksController(AppUserContextService users, CoachTaskS
         return (party, user.UserId == party.CoachId);
     }
 
-    private async Task<CoachTasksPage> PageAsync(CoachTaskParty party, bool isCoach, CoachTaskInput input, CancellationToken ct) =>
-        new(party, isCoach, input, await tasks.ReadAsync(party, ct), DateTimeOffset.UtcNow);
+    private async Task<CoachTasksPage> PageAsync(CoachTaskParty party, bool isCoach, CoachTaskInput input, CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+        IReadOnlyList<CoachScheduleDay> schedule = isCoach ? await availability.TodayAndTomorrowAsync(party.ClientId, now, ct) : [];
+        return new(party, isCoach, input, await tasks.ReadAsync(party, ct), now, schedule);
+    }
 }

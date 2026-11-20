@@ -13,3 +13,10 @@
 .task-clock { font-variant-numeric: tabular-nums; }
 .task-actions, .task-actions form { display: flex; flex-wrap: wrap; gap: .65rem; align-items: end; }
 .task-actions button { min-height: 44px; }
+.task-schedule { display: grid; gap: .75rem 1.2rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+.task-schedule h3 { margin-block: 0 .25rem; }
+.task-schedule p, .task-schedule ul { margin-block: .25rem .5rem; }
+.task-proof-thumbnail { display: inline-block; margin-block: .5rem; }
+.task-proof-thumbnail img { display: block; width: 8rem; height: 6rem; object-fit: contain; border-radius: .4rem; }
+.task-proof-dialog { max-width: min(94vw, 70rem); max-height: 94vh; }
+.task-proof-dialog img { display: block; max-width: 100%; max-height: 72vh; object-fit: contain; margin: 0 auto .75rem; }

@@ -27,6 +27,7 @@ public sealed class AvailabilityBlock
 }
 
 public sealed record AvailabilityWindow(DateTimeOffset Start, DateTimeOffset End, string Reason);
+public sealed record CoachScheduleDay(DateOnly Date, string? PlannedWorkout, IReadOnlyList<AvailabilityWindow> Reserved);
 public sealed record SnapTiming(DateTimeOffset? DeadlineUtc, DateTimeOffset? AvailableFromUtc,
     DateTimeOffset? PausedUntilUtc, double RemainingSeconds, string? Reason);
 
@@ -136,6 +137,31 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
     private readonly TimeProvider time = clock ?? TimeProvider.System;
     private static string Key(Guid client) => $"users/availability-{client:N}";
     public AvailabilityCalendar Read(Guid client) => files.Read<AvailabilityCalendar>(Key(client)) ?? new();
+
+    public async Task<IReadOnlyList<CoachScheduleDay>> TodayAndTomorrowAsync(Guid clientId, DateTimeOffset now,
+        CancellationToken ct)
+    {
+        var client = await db.Clients.AsNoTracking().SingleAsync(c => c.ClientId == clientId, ct);
+        var zone = SnapAvailabilityClock.Zone(client.TimeZone);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime);
+        var tomorrow = today.AddDays(1);
+        var windows = await WindowsAsync(client, today, tomorrow, ct);
+        var programId = await db.Programs.AsNoTracking().Where(p => p.ClientId == clientId && p.ProgramStatusCode == "ACTIVE")
+            .OrderByDescending(p => p.StartDate).Select(p => (Guid?)p.ProgramId).FirstOrDefaultAsync(ct);
+        var plans = await db.PlannedWorkouts.AsNoTracking().Where(p => p.ClientId == clientId && p.ProgramId == programId
+            && p.PlannedDate >= today && p.PlannedDate <= tomorrow).ToListAsync(ct);
+        var names = await PlannedWorkoutNames.LoadAsync(db, clientId, plans, ct);
+        return new[] { today, tomorrow }.Select(day =>
+        {
+            var start = SnapAvailabilityClock.Utc(day, TimeOnly.MinValue, zone);
+            var end = SnapAvailabilityClock.Utc(day.AddDays(1), TimeOnly.MinValue, zone, end: true);
+            var reserved = windows.Where(window => window.Start < end && window.End > start)
+                .OrderBy(window => window.Start)
+                .Select(window => new AvailabilityWindow(window.Start < start ? start : window.Start,
+                    window.End > end ? end : window.End, window.Reason)).ToArray();
+            return new CoachScheduleDay(day, names.GetValueOrDefault(day), reserved);
+        }).ToArray();
+    }
 
     public async Task<SnapScheduleConflict> ConflictAsync(Client client, DateTimeOffset start, int minutes, CancellationToken ct)
     {

@@ -9,15 +9,29 @@
                 const enabled = quantity || (timed && !field.hasAttribute('data-task-unit'));
                 field.hidden = !enabled;
                 field.querySelector('input').disabled = !enabled;
-                field.querySelector('input').required = enabled;
+                field.querySelector('input').required = quantity;
             }
-            editor.querySelector('[data-task-minimum]').textContent = timed ? 'Minimum active minutes' : 'Minimum quantity';
-            editor.querySelector('[data-task-maximum]').textContent = timed ? 'Maximum active minutes' : 'Maximum quantity';
+            editor.querySelector('[data-task-minimum]').textContent = timed ? 'Minimum active minutes (optional)' : 'Minimum quantity';
+            editor.querySelector('[data-task-maximum]').textContent = timed ? 'Maximum active minutes (optional)' : 'Maximum quantity';
             editor.querySelector('[data-task-rate]').textContent = timed ? `Fee per ${mode.value} (USD)`
                 : quantity ? 'Fee per unit (USD)' : 'Flat fee (USD)';
         };
         mode.addEventListener('change', sync);
         sync();
+    }
+
+    const proofDialog = document.querySelector('[data-task-proof-dialog]');
+    if (typeof proofDialog?.showModal === 'function') {
+        const enlarged = proofDialog.querySelector('img');
+        for (const link of document.querySelectorAll('[data-task-proof]')) {
+            link.addEventListener('click', event => {
+                if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                enlarged.src = link.href;
+                enlarged.alt = link.querySelector('img').alt;
+                proofDialog.showModal();
+            });
+        }
     }
 
     const running = [...document.querySelectorAll('[data-task-clock][data-running="true"]')];

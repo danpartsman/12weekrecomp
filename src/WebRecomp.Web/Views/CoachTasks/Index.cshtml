@@ -8,8 +8,9 @@
     ViewData["SnapCoachScope"] = party.CoachId;
     var zone = SnapAvailabilityClock.Zone(party.TimeZone);
     string Money(decimal value) => value.ToString("C", CultureInfo.GetCultureInfo("en-US"));
-    string Number(decimal value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+    string Number(decimal? value) => value?.ToString("0.##", CultureInfo.InvariantCulture) ?? "";
     string Local(DateTimeOffset value) => TimeZoneInfo.ConvertTime(value, zone).ToString("MMM d, yyyy h:mm tt zzz");
+    string LocalTime(DateTimeOffset value) => TimeZoneInfo.ConvertTime(value, zone).ToString("h:mm tt");
 }
 <link rel="stylesheet" href="~/css/coach-tasks.css" asp-append-version="true" />
 <header class="page-header">
@@ -26,6 +27,31 @@
 {
     <details class="card task-editor" open="@(Model.Tasks.Count == 0 || !ViewData.ModelState.IsValid)">
         <summary>Assign a task</summary>
+        <section aria-label="Client schedule">
+            <h2>Client schedule</h2>
+            <div class="task-schedule">
+                @for (var i = 0; i < Model.Schedule.Count; i++)
+                {
+                    var day = Model.Schedule[i];
+                    <section>
+                        <h3>@(i == 0 ? "Today" : "Tomorrow") · @day.Date.ToString("ddd, MMM d")</h3>
+                        <p>@(day.PlannedWorkout ?? "No workout planned")</p>
+                        @if (day.Reserved.Count == 0) { <p>No reserved time</p> }
+                        else
+                        {
+                            <ul>
+                                @foreach (var window in day.Reserved)
+                                {
+                                    var allDay = window.Start == SnapAvailabilityClock.Utc(day.Date, TimeOnly.MinValue, zone)
+                                        && window.End == SnapAvailabilityClock.Utc(day.Date.AddDays(1), TimeOnly.MinValue, zone, end: true);
+                                    <li>@(allDay ? "All day" : $"{LocalTime(window.Start)} – {LocalTime(window.End)}") · @window.Reason</li>
+                                }
+                            </ul>
+                        }
+                    </section>
+                }
+            </div>
+        </section>
         <form asp-action="Assign" asp-route-clientId="@party.ClientId" asp-route-coachId="@party.CoachId" method="post" data-task-editor>
             <div asp-validation-summary="All" role="alert"></div>
             <input asp-for="Input.RequestId" type="hidden" />
@@ -45,6 +71,7 @@
                 <label><span data-task-rate>Fee (USD)</span><input asp-for="Input.Rate" type="number" min="0" max="10000" step="0.01" required /></label>
                 <label>Late penalty (USD)<input asp-for="Input.LateFee" type="number" min="0" max="10000" step="0.01" required /></label>
             </div>
+            <p><label><input asp-for="Input.AllowProofPhoto" /> Attach proof picture</label></p>
             <button type="submit">Assign task</button>
         </form>
     </details>
@@ -57,7 +84,7 @@
     var late = (task.CompletedUtc ?? Model.Now) > task.DueUtc;
     var ticks = task.ActiveTicks(Model.Now);
     var elapsed = TimeSpan.FromTicks(ticks);
-    var capped = task.IsTimed && elapsed.TotalMinutes >= (double)task.Maximum;
+    var capped = task.AtTimeLimit(ticks);
     var timer = $"{(long)elapsed.TotalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
     var rateUnit = task.Billing switch { "quantity" => task.Unit, "minute" => "minute", "hour" => "hour", _ => "task" };
     <article class="card task-card" id="@($"task-{task.Id:N}")">
@@ -70,16 +97,34 @@
             <div><dt>Due</dt><dd>@Local(task.DueUtc)</dd></div>
             <div><dt>Fee</dt><dd>@Money(task.Rate) per @rateUnit</dd></div>
             <div><dt>Late penalty</dt><dd>@Money(task.LateFee)@(task.LateFeePosted ? " posted" : "")</dd></div>
-            @if (task.Billing != "fixed")
-            {
-                <div><dt>Minimum</dt><dd>@Number(task.Minimum) @task.Unit</dd></div>
-                <div><dt>Maximum</dt><dd>@Number(task.Maximum) @task.Unit</dd></div>
-            }
+            @if (task.Billing != "fixed" && task.Minimum.HasValue) { <div><dt>Minimum</dt><dd>@Number(task.Minimum) @task.Unit</dd></div> }
+            @if (task.Billing != "fixed" && task.Maximum.HasValue) { <div><dt>Maximum</dt><dd>@Number(task.Maximum) @task.Unit</dd></div> }
             @if (task.FirstStartedUtc is { } started) { <div><dt>First start</dt><dd>@Local(started)</dd></div> }
             @if (task.LastStoppedUtc is { } stopped) { <div><dt>Last stop</dt><dd>@Local(stopped)</dd></div> }
             @if (task.CompletedUtc is { } completed) { <div><dt>Completed</dt><dd>@Local(completed)</dd></div> }
             @if (task.Quantity is { } quantity) { <div><dt>Reported quantity</dt><dd>@Number(quantity) @task.Unit</dd></div> }
         </dl>
+        @if (task.ProofPhotoId.HasValue)
+        {
+            var pictureUrl = Url.Action("Proof", new { clientId = party.ClientId, coachId = party.CoachId, id = task.Id });
+            <a class="task-proof-thumbnail" href="@pictureUrl" target="_blank" rel="noopener" data-task-proof aria-label="Enlarge proof picture for @task.Title">
+                <img src="@pictureUrl" alt="Proof picture for @task.Title" loading="lazy" />
+            </a>
+        }
+        else if (task.AllowProofPhoto && !Model.IsCoach)
+        {
+            <form class="task-actions" asp-action="AttachProof" asp-route-clientId="@party.ClientId" asp-route-coachId="@party.CoachId"
+                  asp-route-id="@task.Id" method="post" enctype="multipart/form-data">
+                <label>Proof picture<input name="picture" type="file" accept="image/jpeg,image/png,image/webp" required />
+                    <small>JPEG, PNG, or WebP up to 8 MB</small>
+                </label>
+                <button type="submit">Attach picture</button>
+            </form>
+        }
+        else if (task.AllowProofPhoto)
+        {
+            <p>Proof picture enabled.</p>
+        }
         @if (task.FirstStartedUtc.HasValue)
         {
             <p class="task-clock" data-task-clock data-running="@running.ToString().ToLowerInvariant()"
@@ -116,5 +161,13 @@
             </div>
         }
     </article>
+}
+@if (Model.Tasks.Any(task => task.ProofPhotoId.HasValue))
+{
+    <dialog class="task-proof-dialog" aria-labelledby="task-proof-title" data-task-proof-dialog>
+        <h2 id="task-proof-title">Proof picture</h2>
+        <img alt="" />
+        <form method="dialog"><button type="submit">Close</button></form>
+    </dialog>
 }
 <script src="~/js/coach-tasks.js" asp-append-version="true" defer></script>

@@ -2,7 +2,7 @@ namespace WebRecomp.Web.Services.Coaching;
 
 public sealed record CoachTaskAssignment(
     Guid Id, Guid CoachId, Guid OwnerId, Guid RelationshipId, string Title, string? Notes, string Billing,
-    string Unit, decimal Minimum, decimal Maximum, decimal Rate, decimal LateFee, DateTimeOffset DueUtc,
+    string Unit, decimal? Minimum, decimal? Maximum, decimal Rate, decimal LateFee, DateTimeOffset DueUtc,
     DateTimeOffset AssignedUtc)
 {
     public int Version { get; init; } = 1;
@@ -14,13 +14,18 @@ public sealed record CoachTaskAssignment(
     public long ElapsedTicks { get; init; }
     public decimal WorkFeePosted { get; init; }
     public bool LateFeePosted { get; init; }
+    public bool AllowProofPhoto { get; init; }
+    public Guid? ProofPhotoId { get; init; }
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsTimed => Billing is "minute" or "hour";
+
+    public bool AtTimeLimit(long ticks) => IsTimed && Maximum is { } max
+        && ticks >= (long)(max * TimeSpan.TicksPerMinute);
 
     public long ActiveTicks(DateTimeOffset now)
     {
         var ticks = ElapsedTicks + (RunningSinceUtc is { } start ? Math.Max(0, (now - start).Ticks) : 0);
-        return IsTimed ? Math.Min(ticks, (long)(Maximum * TimeSpan.TicksPerMinute)) : ticks;
+        return IsTimed && Maximum is { } max ? Math.Min(ticks, (long)(max * TimeSpan.TicksPerMinute)) : ticks;
     }
 
     public decimal WorkFee(DateTimeOffset now)

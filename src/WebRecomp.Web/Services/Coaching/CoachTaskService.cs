@@ -9,7 +9,7 @@ public sealed record CoachTaskParty(Guid ClientId, Guid CoachId, Guid OwnerId, G
     string ClientName, string CoachName, string TimeZone);
 
 public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService coaching, AccountabilityLedger ledger,
-    TimeProvider? clock = null)
+    TimeProvider? clock = null, CoachTaskProofStore? proofs = null)
 {
     private readonly TimeProvider time = clock ?? TimeProvider.System;
 
@@ -37,7 +37,8 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
             .OrderBy(task => task.CompletedUtc.HasValue).ThenBy(task => task.DueUtc).ToArray();
 
     public async Task AssignAsync(CoachTaskParty party, Guid requestId, string? title, string? notes, string billing,
-        string? unit, decimal? minimum, decimal? maximum, decimal rate, decimal lateFee, DateTime dueLocal, CancellationToken ct)
+        string? unit, decimal? minimum, decimal? maximum, decimal rate, decimal lateFee, DateTime dueLocal,
+        CancellationToken ct, bool allowProofPhoto = false)
     {
         var cleanTitle = (title ?? "").Trim();
         var cleanNotes = notes?.Trim();
@@ -49,11 +50,14 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
         if (label.Length is 0 or > 40) throw new ArgumentException("Enter a quantity unit up to 40 characters.");
         var min = billing == "fixed" ? 1m : minimum;
         var max = billing == "fixed" ? 1m : maximum;
-        if (min is null || max is null || min < 0 || max <= 0 || min > max || max > 100000m
-            || decimal.Round(min.Value, 2) != min.Value || decimal.Round(max.Value, 2) != max.Value)
-            throw new ArgumentException("Enter a minimum and positive maximum with up to two decimal places.");
+        if (billing == "quantity" && (!min.HasValue || !max.HasValue))
+            throw new ArgumentException("Enter both a minimum and a maximum quantity.");
+        if (min is < 0 or > 100000m || max is <= 0 or > 100000m || min > max
+            || (min is { } low && decimal.Round(low, 2) != low)
+            || (max is { } high && decimal.Round(high, 2) != high))
+            throw new ArgumentException("Enter valid limits with up to two decimal places and a maximum at least as large as the minimum.");
         if (!AccountabilityDocument.Money(rate) || !AccountabilityDocument.Money(lateFee)
-            || AccountabilityAssessment.Cents((billing == "hour" ? max.Value / 60 : max.Value) * rate) > 10000m)
+            || (max is { } limit && AccountabilityAssessment.Cents((billing == "hour" ? limit / 60 : limit) * rate) > 10000m))
             throw new ArgumentException("Use dollar amounts with up to two decimal places and a maximum task fee of $10,000.");
 
         var now = time.GetUtcNow();
@@ -65,7 +69,10 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
         var row = await coaching.EnsureAsync(party.CoachId, party.ClientId, ct);
         if ((await LatestAsync(party.ClientId, ct)).Any(task => task.Id == requestId)) return;
         var created = new CoachTaskAssignment(requestId, party.CoachId, party.OwnerId, party.RelationshipId,
-            cleanTitle, cleanNotes, billing, label, min.Value, max.Value, rate, lateFee, due, now);
+            cleanTitle, cleanNotes, billing, label, min, max, rate, lateFee, due, now)
+        {
+            AllowProofPhoto = allowProofPhoto
+        };
         ledger.Append(row, party.CoachId, [], created);
         await ledger.SaveAsync(ct);
     }
@@ -84,7 +91,7 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
         switch (command)
         {
             case "start" when !task.RunningSinceUtc.HasValue:
-                if (task.IsTimed && ticks >= (long)(task.Maximum * TimeSpan.TicksPerMinute))
+                if (task.AtTimeLimit(ticks))
                     throw new ArgumentException("The maximum billable time has been reached. Complete the task to submit it.");
                 task = task with { FirstStartedUtc = task.FirstStartedUtc ?? now, RunningSinceUtc = now };
                 break;
@@ -95,7 +102,7 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
                 if (task.Billing == "quantity" && (quantity is null || quantity < task.Minimum || quantity > task.Maximum
                         || decimal.Round(quantity.Value, 2) != quantity.Value))
                     throw new ArgumentException($"Enter a quantity between {task.Minimum:0.##} and {task.Maximum:0.##} {task.Unit}.");
-                if (task.IsTimed && ticks < (long)(task.Minimum * TimeSpan.TicksPerMinute))
+                if (task.IsTimed && task.Minimum is { } minimum && ticks < (long)(minimum * TimeSpan.TicksPerMinute))
                     throw new ArgumentException($"Log at least {task.Minimum:0.##} active minutes before completing this task.");
                 task = task with { CompletedUtc = now, Quantity = task.Billing == "quantity" ? quantity : null,
                     LastStoppedUtc = task.RunningSinceUtc.HasValue ? now : task.LastStoppedUtc,
@@ -119,6 +126,31 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
         ledger.Append(row, party.OwnerId, entries, task);
         await ledger.SaveAsync(ct);
         return true;
+    }
+
+    public async Task<bool> AttachProofAsync(CoachTaskParty party, Guid id, Stream upload, long length, CancellationToken ct)
+    {
+        var row = await db.CoachAccountabilityAgreements.SingleOrDefaultAsync(x => x.ClientId == party.ClientId, ct);
+        if (row is null) return false;
+        var task = (await LatestAsync(party.ClientId, ct)).SingleOrDefault(t => t.Id == id && BelongsTo(t, party));
+        if (task is null || !task.AllowProofPhoto) return false;
+        if (task.ProofPhotoId.HasValue) throw new ArgumentException("This task already has a proof picture.");
+        var storage = proofs ?? throw new InvalidOperationException("Task proof storage is unavailable.");
+        var photoId = await storage.SaveAsync(upload, length, ct);
+        ledger.Append(row, party.OwnerId, [], task with { ProofPhotoId = photoId });
+        try { await ledger.SaveAsync(ct); }
+        catch (AccountabilityConflictException)
+        {
+            storage.Delete(photoId);
+            throw;
+        }
+        return true;
+    }
+
+    public async Task<CoachTaskProof?> ReadProofAsync(CoachTaskParty party, Guid id, CancellationToken ct)
+    {
+        var task = (await LatestAsync(party.ClientId, ct)).SingleOrDefault(t => t.Id == id && BelongsTo(t, party));
+        return task?.ProofPhotoId is { } photoId && task.AllowProofPhoto ? proofs?.Read(photoId) : null;
     }
 
     public async Task<int> PostOverdueAsync(CancellationToken ct)

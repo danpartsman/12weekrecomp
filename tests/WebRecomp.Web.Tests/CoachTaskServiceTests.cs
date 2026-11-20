@@ -1,12 +1,90 @@
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services.Coaching;
+using WebRecomp.Web.Services.Notifications;
 
 namespace WebRecomp.Web.Tests;
 
 public sealed class CoachTaskServiceTests
 {
+    [Theory]
+    [InlineData(null, null, 15)]
+    [InlineData(5, null, 15)]
+    [InlineData(null, 10, 10)]
+    public async Task TimedTasksAcceptEitherOrBothLimitsBlank(int? min, int? max, int billableMinutes)
+    {
+        await using var f = new Fixture();
+        var party = await f.SeedAsync();
+        var id = Guid.NewGuid();
+        await f.Tasks.AssignAsync(party, id, "Work", null, "hour", null, min, max, 60, 0,
+            f.Clock.Now.UtcDateTime.AddHours(4), default);
+        await f.Tasks.UpdateAsync(party, id, 1, "start", null, default);
+        f.Clock.Now = f.Clock.Now.AddMinutes(15);
+        await f.Tasks.UpdateAsync(party, id, 2, "complete", null, default);
+        Assert.Equal((decimal)billableMinutes, Assert.Single(await f.Tasks.ReadAsync(party, default)).WorkFeePosted);
+    }
+
+    [Fact]
+    public async Task ProofIsOptionalAndOnlyTheEnabledTaskPairCanReadIt()
+    {
+        await using var f = new Fixture();
+        var party = await f.SeedAsync();
+        var other = await f.AddCoachAsync();
+        var id = Guid.NewGuid();
+        var due = f.Clock.Now.UtcDateTime.AddHours(2);
+        await f.Tasks.AssignAsync(party, id, "Work", null, "fixed", null, null, null, 0, 10, due, default,
+            allowProofPhoto: true);
+        await f.Tasks.UpdateAsync(party, id, 1, "start", null, default);
+        await f.Tasks.UpdateAsync(party, id, 2, "complete", null, default);
+        Assert.Null(await f.Tasks.ReadProofAsync(party, id, default));
+        await using var invalid = new MemoryStream(new byte[32]);
+        await Assert.ThrowsAsync<ArgumentException>(() => f.Tasks.AttachProofAsync(party, id, invalid, invalid.Length, default));
+        var bytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a/2gAAAAASUVORK5CYII=");
+        await using var photo = new MemoryStream(bytes);
+        Assert.False(await f.Tasks.AttachProofAsync(other, id, photo, photo.Length, default));
+        Assert.True(await f.Tasks.AttachProofAsync(party, id, photo, photo.Length, default));
+        var proof = Assert.IsType<CoachTaskProof>(await f.Tasks.ReadProofAsync(party, id, default));
+        Assert.Equal("image/png", proof.ContentType);
+        Assert.Equal(bytes, proof.Image);
+        Assert.Null(await f.Tasks.ReadProofAsync(other, id, default));
+        var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        Assert.Empty(await f.Ledger.ReadAsync(row, default));
+    }
+
+    [Fact]
+    public async Task AssignmentScheduleUsesTheClientsLocalDaysAndClipsOvernightBlocks()
+    {
+        await using var f = new Fixture();
+        var party = await f.SeedAsync();
+        var client = await f.Db.Clients.SingleAsync();
+        client.TimeZone = "America/Los_Angeles";
+        var today = new DateOnly(2026, 11, 20);
+        var program = new ProgramRecord { ProgramId = Guid.NewGuid(), ClientId = party.ClientId,
+            SelectedPlanCode = "PLAN_3", GoalCode = "RECOMP" };
+        f.Db.AddRange(program, new PlannedWorkout { PlannedWorkoutId = Guid.NewGuid(), ClientId = party.ClientId,
+            ProgramId = program.ProgramId, PlannedDate = today.AddDays(1), WorkoutTypeCode = "REST",
+            SourceCode = "WORKOUT_TARGET", Notes = "Planned recovery" });
+        await f.Db.SaveChangesAsync();
+        f.Files.Write($"users/availability-{party.ClientId:N}", new AvailabilityCalendar
+        {
+            Blocks = [new() { Kind = "sleep", StartDate = today, EndDate = today,
+                StartTime = new(22, 0), EndTime = new(6, 0) }]
+        });
+        var days = await new SnapAvailabilityService(f.Db, f.Files).TodayAndTomorrowAsync(party.ClientId,
+            new(2026, 11, 21, 2, 0, 0, TimeSpan.Zero), default);
+        Assert.Equal(new[] { today, today.AddDays(1) }, days.Select(day => day.Date));
+        Assert.Equal("Planned recovery", days[1].PlannedWorkout);
+        var evening = Assert.Single(days[0].Reserved);
+        var morning = Assert.Single(days[1].Reserved);
+        Assert.Equal(2d, (evening.End - evening.Start).TotalHours);
+        Assert.Equal(6d, (morning.End - morning.Start).TotalHours);
+    }
+
     [Theory]
     [InlineData("minute", 1)]
     [InlineData("hour", 60)]
@@ -77,6 +155,7 @@ public sealed class CoachTaskServiceTests
 
     private sealed class Fixture : IAsyncDisposable
     {
+        private readonly string directory = Path.Combine(Path.GetTempPath(), $"coach-tasks-{Guid.NewGuid():N}");
         private readonly Guid client = Guid.NewGuid();
         private readonly Guid owner = Guid.NewGuid();
         public readonly RecompDbContext Db = new(new DbContextOptionsBuilder<RecompDbContext>()
@@ -84,12 +163,16 @@ public sealed class CoachTaskServiceTests
         public readonly TestClock Clock = new();
         public AccountabilityLedger Ledger { get; }
         public CoachTaskService Tasks { get; }
+        public NotificationFiles Files { get; }
 
         public Fixture()
         {
             var access = new CoachAccountabilityPreviewService(Db, new CoachCenterService(Db), null!);
             Ledger = new(Db, access);
-            Tasks = new(Db, new SimpleCoachingService(Db, access, Ledger), Ledger, Clock);
+            var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+                { ["Notifications:DataPath"] = directory }).Build();
+            Files = new NotificationFiles(new TestEnvironment(), config, new EphemeralDataProtectionProvider());
+            Tasks = new(Db, new SimpleCoachingService(Db, access, Ledger), Ledger, Clock, new CoachTaskProofStore(Files));
         }
 
         public async Task<CoachTaskParty> SeedAsync()
@@ -109,6 +192,20 @@ public sealed class CoachTaskServiceTests
             return Assert.IsType<CoachTaskParty>(await Tasks.PartyAsync(client, coach, default));
         }
 
-        public ValueTask DisposeAsync() => Db.DisposeAsync();
+        public async ValueTask DisposeAsync()
+        {
+            await Db.DisposeAsync();
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private sealed class TestEnvironment : IWebHostEnvironment
+    {
+        public string ApplicationName { get; set; } = "Tests";
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+        public string WebRootPath { get; set; } = ".";
+        public string EnvironmentName { get; set; } = "Testing";
+        public string ContentRootPath { get; set; } = ".";
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 }
