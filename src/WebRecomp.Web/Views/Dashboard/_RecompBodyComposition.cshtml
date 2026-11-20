@@ -9,7 +9,7 @@
                 <h3>@Model.ComparisonDays day @(metric.Key == "muscle" ? "MUSCLE MASS" : "BODY FAT") change</h3>
                 @if (metric.DisplayChangeLb is decimal result)
                 {
-                    <strong>@result.ToString("+0.0;-0.0;0.0") lb · @metric.Status</strong>
+                    <strong>@result.ToString("+0.0;-0.0;0.0") lb</strong>
                 }
                 else
                 {
@@ -37,7 +37,6 @@
             <div class="d3-composition-divider" aria-hidden="true"></div>
         }
     }
-    <p class="d3-sub" role="status">@Model.Interpretation</p>
     @if (Model.WeightChangeLb is decimal weightChange) { <p>Average weight change: @weightChange.ToString("+0.0;-0.0;0.0") lb · @Model.LatestWeight!.Count versus @Model.PreviousWeight!.Count readings.</p> }
     <details class="d3-composition-details"><summary>Dates, averages and calculation</summary>
         <p>Seven completed days versus the seven-day period ending @Model.ComparisonDays days earlier. @(Model.ComparisonDays == 7 ? "Both weeks weight newest to oldest: 20%, 18%, 16%, 14%, 12%, 11%, 9%; available weights are renormalized separately for each metric." : "Both periods use straight averages.") Averages use available daily readings; missing values are excluded, never treated as zero.</p>
@@ -56,7 +55,6 @@
             }
         }
         <p>Body fat is weight × body-fat fraction for each reading, then averaged. Muscle uses the same muscle measurement type in both periods; skeletal and generic muscle estimates are never mixed. Each day uses its latest saved reading.</p>
-        <p>Neutral colors describe uncertain scale estimates. Fewer than four readings in either period is flagged as sparse (a reporting rule, not a biological threshold). Observed daily variation is descriptive, not a validated least-significant-change threshold for your scale. This result stays separate from your execution score.</p>
         <a href="/Progress">Review longer-term progress →</a>
     </details>
 </section>

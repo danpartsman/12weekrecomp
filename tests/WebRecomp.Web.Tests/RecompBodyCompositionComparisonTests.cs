@@ -39,7 +39,7 @@ public sealed class RecompBodyCompositionComparisonTests
     {
         var c=RecompBodyCompositionComparison.Build(Today,[R(-1),R(-8),R(-9,fat:null,muscle:null)]);
         Assert.Equal(1,c.Fat.Previous.Count); Assert.Equal(2,c.PreviousWeight!.Count);
-        Assert.Contains("Sparse",c.Interpretation); Assert.Equal("Sparse evidence",c.Fat.Status);
+        Assert.Equal("Sparse evidence",c.Fat.Status);
     }
     [Fact] public void StableWeightDoesNotEraseAnEstimatedFatChange()
     {
@@ -47,7 +47,6 @@ public sealed class RecompBodyCompositionComparisonTests
         var c=RecompBodyCompositionComparison.Build(Today,rows);
         Assert.Equal(0,c.WeightChangeLb); Assert.Equal(4,c.Fat.ChangeLb); Assert.Equal(-2,c.Muscle.ChangeLb);
         Assert.Equal("red",c.Fat.Band); Assert.Contains("unconfirmed",c.Fat.Status);
-        Assert.Contains("Stable weight cannot",c.Interpretation);
     }
     [Fact] public void DeletedAndSupersededReadingsDoNotGetExtraWeight()
     {

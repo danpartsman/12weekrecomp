@@ -40,9 +40,6 @@ public sealed record RecompBodyCompositionComparison(RecompCompositionChange Fat
     public RecompCompositionWindow? LatestWeight { get; init; }
     public RecompCompositionWindow? PreviousWeight { get; init; }
     public decimal? WeightChangeLb => LatestWeight?.AverageLb - PreviousWeight?.AverageLb;
-    public string Interpretation => Fat.Sparse || Muscle.Sparse
-        ? "Sparse body-composition evidence. Missing days are excluded; they are not failed weigh-ins."
-        : "These are scale estimates, not confirmed tissue changes. Stable weight cannot distinguish a fat/lean exchange from fluid-related estimation changes. Compare waist and strength trends over several weeks. Water, fat and muscle estimates from one scale are not independent confirmations.";
     public decimal MinimumScaleLb { get; init; } = 1m;
     public decimal ScaleLb => Math.Max(MinimumScaleLb, Math.Ceiling(Math.Max(Math.Abs(Fat.ChangeLb ?? 0m),
         Math.Abs(Muscle.ChangeLb ?? 0m)) * 2m) / 2m);
