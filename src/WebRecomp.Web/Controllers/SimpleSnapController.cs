@@ -41,6 +41,9 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var names=await simple.AssignmentNamesAsync(state.SnapWorkouts.Select(w=>owners.GetValueOrDefault(w.Id))
                 .Concat(scope.HasValue?[scope.Value]:Array.Empty<Guid>()),ct);
             var assignedBy=state.SnapWorkouts.ToDictionary(w=>w.Id,w=>names.GetValueOrDefault(owners.GetValueOrDefault(w.Id))??"Coach unavailable");
+            // Live and retry drafts can contain only some of the current exercise rows.
+            // Calculate fees from the saved results before overlaying drafts for display.
+            var assessed=state.Rules.Count==AccountabilityDocument.RuleIds.Length?SimpleCoachingService.Charges(state,clock.Today).Where(x=>x.Ready).GroupBy(x=>x.Key.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount)):new Dictionary<string,decimal>();
             var retryWorkout=state.SnapWorkouts.SingleOrDefault(w=>w.Simple&&w.Id==retry?.WorkoutId);
             if(retryWorkout is not null&&retry is not null)
             {
@@ -65,7 +68,6 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             }
             var readings=new Dictionary<string,SnapWorkoutEstimate?>();
             if(estimates is not null)foreach(var workout in state.SnapWorkouts.Where(w=>w.Simple)){var actual=state.SnapResults.GetValueOrDefault(workout.Id);readings[workout.Id]=await estimates.EstimateAsync(clientId,workout,actual?.Finalized==true?actual:null,clock.Today,ct);}
-            var assessed=state.Rules.Count==AccountabilityDocument.RuleIds.Length?SimpleCoachingService.Charges(state,clock.Today).Where(x=>x.Ready).GroupBy(x=>x.Key.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount)):new Dictionary<string,decimal>();
             var posted=new Dictionary<string,decimal>();
             if(row is not null){var entries=await ledger.ReadAsync(row,ct);posted=entries.Where(x=>x.SourceKey.StartsWith("snap:")&&(!assignedCoach||x.CoachUserId==user.UserId)).GroupBy(x=>x.SourceKey.Split(':')[1]).ToDictionary(x=>x.Key,x=>x.Sum(y=>y.Amount));}
             var recent=assignedCoach?state.SnapWorkouts.Where(w=>w.Simple).Reverse().OrderByDescending(w=>w.CreatedAtUtc??DateTimeOffset.MinValue).Select(w=>(w.Id,w.Name,w.Date)).ToList():new List<(string Id,string Name,string Date)>();

@@ -48,7 +48,7 @@ public sealed class SnapLiveService(RecompDbContext db, NotificationFiles files,
     }
     public static string AssignmentToken(AccountabilityWorkout workout) => Convert.ToHexString(
         SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { workout.Id, workout.Name, workout.Date, workout.Exercises,
-            workout.TimeLimitMinutes, workout.Cap, workout.LatePenalty, workout.MinimumCharge, workout.CompletionReward,
+            TimeLimitMinutes = SnapAvailabilityClock.TimeLimitMinutes(workout), workout.Cap, workout.LatePenalty, workout.MinimumCharge, workout.CompletionReward,
             workout.OverrideSchedule, workout.OverrideHealthConflicts }, AccountabilityDocument.Json))));
     private static string ExerciseToken(AccountabilityExercise exercise) => Convert.ToHexString(
         SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(exercise, AccountabilityDocument.Json))));

@@ -1,9 +1,13 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging.Abstractions;
+using WebRecomp.Web.Controllers;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
@@ -13,6 +17,71 @@ using WebRecomp.Web.Services.Notifications;
 namespace WebRecomp.Web.Tests;
 public sealed class SnapLiveTests
 {
+    [Fact]
+    public async Task OpenStartedLegacyAssignmentBeforeAnySetsHaveBeenSaved()
+    {
+        using var f = new Fixture();
+        await f.Seed();
+        await f.Live.StartAsync(f.Owner, f.Client, "live-test", default);
+        var access = new CoachAccountabilityPreviewService(f.Db, new CoachCenterService(f.Db, f.Config), null!);
+        var availability = new SnapAvailabilityService(f.Db, f.Files);
+        var service = new SimpleCoachingService(f.Db, access, f.Ledger, availability: availability);
+        var http = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", "owner")], "test"))
+        };
+        http.Request.QueryString = new QueryString("?assignment=live-test");
+        var controller = new SimpleSnapController(new AppUserContextService(f.Db, f.Config), service, access,
+            f.Ledger, f.Config, live: f.Live)
+        {
+            ControllerContext = new ControllerContext { HttpContext = http }
+        };
+
+        var result = Assert.IsType<ViewResult>(await controller.Index(f.Client, default));
+        var page = Assert.IsType<SimpleSnapPage>(result.Model);
+        Assert.NotNull(page.LiveSessions["live-test"].StartedUtc);
+        Assert.Empty(page.State.SnapResults["live-test"].Sets);
+        Assert.Empty(page.AssessedCharges);
+        var workout = Assert.Single(page.State.SnapWorkouts);
+        Assert.NotNull(workout.TimeLimitMinutes);
+        var saved = await f.Live.SaveAsync(f.Owner, f.Client, workout.Id, SnapLiveService.AssignmentToken(workout),
+            page.LiveSessions[workout.Id].ProgressRevision, Sets(12), default);
+        Assert.Equal(12, saved.Sets["e1"][0].Reps);
+    }
+
+    [Fact]
+    public async Task OpeningAnotherWorkoutKeepsLegacyCompletedHistoryAndSparseDraftRows()
+    {
+        using var f = new Fixture();
+        await f.Seed();
+        var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        var original = AccountabilityDocument.Parse(row.StateJson);
+        var completed = original.SnapWorkouts.Single();
+        completed.DeadlineUtc = null;
+        original.SnapResults[completed.Id] = new() { Finalized = true, Sets = Sets(12) };
+        var draft = new AccountabilityWorkout
+        {
+            Id = "legacy-draft", Simple = true, Name = "Legacy draft", Date = completed.Date,
+            CreatedAtUtc = completed.CreatedAtUtc,
+            Exercises = [new() { Id = "e1", Name = "Push ups", Sets = 2, Reps = 10, MaxWeight = 0 },
+                new() { Id = "e2", Name = "Squat", Sets = 1, Reps = 10, MaxWeight = 0 }]
+        };
+        original.SnapWorkouts.Add(draft);
+        original.SnapResults[draft.Id] = new() { Sets = Sets(7) };
+        var state = AccountabilityDocument.Parse(AccountabilityDocument.Serialize(original));
+        var availability = new SnapAvailabilityService(f.Db, f.Files);
+        await availability.ApplyAsync(await f.Db.Clients.SingleAsync(), state, default);
+
+        Assert.Null(state.SnapWorkouts[0].DeadlineUtc);
+        Assert.Null(state.SnapResults[completed.Id].CompletedAtUtc);
+        Assert.Equal(12, state.SnapResults[completed.Id].Sets["e1"][0].Reps);
+        Assert.Equal(7, state.SnapResults[draft.Id].Sets["e1"][0].Reps);
+        Assert.Null(state.SnapResults[draft.Id].Sets["e1"][1].Reps);
+        Assert.Null(Assert.Single(state.SnapResults[draft.Id].Sets["e2"]).Reps);
+        Assert.DoesNotContain(SimpleCoachingService.Charges(state, DateOnly.FromDateTime(DateTime.UtcNow)),
+            charge => charge.Key == $"snap:{completed.Id}:late");
+    }
+
     [Fact] public async Task StartIsIdempotentAndAlertsOnlyTheAssigningCoach()
     {
         using var f = new Fixture(); await f.Seed();

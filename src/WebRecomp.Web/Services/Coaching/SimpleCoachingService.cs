@@ -130,7 +130,11 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
             else if(!old.Exercises.Any(e=>e.Id==exercise.Id))throw new ArgumentException("Reload the assigned exercise rows before editing.");
             exercise.CatalogId="";exercise.Weight=0;
         }
-        if(result is not null)result.Sets=updated.Exercises.ToDictionary(e=>e.Id,e=>old.Exercises.Any(o=>o.Id==e.Id&&string.Equals(o.Name.Trim(),e.Name.Trim(),StringComparison.OrdinalIgnoreCase))?result.Sets.GetValueOrDefault(e.Id)??[]:[]);
+        if(result is not null)
+        {
+            result.Sets=updated.Exercises.ToDictionary(e=>e.Id,e=>old.Exercises.Any(o=>o.Id==e.Id&&string.Equals(o.Name.Trim(),e.Name.Trim(),StringComparison.OrdinalIgnoreCase))?result.Sets.GetValueOrDefault(e.Id)??[]:[]);
+            AccountabilityDocument.FillMissingDraftRows(updated, result);
+        }
         state.SnapWorkouts[state.SnapWorkouts.IndexOf(old)]=updated;
         if(availability is not null)await availability.ApplyAsync(local,state,ct);
         AccountabilityDocument.Validate(state);

@@ -37,6 +37,10 @@ public sealed record SnapScheduleConflict(bool HasConflict, bool CanOverride, Da
 
 public static class SnapAvailabilityClock
 {
+    internal static int TimeLimitMinutes(AccountabilityWorkout workout) => workout.TimeLimitMinutes
+        ?? (workout.DeadlineUtc is { } deadline && workout.CreatedAtUtc is { } created
+            ? Math.Clamp((int)(deadline - created).TotalMinutes, 1, 10080) : 120);
+
     public static TimeZoneInfo Zone(string id)
     {
         try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
@@ -245,7 +249,9 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
 
     public async Task ApplyAsync(Client client, AccountabilityState state, CancellationToken ct)
     {
-        var workouts = state.SnapWorkouts.Where(w => w.Simple && w.CreatedAtUtc.HasValue).ToArray();
+        // A completed legacy workout without a finish timestamp cannot be compared with a newly computed deadline.
+        var workouts = state.SnapWorkouts.Where(w => w.Simple && w.CreatedAtUtc.HasValue
+            && state.SnapResults.GetValueOrDefault(w.Id) is not { Finalized: true, CompletedAtUtc: null }).ToArray();
         if (workouts.Length == 0) return;
         var now = time.GetUtcNow();
         var zone = SnapAvailabilityClock.Zone(client.TimeZone);
@@ -256,8 +262,7 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
         foreach (var workout in workouts)
         {
             // Retain a stable anchor so repeated refreshes never add blocked time twice.
-            var minutes = workout.TimeLimitMinutes ?? (workout.DeadlineUtc.HasValue
-                ? Math.Clamp((int)(workout.DeadlineUtc.Value - workout.CreatedAtUtc!.Value).TotalMinutes, 1, 10080) : 120);
+            var minutes = SnapAvailabilityClock.TimeLimitMinutes(workout);
             workout.TimingStartUtc ??= workout.DeadlineUtc?.AddMinutes(-minutes) ?? workout.CreatedAtUtc;
             workout.TimeLimitMinutes = minutes;
             var effectiveNow = state.SnapResults.GetValueOrDefault(workout.Id) is { Finalized: true, CompletedAtUtc: { } completed }
