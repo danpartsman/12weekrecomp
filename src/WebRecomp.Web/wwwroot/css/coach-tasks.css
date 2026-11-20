@@ -1,0 +1,15 @@
+.task-editor summary { font-weight: 700; cursor: pointer; }
+.task-fields, .task-terms { display: grid; gap: .8rem 1.2rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); margin: 1rem 0; }
+.task-fields label, .task-actions label { display: grid; gap: .3rem; }
+.task-fields input, .task-fields textarea, .task-fields select, .task-actions input { box-sizing: border-box; width: 100%; font-size: 1rem; }
+.task-fields [hidden] { display: none; }
+.task-full { grid-column: 1 / -1; }
+.task-card { margin-block: 1rem; overflow-wrap: anywhere; scroll-margin-top: 1rem; }
+.task-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .4rem 1rem; }
+.task-heading h2 { margin: 0; }
+.task-terms dt { font-size: .875rem; font-weight: 600; }
+.task-terms dd { margin-left: 0; }
+.task-notes { white-space: pre-wrap; }
+.task-clock { font-variant-numeric: tabular-nums; }
+.task-actions, .task-actions form { display: flex; flex-wrap: wrap; gap: .65rem; align-items: end; }
+.task-actions button { min-height: 44px; }

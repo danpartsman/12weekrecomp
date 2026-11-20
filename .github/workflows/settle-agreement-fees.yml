@@ -54,6 +54,7 @@ jobs:
           }
           if ($null -eq $result.posted) { throw 'LIVE did not return a fee assessment result.' }
           Write-Output "LIVE agreement fee ledger entries posted: $($result.posted)"
+          Write-Output "LIVE task deadline penalties posted: $($result.taskPenalties)"
           '@
           $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
           $body = @{command="powershell.exe -NoProfile -EncodedCommand $encoded";dir='D:\home'} | ConvertTo-Json

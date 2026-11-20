@@ -1,4 +1,5 @@
 @model MyCoachesViewModel
+@using WebRecomp.Web.Services.Coaching
 @{ ViewData["Title"] = "My Coach"; }
 <h1>My Coach</h1>
 <section class="card" aria-labelledby="coaching-overview">
@@ -20,6 +21,10 @@
         <section class="card">
             <h3><a asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachId="@coach.CoachUserId">@coach.Name</a></h3>
             <p>@coach.Specialties</p><p>@coach.Bio</p>
+            @if (SimpleCoaching.Enabled(Context.RequestServices.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()))
+            {
+                <p><a class="button" asp-controller="CoachTasks" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachId="@coach.CoachUserId">Task assignments</a></p>
+            }
             <form asp-action="Disconnect" asp-route-relationshipId="@coach.RelationshipId" method="post"><button type="submit">Disconnect coach</button></form>
         </section>
     }

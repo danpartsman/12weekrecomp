@@ -110,14 +110,18 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
         }
         return output;
     }
-    public void Append(CoachAccountabilityAgreement row,Guid actor,IReadOnlyList<AccountabilityLedgerEntry> entries)
+    public void Append(CoachAccountabilityAgreement row,Guid actor,IReadOnlyList<AccountabilityLedgerEntry> entries,
+        CoachTaskAssignment? taskAssignment = null)
     {
-        if(entries.Count==0)return;
+        if(entries.Count==0 && taskAssignment is null)return;
         if(entries.Any(x=>!x.CoachUserId.HasValue))throw new InvalidOperationException("Assign financial entries to a coach before posting.");
         if(db.Entry(row).State==EntityState.Detached)db.Attach(row);
         row.Revision++;row.UpdatedAtUtc=DateTime.UtcNow;
+        var payload = taskAssignment is null
+            ? JsonSerializer.Serialize(new { ledgerEntries = entries }, AccountabilityDocument.Json)
+            : JsonSerializer.Serialize(new { ledgerEntries = entries, taskAssignment }, AccountabilityDocument.Json);
         db.CoachAccountabilityEvents.Add(new(){EventId=Guid.NewGuid(),ClientId=row.ClientId,ActorUserId=actor,Kind="RESULT",Revision=row.Revision,TermsVersion=row.TermsVersion,
-            CreatedAtUtc=row.UpdatedAtUtc,PayloadJson=JsonSerializer.Serialize(new{ledgerEntries=entries},AccountabilityDocument.Json)});
+            CreatedAtUtc=row.UpdatedAtUtc,PayloadJson=payload});
     }
     public async Task RefreshAsync(Guid actor,CoachAccountabilityAgreement row,UserAccount user,CancellationToken ct)
     {
@@ -249,7 +253,7 @@ public sealed class AccountabilityLedger(RecompDbContext db, CoachAccountability
         var client=await db.Clients.AsNoTracking().SingleAsync(x=>x.ClientId==clientId,ct);
         return(AppUserContextService.GetClientToday(client),client.TimeZone);
     }
-    private async Task SaveAsync(CancellationToken ct)
+    internal async Task SaveAsync(CancellationToken ct)
     {
         try{await db.SaveChangesAsync(ct);}
         catch(DbUpdateConcurrencyException){db.ChangeTracker.Clear();throw new AccountabilityConflictException();}

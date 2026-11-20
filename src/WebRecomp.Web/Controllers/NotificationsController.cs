@@ -83,7 +83,9 @@ public sealed class NotificationsController(AppUserContextService users, Notific
         if (!HasJobAuthorization()) return NotFound();
         var settlement = HttpContext.RequestServices.GetRequiredService<AgreementSettlementJob>();
         var posted = await settlement.RunAsync(ct);
-        return Ok(new { posted });
+        var tasks = HttpContext.RequestServices.GetRequiredService<CoachTaskService>();
+        var taskPenalties = await tasks.PostOverdueAsync(ct);
+        return Ok(new { posted, taskPenalties });
     }
 
     private bool HasJobAuthorization()
