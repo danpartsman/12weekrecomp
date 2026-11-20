@@ -68,8 +68,8 @@
                 </div>
             </section>
             <div class="task-fields">
-                <label class="task-full" data-task-timed hidden="@(!timed)"><span>Complete by <small>· @browserZone</small></span>
-                    <input asp-for="Input.DueLocal" asp-format="{0:yyyy-MM-ddTHH:mm}" type="datetime-local" data-task-due disabled="@(!timed)" />
+                <label class="task-full"><span>Complete by <small>· @browserZone</small></span>
+                    <input asp-for="Input.DueLocal" asp-format="{0:yyyy-MM-ddTHH:mm}" type="datetime-local" data-task-due />
                 </label>
                 <label class="task-full" data-task-unit hidden="@(!quantityMode)">Quantity unit<input asp-for="Input.Unit" maxlength="40" placeholder="e.g. pages" disabled="@(!quantityMode)" /></label>
                 <fieldset class="task-bounds task-full" data-task-bounds hidden="@(!timed && !quantityMode)" disabled="@(!timed && !quantityMode)">
@@ -81,7 +81,7 @@
                 </fieldset>
                 <div class="task-pair task-pricing task-full">
                     <label><span data-task-rate>Fee (USD)</span><input asp-for="Input.Rate" type="number" min="0" max="10000" step="0.01" required /></label>
-                    <label data-task-timed hidden="@(!timed)">Late penalty (USD)<input asp-for="Input.LateFee" type="number" min="0" max="10000" step="0.01" disabled="@(!timed)" /></label>
+                    <label>Late penalty (USD)<input asp-for="Input.LateFee" type="number" min="0" max="10000" step="0.01" required /></label>
                 </div>
                 <label class="task-full">Notes<textarea asp-for="Input.Notes" rows="2" maxlength="2000"></textarea></label>
             </div>

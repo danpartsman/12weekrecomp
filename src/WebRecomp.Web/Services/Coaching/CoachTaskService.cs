@@ -47,8 +47,6 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
             throw new ArgumentException("Enter a title up to 120 characters and notes up to 2,000 characters.");
         if (billing is not ("fixed" or "quantity" or "minute" or "hour"))
             throw new ArgumentException("Choose a fee type.");
-        var timed = billing is "minute" or "hour";
-        if (!timed) lateFee = 0;
         var label = billing == "quantity" ? (unit ?? "").Trim() : billing == "fixed" ? "task" : "minutes";
         if (label.Length is 0 or > 40) throw new ArgumentException("Enter a quantity unit up to 40 characters.");
         var min = billing == "fixed" ? 1m : minimum;
@@ -64,8 +62,8 @@ public sealed class CoachTaskService(RecompDbContext db, SimpleCoachingService c
             throw new ArgumentException("Use dollar amounts with up to two decimal places and a maximum task fee of $10,000.");
 
         var now = time.GetUtcNow();
-        DateTimeOffset? due = timed ? now.AddHours(2) : null;
-        if (timed && dueLocal is { } local)
+        var due = now.AddHours(2);
+        if (dueLocal is { } local)
         {
             var zone = SnapAvailabilityClock.Zone(party.TimeZone);
             if (zone.IsInvalidTime(local)) throw new ArgumentException("Choose a deadline outside the skipped local hour.");

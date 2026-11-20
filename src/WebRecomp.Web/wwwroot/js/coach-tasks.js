@@ -21,11 +21,6 @@
         const sync = () => {
             const quantity = mode.value === 'quantity';
             const timed = mode.value === 'minute' || mode.value === 'hour';
-            for (const field of editor.querySelectorAll('[data-task-timed]')) {
-                field.hidden = !timed;
-                field.querySelector('input').disabled = !timed;
-            }
-            if (timed && !due.value) due.value = suggestDue();
             unit.hidden = !quantity;
             unit.querySelector('input').disabled = !quantity;
             unit.querySelector('input').required = quantity;
@@ -35,6 +30,7 @@
             editor.querySelector('[data-task-rate]').textContent = timed ? `Fee per ${mode.value} (USD)`
                 : quantity ? 'Fee per unit (USD)' : 'Flat fee (USD)';
         };
+        if (!due.value) due.value = suggestDue();
         mode.addEventListener('change', sync);
         sync();
     }

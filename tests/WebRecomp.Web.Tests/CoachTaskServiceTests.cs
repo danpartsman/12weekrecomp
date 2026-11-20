@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using WebRecomp.Web.Data;
+using WebRecomp.Web.Controllers;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services.Coaching;
 using WebRecomp.Web.Services.Notifications;
@@ -17,24 +18,18 @@ public sealed class CoachTaskServiceTests
     [InlineData("quantity")]
     [InlineData("minute")]
     [InlineData("hour")]
-    public async Task OnlyTimedTasksGetTheDefaultDeadline(string billing)
+    public async Task AllFeeTypesGetTheDefaultDeadlineAndCanAssessALatePenalty(string billing)
     {
         await using var f = new Fixture();
         var party = await f.SeedAsync();
-        await f.Tasks.AssignAsync(party, Guid.NewGuid(), "Task", null, billing, "pages", 1, 5, 1, 4, null, default);
+        var input = new CoachTaskInput();
+        Assert.Equal(20m, input.LateFee);
+        await f.Tasks.AssignAsync(party, Guid.NewGuid(), "Task", null, billing, "pages", 1, 5, 1, input.LateFee!.Value, null, default);
         var task = Assert.Single(await f.Tasks.ReadAsync(party, default));
-        if (billing is "minute" or "hour")
-        {
-            Assert.Equal(f.Clock.Now.AddHours(2), task.DueUtc);
-            Assert.Equal(4m, task.LateFee);
-        }
-        else
-        {
-            Assert.Null(task.DueUtc);
-            Assert.Equal(0m, task.LateFee);
-            f.Clock.Now = f.Clock.Now.AddDays(1);
-            Assert.Equal(0, await f.Tasks.PostOverdueAsync(default));
-        }
+        Assert.Equal(f.Clock.Now.AddHours(2), task.DueUtc);
+        Assert.Equal(20m, task.LateFee);
+        f.Clock.Now = f.Clock.Now.AddHours(2).AddMinutes(1);
+        Assert.Equal(1, await f.Tasks.PostOverdueAsync(default));
     }
 
     [Theory]
@@ -150,13 +145,6 @@ public sealed class CoachTaskServiceTests
         var due = f.Clock.Now.UtcDateTime.AddMinutes(10);
         await f.Tasks.AssignAsync(party, id, "Review", null, "quantity", "pages", 2, 5, 2.50m, 8m, due, default);
         await f.Tasks.AssignAsync(party, id, "Review", null, "quantity", "pages", 2, 5, 2.50m, 8m, due, default);
-        var legacyTask = Assert.Single(await f.Tasks.ReadAsync(party, default));
-        var agreement = await f.Db.CoachAccountabilityAgreements.SingleAsync();
-        f.Ledger.Append(agreement, party.CoachId, [], legacyTask with
-        {
-            DueUtc = new DateTimeOffset(due), LateFee = 8m
-        });
-        await f.Db.SaveChangesAsync();
         Assert.Empty(await f.Tasks.ReadAsync(other, default));
         Assert.False(await f.Tasks.UpdateAsync(other, id, 1, "start", null, default));
         Assert.Equal(0, await f.Tasks.PostOverdueAsync(default));
