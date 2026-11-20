@@ -41,7 +41,7 @@ internal static class AgreementSettlement
                 var rule = version.Rules[i];
                 // Include disabled daily rules so previously posted fees can be reversed
                 // when the accepted replacement removes them.
-                if (rule.Frequency is not ("daily" or "weekly" or "monthly")) continue;
+                if (rule.Frequency is not ("daily" or "weekly")) continue;
                 if ((!rule.Enabled || rule.Amount <= 0) && rule.Frequency != "daily") continue;
                 if (includeAcceptanceDay && rule.Frequency != "daily") continue;
                 var (start, end) = AccountabilityAssessment.Period(date, rule.Frequency);
