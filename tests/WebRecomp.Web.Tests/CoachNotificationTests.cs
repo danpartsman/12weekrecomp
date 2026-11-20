@@ -527,8 +527,8 @@ public sealed class CoachNotificationTests
         var clock = new SettlementClock { Now = new DateTimeOffset(2026, 11, 9, 20, 0, 0, TimeSpan.Zero) };
         var job = new AgreementSettlementJob(f.Db, f.Files, null!, null!, new SimpleCoachingService(f.Db, access, ledger),
             ledger, f.Config, NullLogger<AgreementSettlementJob>.Instance, clock);
-        await job.RunAsync(default);
-        clock.Now = new(2026, 11, 12, 8, 0, 0, TimeSpan.Zero);
+        f.Files.Write("financial-agreements/settlement-activation", clock.Now.UtcDateTime);
+        clock.Now = new(2026, 11, 12, 8, 1, 0, TimeSpan.Zero);
         await job.RunAsync(default);
         var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
         var date = new DateOnly(2026, 11, 11);
@@ -550,7 +550,7 @@ public sealed class CoachNotificationTests
         // A subsequent proposal must leave the latest accepted revision in force.
         SaveFinancial(f, replacement with { Revision = 6, Status = "pending", AcceptedUtc = null,
             AcceptedBy = null, AcceptedHistory = [original, replacement] });
-        clock.Now = new(2026, 11, 13, 8, 0, 0, TimeSpan.Zero);
+        clock.Now = new(2026, 11, 13, 8, 1, 0, TimeSpan.Zero);
         await job.RunAsync(default);
         Assert.Equal((decimal)expected, (await ledger.ReadAsync(row, default))
             .Where(x => x.Date == date.AddDays(1)).Sum(x => x.Amount));
@@ -582,7 +582,7 @@ public sealed class CoachNotificationTests
         var clock = new SettlementClock { Now = new DateTimeOffset(2026, 11, 1, 20, 0, 0, TimeSpan.Zero) };
         var job = new AgreementSettlementJob(f.Db, f.Files, null!, foodLog, new SimpleCoachingService(f.Db, access, ledger),
             ledger, f.Config, NullLogger<AgreementSettlementJob>.Instance, clock);
-        await job.RunAsync(default);
+        f.Files.Write("financial-agreements/settlement-activation", clock.Now.UtcDateTime);
         clock.Now = new(2026, 11, 3, 2, 0, 0, TimeSpan.Zero);
         await job.RunAsync(default);
         var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();

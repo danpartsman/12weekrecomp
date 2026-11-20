@@ -29,12 +29,16 @@ public sealed class AgreementSettlementJob(
             throw new InvalidOperationException("Agreement fee settlement is disabled.");
         var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
         const string activationKey = "financial-agreements/settlement-activation";
+        const string firstRunKey = "financial-agreements/settlement-first-run";
         DateTime activated;
+        bool hasLegacyActivation;
         using (files.Lease(activationKey))
         {
-            var saved = files.Read<DateTime?>(activationKey);
+            var legacy = files.Read<DateTime?>(activationKey);
+            hasLegacyActivation = legacy.HasValue;
+            var saved = legacy ?? files.Read<DateTime?>(firstRunKey);
             activated = saved ?? now;
-            if (saved is null) files.Write(activationKey, activated);
+            if (saved is null) files.Write(firstRunKey, activated);
         }
 
         var pairs = await db.CoachClientRelationships.AsNoTracking()
@@ -48,7 +52,8 @@ public sealed class AgreementSettlementJob(
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                posted += await PostPairAsync(pair.ClientId, pair.CoachUserId, pair.AcceptedAtUtc, activated, now, cancellationToken);
+                posted += await PostPairAsync(pair.ClientId, pair.CoachUserId, pair.AcceptedAtUtc, activated,
+                    hasLegacyActivation, now, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception error)
@@ -64,7 +69,7 @@ public sealed class AgreementSettlementJob(
     }
 
     private async Task<int> PostPairAsync(Guid clientId, Guid coach, DateTime? linkedAt, DateTime activated,
-        DateTime now, CancellationToken ct)
+        bool hasLegacyActivation, DateTime now, CancellationToken ct)
     {
         var pairKey = $"financial-agreements/{clientId:N}-{coach:N}";
         var agreement = files.Read<CoachFinancialAgreement>(pairKey);
@@ -82,10 +87,18 @@ public sealed class AgreementSettlementJob(
         var zone = TimeZoneInfo.FindSystemTimeZoneById(client.TimeZone);
         DateTime LocalTime(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone);
         DateOnly LocalDate(DateTime utc) => DateOnly.FromDateTime(LocalTime(utc));
-        var localNow = LocalTime(now);
-        var activationClose = LocalDate(activated).AddDays(-1);
+        DateOnly ClosedThrough(DateTime utc)
+        {
+            var localTime = LocalTime(utc);
+            return DateOnly.FromDateTime(localTime).AddDays(localTime.TimeOfDay < TimeSpan.FromMinutes(1) ? -2 : -1);
+        }
         var first = linkedAt is { } linked ? LocalDate(linked).AddDays(1) : DateOnly.MinValue;
-        var closed = DateOnly.FromDateTime(localNow).AddDays(localNow.TimeOfDay < TimeSpan.FromMinutes(1) ? -2 : -1);
+        // Preserve the previous activation cutoff. A fresh installation starts
+        // with the period that closed at the first trigger, even for weekly rules.
+        if (hasLegacyActivation && LocalDate(activated).AddDays(1) > first)
+            first = LocalDate(activated).AddDays(1);
+        var activationClose = hasLegacyActivation ? first : ClosedThrough(activated);
+        var closed = ClosedThrough(now);
         var progressKey = $"financial-agreements/settlement-{clientId:N}-{coach:N}";
         using var lease = files.Lease(progressKey);
         var posted = 0;
@@ -96,6 +109,11 @@ public sealed class AgreementSettlementJob(
             ? versions.Where(v => v.Revision == 2 && v.AcceptedBy == owners[0]
                 && v.AcceptedUtc is { } accepted && LocalDate(accepted) == CatchUpDate).ToArray()
             : [];
+        if (hasLegacyActivation && acceptedOnDate.Length != 0 && first > CatchUpDate.AddDays(1))
+        {
+            first = CatchUpDate.AddDays(1);
+            activationClose = first;
+        }
         if (acceptedOnDate.Length != 0 && closed >= CatchUpDate && closed <= CatchUpDate.AddDays(2))
         {
             var receiptKey = progressKey + "-accepted-day-20261107";
