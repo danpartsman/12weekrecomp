@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
@@ -34,7 +35,8 @@ public sealed class SnapLiveTests
         var controller = new SimpleSnapController(new AppUserContextService(f.Db, f.Config), service, access,
             f.Ledger, f.Config, live: f.Live)
         {
-            ControllerContext = new ControllerContext { HttpContext = http }
+            ControllerContext = new ControllerContext { HttpContext = http },
+            TempData = new TempDataDictionary(http, new EmptyTempData())
         };
 
         var result = Assert.IsType<ViewResult>(await controller.Index(f.Client, default));
@@ -47,6 +49,12 @@ public sealed class SnapLiveTests
         var saved = await f.Live.SaveAsync(f.Owner, f.Client, workout.Id, SnapLiveService.AssignmentToken(workout),
             page.LiveSessions[workout.Id].ProgressRevision, Sets(12), default);
         Assert.Equal(12, saved.Sets["e1"][0].Reps);
+    }
+
+    private sealed class EmptyTempData : ITempDataProvider
+    {
+        public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
+        public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
     }
 
     [Fact]
