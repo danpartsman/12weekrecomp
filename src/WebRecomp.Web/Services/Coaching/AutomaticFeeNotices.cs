@@ -29,24 +29,21 @@ public static class AutomaticFeeNotices
     public static string ReceiptKey(Guid user) => $"users/automatic-fees-{user:N}";
 
     public static async Task<IReadOnlyList<AutomaticFeeNotice>> ReadAsync(
-        RecompDbContext db, NotificationFiles files, Guid user, Guid? selectedClient, bool isCoach, CancellationToken ct)
+        RecompDbContext db, NotificationFiles files, Guid user, bool isCoach, CancellationToken ct)
     {
-        Guid? ownedClient = null;
-        if (selectedClient is { } clientId)
-        {
-            var owners = await db.UserClientAccess.AsNoTracking()
-                .Where(x => x.ClientId == clientId && x.AccessRoleCode == "OWNER" && x.RevokedAtUtc == null)
-                .Select(x => x.UserId).Distinct().Take(2).ToListAsync(ct);
-            if (owners.Count == 1 && owners[0] == user) ownedClient = clientId;
-        }
-        if (!ownedClient.HasValue && !isCoach) return [];
+        var owners = db.UserClientAccess.AsNoTracking()
+            .Where(x => x.AccessRoleCode == "OWNER" && x.RevokedAtUtc == null);
+        var ownedClients = await owners.Where(x => x.UserId == user
+                && !owners.Any(other => other.ClientId == x.ClientId && other.UserId != user))
+            .Select(x => x.ClientId).Distinct().ToArrayAsync(ct);
+        if (ownedClients.Length == 0 && !isCoach) return [];
 
         var pairs = await (from link in db.CoachClientRelationships.AsNoTracking()
             join client in db.Clients.AsNoTracking() on link.ClientId equals (Guid?)client.ClientId
             join coach in db.UserAccounts.AsNoTracking() on link.CoachUserId equals coach.UserId
             where link.StatusCode == "ACTIVE" && link.RevokedAtUtc == null
                 && client.ClientStatusCode == "ACTIVE" && coach.AccountStatusCode == "ACTIVE"
-                && (link.ClientId == ownedClient || (isCoach && link.CoachUserId == user))
+                && (ownedClients.Contains(client.ClientId) || (isCoach && link.CoachUserId == user))
             select new { client.ClientId, CoachId = coach.UserId, client.ClientName,
                 CoachName = coach.PreferredDisplayName ?? coach.DisplayName ?? "Coach" }).Distinct().ToListAsync(ct);
         if (pairs.Count == 0) return [];
@@ -71,7 +68,7 @@ public static class AutomaticFeeNotices
                     continue;
                 var id = entry.Id.ToString("N");
                 if (!seen.Add(id)) continue;
-                var forCoach = ownedClient != batch.ClientId;
+                var forCoach = !ownedClients.Contains(batch.ClientId);
                 var name = forCoach ? pair.ClientName : pair.CoachName;
                 var options = forCoach ? CoachMessages : ClientMessages;
                 var firstName = pair.ClientName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Your client";

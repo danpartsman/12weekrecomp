@@ -1,5 +1,6 @@
 <link rel="stylesheet" href="~/css/coach-activity-notices.css" asp-append-version="true" />
-<dialog class="coach-activity-dialog" data-coach-activity data-notice-endpoint="/fee-notices" aria-labelledby="fee-notice-title">
+<dialog class="coach-activity-dialog" data-coach-activity data-notice-endpoint="/fee-notices"
+        data-fee-sign-in="@(User.FindFirst("recomp_sign_in_id")?.Value)" aria-labelledby="fee-notice-title">
     <img class="fee-notice-art" data-fee-cash src="~/images/fee-notice-cash.webp" asp-append-version="true" alt="" width="128" height="128" hidden />
     <img class="fee-notice-art fee-notice-portrait" data-fee-portrait src="~/images/coach/lucia-strength-v1015e-1.webp" asp-append-version="true" alt="" width="128" height="128" hidden />
     <h2 id="fee-notice-title" data-fee-message>Automatic fee posted</h2>

@@ -482,6 +482,9 @@ public sealed class CoachNotificationTests
         await job.RunAsync(default);
         Assert.False(await f.Db.CoachAccountabilityAgreements.AnyAsync());
         clock.Now = clock.Now.AddMinutes(1);
+        Assert.Equal(0, await job.RunAsync(default));
+        Assert.False(await f.Db.CoachAccountabilityAgreements.AnyAsync());
+        clock.Now = clock.Now.AddMinutes(1);
         await job.RunAsync(default);
         await job.RunAsync(default);
         var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
@@ -608,14 +611,14 @@ public sealed class CoachNotificationTests
     }
 
     [Fact]
-    public async Task WeeklySettlementPostsAtLocalMidnightOnThePaymentDay()
+    public async Task WeeklySettlementPostsAt1201OnThePaymentDayAndNotifiesBothPeople()
     {
         using var f = new Fixture();
         await SeedFinancial(f);
         f.Config["SimpleCoaching:Enabled"] = "true";
         (await f.Db.Clients.SingleAsync()).TimeZone = "America/Los_Angeles";
         await f.Db.SaveChangesAsync();
-        var acceptedAt = new DateTime(2026, 10, 29, 12, 0, 0, DateTimeKind.Utc);
+        var acceptedAt = new DateTime(2026, 11, 2, 12, 0, 0, DateTimeKind.Utc);
         SaveFinancial(f, new(2, "accepted", acceptedAt, f.Owner, null,
             Enumerable.Range(0, 10).Select(i => new CoachFinancialRule("Missing nutrition", i == 5, "weekly",
                 15, 0, 0, "Incomplete nutrition", "event")).ToArray(), acceptedAt, f.Owner, PaymentDay: DayOfWeek.Friday));
@@ -629,13 +632,20 @@ public sealed class CoachNotificationTests
         await job.RunAsync(default);
         Assert.False(await f.Db.CoachAccountabilityAgreements.AnyAsync());
         clock.Now = clock.Now.AddMinutes(1);
-        await job.RunAsync(default);
-        await job.RunAsync(default);
+        Assert.Equal(0, await job.RunAsync(default));
+        Assert.False(await f.Db.CoachAccountabilityAgreements.AnyAsync());
+        clock.Now = clock.Now.AddMinutes(1);
+        Assert.Equal(1, await job.RunAsync(default));
+        Assert.Equal(0, await job.RunAsync(default));
         var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
         var entry = Assert.Single(await ledger.ReadAsync(row, default));
         Assert.Equal(15m, entry.Amount);
         Assert.Equal(new DateOnly(2026, 11, 12), entry.Date);
         Assert.EndsWith(":2026-11-06:2026-11-12", entry.SourceKey);
+        var clientNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, false, default));
+        var coachNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, true, default));
+        Assert.Equal(entry.Id.ToString("N"), clientNotice.Id);
+        Assert.Equal(clientNotice.Id, coachNotice.Id);
     }
 
     public class TreatLogStub : DispatchProxy
@@ -678,8 +688,8 @@ public sealed class CoachNotificationTests
         });
         await f.Db.SaveChangesAsync();
 
-        var clientNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, f.Client, false, default));
-        var coachNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, null, true, default));
+        var clientNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, false, default));
+        var coachNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, true, default));
         Assert.Contains("Coach · $15.00", clientNotice.Title);
         Assert.Contains("Client · $15.00", coachNotice.Title);
         Assert.False(clientNotice.ForCoach);
@@ -687,12 +697,12 @@ public sealed class CoachNotificationTests
         Assert.NotEqual(clientNotice.Message, coachNotice.Message);
         Assert.Equal(clientNotice.Id, coachNotice.Id);
         Assert.Equal($"/clients/{f.Client:D}/coach-ledger?coachUserId={f.Coach:D}", coachNotice.Url);
-        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, otherCoach, f.Client, true, default));
-        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, Guid.NewGuid(), f.Client, false, default));
+        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, otherCoach, true, default));
+        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, Guid.NewGuid(), false, default));
 
         f.Files.Write(AutomaticFeeNotices.ReceiptKey(f.Owner), new[] { clientNotice.Id });
-        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, f.Client, false, default));
-        Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, null, true, default));
+        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, false, default));
+        Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, true, default));
     }
 
     private sealed class SettlementClock : TimeProvider

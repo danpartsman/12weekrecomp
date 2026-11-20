@@ -20,7 +20,6 @@ using WebRecomp.CatalogSync.Providers;
 using WebRecomp.Web.Services.CatalogSync;
 using WebRecomp.Web.Services.Nutrition;
 using WebRecomp.Web.Services.Learning;
-using WebRecomp.Web.Services.Scheduling;
 using WebRecomp.NutritionIntelligence.Contracts;
 using WebRecomp.NutritionIntelligence.Persistence;
 using WebRecomp.NutritionIntelligence.Providers.FatSecret;
@@ -33,6 +32,7 @@ builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.CoachAccountabilitySt
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.AccountabilityDefaultsStore>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapWorkoutLibrary>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.AccountabilityLedger>();
+builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.AgreementSettlementJob>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SimpleCoachingService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapLiveService>();
 builder.Services.AddScoped<WebRecomp.Web.Services.Coaching.SnapAvailabilityService>();

@@ -317,7 +317,8 @@ public sealed class AccountController(
             new("sub", user.ExternalSubject),
             new(ClaimTypes.Name, displayName),
             new(ClaimTypes.Role, roleCode),
-            new("recomp_auth_source", "LOCAL")
+            new("recomp_auth_source", "LOCAL"),
+            new("recomp_sign_in_id", Guid.NewGuid().ToString("N"))
         };
 
         if (!string.IsNullOrWhiteSpace(user.EmailNormalized))
