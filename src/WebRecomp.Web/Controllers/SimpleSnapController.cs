@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
 namespace WebRecomp.Web.Controllers;
-public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Guid? CoachUserId{get;init;}public string? CoachName{get;init;}public Dictionary<string,SnapLiveState> LiveSessions{get;init;}=[];public Dictionary<string,string> AssignedBy{get;init;}=[];public Dictionary<string,Guid> AssignmentOwners{get;init;}=[];public HashSet<string> CatalogExerciseNames{get;init;}=[];public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];public Dictionary<string,decimal> AssessedCharges{get;init;}=[];public Dictionary<string,decimal> PostedCharges{get;init;}=[];public List<(string Id,string Name,string Date)> RecentTemplates{get;init;}=[];}
+public sealed record SimpleSnapPage(Guid ClientId,string Name,bool Coach,int Revision,DateOnly Today,AccountabilityState State,SimpleSnapController.AssignmentInput Draft,string ClientTimeZone){public Guid? CoachUserId{get;init;}public string? CoachName{get;init;}public Dictionary<string,SnapLiveState> LiveSessions{get;init;}=[];public Dictionary<string,string> AssignedBy{get;init;}=[];public Dictionary<string,Guid> AssignmentOwners{get;init;}=[];public HashSet<string> CatalogExerciseNames{get;init;}=[];public Dictionary<string,SnapWorkoutEstimate?> Estimates{get;init;}=[];public Dictionary<string,decimal> AssessedCharges{get;init;}=[];public Dictionary<string,decimal> PostedCharges{get;init;}=[];public List<(string Id,string Name,string Date)> RecentTemplates{get;init;}=[];public Dictionary<string,string> AssignmentTokens{get;init;}=[];}
 public sealed record SimpleSnapCompletionPage(Guid ClientId, string ClientName, Guid CoachId, string CoachName,
     bool IsCoach, int Revision, AccountabilityWorkout Workout, AccountabilityResult Result,
     IReadOnlyList<AccountabilityCharge> Charges, decimal PostedTotal, string TimeZone);
@@ -29,10 +29,11 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             await simple.RefreshAsync(user.UserId,clientId,assignedCoach,ct);
             var row=await simple.ReadAsync(user.UserId,clientId,assignedCoach,ct);var clock=await ledger.ClockAsync(clientId,ct);
             var state=row is null?new AccountabilityState():AccountabilityDocument.Parse(row.StateJson);
-            await simple.ApplyAvailabilityAsync(clientId,state,ct);
             var scope=await ResolveScopeAsync(user.UserId,clientId,assignedCoach,coachUserId,ct);
             var owners=await simple.AssignmentOwnersAsync(clientId,ct);
             if(scope.HasValue)SnapWorkoutAssignments.Filter(state,owners,scope.Value);
+            var assignmentTokens = state.SnapWorkouts.Where(w => w.Simple).ToDictionary(w => w.Id, SnapLiveService.AssignmentToken);
+            await simple.ApplyAvailabilityAsync(clientId,state,ct);
             ViewData["SnapCoachScope"]=scope;
             ViewData["SnapResultRetry"] = retry is not null;
             var selected=retry?.WorkoutId??Request.Query["assignment"].FirstOrDefault();
@@ -77,7 +78,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
                 : (await scheduleDb.ExerciseCatalogItems.AsNoTracking()
                     .Where(x => x.IsActive && x.SourceCode != "12WR_CSV_UNMAPPED" && namesInWorkouts.Contains(x.Name))
                     .Select(x => x.Name).ToListAsync(ct)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today,Name="Snap Workout "+TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(clock.Zone)).ToString("M/d/yy h:mmtt",System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()},clock.Zone){LiveSessions=liveSessions,Estimates=readings,AssessedCharges=assessed,PostedCharges=posted,RecentTemplates=recent,CoachUserId=scope,CoachName=scope.HasValue?names.GetValueOrDefault(scope.Value)??"Coach":null,AssignedBy=assignedBy,AssignmentOwners=owners,CatalogExerciseNames=catalogNames});
+            return View("Index",new SimpleSnapPage(clientId,await access.ClientNameAsync(clientId,ct)??"Client",assignedCoach,row?.Revision??0,clock.Today,state,draft??new(){Date=clock.Today,Name="Snap Workout "+TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,TimeZoneInfo.FindSystemTimeZoneById(clock.Zone)).ToString("M/d/yy h:mmtt",System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()},clock.Zone){LiveSessions=liveSessions,Estimates=readings,AssessedCharges=assessed,PostedCharges=posted,RecentTemplates=recent,CoachUserId=scope,CoachName=scope.HasValue?names.GetValueOrDefault(scope.Value)??"Coach":null,AssignedBy=assignedBy,AssignmentOwners=owners,CatalogExerciseNames=catalogNames,AssignmentTokens=assignmentTokens});
         }
         catch(UnauthorizedAccessException){return NotFound();}
     }

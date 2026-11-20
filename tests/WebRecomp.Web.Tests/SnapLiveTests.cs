@@ -46,7 +46,7 @@ public sealed class SnapLiveTests
         Assert.Empty(page.AssessedCharges);
         var workout = Assert.Single(page.State.SnapWorkouts);
         Assert.NotNull(workout.TimeLimitMinutes);
-        var saved = await f.Live.SaveAsync(f.Owner, f.Client, workout.Id, SnapLiveService.AssignmentToken(workout),
+        var saved = await f.Live.SaveAsync(f.Owner, f.Client, workout.Id, page.AssignmentTokens[workout.Id],
             page.LiveSessions[workout.Id].ProgressRevision, Sets(12), default);
         Assert.Equal(12, saved.Sets["e1"][0].Reps);
     }

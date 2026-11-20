@@ -37,10 +37,6 @@ public sealed record SnapScheduleConflict(bool HasConflict, bool CanOverride, Da
 
 public static class SnapAvailabilityClock
 {
-    internal static int TimeLimitMinutes(AccountabilityWorkout workout) => workout.TimeLimitMinutes
-        ?? (workout.DeadlineUtc is { } deadline && workout.CreatedAtUtc is { } created
-            ? Math.Clamp((int)(deadline - created).TotalMinutes, 1, 10080) : 120);
-
     public static TimeZoneInfo Zone(string id)
     {
         try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
@@ -262,7 +258,8 @@ public sealed class SnapAvailabilityService(RecompDbContext db, NotificationFile
         foreach (var workout in workouts)
         {
             // Retain a stable anchor so repeated refreshes never add blocked time twice.
-            var minutes = SnapAvailabilityClock.TimeLimitMinutes(workout);
+            var minutes = workout.TimeLimitMinutes ?? (workout.DeadlineUtc.HasValue
+                ? Math.Clamp((int)(workout.DeadlineUtc.Value - workout.CreatedAtUtc!.Value).TotalMinutes, 1, 10080) : 120);
             workout.TimingStartUtc ??= workout.DeadlineUtc?.AddMinutes(-minutes) ?? workout.CreatedAtUtc;
             workout.TimeLimitMinutes = minutes;
             var effectiveNow = state.SnapResults.GetValueOrDefault(workout.Id) is { Finalized: true, CompletedAtUtc: { } completed }
