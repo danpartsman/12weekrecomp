@@ -117,7 +117,7 @@ var ruleTitle=i<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"
 </tr>
 }
 </tbody></table></div>
-<p>Set limits in g or kcal per day, or as a percentage of the daily system target. Nutrition incentives use the same limits.</p>
+<p>Set limits in g or kcal per day, or as a percentage of the system target.</p>
 @if(financial.Rules.Any(x=>x.Minimum>0||x.Maximum>0)){
 <details><summary>Saved fee limits</summary>
 @foreach(var savedRule in financial.Rules.Where(x=>x.Minimum>0||x.Maximum>0)){<p>@savedRule.Name: charge threshold @savedRule.Minimum.ToString("C"), cap @savedRule.Maximum.ToString("C") per @savedRule.Frequency period.</p>}

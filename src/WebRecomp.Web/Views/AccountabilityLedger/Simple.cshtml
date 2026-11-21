@@ -14,7 +14,7 @@
     catch(InvalidTimeZoneException){zone=TimeZoneInfo.Utc;}
 }
 <link rel="stylesheet" href="~/css/coach-ledger.css" asp-append-version="true" />
-<section class="page-header"><p class="eyebrow">CLIENT ACCOUNT</p><h1>@Model.ClientName · Fees &amp; incentives</h1><p>Fees, incentives and payments between @Model.ClientName and @Model.CoachName only. Each coach has a separate running balance and payment history.</p></section>
+<section class="page-header"><p class="eyebrow">CLIENT ACCOUNT</p><h1>@Model.ClientName · Fees &amp; incentives</h1><p>Fees, incentives and payments between @Model.ClientName and @Model.CoachName.</p></section>
 <partial name="_CoachLedgerAccounts" model="Model" />
 <p class="ledger-links">@if(Model.ActiveCoach){<a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachUserId">Snap Workouts</a>} @if(Model.CanRecord){<a class="button" asp-controller="Coach" asp-action="Index">Client list</a>}</p>
 @if(TempData["LedgerStatus"] is string status){<div class="app-message" role="status">@status</div>}
@@ -33,10 +33,10 @@
     <label>Date<input name="Date" type="date" value="@Model.Today.ToString("yyyy-MM-dd")" required /></label><label>Amount ($)<input name="Amount" type="number" min=".01" max="10000" step=".01" required /></label>
     <label class="ledger-description">Description / payment reference<input name="Description" maxlength="300" required placeholder="e.g. Payment received by bank transfer" /></label></div>
     @if(Model.ActiveCoach){<details class="simple-fee-calculator"><summary>Calculate a fee · quantity × rate</summary><div class="ledger-fields"><label>Quantity<input type="number" min=".01" max="1000" step=".01" value="1" data-fee-quantity /></label><label>Rate ($)<input type="number" min=".01" max="10000" step=".01" data-fee-rate /></label></div><button type="button" class="secondary" data-calculate-fee>Use calculated fee</button><p data-fee-calculation role="status"></p></details>}
-    <p>Fees, penalties and incentives increase what the client owes the coach. Record a payment received from the client to reduce that balance.</p><button type="submit">Record entry</button>
+    <p>Record a client payment to reduce the amount owed.</p><button type="submit">Record entry</button>
 </form></details>
 }
-<section class="card coach-mobile-ledger-section"><h2>Account history</h2><p>Fees, penalties and incentives all increase the client’s balance. Payments received from the client reduce it. A payment credit can be applied against future charges. No money is transferred by this page.</p>
+<section class="card coach-mobile-ledger-section"><h2>Account history</h2><p>Charges increase the balance. Payments reduce it. Credits apply to future charges.</p>
 @if(history.Count==0){<p>@(Model.ThirtyDays?"No transactions were posted in the last 30 days.":"No entries have been posted yet.")</p>}
 else{<div class="ledger-table-scroll" tabindex="0" role="region" aria-label="Account history; scroll horizontally"><table class="ledger-table coach-mobile-ledger"><thead><tr><th>Posted (@Model.TimeZone)</th><th>Effective date</th><th>Type</th><th>Description</th><th>Increase ($)</th><th>Decrease ($)</th><th>Running balance</th></tr></thead><tbody>
 @foreach(var row in history){var entry=row.Entry;<tr><td>@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(entry.CreatedAtUtc,DateTimeKind.Utc),zone).ToString("MMM d, yyyy HH:mm")</td><td>@entry.Date.ToString("MMM d, yyyy")</td><td>@Kind(entry.Kind)</td><td>@entry.Description</td><td>@(entry.Amount>0?Money(entry.Amount):"—")</td><td>@(entry.Amount<0?Money(-entry.Amount):"—")</td><td>@Money(row.Balance)</td></tr>}
@@ -45,7 +45,7 @@ else{<div class="ledger-table-scroll" tabindex="0" role="region" aria-label="Acc
 {
 <details class="ledger-correction"><summary>Correct a manual entry</summary><form asp-action="Reverse" asp-route-clientId="@Model.ClientId" method="post"><input name="expectedRevision" type="hidden" value="@Model.Revision" /><label>Entry<select name="entryId">@foreach(var entry in visibleEntries.Where(x=>!x.Automatic && (Model.ActiveCoach || x.Kind is "payment-client" or "payment-coach") && !x.SourceKey.StartsWith("reverse:") && Model.Entries.All(y=>y.SourceKey!="reverse:"+x.Id.ToString("N")))){<option value="@entry.Id">@entry.Date.ToString("MMM d") · @Kind(entry.Kind) · @Money(Math.Abs(entry.Amount)) · @entry.Description</option>}</select></label><label>Reason<input name="reason" maxlength="300" required /></label><button type="submit">Record reversal</button></form></details>
 }
-<p class="muted">New simple Snap Workouts post calculated fees and incentives when finished. Corrections add an adjustment line. Existing account history is retained.</p>
+<p class="muted">Snap fees post at completion. Corrections appear as adjustments.</p>
 <partial name="_LedgerHistoryControls" model="Model" />
 </section>
 

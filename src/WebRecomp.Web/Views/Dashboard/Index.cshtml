@@ -591,7 +591,7 @@
     </style>
     <dialog class="first-week-guide" id="first-week-guide" aria-labelledby="first-week-guide-title">
         <h2 id="first-week-guide-title">A quick guide to today's entries</h2>
-        <p>You can enter your daily numbers in the Weight, Training and Nutrition sections of Daily Entry. For more precise records, use Workout logging and the Food Log.</p>
+        <p>Use Daily Entry for totals, or log individual meals and workouts.</p>
         @if (reminderWeight)
         {
             <a asp-controller="DailyEntry" asp-action="Index" asp-route-date="@Model.ActionDate.ToString("yyyy-MM-dd")" asp-fragment="body-recovery">Enter today's weight in Daily Entry →</a>
@@ -636,7 +636,7 @@
         <section class="card dashboard-weight-needed" aria-labelledby="weight-needed-title">
             <div class="app-kicker">ONE QUICK STEP</div>
             <h2 id="weight-needed-title">Morning weight needed</h2>
-            <p>Enter today's morning weight before Recomp can calculate today's workout, nutrition, recovery, and glycogen recommendations. Your Dashboard will appear as soon as today's weight is saved.</p>
+            <p>Save today’s morning weight to see your dashboard recommendations.</p>
             <div class="app-action-row">
                 <a class="primary button"
                    asp-controller="Daily"
@@ -783,19 +783,11 @@
                             </div>
                         </div>
 
-                        <p class="dash-pa-note">
-                            Synced from the completed WorkoutSession. Daily Tracking and Engine 3.0 are using this actual session instead of the planned estimate.
-                        </p>
+                        <p class="dash-pa-note">The dashboard uses your completed workout.</p>
                     }
                     else
                     {
-                        <div class="dash-pa-empty">
-                            <strong>Complete your training entry and it will appear here.</strong>
-                            <span>
-                                Once the workout is completed in Workout Builder or Daily Entry,
-                                this card shows what you actually did.
-                            </span>
-                        </div>
+                        <div class="dash-pa-empty"><strong>Workout pending</strong> <span>Log your completed session to see it here.</span></div>
                     }
                 </article>
             </div>
@@ -940,13 +932,7 @@
                     }
                     else
                     {
-                        <div class="dash-pa-empty">
-                            <strong>Actual nutrition will appear here.</strong>
-                            <span>
-                                Log food during the day or complete Nutrition in Daily Entry.
-                                Until then, the planned target remains your guide.
-                            </span>
-                        </div>
+                        <div class="dash-pa-empty"><strong>Nutrition pending</strong> <span>Log food or enter your nutrition totals.</span></div>
                     }
                 </article>
             </div>
@@ -1005,7 +991,7 @@
             {
                 <aside class="guided-demo-callout" role="note" aria-label="Coach recommendation explanation">
                     <strong>Your virtual coach</strong>
-                    <span>Recomp calls out what is unique about today, explains what matters, and gives you a clear, motivating next step. On a hard training day like this, if it fits your targets, enjoy a sweet treat after the workout.</span>
+                    <span>Check today’s recommendation and fuel target before planning your post-workout meal.</span>
                 </aside>
             }
         </section>
@@ -1078,7 +1064,7 @@
         {
             <aside class="guided-demo-callout" role="note" aria-label="Tomorrow plan explanation">
                     <strong>A look ahead</strong>
-                    <span>See what is likely coming tomorrow so you can plan your day. It is preliminary - tomorrow's check-in and new data can still change the recommendation.</span>
+                    <span>Tomorrow’s preview updates after your next check-in.</span>
                 </aside>
         }
     </section>
@@ -1321,10 +1307,7 @@
 
                         <div class="dash-analysis-narrative">
                             <strong>Today is still in progress</strong>
-                            <p>
-                                Current-day shortfalls stay neutral while the day is unfinished.
-                                This morning's scale response still belongs to yesterday's training and nutrition.
-                            </p>
+                            <p>Today's shortfalls stay neutral. This morning's readings reflect yesterday's training and nutrition.</p>
                         </div>
                     </article>
                 }
@@ -1423,10 +1406,7 @@
                     {
                         <div class="dash-analysis-scale-prompt">
                             <span class="dash-analysis-dot gray"></span>
-                            <div>
-                                <strong class="dash-analysis-missing-scale-text">Please enter this morning's scale readings</strong>
-                                <span>That measurement lets Recomp compare yesterday's workout and nutrition with the next-morning response. The Dashboard itself remains usable without it.</span>
-                            </div>
+                            <div><strong class="dash-analysis-missing-scale-text">Enter this morning's scale readings</strong> <span>See how you responded to yesterday’s training and nutrition.</span></div>
                         </div>
                     }
                     else
@@ -1553,18 +1533,8 @@
 
                     <details class="dash-why dash-analysis-details">
                         <summary>How Recomp is judging this</summary>
-                        <p class="dash-analysis-legend">
-                            <span><i class="dash-analysis-dot green"></i> Green = good / functionally supported</span>
-                            <span><i class="dash-analysis-dot yellow"></i> Yellow = acceptable but worth watching</span>
-                            <span><i class="dash-analysis-dot orange"></i> Orange = materially off / investigate</span>
-                            <span><i class="dash-analysis-dot red"></i> Red = poor support / likely problem</span>
-                            <span><i class="dash-analysis-dot gray"></i> Gray = missing / insufficient evidence</span>
-                        </p>
-                        <p>
-                            Hard resistance / hard conditioning gives priority to glycogen restoration:
-                            green â‰¥80%, yellow 60â€“79%, orange 50â€“59%, red &lt;50%.
-                            Easy cardio / Zone 2 / recovery gives more weight to energy control and does not penalize lower carbohydrate automatically.
-                        </p>
+                        <p class="dash-analysis-legend"><span><i class="dash-analysis-dot green"></i> On track</span> <span><i class="dash-analysis-dot yellow"></i> Watch</span> <span><i class="dash-analysis-dot orange"></i> Investigate</span> <span><i class="dash-analysis-dot red"></i> Off track</span> <span><i class="dash-analysis-dot gray"></i> Insufficient data</span></p>
+                        <p>Hard training fuel bands: green ≥80%, yellow 60–79%, orange 50–59%, red &lt;50%. Easy days prioritize energy balance.</p>
                         <p>@analysis.TrackingCaveat</p>
                         <p>
                             Engine @Model.Engine30VersionCode â€¢ @Model.Engine30ConfigVersionCode
@@ -1740,10 +1710,7 @@
                         && Model.Engine30WorkoutCategoryCode == "MAJOR_STRENGTH"
                         && Model.TodayEnergyCarryoverCorrectionKcal <= 0m)
                     {
-                        <p class="dash-coach-note">
-                            Major Strength protection is active today. Eligible energy correction is being
-                            directed toward lower-priority days instead of cutting this hard-training day.
-                        </p>
+                        <p class="dash-coach-note">Major Strength is protected. Energy corrections shift to lower-priority days.</p>
                     }
                 </section>
             </div>

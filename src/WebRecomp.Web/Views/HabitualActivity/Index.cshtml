@@ -7,7 +7,7 @@
     <div>
         <div class="eyebrow">ENGINE 3.0 ACTIVITY PROFILE</div>
         <h1>Work &amp; habitual activity</h1>
-        <p class="lede">Tell Recomp what a normal week looks like outside formal workouts. This feeds one Habitual Activity energy bucket; it does not stack steps, jobs, chores, and workouts as separate calorie add-ons.</p>
+        <p class="lede">Enter your typical weekly movement outside workouts.</p>
     </div>
     <a class="button" asp-controller="Profile" asp-action="Index">Back to profile</a>
 </div>
@@ -19,7 +19,7 @@
         <div>
             <div class="eyebrow">OCCUPATION</div>
             <h2>Typical work roles</h2>
-            <p class="small">Add up to three recurring jobs or work roles. Enter the hours you typically spend in each role during a normal week. Do not include formal workouts here.</p>
+            <p class="small">Enter typical weekly hours for up to three work roles.</p>
         </div>
 
         @for (var i = 0; i < Model.Roles.Count; i++)
@@ -61,14 +61,14 @@
             </div>
         }
 
-        <p class="small"><strong>Examples:</strong> desk/IT work is usually near the seated end; a bus driver may fit seated + regular standing/walking; retail or nursing is typically farther toward active work; construction may fit heavy manual work. Choose what describes the actual job, not the job title alone.</p>
+        <p class="small">Choose the activity level that matches how you move during each shift.</p>
     </section>
 
     <section class="card stack">
         <div>
             <div class="eyebrow">NON-WORK LIFESTYLE</div>
             <h2>Recurring activity outside work and workouts</h2>
-            <p class="small">This is for normal recurring movement such as errands, walking, household projects, gardening, or an active daily routine that is not entered as a workout.</p>
+            <p class="small">Count recurring movement such as errands, walks, chores, and gardening.</p>
         </div>
 
         <label>
@@ -84,7 +84,7 @@
 
         <div class="status-card neutral">
             <strong>Steps are not a core Engine 3.0 calorie bucket.</strong>
-            <p class="small">Step data can still be kept as evidence/context, but Recomp does not add step calories on top of the occupation/home/lifestyle allowance.</p>
+            <p class="small">Steps provide context. Your activity estimate already includes routine movement.</p>
         </div>
     </section>
 

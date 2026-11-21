@@ -18,6 +18,6 @@
 }
 </div>
 }
-@if(Model.CoachUserId==Guid.Empty){<p>These earlier shared transactions do not have enough saved information to confirm a coach. They are kept here rather than assigned to your current coach.</p>}
-else if(!Model.ActiveCoach){<p>This coaching relationship has ended. Its balance and history stay separate. Payments can still be recorded to settle this account; new fees cannot be added.</p>}
+@if(Model.CoachUserId==Guid.Empty){<p>Earlier transactions with an unknown coach appear here.</p>}
+else if(!Model.ActiveCoach){<p>This relationship ended. You can record payments to settle its balance.</p>}
 </section>

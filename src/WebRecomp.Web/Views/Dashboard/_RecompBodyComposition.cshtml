@@ -39,8 +39,8 @@
     }
     @if (Model.WeightChangeLb is decimal weightChange) { <p>Average weight change: @weightChange.ToString("+0.0;-0.0;0.0") lb · @Model.LatestWeight!.Count versus @Model.PreviousWeight!.Count readings.</p> }
     <details class="d3-composition-details"><summary>Dates, averages and calculation</summary>
-        <p>Seven completed days versus the seven-day period ending @Model.ComparisonDays days earlier. @(Model.ComparisonDays == 7 ? "Both weeks weight newest to oldest: 20%, 18%, 16%, 14%, 12%, 11%, 9%; available weights are renormalized separately for each metric." : "Both periods use straight averages.") Averages use available daily readings; missing values are excluded, never treated as zero.</p>
-        <p>Both lines use the same scale: −@Model.ScaleLb.ToString("0.#") lb on the left, zero in the center, and +@Model.ScaleLb.ToString("0.#") lb on the right. The marker shows the change; left is loss and right is gain.</p>
+        <ul><li>Compares two completed seven-day windows ending @Model.ComparisonDays days apart.</li><li>@(Model.ComparisonDays == 7 ? "Weights, newest first: 20%, 18%, 16%, 14%, 12%, 11%, 9%." : "Both windows use straight averages.")</li><li>Missing readings are skipped. Available weights are recalculated for each metric.</li></ul>
+        <p>Shared scale: ±@Model.ScaleLb.ToString("0.#") lb. Left shows loss. Right shows gain.</p>
         <div class="d2-table-wrap"><table><thead><tr><th>Measure</th><th>Latest period</th><th>Earlier period</th></tr></thead><tbody>
         @foreach (var metric in new[] { Model.Fat, Model.Muscle })
         {
@@ -54,7 +54,7 @@
                 <p>@metric.MissingNotice</p>
             }
         }
-        <p>Body fat is weight × body-fat fraction for each reading, then averaged. Muscle uses the same muscle measurement type in both periods; skeletal and generic muscle estimates are never mixed. Each day uses its latest saved reading.</p>
+        <ul><li>Fat mass is averaged from weight × body-fat fraction.</li><li>Both windows use the same muscle measurement type.</li><li>Each day uses its latest reading.</li></ul>
         <a href="/Progress">Review longer-term progress →</a>
     </details>
 </section>

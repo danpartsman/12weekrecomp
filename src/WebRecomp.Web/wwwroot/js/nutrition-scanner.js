@@ -101,7 +101,7 @@
     document.querySelectorAll('[data-food-scan]').forEach(button=>button.addEventListener('click',()=>{
         stop();lookupBusy=false;submitted=false;mode=button.dataset.foodScan;photo.value='';code.value='';message('');
         dialog.querySelector('[data-scan-title]').textContent=mode==='label'?'Scan nutrition label':'Scan barcode';
-        dialog.querySelector('[data-scan-instructions]').textContent=mode==='label'?'Photograph only the nutrition facts panel, straight on and in good light. Review the serving size and macros before adding.':'Hold the product barcode inside the camera window. We stop scanning after one match.';
+        dialog.querySelector('[data-scan-instructions]').textContent=mode==='label'?'Photograph the nutrition panel straight on in good light. Verify serving size and macros.':'Hold the product barcode inside the camera window. We stop scanning after one match.';
         dialog.querySelector('[data-scan-barcode-entry]').hidden=mode!=='barcode';
         dialog.querySelector('[data-scan-live]').hidden=mode!=='barcode';
         dialog.querySelector('[data-scan-photo-field]').hidden=mode!=='label';dialog.showModal();
@@ -129,10 +129,10 @@
         const complete=product?.hasServing&&product.description&&['energyKcal','proteinG','carbohydrateG','fatG'].every(name=>Number.isFinite(product[name])&&product[name]>=0);
         if(autoAdd&&complete&&form.checkValidity()){submitted=true;message('Adding one serving to the selected meal…');photo.disabled=true;lookup.disabled=true;form.requestSubmit();return;}
         const review=document.createElement('div');review.className='nutrition-scan-review';
-        const note=document.createElement('p');note.textContent=`Check every value against your label. ${values.servingText?'Read serving: '+values.servingText+'. ':''}All macros must use the same serving basis. Missing values are left blank; enter the food name and brand.`;
+        const note=document.createElement('p');note.textContent='Check the label and use the same serving size for every value.';
         const details=document.createElement('details'),summary=document.createElement('summary'),raw=document.createElement('pre');summary.textContent='Recognized label text';raw.textContent=text;details.append(summary,raw);
         const label=document.createElement('label'),confirm=document.createElement('input');confirm.type='checkbox';confirm.required=true;label.append(confirm,document.createTextNode('I checked the serving size and nutrition values against the label.'));
-        if(product){note.textContent=product.hasServing?'Some product details are missing. Complete them before adding.':'No reliable serving size was listed. Values below are per 100 g; choose your amount before adding.';const source=document.createElement('a');source.href=product.sourceUrl;source.target='_blank';source.rel='noopener';source.textContent='Source: Open Food Facts (ODbL)';review.append(source);}review.append(note);if(text)review.append(details);review.append(label);form.querySelector('.nutrition-custom-food-grid').prepend(review);
+        if(product){note.textContent=product.hasServing?'Some product details are missing. Complete them before adding.':'Values are per 100 g. Choose your serving size before adding.';const source=document.createElement('a');source.href=product.sourceUrl;source.target='_blank';source.rel='noopener';source.textContent='Source: Open Food Facts (ODbL)';review.append(source);}review.append(note);if(text)review.append(details);review.append(label);form.querySelector('.nutrition-custom-food-grid').prepend(review);
         dialog.close();picker.close();custom.showModal();form.elements.foodName.focus();
     }
     photo.addEventListener('change',async()=>{

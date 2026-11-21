@@ -267,14 +267,7 @@
 
             @if (Model.NutritionManualOverride)
             {
-                <div class="nutrition-dashboard-status warning">
-                    <strong>Manual Override is active in Daily Entry.</strong>
-                    <span>
-                        Food Log calculations are still shown here, but the manual
-                        Daily Entry values remain the Engine-facing numbers until
-                        override is turned off.
-                    </span>
-                </div>
+                <div class="nutrition-dashboard-status warning"><strong>Manual Override is active.</strong> <span>The engine uses your Daily Entry totals.</span></div>
             }
 
             <div class="nutrition-dashboard-overview">
@@ -966,12 +959,7 @@
                 <span>OPTIONAL FOOD LOG</span>
             </div>
             <h2>Detailed food logging is off</h2>
-            <p class="small">
-                Daily Entry remains available for direct calorie and macro
-                entry. Enable <strong>Nutrition Food Log</strong> in Settings
-                when you want food search, serving measures, custom foods, and
-                calculated totals.
-            </p>
+            <p class="small">Enable <strong>Nutrition Food Log</strong> in Settings for food search, servings, and calculated totals.</p>
 
             <a asp-controller="Profile"
                asp-action="Settings"
