@@ -28,7 +28,8 @@
             for (const input of bounds.querySelectorAll('input')) input.required = quantity;
             editor.querySelector('[data-task-bounds-label]').textContent = timed ? 'Active minutes (optional)' : 'Quantity limits';
             editor.querySelector('[data-task-rate]').textContent = timed ? `Fee per ${mode.value} (USD)`
-                : quantity ? 'Fee per unit (USD)' : 'Flat fee (USD)';
+                : quantity ? 'Fee per unit (USD)' : 'Completion fee (Optional)';
+            editor.querySelector('[data-task-rate-input]').required = timed || quantity;
         };
         if (!due.value) due.value = suggestDue();
         mode.addEventListener('change', sync);

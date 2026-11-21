@@ -37,7 +37,7 @@
             <input asp-for="Input.RequestId" type="hidden" />
             <div class="task-fields">
                 <label>Fee type<select asp-for="Input.Billing" data-task-billing>
-                    <option value="fixed">Flat fee</option>
+                    <option value="fixed">Completion fee</option>
                     <option value="quantity">Per unit completed</option>
                     <option value="minute">Per active minute</option>
                     <option value="hour">Per active hour</option>
@@ -80,7 +80,10 @@
                     </div>
                 </fieldset>
                 <div class="task-pair task-pricing task-full">
-                    <label><span data-task-rate>Fee (USD)</span><input asp-for="Input.Rate" type="number" min="0" max="10000" step="0.01" required /></label>
+                    <label>
+                        <span data-task-rate>@(timed ? $"Fee per {Model.Input.Billing} (USD)" : quantityMode ? "Fee per unit (USD)" : "Completion fee (Optional)")</span>
+                        <input asp-for="Input.Rate" type="number" min="0" max="10000" step="0.01" required="@(timed || quantityMode)" data-task-rate-input />
+                    </label>
                     <label>Late penalty (USD)<input asp-for="Input.LateFee" type="number" min="0" max="10000" step="0.01" required /></label>
                 </div>
                 <label class="task-full">Notes<textarea asp-for="Input.Notes" rows="2" maxlength="2000"></textarea></label>

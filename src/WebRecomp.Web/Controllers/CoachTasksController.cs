@@ -16,7 +16,7 @@ public sealed class CoachTaskInput
     public decimal? Minimum { get; set; }
     public decimal? Maximum { get; set; }
     public bool AllowProofPhoto { get; set; }
-    [Required] public decimal? Rate { get; set; } = 0;
+    public decimal? Rate { get; set; }
     [Required] public decimal? LateFee { get; set; } = 20;
     public DateTime? DueLocal { get; set; }
 }
@@ -34,7 +34,7 @@ public sealed class CoachTasksController(AppUserContextService users, CoachTaskS
     {
         var access = await AccessAsync(clientId, coachId, ct);
         if (access is null) return NotFound();
-        return View(await PageAsync(access.Value.Party, access.Value.IsCoach, new() { RequestId = Guid.NewGuid() }, ct));
+        return View(await PageAsync(access.Value.Party, access.Value.IsCoach, new() { RequestId = Guid.NewGuid(), Rate = 0m }, ct));
     }
 
     [HttpPost("assign"), ValidateAntiForgeryToken]
@@ -44,12 +44,14 @@ public sealed class CoachTasksController(AppUserContextService users, CoachTaskS
         var access = await AccessAsync(clientId, coachId, ct);
         if (access is null) return NotFound();
         if (!access.Value.IsCoach) return Forbid();
-        if (ModelState.IsValid && input.Rate.HasValue && input.LateFee.HasValue)
+        if (!input.Rate.HasValue && input.Billing is "quantity" or "minute" or "hour")
+            ModelState.TryAddModelError("Input.Rate", "Enter a fee rate.");
+        if (ModelState.IsValid && input.LateFee.HasValue)
         {
             try
             {
                 await tasks.AssignAsync(access.Value.Party, input.RequestId, input.Title, input.Notes, input.Billing,
-                    input.Unit, input.Minimum, input.Maximum, input.Rate.Value, input.LateFee.Value, input.DueLocal,
+                    input.Unit, input.Minimum, input.Maximum, input.Rate ?? 0m, input.LateFee.Value, input.DueLocal,
                     ct, input.AllowProofPhoto);
                 TempData["TaskStatus"] = "Task assigned.";
                 return RedirectToAction(nameof(Index), new { clientId, coachId });
