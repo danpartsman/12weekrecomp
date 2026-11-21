@@ -17,6 +17,7 @@ public sealed class SnapLiveState
     public DateTimeOffset? StartedUtc { get; set; }
     public DateTimeOffset? SavedUtc { get; set; }
     public int ProgressRevision { get; set; }
+    public Dictionary<Guid, string> AddOnResponses { get; set; } = [];
     public Dictionary<string, string> ExerciseTokens { get; set; } = [];
     public Dictionary<string, List<AccountabilitySet>> Sets { get; set; } = [];
     public List<SnapChatPost> Messages { get; set; } = [];
@@ -136,6 +137,30 @@ public sealed class SnapLiveService(RecompDbContext db, NotificationFiles files,
             final?.Finalized == true ? final.Sets : live.StartedUtc.HasValue ? live.Sets : final?.Sets ?? [], messages,
             messages.Length > 0 && live.Messages.Any(x => x.Sequence < messages[0].Sequence), allowed.Workout.Name);
     }
+    public async Task RespondToAddOnAsync(Guid actor, Guid client, string id, Guid offerId, string decision, CancellationToken ct)
+    {
+        var allowed = await AllowedAsync(actor, client, id, ct);
+        if (allowed.IsCoach || allowed.ClientUserId != actor) throw new UnauthorizedAccessException();
+        var preMobility = allowed.Workout.PreMobility?.Id == offerId;
+        if (!preMobility && allowed.Workout.Finisher?.Id != offerId)
+            throw new ArgumentException("This optional exercise changed. Review the current offer.");
+        if (preMobility && allowed.State.SnapResults.GetValueOrDefault(id)?.Finalized == true)
+            throw new ArgumentException("This workout is already finished.");
+
+        var key = Key(client, id);
+        using (files.Lease(key))
+        {
+            var saved = ReadStored(client, allowed.CoachId, id);
+            var current = saved.AddOnResponses.GetValueOrDefault(offerId);
+            if (current == decision) return;
+            if (!(current is null && decision is ("accepted" or "skipped") ||
+                current == "accepted" && decision == "completed"))
+                throw new ArgumentException("Review the current optional exercise before responding.");
+            saved.AddOnResponses[offerId] = decision;
+            files.Write(key, saved);
+        }
+    }
+
     public async Task<SnapLiveView> StartAsync(Guid actor, Guid client, string id, CancellationToken ct)
     {
         var allowed = await AllowedAsync(actor, client, id, ct);

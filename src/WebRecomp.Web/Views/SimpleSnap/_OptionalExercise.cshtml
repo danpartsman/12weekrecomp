@@ -1,0 +1,31 @@
+@model WebRecomp.Web.Services.Coaching.SnapAddOnPanel
+<section class="snap-result-exercise">
+    <h3>@Model.Title</h3>
+    <p><strong>@Model.Offer.Exercise</strong> · @Model.Offer.Focus</p>
+    <p>@Model.Offer.Instructions</p>
+    <p class="muted">@(Model.Response switch
+        {
+            "accepted" => "Accepted",
+            "skipped" => "Skipped",
+            "completed" => "Completed",
+            _ => Model.CanRespond ? "Optional · no additional fees" : "Awaiting client acceptance"
+        })</p>
+    @if (Model.CanRespond && Model.Response is null or "accepted")
+    {
+        <form asp-action="RespondToAddOn" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachUserId" method="post">
+            <input type="hidden" name="workoutId" value="@Model.WorkoutId" />
+            <input type="hidden" name="offerId" value="@Model.Offer.Id" />
+            <div class="snap-result-actions">
+                @if (Model.Response == "accepted")
+                {
+                    <button type="submit" name="decision" value="completed" class="button secondary">Mark done</button>
+                }
+                else
+                {
+                    <button type="submit" name="decision" value="accepted" class="button secondary">Accept @Model.Offer.Exercise</button>
+                    <button type="submit" name="decision" value="skipped" class="button secondary">Skip</button>
+                }
+            </div>
+        </form>
+    }
+</section>

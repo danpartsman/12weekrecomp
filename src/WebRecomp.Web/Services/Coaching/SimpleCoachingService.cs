@@ -124,6 +124,8 @@ public sealed class SimpleCoachingService(RecompDbContext db,CoachAccountability
         updated.TimingStartUtc=date>today?SnapAvailabilityClock.Utc(date,TimeOnly.MinValue,SnapAvailabilityClock.Zone(local.TimeZone)):time.GetUtcNow();
         updated.DeadlineUtc=updated.TimingStartUtc.Value.AddMinutes(minutes);
         updated.TimeLimitMinutes=minutes;
+        updated.PreMobility = SnapWorkoutAddOn.KeepIfUnchanged(old.PreMobility, updated.PreMobility);
+        updated.Finisher = SnapWorkoutAddOn.KeepIfUnchanged(old.Finisher, updated.Finisher);
         foreach(var exercise in updated.Exercises)
         {
             if(string.IsNullOrEmpty(exercise.Id))exercise.Id="exercise-"+Guid.NewGuid().ToString("N");

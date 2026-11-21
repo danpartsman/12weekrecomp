@@ -51,6 +51,45 @@ public sealed class SnapLiveTests
         Assert.Equal(12, saved.Sets["e1"][0].Reps);
     }
 
+    [Fact]
+    public async Task OptionalExercisesRequireIndependentClientAcceptanceWithoutChangingSnapProgress()
+    {
+        using var f = new Fixture();
+        await f.Seed();
+        var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        var state = AccountabilityDocument.Parse(row.StateJson);
+        var workout = Assert.Single(state.SnapWorkouts);
+        workout.Exercises[0].MuscleFocus = "chest";
+        var focus = await SnapWorkoutAddOn.FocusAsync(workout.Exercises, f.Db, default);
+        var preMobility = SnapWorkoutAddOn.Create(focus, finisher: false);
+        var finisher = SnapWorkoutAddOn.Create(focus, finisher: true);
+        workout.PreMobility = preMobility;
+        workout.Finisher = finisher;
+        row.StateJson = AccountabilityDocument.Serialize(state);
+        await f.Db.SaveChangesAsync();
+
+        Assert.Equal("Wall slides", preMobility.Exercise);
+        Assert.NotEqual(preMobility.Exercise, finisher.Exercise);
+        Assert.Equal(finisher, AccountabilityDocument.Parse(row.StateJson).SnapWorkouts[0].Finisher);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            f.Live.RespondToAddOnAsync(f.Coach, f.Client, workout.Id, preMobility.Id, "accepted", default));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            f.Live.RespondToAddOnAsync(f.Owner, f.Client, workout.Id, preMobility.Id, "completed", default));
+        await f.Live.RespondToAddOnAsync(f.Owner, f.Client, workout.Id, preMobility.Id, "accepted", default);
+        await f.Live.RespondToAddOnAsync(f.Owner, f.Client, workout.Id, preMobility.Id, "accepted", default);
+        await f.Live.RespondToAddOnAsync(f.Owner, f.Client, workout.Id, finisher.Id, "skipped", default);
+        await f.Live.RespondToAddOnAsync(f.Owner, f.Client, workout.Id, preMobility.Id, "completed", default);
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            f.Live.RespondToAddOnAsync(f.Owner, f.Client, workout.Id, finisher.Id, "completed", default));
+
+        var saved = f.Live.ReadSaved(f.Client, f.Coach, workout);
+        Assert.Equal("completed", saved.AddOnResponses[preMobility.Id]);
+        Assert.Equal("skipped", saved.AddOnResponses[finisher.Id]);
+        Assert.Null(saved.StartedUtc);
+        Assert.Equal(0, saved.ProgressRevision);
+        Assert.Empty(await f.Ledger.ReadAsync(row, default));
+    }
+
     private sealed class EmptyTempData : ITempDataProvider
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();

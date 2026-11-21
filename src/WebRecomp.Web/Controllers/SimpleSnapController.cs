@@ -97,6 +97,7 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
     private static AssignmentInput FromWorkout(AccountabilityWorkout w,int revision,DateOnly today)=>new(){
         Revision=revision,RequestId=Guid.NewGuid(),Name=w.Name,Date=today,TimeAllowed=(w.TimeLimitMinutes??120)/60m,
         LatePenalty=w.LatePenalty??0,Cap=w.Cap,MinimumCharge=w.MinimumCharge??0,CompletionReward=w.CompletionReward??0,CoachNote=w.CoachNote,
+        IncludePreMobility=w.PreMobility is not null,IncludeFinisher=w.Finisher is not null,
         IncompleteExerciseFee=w.Exercises.FirstOrDefault()?.Penalty??0,CoachIncentivePerRep=w.Exercises.FirstOrDefault()?.ExtraRepRate??0,
         Exercises=w.Exercises.Select(e=>new ExerciseInput{Id=e.Id,Name=e.Name,Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight>0?e.MaxWeight:null,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,Type=e.Type,Basis=e.Basis,Rate=e.Rate}).ToList()
     };
@@ -329,6 +330,12 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
             var uniqueName=UniqueName(input.Name,prior.Where(w=>w.Id!=input.EditWorkoutId).ToArray(),now);
             var workout=new AccountabilityWorkout{Name=uniqueName,CoachNote=string.IsNullOrWhiteSpace(input.CoachNote)?null:input.CoachNote.Trim(),Date=input.Date.ToString("yyyy-MM-dd"),Cap=input.Cap,MinimumCharge=input.MinimumCharge,CompletionReward=input.CompletionReward,
                 FeeOnFinishOnly=input.EditWorkoutId is null,OverrideSchedule=input.ConflictChoice=="override"||input.OverrideSchedule,OverrideHealthConflicts=input.ConflictChoice=="override",TimeLimitMinutes=(int)Math.Ceiling(input.TimeAllowed*60),LatePenalty=input.LatePenalty,Exercises=input.Exercises.Select(e=>new AccountabilityExercise{Id=input.EditWorkoutId is null?"":e.Id??"",Name=e.Name.Trim(),Sets=e.Sets,Reps=e.Reps,MaxWeight=e.MaxWeight??0,Type=e.Type,Basis=e.Basis,Rate=e.Rate,Penalty=input.IncompleteExerciseFee,CompletionReward=0,Rpe=e.Rpe,MuscleFocus=e.MuscleFocus,ExtraRepRate=input.CoachIncentivePerRep}).ToList()};
+            if (input.IncludePreMobility || input.IncludeFinisher)
+            {
+                var focus = await SnapWorkoutAddOn.FocusAsync(workout.Exercises, scheduleDb, ct);
+                if (input.IncludePreMobility) workout.PreMobility = SnapWorkoutAddOn.Create(focus, finisher: false);
+                if (input.IncludeFinisher) workout.Finisher = SnapWorkoutAddOn.Create(focus, finisher: true);
+            }
             if(input.EditWorkoutId is not null)await simple.UpdateAsync(user.UserId,clientId,input.Revision,input.EditWorkoutId,workout,ct);
             else await simple.AssignAsync(user.UserId,clientId,input.Revision,input.RequestId,workout,ct);
             TempData["SimpleStatus"]=input.EditWorkoutId is null?"Workout assigned. Your client can open it in their portal.":"Snap Workout updated. The completion window has restarted.";return RedirectToAction(nameof(Index),new{clientId});
@@ -336,6 +343,22 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         catch(UnauthorizedAccessException){return NotFound();}
         catch(Exception e)when(e is ArgumentException or AccountabilityConflictException){ModelState.AddModelError("",e.Message);return await Page(clientId,input,ct);}
     }
+    [HttpPost("optional-exercise"), ValidateAntiForgeryToken, EnableRateLimiting(SnapRequestRateLimits.Submissions)]
+    public async Task<IActionResult> RespondToAddOn(Guid clientId, string workoutId, Guid offerId, string decision,
+        Guid? coachUserId, CancellationToken ct)
+    {
+        if (!SimpleCoaching.Enabled(configuration) || live is null || !AccountabilityDocument.Id(workoutId)) return NotFound();
+        try
+        {
+            var actor = (await users.GetAsync(HttpContext, ct)).User.UserId;
+            await live.RespondToAddOnAsync(actor, clientId, workoutId, offerId, decision, ct);
+        }
+        catch (UnauthorizedAccessException) { return NotFound(); }
+        catch (ArgumentException error) { TempData["SimpleStatus"] = error.Message; }
+        catch (IOException) { TempData["SimpleStatus"] = "The workout is saving in another window. Try your response again."; }
+        return RedirectToAction(nameof(Index), null, new { clientId, coachUserId, assignment = workoutId }, $"snap-{workoutId}");
+    }
+
     [HttpPost("result"),ValidateAntiForgeryToken,EnableRateLimiting(SnapRequestRateLimits.Submissions),RequestSizeLimit(65536)]
     public async Task<IActionResult> Result(Guid clientId,ResultInput input,CancellationToken ct,Guid? coachUserId=null)
     {
@@ -444,6 +467,8 @@ public sealed class SimpleSnapController(AppUserContextService users,SimpleCoach
         [Required,StringLength(100)]public string Name{get;set;}="Snap Workout";
         [RegularExpression("^(extend|override)?$")]public string? ConflictChoice{get;set;}
         public bool OverrideSchedule{get;set;}
+        public bool IncludePreMobility { get; set; }
+        public bool IncludeFinisher { get; set; }
         public DateOnly Date{get;set;}
         [Range(typeof(decimal),"0.0166666667","168")]public decimal TimeAllowed{get;set;}=2;
         [Range(typeof(decimal),"0","10000")]public decimal IncompleteExerciseFee{get;set;}=5;

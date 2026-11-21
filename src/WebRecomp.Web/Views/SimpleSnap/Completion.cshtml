@@ -58,7 +58,7 @@
     <nav class="snap-completion-actions" aria-label="Completed workout links">
         <a class="button secondary" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">More workouts from @Model.CoachName</a>
         <a asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId"
-           asp-route-assignment="@Model.Workout.Id" asp-fragment="snap-@Model.Workout.Id">Review or correct exercise results</a>
+           asp-route-assignment="@Model.Workout.Id" asp-fragment="snap-@Model.Workout.Id">@(Model.Workout.Finisher is null ? "Review or correct exercise results" : "Review exercise results or open finisher")</a>
     </nav>
 </div>
 

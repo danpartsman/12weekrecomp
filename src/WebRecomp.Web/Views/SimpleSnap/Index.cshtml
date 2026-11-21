@@ -39,6 +39,12 @@
  <label><span class="snap-field-label">RPE (optional)</span><input name="Exercises[@i].Rpe" type="number" min="1" max="10" step=".1" value="@exercise.Rpe" /></label><label class="snap-muscle-focus"><span class="snap-field-label">Muscle focus (optional)</span><input name="Exercises[@i].MuscleFocus" value="@exercise.MuscleFocus" maxlength="250" placeholder="chest, shoulders, triceps" /></label><button class="button secondary" type="button" data-remove-exercise>Remove exercise</button></div></section>
 }
 </div>
+<fieldset class="simple-fields">
+    <legend>Optional exercises</legend>
+    <label><span><input type="checkbox" name="IncludePreMobility" value="true" checked="@Model.Draft.IncludePreMobility" /> Pre-mobility</span></label>
+    <label><span><input type="checkbox" name="IncludeFinisher" value="true" checked="@Model.Draft.IncludeFinisher" /> Finisher</span></label>
+    <p class="muted">Uses the Snap’s muscle focus. Your client accepts each exercise separately.</p>
+</fieldset>
 <p class="snap-engine-estimate" data-snap-estimate role="status">Calorie and glycogen estimates are optional. You can assign any free-form exercise name.</p>
 <div class="snap-form-actions"><button type="button" class="button secondary" data-add-exercise>Add exercise</button><button type="submit" class="button">@(Model.Draft.EditWorkoutId is null?"Assign workout":"Save changes")</button></div>
 </form></details>
@@ -89,6 +95,10 @@ Payments are tracked at the coach/client account level rather than allocated to 
  if(estimate is not null){<p class="snap-engine-estimate">@(estimate.Actual?"Recorded work estimate":"Assigned work estimate"): <strong>@estimate.Calories.ToString("0") active calories</strong> · <strong>@estimate.Glycogen.ToString("0.0") g glycogen</strong>.</p>}
  else{<p class="muted">Energy estimate needs the client’s weight, height, date of birth and sex.</p>}
  }
+ @if (w.PreMobility is { } preMobility)
+ {
+     <partial name="_OptionalExercise" model="new SnapAddOnPanel(Model.ClientId, w.Id, Model.CoachUserId, "Pre-mobility · before the Snap", preMobility, savedLive?.AddOnResponses.GetValueOrDefault(preMobility.Id), canRecord && previous?.Finalized != true)" />
+ }
  <section class="snap-live" id="live-@w.Id" data-snap-live data-retry="@((ViewData["SnapResultRetry"] is true).ToString().ToLowerInvariant())" data-workout-id="@w.Id" data-client-id="@Model.ClientId" data-coach="@Model.Coach.ToString().ToLowerInvariant()" data-live-url="@Url.Action("Snapshot","SnapLive",new {clientId=Model.ClientId,workoutId=w.Id})">
  <div class="snap-live-heading"><h3>Workout progression</h3><span data-live-lifecycle>@(previous?.Finalized==true?"Finished":savedLive?.StartedUtc.HasValue==true?"In progress":"Not started")</span></div>
  @if(!Model.Coach&&previous?.Finalized!=true){<button type="button" class="button" data-live-start>Start workout</button>}
@@ -117,6 +127,10 @@ Payments are tracked at the coach/client account level rather than allocated to 
  <p class="snap-wake-status" data-snap-wake-status role="status"></p><button type="button" class="button" data-snap-wake-retry hidden>Keep screen awake</button>
  </form>
  </section>
+ @if (w.Finisher is { } finisher)
+ {
+     <partial name="_OptionalExercise" model="new SnapAddOnPanel(Model.ClientId, w.Id, Model.CoachUserId, "Finisher · after the Snap", finisher, savedLive?.AddOnResponses.GetValueOrDefault(finisher.Id), canRecord)" />
+ }
  @if(previous?.Finalized==true){<p>Results saved. Calculated fees and incentives appear in <a asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@assigningCoach">Fees &amp; payments</a>.</p>}
  </details>
 }
