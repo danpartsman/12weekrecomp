@@ -1,26 +1,77 @@
 @model CoachCenterViewModel
 @using WebRecomp.Web.Services.Coaching
 @inject WebRecomp.Web.Services.AppUserContextService CurrentUsers
-@{var currentCoachId=(await CurrentUsers.GetAsync(Context,Context.RequestAborted)).User.UserId;}
-@{ Layout = "_CoachLayout"; ViewData["Title"] = "Coach Center"; }
-<section class="page-header coach-photo-heading"><div><p class="eyebrow">12 WEEK RECOMP · COACH CENTER</p><h1>Your coaching workspace</h1><p>Connect your clients and review their progress in one place.</p></div><img src="/images/coach-workspace-welcome.webp" width="320" height="160" alt="" decoding="async" /></section>
+@inject Microsoft.Extensions.Configuration.IConfiguration CoachConfiguration
+@{
+    var currentCoachId = (await CurrentUsers.GetAsync(Context, Context.RequestAborted)).User.UserId;
+    var showAccountability = AccountabilityPreview.Enabled(CoachConfiguration);
+    var showTasks = SimpleCoaching.Enabled(CoachConfiguration);
+    Layout = "_CoachLayout";
+    ViewData["Title"] = "Coach Center";
+}
+<section class="page-header coach-photo-heading">
+    <div><h1>Coach Center</h1></div>
+    <img src="/images/coach-workspace-welcome.webp" width="320" height="160" alt="" decoding="async" />
+</section>
 @if (TempData["CoachStatus"] is string status) { <div class="app-message success">@status</div> }
-<details class="card coach-panel" open><summary>Clients · @Model.Clients.Count</summary><div class="coach-panel-body">
-@if (Model.Clients.Count == 0) { <p>No clients connected yet. Create a connection code below; your client accepts it from My Coach.</p> }
-else { <div class="coach-client-list"><table class="coach-client-table"><thead><tr><th>Client</th><th>Goal</th><th>Last regular workout</th><th>Snap Workouts</th><th>Review</th></tr></thead><tbody>
-@foreach (var client in Model.Clients) { <tr><td data-label="Client"><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">@client.Name</a></td><td data-label="Goal">@client.Goal</td><td data-label="Last workout">@(client.LastWorkout?.ToString("MMM d, yyyy") ?? "No completed workouts")</td><td data-label="Snap Workouts" data-snap-client="@client.ClientId">@await Html.PartialAsync("_CoachSnapStatus", client)</td><td data-label="Actions"><div class="coach-review-actions"><a class="button" asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@client.ClientId" asp-route-coachId="@currentCoachId">Messages, agreements &amp; notes</a> <a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">Weekly summary</a> <a class="button" asp-action="Client" asp-route-clientId="@client.ClientId">Plan &amp; controls</a>
-@{ var previewConfig = Context.RequestServices.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>(); }
-@if (AccountabilityPreview.Enabled(previewConfig)) { <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@client.ClientId" asp-fragment="snap-workout">Snap Workout</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@client.ClientId" aria-label="Fees and payments for @client.Name">Fees &amp; payments</a> }
-@if (SimpleCoaching.Enabled(previewConfig)) { <a class="button" asp-controller="CoachTasks" asp-action="Index" asp-route-clientId="@client.ClientId" asp-route-coachId="@currentCoachId">Task assignments</a> }
-</div></td></tr> }
-</tbody></table></div> }
-<p>@Model.PendingInvites pending connection codes. New codes expire after 24 hours and work once.</p>
-<form asp-action="Invite" method="post"><button type="submit">Create client connection code</button></form>
-@if (TempData["CoachInviteCode"] is string code) { <p>Give this code to your client. They enter it under My Coach and choose to connect.</p><textarea readonly aria-label="Client connection code" rows="1" style="width:10em;font-size:1.5rem;letter-spacing:0.12em">@code</textarea> }
-</div></details>
+<details class="card coach-panel" open>
+    <summary>Clients · @Model.Clients.Count</summary>
+    <div class="coach-panel-body">
+        @if (Model.Clients.Count == 0)
+        {
+            <p>No clients yet.</p>
+        }
+        else
+        {
+            <div class="coach-client-list">
+                <table class="coach-client-table">
+                    <thead><tr><th scope="col">Client</th><th scope="col">Shortcuts</th><th scope="col">Goal</th><th scope="col">Last workout</th><th scope="col">Snap status</th></tr></thead>
+                    <tbody>
+                    @foreach (var client in Model.Clients)
+                    {
+                        <tr>
+                            <td><a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">@client.Name</a></td>
+                            <td>
+                                <div class="coach-review-actions">
+                                    @if (showAccountability)
+                                    {
+                                        <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@client.ClientId" aria-label="Fees and payments for @client.Name">Fees</a>
+                                    }
+                                    <a class="button" asp-controller="CoachSummary" asp-action="Day" asp-route-clientId="@client.ClientId">Daily Review</a>
+                                    @if (showAccountability)
+                                    {
+                                        <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@client.ClientId" asp-fragment="snap-workout">Snap Workout</a>
+                                    }
+                                    @if (showTasks)
+                                    {
+                                        <a class="button" asp-controller="CoachTasks" asp-action="Index" asp-route-clientId="@client.ClientId" asp-route-coachId="@currentCoachId">Tasks</a>
+                                    }
+                                    <a class="button" asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@client.ClientId" asp-route-coachId="@currentCoachId">Workspace</a>
+                                    <a class="button" asp-controller="CoachSummary" asp-action="Index" asp-route-clientId="@client.ClientId">Weekly Summary</a>
+                                    <a class="button" asp-action="Client" asp-route-clientId="@client.ClientId">Plan &amp; Controls</a>
+                                </div>
+                            </td>
+                            <td data-label="Goal">@(client.Goal is { Length: > 0 } goal ? System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(goal.Replace("_", " ").ToLowerInvariant()) : "—")</td>
+                            <td data-label="Last workout">@(client.LastWorkout?.ToString("MMM d, yyyy") ?? "—")</td>
+                            <td data-label="Snap status" data-snap-client="@client.ClientId">@await Html.PartialAsync("_CoachSnapStatus", client)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        @if (Model.PendingInvites > 0) { <p>Pending codes · @Model.PendingInvites</p> }
+        <form asp-action="Invite" method="post"><button type="submit">Create connection code</button></form>
+        @if (TempData["CoachInviteCode"] is string code)
+        {
+            <p>Share this one-time code. Enter it in My Coach within 24 hours.</p>
+            <textarea readonly aria-label="Client connection code" rows="1" style="width:10em;font-size:1.5rem;letter-spacing:0.12em">@code</textarea>
+        }
+    </div>
+</details>
 @if(Model.FormerClients.Count>0)
 {
-<details class="card coach-panel"><summary>Previous client accounts · @Model.FormerClients.Count</summary><div class="coach-panel-body"><p>Review your previous account history and record final payments. New fees and client progress access end when the coaching relationship is disconnected.</p>
+<details class="card coach-panel"><summary>Former clients · @Model.FormerClients.Count</summary><div class="coach-panel-body">
 @foreach(var client in Model.FormerClients){<p><a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@client.ClientId">@client.Name · fees &amp; payments</a></p>}
 </div></details>
 }
