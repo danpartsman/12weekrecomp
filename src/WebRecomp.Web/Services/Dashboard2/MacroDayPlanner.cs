@@ -137,7 +137,7 @@ public static class MacroDayPlanner
             : plan.UnallocatedProtein + plan.UnallocatedCarbs + plan.UnallocatedFat > 0
             ? "Remaining calories cover only part of your targets. Start with lean protein and review the meal’s nutrients."
             : plan.Suggestions.Count == 0
-            ? "Your practical macro targets are met."
+            ? "Your targets are covered, so there’s no need to eat more."
             : $"Spread the remaining {dp:0} g protein across {count} eating occasion(s).";
         return plan;
     }
