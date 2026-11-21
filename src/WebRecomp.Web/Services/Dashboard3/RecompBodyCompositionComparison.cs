@@ -22,7 +22,7 @@ public sealed record RecompCompositionChange(string Key, string Label, RecompCom
     public string Status => DisplayChangeLb is not decimal change ? "Comparison unavailable"
         : Sparse ? "Sparse evidence"
         : change == 0m ? "No change"
-        : DirectionPersists ? "Same direction on two consecutive days" : "Direction awaiting a second day";
+        : DirectionPersists ? "Same direction on two weigh-in days" : "Direction awaiting a second weigh-in day";
     private string PeriodLabel => "seven-day";
     public string? MissingNotice => Latest.Count == 0 && Previous.Count == 0
         ? $"No {Label.ToLowerInvariant()} readings in either {PeriodLabel} period."
@@ -54,49 +54,61 @@ public sealed record RecompBodyCompositionComparison(RecompCompositionChange Fat
         var previousStart = previousEnd.AddDays(1 - averagingDays);
         // One canonical reading per local date, like Daily Entry / Progress. Repeated
         // imports or extra weigh-ins must not give one day disproportionate weight.
-        var daily = readings.Where(x => !x.IsDeleted && x.LocalMeasurementDate <= date
-                && (x.LocalMeasurementDate >= latestStart.AddDays(-1)
-                    || (x.LocalMeasurementDate >= previousStart.AddDays(-1) && x.LocalMeasurementDate <= previousEnd)))
+        var daily = readings.Where(x => !x.IsDeleted && x.LocalMeasurementDate <= date)
             .GroupBy(x => x.LocalMeasurementDate)
-            .Select(g => g.OrderByDescending(x => x.MeasurementAtUtc).ThenByDescending(x => x.CreatedAtUtc)
-                .ThenByDescending(x => x.MeasurementId).First()).ToArray();
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.MeasurementAtUtc).ThenByDescending(x => x.CreatedAtUtc)
+                .ThenByDescending(x => x.MeasurementId).First());
+        var readingDays = daily.Keys.OrderDescending().ToArray();
         decimal? Fat(Measurement x) => x.WeightLb is > 0m && x.BodyFatPct is > 0m and < 1m
             ? x.WeightLb.Value * x.BodyFatPct.Value : null;
         bool Comparable(Func<Measurement, decimal?> value) =>
-            daily.Any(x => x.LocalMeasurementDate >= latestStart && value(x) is > 0m)
-            && daily.Any(x => x.LocalMeasurementDate >= previousStart && x.LocalMeasurementDate <= previousEnd && value(x) is > 0m);
+            daily.Values.Any(x => x.LocalMeasurementDate >= latestStart && value(x) is > 0m)
+            && daily.Values.Any(x => x.LocalMeasurementDate >= previousStart && x.LocalMeasurementDate <= previousEnd && value(x) is > 0m);
         // Never subtract generic muscle mass from skeletal muscle mass. Use one
         // compatible field for both periods; new Fitdays/manual data is skeletal.
         var skeletal = Comparable(x => x.SkeletalMuscleMassLb)
-            || (!Comparable(x => x.MuscleMassLb) && daily.Any(x => x.SkeletalMuscleMassLb is > 0m));
+            || (!Comparable(x => x.MuscleMassLb) && daily.Values.Any(x => x.SkeletalMuscleMassLb is > 0m
+                && (x.LocalMeasurementDate >= latestStart
+                    || (x.LocalMeasurementDate >= previousStart && x.LocalMeasurementDate <= previousEnd))));
         decimal? Muscle(Measurement x) => skeletal ? x.SkeletalMuscleMassLb : x.MuscleMassLb;
+        decimal[] weights = comparisonDays == 7 ? [.20m, .18m, .16m, .14m, .12m, .11m, .09m]
+            : [1m, 1m, 1m, 1m, 1m, 1m, 1m];
         RecompCompositionWindow Window(DateOnly from, DateOnly to, Func<Measurement, decimal?> value)
         {
-            var values = daily.Where(x => x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= to)
-                .Select(x => (Value: value(x), Offset: to.DayNumber - x.LocalMeasurementDate.DayNumber))
-                .Where(x => x.Value is > 0m).ToArray();
-            decimal[] weights = [.20m, .18m, .16m, .14m, .12m, .11m, .09m];
-            var sum = values.Sum(x => comparisonDays == 7 ? weights[x.Offset] : 1m);
-            var mean = sum == 0m ? (decimal?)null : values.Sum(x => x.Value!.Value * (comparisonDays == 7 ? weights[x.Offset] : 1m)) / sum;
-            return new(from, to, values.Length, mean);
+            var count = 0;
+            var sum = 0m;
+            var totalWeight = 0m;
+            for (var offset = 0; offset < averagingDays; offset++)
+            {
+                if (!daily.TryGetValue(to.AddDays(-offset), out var reading)
+                    || value(reading) is not decimal amount || amount <= 0m) continue;
+                count++;
+                sum += amount * weights[offset];
+                totalWeight += weights[offset];
+            }
+            return new(from, to, count, totalWeight == 0m ? null : sum / totalWeight);
         }
         RecompCompositionChange Compare(string key, string label, Func<Measurement, decimal?> value, bool gainIsFavorable)
         {
             var current = new RecompCompositionChange(key, label, Window(latestStart, date, value),
                 Window(previousStart, previousEnd, value), gainIsFavorable);
-            // A carried-forward average without fresh readings cannot confirm direction.
-            var yesterday = date.AddDays(-1);
-            if (current.Sparse || current.DisplayChangeLb is not decimal change || change == 0m
-                || !daily.Any(x => x.LocalMeasurementDate == date && value(x) is > 0m)
-                || !daily.Any(x => x.LocalMeasurementDate == yesterday && value(x) is > 0m))
-                return current;
-            var prior = current with
+            if (current.Sparse || current.DisplayChangeLb is not decimal change || change == 0m) return current;
+            // Only nonzero comparisons on weigh-in days count toward a streak.
+            var matches = 0;
+            foreach (var day in readingDays)
             {
-                Latest = Window(latestStart.AddDays(-1), yesterday, value),
-                Previous = Window(previousStart.AddDays(-1), previousEnd.AddDays(-1), value)
-            };
-            return current with { DirectionPersists = !prior.Sparse && prior.DisplayChangeLb is decimal priorChange
-                && Math.Sign(change) == Math.Sign(priorChange) };
+                if (value(daily[day]) is not > 0m) continue;
+                var offset = day.DayNumber - date.DayNumber;
+                var observed = day == date ? current : current with
+                {
+                    Latest = Window(latestStart.AddDays(offset), day, value),
+                    Previous = Window(previousStart.AddDays(offset), previousEnd.AddDays(offset), value)
+                };
+                if (observed.Sparse || observed.DisplayChangeLb is not decimal direction || direction == 0m) continue;
+                if (Math.Sign(direction) != Math.Sign(change)) break;
+                if (++matches == 2) return current with { DirectionPersists = true };
+            }
+            return current;
         }
         return new(Compare("fat", "Body fat", Fat, false),
             Compare("muscle", skeletal ? "Skeletal muscle mass" : "Muscle mass", Muscle, true), comparisonDays)

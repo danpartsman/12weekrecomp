@@ -69,7 +69,7 @@ public sealed class RecompBodyCompositionComparisonTests
     [Theory]
     [InlineData(7)]
     [InlineData(30)]
-    public void ReversalAndMissingReadingDoNotConfirmDirection(int days)
+    public void ReversalResetsOnlyTheMetricThatChangedDirection(int days)
     {
         var baseline = Enumerable.Range(4, days + 5).Select(i => R(-i));
         var rows = baseline.Concat([R(-3, fat: .26m, muscle: 81), R(-2, fat: .26m, muscle: null),
@@ -78,7 +78,36 @@ public sealed class RecompBodyCompositionComparisonTests
         Assert.True(chart.Fat.DisplayChangeLb < 0);
         Assert.True(chart.Muscle.DisplayChangeLb > 0);
         Assert.Equal("yellow", chart.Fat.Band);
-        Assert.Equal("yellow", chart.Muscle.Band);
+        Assert.Equal("green", chart.Muscle.Band);
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(30)]
+    public void ZeroAndMissingDaysPauseTheStreak(int days)
+    {
+        var baseline = Enumerable.Range(5, days + 10).Select(i => R(-i));
+        var rows = baseline.Concat([R(-4, fat: .246m), R(-3, fat: days == 7 ? .2536m : .254m),
+            R(-1, fat: .24m)]).ToArray();
+        var first = RecompBodyCompositionComparison.Build(Today.AddDays(-3), rows, days).Fat;
+        Assert.Equal("yellow", first.Band);
+        var zero = RecompBodyCompositionComparison.Build(Today.AddDays(-2), rows, days).Fat;
+        Assert.Equal(0m, zero.DisplayChangeLb);
+        Assert.Equal("gray", zero.Band);
+        var resumed = RecompBodyCompositionComparison.Build(Today, rows, days).Fat;
+        Assert.Equal("green", resumed.Band);
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(30)]
+    public void MissingDayCarriesColorWithoutAddingAWeighIn(int days)
+    {
+        var baseline = Enumerable.Range(4, days + 8).Select(i => R(-i));
+        var first = baseline.Append(R(-3, fat: .24m));
+        Assert.Equal("yellow", RecompBodyCompositionComparison.Build(Today, first, days).Fat.Band);
+        var confirmed = first.Append(R(-2, fat: .24m));
+        Assert.Equal("green", RecompBodyCompositionComparison.Build(Today, confirmed, days).Fat.Band);
     }
     [Fact] public void DeletedAndSupersededReadingsDoNotGetExtraWeight()
     {

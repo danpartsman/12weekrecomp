@@ -312,11 +312,16 @@ public sealed class RecompCockpitService(RecompDbContext db,
     private async Task<RecompBodyCompositionTrends> BuildBodyCompositionAsync(AppClientContext context,
         DateOnly date, CancellationToken ct)
     {
-        // Include the oldest baseline day needed to compare yesterday's direction.
-        var from = date.AddDays(-38);
+        // Zero changes and gaps can separate the last two nonzero changes by more than a day.
         var rows = await db.Measurements.AsNoTracking().Where(x => x.ClientId == context.Client!.ClientId
             && x.ProgramId == context.Program!.ProgramId && !x.IsDeleted
-            && x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= date).ToListAsync(ct);
+            && x.LocalMeasurementDate <= date)
+            .Select(x => new Measurement
+            {
+                MeasurementId = x.MeasurementId, LocalMeasurementDate = x.LocalMeasurementDate,
+                MeasurementAtUtc = x.MeasurementAtUtc, CreatedAtUtc = x.CreatedAtUtc, WeightLb = x.WeightLb,
+                BodyFatPct = x.BodyFatPct, MuscleMassLb = x.MuscleMassLb, SkeletalMuscleMassLb = x.SkeletalMuscleMassLb
+            }).ToListAsync(ct);
         return RecompBodyCompositionTrends.Build(date, rows);
     }
 
