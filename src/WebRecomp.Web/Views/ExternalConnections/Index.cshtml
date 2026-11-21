@@ -17,7 +17,7 @@
                 <label class="fitdays-consent"><input type="checkbox" name="automaticSync" value="true" checked="@c.AutomaticSync" /><span>Check my scale when I open Daily Entry</span></label>
                 <button type="submit">Save device preference</button>
             </form>
-            <p class="small">@(Model.Provider.AutomaticSyncEnabled ? $"Opening Daily Entry checks your scale when at least {Model.Provider.SyncIntervalMinutes} minutes have passed since the previous attempt." : "Automatic sync is paused by the administrator. Sync now remains available.") Your encrypted sign-in persists across visits and deployments; expired sessions are renewed automatically when possible.</p>
+            <p class="small">@(Model.Provider.AutomaticSyncEnabled ? $"Daily Entry checks your scale at least {Model.Provider.SyncIntervalMinutes} minutes after the last attempt." : "Automatic sync is paused. Use Sync now.")</p>
             <div class="fitdays-connected">
                 <form asp-action="Sync" method="post"><button class="primary" type="submit" disabled="@(!Model.Provider.Enabled)">Sync now</button></form>
                 <a class="button" asp-controller="Fitdays" asp-action="Index" asp-route-reconnect="true">Change scale account or profile</a>
@@ -28,7 +28,7 @@
         {
             <a class="button primary" asp-controller="Fitdays" asp-action="Index">Connect Fitdays scale</a>
         }
-        <p class="small">Existing manually recorded days are preserved. Repeated syncing does not duplicate measurements. Disconnecting stops sync and removes the saved sign-in; previously imported measurements remain.</p>
+        <p class="small">Disconnecting stops sync and removes saved credentials. Your readings stay saved.</p>
     </section>
-    <section class="card"><h2>Scale data in your plan</h2><p>Imported readings appear by their local measurement date in Daily Entry, Progress, and Command Center. Weight and body composition are kept separate from workout and food records.</p><a class="button" asp-controller="DailyEntry" asp-action="Index">Daily Entry</a> <a class="button" asp-controller="Progress" asp-action="Index">Progress</a></section>
+    <section class="card"><h2>Scale data in your plan</h2><p>Readings appear by measurement date in Daily Entry, Progress, and Command Center.</p><a class="button" asp-controller="DailyEntry" asp-action="Index">Daily Entry</a> <a class="button" asp-controller="Progress" asp-action="Index">Progress</a></section>
 </div>

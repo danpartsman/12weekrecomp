@@ -14,11 +14,16 @@ public sealed record RecompWeeklyTrendPoint(
 
 public sealed record RecompWeeklyTrend(IReadOnlyList<RecompWeeklyTrendPoint> Points)
 {
-    public static string Outcome(decimal? fat, decimal? muscle) => !fat.HasValue || !muscle.HasValue ? "Partial evidence"
-        : Math.Abs(fat.Value) <= .2m && Math.Abs(muscle.Value) <= .2m ? "Stable"
-        : fat <= .2m && muscle >= -.2m ? "Favorable"
-        : fat > .2m && muscle > .2m || fat < -.2m && muscle < -.2m ? "Mixed"
-        : "Needs review";
+    private static (string Status, string Band) Outcome(RecompBodyCompositionComparison composition)
+    {
+        var (fat, muscle, _) = composition;
+        if (fat.Sparse || muscle.Sparse) return ("Partial evidence", "gray");
+        if (fat.DisplayChangeLb * muscle.DisplayChangeLb > 0m) return ("Mixed", "yellow");
+        if (fat.Band == "yellow" || muscle.Band == "yellow") return ("New direction", "yellow");
+        if (fat.Band == "green" || muscle.Band == "green") return ("Favorable", "green");
+        if (fat.Band == "red" || muscle.Band == "red") return ("Needs review", "red");
+        return ("Stable", "gray");
+    }
 
     public static RecompWeeklyTrend Build(DateOnly date, DateOnly programStart, IEnumerable<Measurement> readings,
         IEnumerable<NutritionDay> nutrition, IEnumerable<WorkoutSession> workouts, IEnumerable<PlannedWorkout> plans,
@@ -43,9 +48,9 @@ public sealed record RecompWeeklyTrend(IReadOnlyList<RecompWeeklyTrendPoint> Poi
             var scheduled = schedule.Where(x => x.PlannedDate >= start && x.PlannedDate <= last).ToArray();
             var effort = completed.Where(x => x.SessionRpe.HasValue).ToArray();
             var flex = treats.Where(x => x.Key >= start && x.Key <= last && x.Value.HasValue).ToArray();
-            var status = composition.Fat.Sparse || composition.Muscle.Sparse ? "Partial evidence" : "Estimated direction · unconfirmed";
+            var (status, band) = Outcome(composition);
             points.Add(new(end, start, last, composition.Fat.DisplayChangeLb, composition.Muscle.DisplayChangeLb, WeightTrend(end, measurements),
-                composition.Muscle.Label, status, status == "Favorable" ? "green" : status == "Needs review" ? "red" : status == "Partial evidence" ? "gray" : "yellow",
+                composition.Muscle.Label, status, band,
                 composition.Fat.Latest.Count, composition.Fat.Previous.Count, composition.Muscle.Latest.Count, composition.Muscle.Previous.Count,
                 known.Length, Mean(known, x => x.ActualCalories!.Value), Mean(known, x => x.ActualProteinG!.Value),
                 Mean(known, x => x.ActualCarbsG!.Value), Mean(known, x => x.ActualFatG!.Value),
@@ -59,7 +64,7 @@ public sealed record RecompWeeklyTrend(IReadOnlyList<RecompWeeklyTrendPoint> Poi
     }
     private static decimal? WeightTrend(DateOnly date, Measurement[] readings)
     {
-        // Three-day rolling average of recorded scale weight, shown as pounds rather than week-over-week change.
+        // Seven-day average of recorded scale weight, shown in pounds.
         var start = date.AddDays(-7);
         var daily = readings.Where(x => !x.IsDeleted && x.WeightLb is > 0m
                 && x.LocalMeasurementDate >= start && x.LocalMeasurementDate < date)

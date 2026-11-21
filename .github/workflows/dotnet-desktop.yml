@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build-test-deploy:
-    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[seed-test-month-20261023]')
+    if: github.event_name != 'push' || (!contains(github.event.head_commit.message, '[seed-test-month-20261023]') && !contains(github.event.head_commit.message, '[deploy-live-checkpoint]'))
     runs-on: windows-latest
 
     permissions:
@@ -652,3 +652,120 @@ jobs:
           if ($result.Output) { Write-Host $result.Output }
           if ($result.ExitCode -ne 0) { throw "TEST sample-data job failed; inspect the batch result." }
 
+  deploy-live-checkpoint:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-live-checkpoint]')
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TEST_APP: recomp-test
+      TEST_GROUP: recomp_group
+      TEST_URL: https://test.12weekrecomp.com
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.x'
+
+      - name: Test and package the LIVE source for TEST
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $parents = (git show -s --format=%P HEAD).Trim() -split ' '
+          if ($parents.Count -ne 2) { throw 'Expected the TEST and LIVE checkpoint parents.' }
+          $liveSource = $parents[1]
+          git diff --exit-code $liveSource HEAD -- . ':(exclude).github'
+          if ($LASTEXITCODE -ne 0) { throw 'Checkpoint application differs from the LIVE source.' }
+          dotnet test tests/WebRecomp.Web.Tests/WebRecomp.Web.Tests.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'Application tests failed.' }
+          dotnet publish src/WebRecomp.Web/WebRecomp.Web.csproj --configuration Release --output ./publish
+          if ($LASTEXITCODE -ne 0) { throw 'Application publish failed.' }
+          @(
+              '12 Week Recomp TEST release'
+              "source_sha=$liveSource"
+              "test_commit=$env:GITHUB_SHA"
+              "deployment_run=$env:GITHUB_RUN_ID"
+          ) | Set-Content ./publish/wwwroot/release-version.txt
+          "LIVE_CHECKPOINT_SHA=$liveSource" >> $env:GITHUB_ENV
+
+      - name: Sign in with the TEST deployment identity
+        id: azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_3FC67E9AC30B4A5FB2C1C107B84D8B80 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_91AF6C5B8085425781068E9B0080051C }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_28C36820998A4A0AB8C5EBB50A54AE0E }}
+
+      - name: Verify TEST database and power controls
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $connection = az webapp config connection-string list -g $env:TEST_GROUP -n $env:TEST_APP --query "[?name=='RecompDatabase'].value | [0]" -o tsv --only-show-errors
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to read TEST database configuration.' }
+          if ([string]::IsNullOrWhiteSpace($connection)) {
+              $connection = az webapp config appsettings list -g $env:TEST_GROUP -n $env:TEST_APP --query "[?name=='ConnectionStrings__RecompDatabase'].value | [0]" -o tsv --only-show-errors
+              if ($LASTEXITCODE -ne 0) { throw 'Unable to read TEST app settings.' }
+          }
+          if ([string]::IsNullOrWhiteSpace($connection)) { throw 'TEST database configuration is missing.' }
+          $connectionBuilder = [System.Data.Common.DbConnectionStringBuilder]::new()
+          try {
+              $connectionBuilder.ConnectionString = $connection
+              $catalog = if ($connectionBuilder.ContainsKey('Initial Catalog')) {
+                  $connectionBuilder['Initial Catalog']
+              } elseif ($connectionBuilder.ContainsKey('Database')) {
+                  $connectionBuilder['Database']
+              }
+          } catch {
+              throw 'Unable to parse the TEST database configuration.'
+          }
+          if ($catalog -ne 'sqldb-recomp') { throw 'The configured database is not the TEST database.' }
+
+          az webapp stop -g $env:TEST_GROUP -n $env:TEST_APP --only-show-errors
+          if ($LASTEXITCODE -ne 0) { throw 'TEST cannot be stopped with this identity.' }
+          $state = az webapp show -g $env:TEST_GROUP -n $env:TEST_APP --query state -o tsv --only-show-errors
+          if ($LASTEXITCODE -ne 0 -or $state -ne 'Stopped') { throw 'Could not verify TEST is stopped.' }
+          az webapp start -g $env:TEST_GROUP -n $env:TEST_APP --only-show-errors
+          if ($LASTEXITCODE -ne 0) { throw 'Could not start TEST for deployment.' }
+
+      - name: Deploy the checkpoint to TEST
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: recomp-test
+          slot-name: Production
+          package: ./publish
+
+      - name: Verify TEST health and exact LIVE source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $base = $env:TEST_URL
+          for ($attempt = 1; $attempt -le 12; $attempt++) {
+              try {
+                  $health = Invoke-WebRequest -Uri "$base/health?v=$env:GITHUB_RUN_ID-$attempt" -TimeoutSec 20
+                  $marker = Invoke-WebRequest -Uri "$base/release-version.txt?v=$env:GITHUB_RUN_ID-$attempt" -TimeoutSec 20
+                  if ($health.StatusCode -eq 200 -and $marker.StatusCode -eq 200 -and
+                      ($marker.Content -split '\r?\n') -contains "source_sha=$env:LIVE_CHECKPOINT_SHA") {
+                      "TEST verified at source $env:LIVE_CHECKPOINT_SHA." >> $env:GITHUB_STEP_SUMMARY
+                      exit 0
+                  }
+              } catch {
+                  Write-Host "TEST is not ready (attempt $attempt)."
+              }
+              Start-Sleep -Seconds 5
+          }
+          throw 'TEST did not pass health and source verification.'
+
+      - name: Stop TEST and verify shutdown
+        if: always() && steps.azure.outcome == 'success'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          az webapp stop -g $env:TEST_GROUP -n $env:TEST_APP --only-show-errors
+          if ($LASTEXITCODE -ne 0) { throw 'Azure failed to stop TEST.' }
+          $state = az webapp show -g $env:TEST_GROUP -n $env:TEST_APP --query state -o tsv --only-show-errors
+          if ($LASTEXITCODE -ne 0 -or $state -ne 'Stopped') { throw 'Could not verify TEST is stopped.' }
+          'Azure confirmed TEST App Service is stopped.' >> $env:GITHUB_STEP_SUMMARY

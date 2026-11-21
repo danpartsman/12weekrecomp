@@ -283,7 +283,7 @@
             if (!evidence) { query('[data-snap-weekly-total]').textContent = 'Weekly total pending: select a week to load its dates.'; query('[data-macro-evidence]').replaceChildren(); query('[data-assessment-total]').textContent = 'Awaiting evidence; no assessment can be calculated.'; return; }
             const rows = [...assess(state, evidence), ...assessSnap(state, evidence)];
             const fine = rows.filter(x => x.type === 'fine' && x.countedInWeek !== false).reduce((n, x) => n + x.amount, 0), incentive = rows.filter(x => x.type === 'incentive' && x.countedInWeek !== false).reduce((n, x) => n + x.amount, 0), pending = rows.filter(x => x.status === 'pending').length;
-            query('[data-assessment-total]').textContent = `Selected-week preview: fines ${money(fine)} · incentives ${money(incentive)} · ${pending} assessments pending. Calculated amounts; no automatic payment collection.`;
+            query('[data-assessment-total]').textContent = `Weekly preview: ${money(fine)} fines · ${money(incentive)} incentives · ${pending} pending.`;
             const snapRows = rows.filter(x => x.workoutId);
             const snapFine = snapRows.filter(x => x.type === 'fine').reduce((n, x) => n + x.amount, 0), snapIncentive = snapRows.filter(x => x.type === 'incentive').reduce((n, x) => n + x.amount, 0);
             query('[data-snap-weekly-total]').textContent = `Week of ${dayLabel(evidence.weekStart)} · Snap fines ${money(snapFine)} · Snap incentives ${money(snapIncentive)} · Combined weekly fines ${money(fine)} · Combined weekly incentives ${money(incentive)}. Calculated totals; no payment collected.`;
@@ -339,12 +339,12 @@
                 query('[data-preview-week]').value = date || result.today; query('[data-preview-week]').max = result.today;
                 query('[data-evidence-status]').textContent = `Week of ${dayLabel(result.weekStart)}. ${result.notice || 'Daily targets and saved logs loaded.'}`;
                 drawAgreementEditor(); renderAgreement(); drawWeek(); renderAssessments(); renderSnapAssignments();
-            } catch { if (version === requestVersion) { query('[data-evidence-status]').textContent = 'Could not load evidence. No amounts are inferred; sign in again or choose a valid date within the last 12 weeks.'; drawWeek(); renderAssessments(); } }
+            } catch { if (version === requestVersion) { query('[data-evidence-status]').textContent = 'Records unavailable. Sign in again or select a date within the last 12 weeks.'; drawWeek(); renderAssessments(); } }
         }
         function renderLateFee() {
             const p = query('[data-unpaid]'), d = query('[data-overdue]');
             const calculation = p.value !== '' && d.value !== '' ? lateFee(state.payment, Number(p.value), Number(d.value)) : null;
-            query('[data-late-result]').textContent = calculation ? `${calculation.periods} full late period(s) after grace · late fee preview ${money(calculation.fee)}. The cap applies separately to each late period. Monthly late periods use 30 days in this sample. No fee is charged.` : 'Enter valid principal and whole days past due.';
+            query('[data-late-result]').textContent = calculation ? `Preview: ${money(calculation.fee)} across ${calculation.periods} full late periods. Each period has its own cap.` : 'Enter valid principal and whole days past due.';
         }
         async function post(path, fields) {
             const body = new URLSearchParams({ ...fields, __RequestVerificationToken: token() });
@@ -662,7 +662,7 @@
                 draft.rules = draft.rules.map(r => r.id === 'cheat-foods' ? { ...r, type: 'fine', lower: 0, upper: 0, amount: r.assigned && r.amount === 0 ? 2 : r.amount } : r);
                 if (!valid(draft)) throw new Error();
                 state = draft; drawEditor(); drawAgreementEditor(true); render(); drawWeek();
-                query('[data-snap-status]').textContent = 'Old browser draft loaded for review. Save the reviewed agreement to store it securely. Previous browser approvals are not imported.';
+                query('[data-snap-status]').textContent = 'Review and save this browser draft. It needs fresh approval.';
             } catch { query('[data-snap-status]').textContent = 'The old browser draft could not be imported.'; }
         });
         const approvalForm = query('[data-approval-form]');

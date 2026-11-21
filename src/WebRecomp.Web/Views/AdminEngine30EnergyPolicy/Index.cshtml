@@ -115,28 +115,9 @@
 
     <section class="e30-policy-intro">
         <h2>How this layer works</h2>
-        <p>
-            Engine 3.0 first calculates modeled maintenance from
-            <strong>Base Living + Habitual Activity + Net Workout Activity</strong>.
-            The selected recomp goal still owns the weekly energy budget.
-        </p>
-        <p>
-            These controls determine where that weekly budget is spent.
-            Higher-priority categories are filled toward their target first.
-            A day will never be pushed below the stronger of its configured
-            minimum or its physiological protein/fat/carbohydrate floor.
-        </p>
-        <p class="e30-policy-note">
-            <strong>Target %</strong> = preferred calories as a percentage of
-            that day's modeled maintenance.
-            <strong>Minimum %</strong> = category protection floor.
-            <strong>Maximum %</strong> = normal allocation ceiling.
-            <strong>Priority</strong> = which category receives available weekly
-            calories first (1–100).
-            <strong>Carryover cap</strong> is now active. It limits how many
-            calories from prior same-week overages may be removed from one day.
-            A zero cap fully protects that category from energy correction.
-        </p>
+        <p>Maintenance combines <strong>base living, habitual activity, and net workout activity</strong>. Your goal sets the weekly budget.</p>
+        <p>Higher priorities fill first. Each day respects the higher of its configured or physiological minimum.</p>
+        <dl><dt>Target %</dt><dd>Preferred share of daily maintenance.</dd><dt>Minimum %</dt><dd>Daily allocation floor.</dd><dt>Maximum %</dt><dd>Daily allocation ceiling.</dd><dt>Priority</dt><dd>Higher values allocate first.</dd><dt>Carryover cap</dt><dd>Limits daily corrections for earlier overages. Zero disables corrections for this category.</dd></dl>
     </section>
 
     @foreach (var plan in Model.Plans)

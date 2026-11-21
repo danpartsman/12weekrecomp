@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using WebRecomp.Web.Services;
+using WebRecomp.Web.Services.Coaching;
 using WebRecomp.Web.Services.Notifications;
 
 namespace WebRecomp.Web.Controllers;
@@ -69,12 +70,31 @@ public sealed class NotificationsController(AppUserContextService users, Notific
     [RequestSizeLimit(1024)]
     public async Task<IActionResult> Run(CancellationToken ct)
     {
-        var supplied = Request.Headers["X-12WR-Notification-Job"].ToString();
-        var expected = files.Identity.JobKey;
-        if (supplied.Length != expected.Length || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(supplied), Encoding.UTF8.GetBytes(expected))) return NotFound();
+        if (!HasJobAuthorization()) return NotFound();
         await processor.RunAsync(ct);
         if(WebRecomp.Web.Services.Coaching.SimpleCoaching.Enabled(HttpContext.RequestServices.GetRequiredService<IConfiguration>()))await HttpContext.RequestServices.GetRequiredService<WebRecomp.Web.Services.Coaching.SimpleCoachingService>().PostDueAsync(ct);
         return Ok(new { processed = true });
+    }
+
+    [AllowAnonymous, HttpPost("settle-agreement-fees")]
+    [RequestSizeLimit(1024)]
+    public async Task<IActionResult> SettleAgreementFees(CancellationToken ct)
+    {
+        if (!HasJobAuthorization()) return NotFound();
+        var settlement = HttpContext.RequestServices.GetRequiredService<AgreementSettlementJob>();
+        var posted = await settlement.RunAsync(ct);
+        var tasks = HttpContext.RequestServices.GetRequiredService<CoachTaskService>();
+        var taskPenalties = await tasks.PostOverdueAsync(ct);
+        return Ok(new { posted, taskPenalties });
+    }
+
+    private bool HasJobAuthorization()
+    {
+        var supplied = Request.Headers["X-12WR-Notification-Job"].ToString();
+        if (supplied.Length == 0) return false;
+        var expected = files.Identity.JobKey;
+        return supplied.Length == expected.Length
+            && CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(supplied), Encoding.UTF8.GetBytes(expected));
     }
     public sealed class SubscriptionInput
     {

@@ -95,10 +95,7 @@
     {
         <aside class="guided-demo-callout" role="note">
             <strong>One daily page. The engine does the hard part.</strong>
-            <span>
-                Enter a few numbers here, then Recomp combines them with the
-                Weekly Plan to update the recommendations on the Dashboard.
-            </span>
+            <span>Save your daily entries to update your dashboard recommendations.</span>
         </aside>
     }
 
@@ -168,23 +165,10 @@
 
             @if (Model.Workouts.Any(x => x.WorkoutSessionId.HasValue))
             {
-                <div class="daily-entry-actual-sync">
-                    <strong>✓ Completed workout synced from Workouts</strong>
-                    <span>
-                        Training is complete for this day. Daily Tracking and the Dashboard now use the completed actual session instead of the planned estimate.
-                    </span>
-                </div>
+                <div class="daily-entry-actual-sync"><strong>Completed workout synced from Workouts</strong> <span>Your dashboard now uses the completed workout.</span></div>
             }
 
-            <div class="daily-entry-info">
-                <strong>Your plan is already doing work</strong>
-                <span>
-                    Until you record an actual session, Recomp uses today's
-                    planned workout in its calculations. After you train, the
-                    system uses what you really did to recalculate workload,
-                    glycogen demand, recovery, and future recommendations.
-                </span>
-            </div>
+            <div class="daily-entry-info"><strong>Planned workout</strong> <span>Your recommendations update when you log the completed workout.</span></div>
 
             <!-- PHASE2D1_WORKOUT_BUILDER_LINK -->
             @if (Model.DetailedWorkoutEntryEnabled)
@@ -623,21 +607,13 @@
                 <div class="daily-entry-section-number">3</div>
                 <div>
                     <h2>Nutrition</h2>
-                    <p>
-                        Daily Entries is the final nutrition summary used by
-                        Engine 3.0. Use Food Log for detailed foods, or enter
-                        totals here manually when you do not use the Food Log.
-                    </p>
+                    <p>Food Log fills your daily totals. You can also enter them here.</p>
                 </div>
             </div>
 
             <div class="daily-entry-info">
                 <strong>One Engine-facing nutrition record</strong>
-                <span>
-                    Food Log totals flow into this Daily Entries automatically.
-                    Manual Override always wins and remains in control until
-                    you turn it off again.
-                </span>
+                <span>Manual Override keeps your entered totals until you switch it off.</span>
 
                 <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-top:.65rem;">
                     @if (Model.NutritionFoodLogEnabled)
@@ -669,12 +645,7 @@
             {
                 <div class="daily-entry-info">
                     <strong>Nutrition source control</strong>
-                    <span>
-                        Leave Manual Override off to use current Food Log
-                        totals. Turn it on when you want your manually entered
-                        calories and macros to replace the calculated Food Log
-                        values for this date.
-                    </span>
+                    <span>Turn on Manual Override to use your own totals for this date.</span>
 
                     <label style="display:flex;align-items:center;gap:.55rem;margin-top:.7rem;"
                            for="nutrition-manual-override">
@@ -765,16 +736,7 @@
                 <span asp-validation-for="NutritionNotes"></span>
             </label>
 
-            <div class="daily-entry-future">
-                <strong>How source precedence works</strong>
-                <span>
-                    Food Log can populate this record automatically. Existing
-                    manual calories/macros are never silently replaced. Once
-                    Manual Override is on, later Food Log changes do not
-                    overwrite these values. Turn Manual Override off to return
-                    to the current calculated Food Log totals.
-                </span>
-            </div>
+            <div class="daily-entry-future"><strong>Nutrition source</strong> <span>Turn off Manual Override to use current Food Log totals.</span></div>
 
         </section>
 

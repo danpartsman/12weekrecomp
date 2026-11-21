@@ -8,12 +8,7 @@
     <header class="admin-heading">
         <span class="admin-eyebrow">NUTRITION INTELLIGENCE</span>
         <h1>Nutrition Data Providers</h1>
-        <p>
-            Choose which external food database is searched first.
-            Primary and secondary ordering affects new provider searches only.
-            Existing foods, logged meals, Daily Entry values, and Engine data
-            are not rewritten.
-        </p>
+        <p>Provider order applies to new searches. Existing foods and logs keep their saved values.</p>
     </header>
 
     @if (TempData["NutritionProviderSuccess"] is string success)
@@ -34,12 +29,12 @@
     <section class="card" id="usda-key-setup">
         <h2>USDA FoodData Central API key</h2>
         <p role="status"><strong>@(Model.UsdaKeyConfigured?"Key configured":"Key needed")</strong> · @Model.UsdaKeySource</p>
-        <p><a href="https://fdc.nal.usda.gov/api-key-signup/" target="_blank" rel="noopener">Get a free USDA API key</a>. Saving a key here makes it available to food search and barcode lookup in this environment.</p>
+        <p><a href="https://fdc.nal.usda.gov/api-key-signup/" target="_blank" rel="noopener">Get a free USDA API key</a> for food search and barcode lookup.</p>
         <form asp-action="SaveUsdaKey" method="post" autocomplete="off">
             @Html.AntiForgeryToken()
             <label for="usda-api-key">USDA API key</label>
             <input id="usda-api-key" name="apiKey" type="password" value="" maxlength="128" autocomplete="new-password" spellcheck="false" placeholder="Paste a new key; leave blank to keep the current key" style="width:100%;max-width:640px;box-sizing:border-box;font-size:16px;min-height:44px" />
-            <p class="muted">The key is encrypted on the server and is never displayed. A saved administration key takes precedence over the Azure setting. TEST and LIVE keep separate credentials.</p>
+            <p class="muted">The encrypted admin key takes precedence over Azure. TEST and LIVE use separate keys.</p>
             <button type="submit" class="button primary">Save USDA key</button>
         </form>
         <form asp-action="TestProvider" method="post" style="margin-top:12px">
@@ -85,9 +80,7 @@
                 </div>
             </div>
 
-            <p class="muted">
-                Food matches are ranked by relevance across history, custom foods, and external providers. Provider priority breaks ties between equally relevant external matches.
-            </p>
+            <p class="muted">Relevance ranks results first. Provider order breaks ties between external matches.</p>
 
             <button type="submit" class="button primary">
                 Save Provider Order
@@ -161,11 +154,6 @@
 
     <section class="card">
         <h2>FatSecret Premier Cache</h2>
-        <p>
-            FatSecret provider content is cached for up to 24 hours.
-            Durable FatSecret identifiers are retained so expired content can
-            be refreshed from the provider. USDA FoodData Central remains
-            persistently cached under its existing policy.
-        </p>
+        <p>FatSecret caches content for 24 hours and retains IDs for refresh. USDA keeps its existing cache.</p>
     </section>
 </section>

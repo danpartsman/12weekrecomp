@@ -13,10 +13,10 @@
                 const snap = data.find(x=>x.clientId.toLowerCase()===cell.dataset.snapClient.toLowerCase())?.snap;
                 const signature = JSON.stringify(snap ?? null); if (signature===cell.dataset.signature) continue;
                 cell.dataset.signature = signature;
-                if (!snap?.assigned) { cell.textContent = 'No Snap Workouts assigned'; continue; }
+                if (!snap?.assigned) { cell.textContent = '—'; continue; }
                 const title = document.createElement('strong'); title.textContent = `${snap.status} · ${snap.latestName}`;
                 const counts = document.createElement('p'); counts.className='muted'; counts.textContent=`${snap.submitted} submitted · ${snap.completed} completed · ${snap.assigned} assigned`;
-                const link=document.createElement('a'); link.className='button'; link.textContent='View workout progression';
+                const link=document.createElement('a'); link.className='button'; link.textContent='View progress';
                 link.href=`/clients/${encodeURIComponent(cell.dataset.snapClient)}/snap?assignment=${encodeURIComponent(snap.latestWorkoutId)}#live-${encodeURIComponent(snap.latestWorkoutId)}`;
                 cell.replaceChildren(title,counts,link);
             }

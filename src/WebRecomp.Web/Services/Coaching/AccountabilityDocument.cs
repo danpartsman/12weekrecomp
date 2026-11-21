@@ -17,8 +17,26 @@ public static class AccountabilityDocument
     public static AccountabilityState Parse(string json)
     {
         if (json.Length > 1048576) throw new ArgumentException("The coaching document is too large.");
-        try { var state=JsonSerializer.Deserialize<AccountabilityState>(json,Json) ?? throw new JsonException(); Validate(state); return state; }
+        try
+        {
+            var state=JsonSerializer.Deserialize<AccountabilityState>(json,Json) ?? throw new JsonException();
+            foreach (var workout in state.SnapWorkouts.Where(w => w.Simple))
+                if (state.SnapResults.GetValueOrDefault(workout.Id) is { Finalized: false } draft)
+                    FillMissingDraftRows(workout, draft);
+            Validate(state);
+            return state;
+        }
         catch(Exception e) when(e is JsonException or NullReferenceException) { throw new ArgumentException("The coaching document has invalid fields."); }
+    }
+    internal static void FillMissingDraftRows(AccountabilityWorkout workout, AccountabilityResult draft)
+    {
+        foreach (var exercise in workout.Exercises)
+        {
+            if (!draft.Sets.TryGetValue(exercise.Id, out var sets))
+                draft.Sets[exercise.Id] = sets = [];
+            if (sets is null || exercise.Sets is < 1 or > 10) continue;
+            while (sets.Count < exercise.Sets) sets.Add(new());
+        }
     }
     public static string Serialize(AccountabilityState state) => JsonSerializer.Serialize(state,Json);
     public static bool Money(decimal n, decimal max=10000) => n >= 0 && n <= max && decimal.Round(n,2)==n;

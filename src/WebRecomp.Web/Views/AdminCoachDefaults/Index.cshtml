@@ -1,6 +1,6 @@
 @model WebRecomp.Web.Services.Coaching.AccountabilityDefaults
 @{ Layout = "_AdminLayout"; ViewData["Title"] = "Coach fee defaults"; }
-<section class="page-header"><p class="eyebrow">COACH SETTINGS</p><h1>Default fees &amp; limits</h1><p>Starting amounts for new agreements and new Snap Workouts. Existing agreements, approvals and past assignments keep their saved terms. Coaches can adjust new terms before requesting client approval.</p></section>
+<section class="page-header"><p class="eyebrow">COACH SETTINGS</p><h1>Default fees &amp; limits</h1><p>Defaults apply to new agreements and Snap Workouts. Coaches can revise them before approval.</p></section>
 @if (TempData["StatusMessage"] is string message) { <div class="app-message success" role="status">@message</div> }
 <section class="card"><form asp-action="Save" method="post">
 <div asp-validation-summary="All" role="alert"></div><input asp-for="Revision" type="hidden" />

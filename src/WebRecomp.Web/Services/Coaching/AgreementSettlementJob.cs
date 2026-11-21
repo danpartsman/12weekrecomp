@@ -7,79 +7,106 @@ using WebRecomp.Web.Controllers;
 using WebRecomp.Web.Data;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.Services.Notifications;
-using WebRecomp.Web.Services.Scheduling;
 using WebRecomp.Web.ViewModels;
 
 namespace WebRecomp.Web.Services.Coaching;
 
+internal sealed record ZeroFeeNotice(Guid Id, Guid Owner, DateTime CreatedAtUtc);
+
+internal sealed record AgreementSettlementProgress(DateOnly ClosedThrough, ZeroFeeNotice? NoFees = null)
+{
+    public static string Key(Guid client, Guid coach) => $"financial-agreements/settlement-{client:N}-{coach:N}";
+}
+
 public sealed class AgreementSettlementJob(
     RecompDbContext db, NotificationFiles files, ICoachSummaryPrescriptionSource prescriptions, INutritionFoodLogStore foodLog,
     SimpleCoachingService coaching, AccountabilityLedger ledger, IConfiguration configuration,
-    ILogger<AgreementSettlementJob> logger, TimeProvider? clock = null) : IScheduledJob
+    ILogger<AgreementSettlementJob> logger, TimeProvider? clock = null)
 {
-    private sealed record Progress(DateOnly ClosedThrough, DateTime LastCheckedUtc = default);
-
     // Explicit one-time authorization for one accepted pair and date. Store the
     // pair fingerprint here instead of identifiers from the production account.
     private const string CatchUpPair = "217e6a07cbec1ae9dc296a7dd100e678ce27380a465dabc4487be9ac6ca548ac";
     private static readonly DateOnly CatchUpDate = new(2026, 11, 7);
 
-    public async Task RunAsync(CancellationToken cancellationToken)
+    public async Task<int> RunAsync(CancellationToken cancellationToken)
     {
-        if (!SimpleCoaching.Enabled(configuration)) return;
+        if (!SimpleCoaching.Enabled(configuration))
+            throw new InvalidOperationException("Agreement fee settlement is disabled.");
         var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
         const string activationKey = "financial-agreements/settlement-activation";
+        const string firstRunKey = "financial-agreements/settlement-first-run";
         DateTime activated;
+        bool hasLegacyActivation;
         using (files.Lease(activationKey))
         {
-            var saved = files.Read<DateTime?>(activationKey);
+            var legacy = files.Read<DateTime?>(activationKey);
+            hasLegacyActivation = legacy.HasValue;
+            var saved = legacy ?? files.Read<DateTime?>(firstRunKey);
             activated = saved ?? now;
-            if (saved is null) files.Write(activationKey, activated);
+            if (saved is null) files.Write(firstRunKey, activated);
         }
 
         var pairs = await db.CoachClientRelationships.AsNoTracking()
             .Where(link => link.StatusCode == "ACTIVE" && link.RevokedAtUtc == null && link.ClientId.HasValue)
             .Select(link => new { ClientId = link.ClientId!.Value, link.CoachUserId, link.AcceptedAtUtc }).ToListAsync(cancellationToken);
+        var posted = 0;
+        var failures = 0;
         foreach (var pair in pairs.GroupBy(link => new { link.ClientId, link.CoachUserId })
                      .Select(group => group.OrderByDescending(link => link.AcceptedAtUtc).First()))
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                await PostPairAsync(pair.ClientId, pair.CoachUserId, pair.AcceptedAtUtc, activated, now, cancellationToken);
+                posted += await PostPairAsync(pair.ClientId, pair.CoachUserId, pair.AcceptedAtUtc, activated,
+                    hasLegacyActivation, now, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception error)
             {
-                logger.LogWarning("Agreement settlement for one pair will retry after {FailureType}.", error.GetType().Name);
+                failures++;
+                logger.LogWarning("Agreement settlement failed for one pair with {FailureType}.", error.GetType().Name);
             }
             finally { db.ChangeTracker.Clear(); }
         }
+        if (failures > 0)
+            throw new InvalidOperationException($"Agreement settlement failed for {failures} pair(s). Posted {posted} ledger entries before the failures.");
+        return posted;
     }
 
-    private async Task PostPairAsync(Guid clientId, Guid coach, DateTime? linkedAt, DateTime activated,
-        DateTime now, CancellationToken ct)
+    private async Task<int> PostPairAsync(Guid clientId, Guid coach, DateTime? linkedAt, DateTime activated,
+        bool hasLegacyActivation, DateTime now, CancellationToken ct)
     {
         var pairKey = $"financial-agreements/{clientId:N}-{coach:N}";
         var agreement = files.Read<CoachFinancialAgreement>(pairKey);
-        if (agreement is null) return;
+        if (agreement is null) return 0;
         var versions = AgreementSettlement.AcceptedVersions(agreement);
-        if (versions.Count == 0) return;
+        if (versions.Count == 0) return 0;
         var client = await db.Clients.AsNoTracking().SingleOrDefaultAsync(x => x.ClientId == clientId && x.ClientStatusCode == "ACTIVE", ct);
-        if (client is null) return;
+        if (client is null) return 0;
         var owners = await db.UserClientAccess.AsNoTracking()
             .Where(x => x.ClientId == clientId && x.AccessRoleCode == "OWNER" && x.RevokedAtUtc == null)
             .Select(x => x.UserId).Distinct().Take(2).ToListAsync(ct);
         if (owners.Count != 1 || !await db.UserAccounts.AsNoTracking().AnyAsync(x =>
-                x.UserId == owners[0] && x.AccountStatusCode == "ACTIVE", ct)) return;
+                x.UserId == owners[0] && x.AccountStatusCode == "ACTIVE", ct)) return 0;
 
         var zone = TimeZoneInfo.FindSystemTimeZoneById(client.TimeZone);
-        DateOnly LocalDate(DateTime utc) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone));
-        var first = LocalDate(linkedAt is { } linked && linked > activated ? linked : activated).AddDays(1);
-        var closed = LocalDate(now).AddDays(-1);
-        var progressKey = $"financial-agreements/settlement-{clientId:N}-{coach:N}";
+        DateTime LocalTime(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone);
+        DateOnly LocalDate(DateTime utc) => DateOnly.FromDateTime(LocalTime(utc));
+        DateOnly ClosedThrough(DateTime utc)
+        {
+            var localTime = LocalTime(utc);
+            return DateOnly.FromDateTime(localTime).AddDays(localTime.TimeOfDay < TimeSpan.FromMinutes(1) ? -2 : -1);
+        }
+        var first = linkedAt is { } linked ? LocalDate(linked).AddDays(1) : DateOnly.MinValue;
+        // Preserve the previous activation cutoff. A fresh installation starts
+        // with the period that closed at the first trigger, even for weekly rules.
+        if (hasLegacyActivation && LocalDate(activated).AddDays(1) > first)
+            first = LocalDate(activated).AddDays(1);
+        var activationClose = hasLegacyActivation ? first : ClosedThrough(activated);
+        var closed = ClosedThrough(now);
+        var progressKey = AgreementSettlementProgress.Key(clientId, coach);
         using var lease = files.Lease(progressKey);
+        var posted = 0;
 
         var fingerprint = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"{clientId:N}:{coach:N}")));
         var authorizedPair = fingerprint == CatchUpPair && (linkedAt is null || LocalDate(linkedAt.Value) <= CatchUpDate);
@@ -87,9 +114,11 @@ public sealed class AgreementSettlementJob(
             ? versions.Where(v => v.Revision == 2 && v.AcceptedBy == owners[0]
                 && v.AcceptedUtc is { } accepted && LocalDate(accepted) == CatchUpDate).ToArray()
             : [];
-        if (acceptedOnDate.Length != 0 && first > CatchUpDate.AddDays(1))
+        if (hasLegacyActivation && acceptedOnDate.Length != 0 && first > CatchUpDate.AddDays(1))
+        {
             first = CatchUpDate.AddDays(1);
-
+            activationClose = first;
+        }
         if (acceptedOnDate.Length != 0 && closed >= CatchUpDate && closed <= CatchUpDate.AddDays(2))
         {
             var receiptKey = progressKey + "-accepted-day-20261107";
@@ -97,26 +126,38 @@ public sealed class AgreementSettlementJob(
             {
                 var catchUp = AgreementSettlement.DuePeriods(acceptedOnDate, owners[0], zone,
                     CatchUpDate, CatchUpDate, CatchUpDate, includeAcceptanceDay: true);
-                if (catchUp.Count > 0 && await PostPeriodsAsync(client, coach, owners[0], owners[0], agreement, catchUp, ct))
-                    files.Write(receiptKey, true);
+                posted += (await PostPeriodsAsync(client, coach, owners[0], owners[0], agreement, catchUp, closed, ct)).Posted;
+                files.Write(receiptKey, true);
             }
         }
 
-        if (closed < first) return;
-        var previous = files.Read<Progress>(progressKey);
-        if (previous is not null && previous.ClosedThrough >= closed
-            && now - previous.LastCheckedUtc < TimeSpan.FromMinutes(15)) return;
+        if (closed < first || closed < activationClose) return posted;
+        var previous = files.Read<AgreementSettlementProgress>(progressKey);
 
-        // Resume after outages and revisit recently closed periods for late edits.
-        var earliestClose = previous is null ? first : previous.ClosedThrough.AddDays(-13);
+        // Reconcile missed closes and recent edits only when this job is explicitly triggered.
+        var earliestClose = previous is null ? activationClose : previous.ClosedThrough.AddDays(-13);
+        if (earliestClose < activationClose) earliestClose = activationClose;
         if (earliestClose < first) earliestClose = first;
         var periods = AgreementSettlement.DuePeriods(versions, owners[0], zone, first, earliestClose, closed);
-        if (await PostPeriodsAsync(client, coach, owners[0], coach, agreement, periods, ct))
-            files.Write(progressKey, new Progress(closed, now));
+        var result = await PostPeriodsAsync(client, coach, owners[0], coach, agreement, periods, closed, ct);
+        posted += result.Posted;
+        if (previous is null || previous.ClosedThrough < closed)
+        {
+            var acceptedForClose = versions.Any(version => version.Status == "accepted" && version.AcceptedBy == owners[0]
+                && version.Rules.Count == 10 && version.AcceptedUtc is { } accepted && LocalDate(accepted) <= closed);
+            var noFees = posted == 0 && !result.AlreadyPostedForClose && acceptedForClose
+                ? new ZeroFeeNotice(Guid.NewGuid(), owners[0], now) : null;
+            files.Write(progressKey, new AgreementSettlementProgress(closed, noFees));
+        }
+        else if (previous.ClosedThrough == closed && previous.NoFees is not null && (posted > 0 || result.AlreadyPostedForClose))
+        {
+            files.Write(progressKey, previous with { NoFees = null });
+        }
+        return posted;
     }
 
-    private async Task<bool> PostPeriodsAsync(Client client, Guid coach, Guid owner, Guid actor,
-        CoachFinancialAgreement agreement, IReadOnlyList<AgreementPeriod> periods, CancellationToken ct)
+    private async Task<(int Posted, bool AlreadyPostedForClose)> PostPeriodsAsync(Client client, Guid coach, Guid owner, Guid actor,
+        CoachFinancialAgreement agreement, IReadOnlyList<AgreementPeriod> periods, DateOnly closed, CancellationToken ct)
     {
         var clientId = client.ClientId;
         if (periods.Count != 0)
@@ -144,12 +185,16 @@ public sealed class AgreementSettlementJob(
             {
                 row ??= await coaching.EnsureAsync(coach, clientId, ct);
                 await ledger.PrepareAutomaticAsync(row, entries, ct);
-                if (entries.Count == 0) return false;
+                if (entries.Count == 0)
+                    throw new InvalidOperationException("The ledger changed while agreement fees were being prepared.");
                 ledger.Append(row, actor, entries);
                 await db.SaveChangesAsync(ct);
             }
+            var alreadyPosted = existing.Any(entry => entry.Automatic && entry.CoachUserId == coach
+                && entry.Date == closed && entry.SourceKey.StartsWith("agreement:", StringComparison.Ordinal));
+            return (entries.Count, alreadyPosted);
         }
-        return true;
+        return (0, false);
     }
 
     private async Task<Dictionary<DateOnly, AgreementDay>> LoadEvidenceAsync(Client client, Guid owner,
@@ -212,6 +257,7 @@ public sealed class AgreementSettlementJob(
             var nutritionComplete = intake is
                 { ActualCalories: not null, ActualProteinG: not null, ActualCarbsG: not null, ActualFatG: not null };
             var cheatFoods = review?.CheatFoods;
+            string? cheatFoodNames = null;
             if (review?.Excused != true)
             {
                 var program = needsCheatFoods
@@ -222,19 +268,34 @@ public sealed class AgreementSettlementJob(
                     cheatFoods = savedCounts.GetValueOrDefault((program.ProgramId, date));
 
                 var checkFoodLog = needsNutrition && nutritionComplete && intake!.EntrySourceCode == "FOOD_LOG";
-                var detectCheatFoods = cheatFoods is null && program?.NutritionFoodLogEnabled == true
+                var readCheatFoods = cheatFoods != 0 && program?.NutritionFoodLogEnabled == true
                     && (intake?.EntrySourceCode is null or "FOOD_LOG" or "MANUAL");
-                if (checkFoodLog || detectCheatFoods)
+                if (checkFoodLog || readCheatFoods)
                 {
-                    var log = await foodLog.GetDailyLogAsync(id, date, ct);
-                    if (checkFoodLog) nutritionComplete = log.Items.Count > 0 && RecompTreatClassifier.Complete(log);
-                    if (detectCheatFoods && RecompTreatClassifier.CanCount(log, intake?.EntrySourceCode))
-                        cheatFoods = RecompTreatClassifier.Count(log);
+                    try
+                    {
+                        var log = await foodLog.GetDailyLogAsync(id, date, ct);
+                        if (checkFoodLog) nutritionComplete = log.Items.Count > 0 && RecompTreatClassifier.Complete(log);
+                        if (readCheatFoods && RecompTreatClassifier.CanCount(log, intake?.EntrySourceCode))
+                        {
+                            var detected = RecompTreatClassifier.Count(log);
+                            cheatFoods ??= detected;
+                            if (cheatFoods == detected && detected > 0)
+                            {
+                                var names = RecompTreatClassifier.FoodNames(log);
+                                if (names.Length > 0) cheatFoodNames = names;
+                            }
+                        }
+                    }
+                    catch (Exception error) when (!checkFoodLog && cheatFoods.HasValue && error is not OperationCanceledException)
+                    {
+                        logger.LogWarning("Could not load food names for a saved cheat-food count ({FailureType}).", error.GetType().Name);
+                    }
                 }
             }
             evidence.Add(date, new(intake, targets.GetValueOrDefault(date), nutritionComplete,
                 scale.Contains(date) || checkins.Contains(date), planned.Length > 0,
-                workouts[date].Count() - done.Count == planned.Length, review?.Excused == true, cheatFoods));
+                workouts[date].Count() - done.Count == planned.Length, review?.Excused == true, cheatFoods, cheatFoodNames));
         }
         return evidence;
     }

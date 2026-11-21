@@ -206,7 +206,8 @@ public sealed class RecompCockpitService(RecompDbContext db,
                     ? SystemWorkoutRecipeCatalog.ResolveDefaultMinutes(selected, type.DefaultMinutes) : type?.DefaultMinutes),
                 scheduled.PlannedRpe, sample?.SystemCode, tone, true));
         }
-        var composition = await BuildBodyCompositionAsync(context, today, ct);
+        var measurements = await LoadCompositionReadingsAsync(context, today, ct);
+        var composition = RecompBodyCompositionTrends.Build(today, measurements);
         var score = RecompAdherenceScorer.Score(today, days, training, glycogen, workoutReview, composition);
         var capture = historical ? snapshots.FirstOrDefault(x => x.Run.ActionDate == today).Snapshot : null;
         if (capture is not null)
@@ -230,7 +231,7 @@ public sealed class RecompCockpitService(RecompDbContext db,
                 mealPlan.EnergyTarget, mealPlan.Bands[0].Eaten, mealPlan.Bands[1].Eaten, mealPlan.Bands[2].Eaten,
                 mealPlan.EnergyEaten, Flex(today), "Current engine prescription")).ToList(),
             BodyComposition = composition,
-            WeeklyTrend = await BuildWeeklyTrendAsync(context, today, ct),
+            WeeklyTrend = await BuildWeeklyTrendAsync(context, today, measurements, ct),
             Score = score, Training = training, Glycogen = glycogen, Days = days, History = history, UpcomingWorkouts = upcoming,
             Change = !score.HasEvidence || previous is null || previous.Version != RecompScoreResult.Version ? null : score.Score - previous.Score,
             TodayFlexibleItems = Flex(today),
@@ -309,24 +310,26 @@ public sealed class RecompCockpitService(RecompDbContext db,
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task<RecompBodyCompositionTrends> BuildBodyCompositionAsync(AppClientContext context,
+    private async Task<List<Measurement>> LoadCompositionReadingsAsync(AppClientContext context,
         DateOnly date, CancellationToken ct)
     {
-        // The 30-day comparison needs the seven-day baseline ending 30 days ago.
-        var from = date.AddDays(-37);
-        var rows = await db.Measurements.AsNoTracking().Where(x => x.ClientId == context.Client!.ClientId
+        // Zero changes and gaps can separate the last two nonzero changes by more than a day.
+        return await db.Measurements.AsNoTracking().Where(x => x.ClientId == context.Client!.ClientId
             && x.ProgramId == context.Program!.ProgramId && !x.IsDeleted
-            && x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= date).ToListAsync(ct);
-        return RecompBodyCompositionTrends.Build(date, rows);
+            && x.LocalMeasurementDate <= date)
+            .Select(x => new Measurement
+            {
+                MeasurementId = x.MeasurementId, LocalMeasurementDate = x.LocalMeasurementDate,
+                MeasurementAtUtc = x.MeasurementAtUtc, CreatedAtUtc = x.CreatedAtUtc, WeightLb = x.WeightLb,
+                BodyFatPct = x.BodyFatPct, MuscleMassLb = x.MuscleMassLb, SkeletalMuscleMassLb = x.SkeletalMuscleMassLb
+            }).ToListAsync(ct);
     }
 
-    private async Task<RecompWeeklyTrend> BuildWeeklyTrendAsync(AppClientContext context, DateOnly date, CancellationToken ct)
+    private async Task<RecompWeeklyTrend> BuildWeeklyTrendAsync(AppClientContext context, DateOnly date,
+        IReadOnlyList<Measurement> measurements, CancellationToken ct)
     {
         var clientId = context.Client!.ClientId; var programId = context.Program!.ProgramId;
-        // Six weeks of points need fourteen preceding measurement days for the oldest comparison.
         var from = date.AddDays(-55); var end = date.AddDays(-1);
-        var measurements = await db.Measurements.AsNoTracking().Where(x => x.ClientId == clientId
-            && x.ProgramId == programId && !x.IsDeleted && x.LocalMeasurementDate >= from && x.LocalMeasurementDate <= date).ToListAsync(ct);
         var foods = await db.NutritionDays.AsNoTracking().Where(x => x.ClientId == clientId && x.ProgramId == programId
             && x.NutritionDate >= from && x.NutritionDate <= end).ToListAsync(ct);
         var workouts = await db.WorkoutSessions.AsNoTracking().Where(x => x.ClientId == clientId && x.ProgramId == programId

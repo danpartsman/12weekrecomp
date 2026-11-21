@@ -76,7 +76,7 @@
 @inject Microsoft.Extensions.Configuration.IConfiguration AccountabilityConfig
 @if (AccountabilityPreview.Enabled(AccountabilityConfig)) { <p><a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@(Model.ClientId)">Fees &amp; payments</a> <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-fragment="snap-workout" asp-route-clientId="@(Model.ClientId)">Snap Workouts</a></p> }
 <details class="card coach-panel"><summary>Last 7 completed days</summary><div class="coach-panel-body">
-    <p class="muted">@Model.CompletedWorkouts completed workouts · @Model.TrainingMinutes.ToString("0.#") minutes · @Model.NutritionDays / 7 days with nutrition. Today and tomorrow are excluded from all gauges and totals.</p>
+    <p class="muted">@Model.CompletedWorkouts workouts · @Model.TrainingMinutes.ToString("0.#") minutes · @Model.NutritionDays / 7 nutrition days. Totals exclude today.</p>
     <div class="coach-summary-gauges">
     @foreach(var body in new[] { Model.FatChange, Model.MuscleChange }) {
         var position = 50m + (body.Change ?? 0m) / Model.BodyScale * 45m;
@@ -107,12 +107,12 @@
         </article>
     }
     </div>
-    <p class="muted">Body changes compare the first three days’ average with the last three days’ average within this same seven-day window. Scale estimates can fluctuate. Nutrition gauges sum those seven days’ individual prescriptions; rings stop at 100%, while the number shows any overage.</p>
+    <p class="muted">Body change compares the first and last three days. Nutrition totals show overages even when rings reach 100%.</p>
     @if(Model.PrescriptionNotice is {} notice) {<p class="app-message">@notice</p>}
 </div></details>
 @{var detailDays=Model.Days.Where(d=>d.Date>=Model.ReferenceDate.AddDays(-6)&&d.Date<=Model.ReferenceDate).ToArray();}
 <details class="card coach-panel"><summary>Daily detail · 7 days</summary><div class="coach-panel-body">
-    <p class="muted">Seven days including today (or the selected day). Scroll sideways to see all seven days. “—” means not recorded. Prescribed and logged nutrition are separate rows.</p>
+    <p class="muted">Scroll for all seven days. A dash means no entry.</p>
     <div class="coach-summary-table-scroll" tabindex="0" role="region" aria-label="Seven-day client detail; scroll horizontally">
     <table class="coach-summary-table">
         <caption class="cws-visually-hidden">Aligned scale, training, nutrition, and check-in information for seven days</caption>

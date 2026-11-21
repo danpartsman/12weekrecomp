@@ -16,7 +16,7 @@
         <div>
             <div class="app-kicker">@(Model.ReviewMode ? "YOUR RECOMP SETUP" : "ONE-TIME SETUP")</div>
             <h1>@(Model.ReviewMode ? "Review my setup" : "Tell Recomp where you're starting")</h1>
-            <p class="lede">@(Model.ReviewMode ? "Your plan can change as your goals and life change. Review what Recomp is using and update what still matters." : "Use your best information today. It does not have to be perfect.")</p>
+            <p class="lede">@(Model.ReviewMode ? "Update your profile as your goals or schedule change." : "Start with the information you have.")</p>
         </div>
     </header>
 
@@ -26,20 +26,13 @@
             @if (Model.ReviewMode)
             {
                 <h2 id="setup-intro-title">This is the setup Recomp is using now.</h2>
-                <p>
-                    Update your profile, goals, training availability, or Primary Plan when those things genuinely change.
-                    Your original baseline and program start date stay protected as historical records; current body changes belong in Daily Weigh-In.
-                </p>
-                <div class="review-mode-note"><strong>Plan changes are forward-looking.</strong> A new Primary Plan takes effect today and changes new calorie, macro, fueling, recovery, and workout recommendations. Prior logged data and stored recommendations are not rewritten.</div>
+                <p>Update your goals and availability here. Log current measurements in Daily Weigh-In.</p>
+                <div class="review-mode-note"><strong>Plan changes start today.</strong> Earlier records stay saved.</div>
             }
             else
             {
                 <h2 id="setup-intro-title">Best estimates are enough to get started.</h2>
-                <p>
-                    This page creates your baseline and first 12-week plan. Enter what you know, leave optional
-                    measurements blank instead of guessing, and use the closest plan choice for your real goal.
-                    Recomp becomes more useful as your daily nutrition, weigh-ins, and workouts begin replacing estimates with actual data.
-                </p>
+                <p>Enter your baseline and goals. Leave optional measurements blank if you’re unsure.</p>
                 <div class="setup-progress" aria-label="Setup progress">
                     <span class="active">1 • Initial setup</span>
                     <span>2 • Weekly plan</span>
@@ -63,13 +56,13 @@
             <div class="section-heading-with-help">
                 <h2>About you</h2>
                 <button type="button" class="help-tip" aria-label="About profile information"
-                        data-tooltip="Basic information helps Recomp interpret your measurements and calculate appropriate targets. Use your normal time zone and the training level that best describes you today.">?</button>
+                        data-tooltip="Use your usual time zone and current training level.">?</button>
             </div>
             <p class="section-helper">Start with the basics. You do not need special testing or perfect precision.</p>
             <div class="grid-2">
                 <label><span class="field-label-line">Name <span class="required-mark">*</span></span><input asp-for="ClientName" autocomplete="name" /></label>
                 <label>Date of birth<input asp-for="DateOfBirth" type="date" /></label>
-                <label>Sex used for calculations <span class="inline-help"><button type="button" class="help-tip small-tip" aria-label="Why sex is used for calculations" data-tooltip="Some body-composition and energy calculations use sex-based reference values. You may leave this unspecified.">?</button></span>
+                <label>Sex used for calculations <span class="inline-help"><button type="button" class="help-tip small-tip" aria-label="Why sex is used for calculations" data-tooltip="Sex-based reference values help estimate energy and body composition. This field is optional.">?</button></span>
                     <select asp-for="SexCode">
                         <option value="">Prefer not to specify</option>
                         <option value="MALE">Male</option>
@@ -77,7 +70,7 @@
                     </select>
                 </label>
                 <label><span class="field-label-line">Height (inches) <span class="required-mark">*</span></span><input asp-for="HeightIn" type="number" step="0.1" /></label>
-                <label><span class="field-label-line">Training experience <span class="required-mark">*</span> <span class="inline-help"><button type="button" class="help-tip small-tip" aria-label="Training experience help" data-tooltip="Choose the level that best reflects your current resistance-training experience. This helps Recomp avoid treating a newer trainee like an advanced lifter.">?</button></span></span>
+                <label><span class="field-label-line">Training experience <span class="required-mark">*</span> <span class="inline-help"><button type="button" class="help-tip small-tip" aria-label="Training experience help" data-tooltip="Choose the level that matches your current strength training experience.">?</button></span></span>
                     <select asp-for="TrainingExperienceCode">
                         <option value="BEGINNER">Beginner</option>
                         <option value="INTERMEDIATE">Intermediate</option>
@@ -93,7 +86,7 @@
             <div class="section-heading-with-help">
                 <h2>Starting measurements</h2>
                 <button type="button" class="help-tip" aria-label="About starting measurements"
-                        data-tooltip="Weight is the key starting value. Smart-scale body fat, muscle, water, and visceral-fat readings are useful context but are estimates. Use the same device consistently and let Recomp follow the trend.">?</button>
+                        data-tooltip="Start with weight. Use consistent scale readings to follow body composition trends.">?</button>
             </div>
             <p class="section-helper">Weight is the important starting point. Smart-scale and tape measurements are helpful, but optional.</p>
             @if (Model.ReviewMode)
@@ -133,18 +126,18 @@
             <div class="section-heading-with-help">
                 <h2>Choose your program direction</h2>
                 <button type="button" class="help-tip" aria-label="About program direction"
-                        data-tooltip="This is the most important choice on the setup page. Recomp maps this goal to the plan that drives calorie, macro, fueling, recovery, and workout recommendations throughout the program.">?</button>
+                        data-tooltip="Your goal sets training, nutrition, fueling, and recovery priorities.">?</button>
             </div>
 
             <div class="critical-choice-callout">
                 <strong>This choice drives the plan.</strong>
-                <p>Your Primary Plan drives calorie, macro, fueling, recovery, and workout recommendations, and it also creates your initial recommended Weekly Plan. Choose the option that best describes what you want this 12-week block to prioritize.</p>
+                <p>Pick your main goal for this 12-week plan.</p>
             </div>
 
             <div class="resistance-first-callout">
                 <strong>Resistance training is the anchor of Recomp.</strong>
-                <p>Compared with easy cardio such as Zone 2, demanding resistance work creates a much larger glycogen draw in the muscles being trained while also providing the mechanical stimulus that tells those muscles to stay strong or grow. That resistance can be body-weight work or bands for a beginner, or heavy barbell training for an advanced lifter. Cardio still belongs in the program, but it supports the resistance-first goal rather than replacing it.</p>
-                <p class="form-footnote">Hard intervals and long endurance sessions can also use substantial glycogen. Recomp distinguishes those from easy cardio and fuels them accordingly.</p>
+                <p>Resistance training supports muscle growth. Recomp fuels strength sessions according to their demand.</p>
+                <p class="form-footnote">Hard intervals and long sessions may need more fuel than easy cardio.</p>
             </div>
 
             <div class="grid-2">
@@ -163,7 +156,7 @@
                     </select>
                     <span id="goal-description" class="plan-choice-description" aria-live="polite"></span>
                 </label>
-                <label><span class="field-label-line">Training days available <span class="required-mark">*</span> <span class="inline-help"><button type="button" class="help-tip small-tip" aria-label="Training days available help" data-tooltip="Use the number of days you can realistically make available most weeks—not the number you hope to reach on a perfect week.">?</button></span></span><input asp-for="AvailableTrainingDaysWeek" type="number" min="1" max="7" /></label>
+                <label><span class="field-label-line">Training days available <span class="required-mark">*</span> <span class="inline-help"><button type="button" class="help-tip small-tip" aria-label="Training days available help" data-tooltip="Choose the number of days you can train most weeks.">?</button></span></span><input asp-for="AvailableTrainingDaysWeek" type="number" min="1" max="7" /></label>
                 <label>Target weight low<input asp-for="TargetWeightLowLb" type="number" step="0.1" /></label>
                 <label>Target weight high<input asp-for="TargetWeightHighLb" type="number" step="0.1" /></label>
                 <label>Target waist<input asp-for="TargetWaistIn" type="number" step="0.1" /></label>
@@ -194,10 +187,7 @@
 
         @if (Model.ReviewMode)
         {
-            <div class="setup-next-callout">
-                <strong>Change only what really changed.</strong>
-                <span>Current measurements belong in Daily Weigh-In and weekly workout changes belong in Weekly Plan. Setup is for the assumptions that shape Recomp's recommendations.</span>
-            </div>
+            <div class="setup-next-callout"><strong>Update your setup here.</strong> <span>Log measurements in Daily Weigh-In and schedule changes in Weekly Plan.</span></div>
             <div class="app-action-row">
                 <a class="button" asp-controller="Profile" asp-action="Index">Cancel</a>
                 <button class="primary" type="submit">Save setup changes</button>
@@ -205,10 +195,7 @@
         }
         else
         {
-            <div class="setup-next-callout">
-                <strong>Next: Recomp builds your starting week.</strong>
-                <span>Your Primary Plan and training availability create a recommended seven-day schedule automatically. Weekly Plan opens with that starting point already filled in so you can move, replace, or remove anything that does not fit your real life.</span>
-            </div>
+            <div class="setup-next-callout"><strong>Next: Weekly Plan.</strong> <span>Review and adjust your suggested first week.</span></div>
             <div class="app-action-row">
                 <button class="primary" type="submit">Create program and plan my week →</button>
             </div>

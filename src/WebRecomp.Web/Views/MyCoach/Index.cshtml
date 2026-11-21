@@ -1,12 +1,13 @@
 @model MyCoachesViewModel
+@using WebRecomp.Web.Services.Coaching
 @{ ViewData["Title"] = "My Coach"; }
 <h1>My Coach</h1>
 <section class="card" aria-labelledby="coaching-overview">
     <h2 id="coaching-overview">Personal support for your recomp goals</h2>
     <p>Connect with a coach to plan your training, review your progress, and stay accountable together.</p>
     <ul>
-        <li><strong>A shared view of your progress.</strong> Your coach can review your goals, nutrition logs, body measurements, training schedule, and completed workouts.</li>
-        <li><strong>Guidance that fits you.</strong> Your coach can adjust nutrition targets, plan future workouts, and assign Snap Workouts with instructions and completion notes.</li>
+        <li>Your coach can review your measurements, food logs, and workouts.</li>
+        <li>Your coach can adjust targets, plan training, and assign Snap Workouts.</li>
         <li><strong>Stay in touch.</strong> Use your coach's workspace for messages and updates. Each coach has a separate connection with you.</li>
     </ul>
     <p>Financial penalties and incentives between the client and coach can be accommodated if desired.</p>
@@ -20,6 +21,10 @@
         <section class="card">
             <h3><a asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachId="@coach.CoachUserId">@coach.Name</a></h3>
             <p>@coach.Specialties</p><p>@coach.Bio</p>
+            @if (SimpleCoaching.Enabled(Context.RequestServices.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()))
+            {
+                <p><a class="button" asp-controller="CoachTasks" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachId="@coach.CoachUserId">Task assignments</a></p>
+            }
             <form asp-action="Disconnect" asp-route-relationshipId="@coach.RelationshipId" method="post"><button type="submit">Disconnect coach</button></form>
         </section>
     }

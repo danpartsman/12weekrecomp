@@ -14,6 +14,7 @@ using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
 using WebRecomp.Web.Services.Notifications;
+using WebRecomp.Web.ViewModels;
 
 namespace WebRecomp.Web.Tests;
 
@@ -482,6 +483,9 @@ public sealed class CoachNotificationTests
         await job.RunAsync(default);
         Assert.False(await f.Db.CoachAccountabilityAgreements.AnyAsync());
         clock.Now = clock.Now.AddMinutes(1);
+        Assert.Equal(0, await job.RunAsync(default));
+        Assert.False(await f.Db.CoachAccountabilityAgreements.AnyAsync());
+        clock.Now = clock.Now.AddMinutes(1);
         await job.RunAsync(default);
         await job.RunAsync(default);
         var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
@@ -490,6 +494,7 @@ public sealed class CoachNotificationTests
         Assert.All(entries, entry => Assert.Equal(date, entry.Date));
         Assert.Equal(5m, entries.Single(entry => entry.CoachUserId == f.Coach).Amount);
         Assert.Equal(8m, entries.Single(entry => entry.CoachUserId == other).Amount);
+        Assert.All(entries, entry => Assert.Equal("100 g (allowed 150–210 g)", Assert.Single(entry.Details)));
 
         var correction = await f.Db.NutritionDays.SingleAsync();
         correction.ActualProteinG = 180;
@@ -524,8 +529,8 @@ public sealed class CoachNotificationTests
         var clock = new SettlementClock { Now = new DateTimeOffset(2026, 11, 9, 20, 0, 0, TimeSpan.Zero) };
         var job = new AgreementSettlementJob(f.Db, f.Files, null!, null!, new SimpleCoachingService(f.Db, access, ledger),
             ledger, f.Config, NullLogger<AgreementSettlementJob>.Instance, clock);
-        await job.RunAsync(default);
-        clock.Now = new(2026, 11, 12, 8, 0, 0, TimeSpan.Zero);
+        f.Files.Write("financial-agreements/settlement-activation", clock.Now.UtcDateTime);
+        clock.Now = new(2026, 11, 12, 8, 1, 0, TimeSpan.Zero);
         await job.RunAsync(default);
         var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
         var date = new DateOnly(2026, 11, 11);
@@ -547,7 +552,7 @@ public sealed class CoachNotificationTests
         // A subsequent proposal must leave the latest accepted revision in force.
         SaveFinancial(f, replacement with { Revision = 6, Status = "pending", AcceptedUtc = null,
             AcceptedBy = null, AcceptedHistory = [original, replacement] });
-        clock.Now = new(2026, 11, 13, 8, 0, 0, TimeSpan.Zero);
+        clock.Now = new(2026, 11, 13, 8, 1, 0, TimeSpan.Zero);
         await job.RunAsync(default);
         Assert.Equal((decimal)expected, (await ledger.ReadAsync(row, default))
             .Where(x => x.Date == date.AddDays(1)).Sum(x => x.Amount));
@@ -579,13 +584,14 @@ public sealed class CoachNotificationTests
         var clock = new SettlementClock { Now = new DateTimeOffset(2026, 11, 1, 20, 0, 0, TimeSpan.Zero) };
         var job = new AgreementSettlementJob(f.Db, f.Files, null!, foodLog, new SimpleCoachingService(f.Db, access, ledger),
             ledger, f.Config, NullLogger<AgreementSettlementJob>.Instance, clock);
-        await job.RunAsync(default);
+        f.Files.Write("financial-agreements/settlement-activation", clock.Now.UtcDateTime);
         clock.Now = new(2026, 11, 3, 2, 0, 0, TimeSpan.Zero);
         await job.RunAsync(default);
         var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
         var entry = Assert.Single(await ledger.ReadAsync(row, default));
         Assert.Equal(f.Coach, entry.CoachUserId);
         Assert.Equal(15m, entry.Amount);
+        Assert.Equal("1 cheat-food portion: The Original", Assert.Single(entry.Details));
 
         f.Db.AnalysisRuns.Add(new()
         {
@@ -596,7 +602,9 @@ public sealed class CoachNotificationTests
         await f.Db.SaveChangesAsync();
         clock.Now = clock.Now.AddMinutes(15);
         await job.RunAsync(default);
-        Assert.Equal(30m, (await ledger.ReadAsync(row, default)).Sum(x => x.Amount));
+        var assessed = await ledger.ReadAsync(row, default);
+        Assert.Equal(30m, assessed.Sum(x => x.Amount));
+        Assert.Equal("2 cheat-food portions: food names unavailable", Assert.Single(assessed.Last().Details));
 
         SaveFinancial(f, agreement with { Reviews = new() { [date] = new(false, 0) } });
         clock.Now = clock.Now.AddMinutes(15);
@@ -608,14 +616,117 @@ public sealed class CoachNotificationTests
     }
 
     [Fact]
-    public async Task WeeklySettlementPostsAtLocalMidnightOnThePaymentDay()
+    public async Task ScheduledCarbChargeSavesTheActualTargetAndAllowedRange()
+    {
+        using var f = new Fixture();
+        await SeedFinancial(f);
+        f.Config["SimpleCoaching:Enabled"] = "true";
+        (await f.Db.Clients.SingleAsync()).TimeZone = "UTC";
+        var date = new DateOnly(2026, 11, 2);
+        f.Db.NutritionDays.Add(new()
+        {
+            NutritionDayId = Guid.NewGuid(), ClientId = f.Client, ProgramId = Guid.NewGuid(), NutritionDate = date,
+            ActualCalories = 1800, ActualProteinG = 180, ActualCarbsG = 120, ActualFatG = 60
+        });
+        await f.Db.SaveChangesAsync();
+        var acceptedAt = new DateTime(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc);
+        SaveFinancial(f, new(2, "accepted", acceptedAt, f.Owner, null,
+            Enumerable.Range(0, 10).Select(i => new CoachFinancialRule("Carbs outside range", i == 1,
+                "daily", 15, 0, 0, "Carbohydrate limit", "system-percent", 10, 10)).ToArray(), acceptedAt, f.Owner));
+        var access = new CoachAccountabilityPreviewService(f.Db, new CoachCenterService(f.Db), null!);
+        var ledger = new AccountabilityLedger(f.Db, access, f.Config);
+        var clock = new SettlementClock { Now = new DateTimeOffset(2026, 11, 3, 0, 1, 0, TimeSpan.Zero) };
+        var job = new AgreementSettlementJob(f.Db, f.Files, new CarbTargets(date), null!,
+            new SimpleCoachingService(f.Db, access, ledger), ledger, f.Config,
+            NullLogger<AgreementSettlementJob>.Instance, clock);
+
+        Assert.Equal(1, await job.RunAsync(default));
+        Assert.Equal(0, await job.RunAsync(default));
+        var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        var charge = Assert.Single(await ledger.ReadAsync(row, default));
+        Assert.Equal(15m, charge.Amount);
+        Assert.Equal("120 g vs 160 g target (allowed 144–176 g)", Assert.Single(charge.Details));
+    }
+
+    private sealed class CarbTargets(DateOnly date) : ICoachSummaryPrescriptionSource
+    {
+        public Task<CoachSummaryTargets> LoadAsync(Guid user, Client client, DateOnly referenceDate, CancellationToken ct) =>
+            Task.FromResult(new CoachSummaryTargets(new Dictionary<DateOnly, CoachSummaryPrescription>
+            {
+                [date] = new(date, 180, 160, 60, 1900, null, null, null, "Test")
+            }));
+    }
+
+    [Fact]
+    public async Task ZeroFeeCloseNotifiesBothPeopleOnceAndYieldsToALaterFee()
+    {
+        using var f = new Fixture();
+        await SeedFinancial(f);
+        f.Config["SimpleCoaching:Enabled"] = "true";
+        (await f.Db.Clients.SingleAsync()).TimeZone = "UTC";
+        var midnight = DateTime.UtcNow.Date;
+        var date = DateOnly.FromDateTime(midnight.AddDays(-1));
+        var day = new NutritionDay
+        {
+            NutritionDayId = Guid.NewGuid(), ClientId = f.Client, ProgramId = Guid.NewGuid(), NutritionDate = date,
+            ActualCalories = 1800, ActualProteinG = 180, ActualCarbsG = 200, ActualFatG = 60
+        };
+        f.Db.NutritionDays.Add(day);
+        await f.Db.SaveChangesAsync();
+        var acceptedAt = midnight.AddDays(-1).AddHours(12);
+        SaveFinancial(f, new(2, "accepted", acceptedAt, f.Owner, null,
+            Enumerable.Range(0, 10).Select(i => new CoachFinancialRule("Protein penalty", i == 0, "daily",
+                15, 0, 0, "Protein outside range", "actual", 150, 210)).ToArray(), acceptedAt, f.Owner));
+        var access = new CoachAccountabilityPreviewService(f.Db, new CoachCenterService(f.Db), null!);
+        var ledger = new AccountabilityLedger(f.Db, access, f.Config);
+        var clock = new SettlementClock { Now = new DateTimeOffset(midnight) };
+        var job = new AgreementSettlementJob(f.Db, f.Files, null!, null!, new SimpleCoachingService(f.Db, access, ledger),
+            ledger, f.Config, NullLogger<AgreementSettlementJob>.Instance, clock);
+
+        Assert.Equal(0, await job.RunAsync(default));
+        Assert.Empty(await ReadClient());
+        Assert.Empty(await ReadCoach());
+
+        clock.Now = clock.Now.AddMinutes(1);
+        Assert.Equal(0, await job.RunAsync(default));
+        Assert.False(await f.Db.CoachAccountabilityAgreements.AnyAsync());
+        var client = Assert.Single(await ReadClient());
+        var coach = Assert.Single(await ReadCoach());
+        Assert.True(client.NoFees);
+        Assert.True(coach.NoFees);
+        Assert.Equal("No fees assessed", client.Message);
+        Assert.Equal("No fees assessed", coach.Message);
+        Assert.Equal(client.Id, coach.Id);
+        Assert.False(client.ForCoach);
+        Assert.True(coach.ForCoach);
+        Assert.Equal($"/clients/{f.Client:D}/coach-ledger?coachUserId={f.Coach:D}", coach.Url);
+        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, Guid.NewGuid(), true, default));
+
+        f.Files.Write(AutomaticFeeNotices.ReceiptKey(f.Owner), new[] { client.Id });
+        Assert.Equal(0, await job.RunAsync(default));
+        Assert.Empty(await ReadClient());
+        Assert.Equal(coach.Id, Assert.Single(await ReadCoach()).Id);
+
+        day = await f.Db.NutritionDays.SingleAsync();
+        day.ActualProteinG = 100;
+        await f.Db.SaveChangesAsync();
+        Assert.Equal(1, await job.RunAsync(default));
+        Assert.False(Assert.Single(await ReadClient()).NoFees);
+        Assert.False(Assert.Single(await ReadCoach()).NoFees);
+
+        Task<IReadOnlyList<AutomaticFeeNotice>> ReadClient() => AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, false, default);
+        Task<IReadOnlyList<AutomaticFeeNotice>> ReadCoach() => AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, true, default);
+    }
+
+    [Fact]
+    public async Task WeeklySettlementPostsAt1201OnThePaymentDayAndNotifiesBothPeople()
     {
         using var f = new Fixture();
         await SeedFinancial(f);
         f.Config["SimpleCoaching:Enabled"] = "true";
         (await f.Db.Clients.SingleAsync()).TimeZone = "America/Los_Angeles";
         await f.Db.SaveChangesAsync();
-        var acceptedAt = new DateTime(2026, 10, 29, 12, 0, 0, DateTimeKind.Utc);
+        var acceptedAt = new DateTime(2026, 11, 2, 12, 0, 0, DateTimeKind.Utc);
         SaveFinancial(f, new(2, "accepted", acceptedAt, f.Owner, null,
             Enumerable.Range(0, 10).Select(i => new CoachFinancialRule("Missing nutrition", i == 5, "weekly",
                 15, 0, 0, "Incomplete nutrition", "event")).ToArray(), acceptedAt, f.Owner, PaymentDay: DayOfWeek.Friday));
@@ -629,13 +740,20 @@ public sealed class CoachNotificationTests
         await job.RunAsync(default);
         Assert.False(await f.Db.CoachAccountabilityAgreements.AnyAsync());
         clock.Now = clock.Now.AddMinutes(1);
-        await job.RunAsync(default);
-        await job.RunAsync(default);
+        Assert.Equal(0, await job.RunAsync(default));
+        Assert.False(await f.Db.CoachAccountabilityAgreements.AnyAsync());
+        clock.Now = clock.Now.AddMinutes(1);
+        Assert.Equal(1, await job.RunAsync(default));
+        Assert.Equal(0, await job.RunAsync(default));
         var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
         var entry = Assert.Single(await ledger.ReadAsync(row, default));
         Assert.Equal(15m, entry.Amount);
         Assert.Equal(new DateOnly(2026, 11, 12), entry.Date);
         Assert.EndsWith(":2026-11-06:2026-11-12", entry.SourceKey);
+        var clientNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, false, default));
+        var coachNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, true, default));
+        Assert.Equal(entry.Id.ToString("N"), clientNotice.Id);
+        Assert.Equal(clientNotice.Id, coachNotice.Id);
     }
 
     public class TreatLogStub : DispatchProxy
@@ -678,8 +796,8 @@ public sealed class CoachNotificationTests
         });
         await f.Db.SaveChangesAsync();
 
-        var clientNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, f.Client, false, default));
-        var coachNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, null, true, default));
+        var clientNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, false, default));
+        var coachNotice = Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, true, default));
         Assert.Contains("Coach · $15.00", clientNotice.Title);
         Assert.Contains("Client · $15.00", coachNotice.Title);
         Assert.False(clientNotice.ForCoach);
@@ -687,12 +805,12 @@ public sealed class CoachNotificationTests
         Assert.NotEqual(clientNotice.Message, coachNotice.Message);
         Assert.Equal(clientNotice.Id, coachNotice.Id);
         Assert.Equal($"/clients/{f.Client:D}/coach-ledger?coachUserId={f.Coach:D}", coachNotice.Url);
-        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, otherCoach, f.Client, true, default));
-        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, Guid.NewGuid(), f.Client, false, default));
+        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, otherCoach, true, default));
+        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, Guid.NewGuid(), false, default));
 
         f.Files.Write(AutomaticFeeNotices.ReceiptKey(f.Owner), new[] { clientNotice.Id });
-        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, f.Client, false, default));
-        Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, null, true, default));
+        Assert.Empty(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Owner, false, default));
+        Assert.Single(await AutomaticFeeNotices.ReadAsync(f.Db, f.Files, f.Coach, true, default));
     }
 
     private sealed class SettlementClock : TimeProvider

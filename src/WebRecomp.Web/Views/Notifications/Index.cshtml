@@ -6,7 +6,7 @@
 <section class="card" style="max-width:760px;margin-bottom:20px" data-notification-settings>
     @Html.AntiForgeryToken()
     <h2>Phone notifications</h2>
-    <p>Enable this on the phone you want to receive alerts. Tap an alert to open the update securely in your account.</p>
+    <p>Enable alerts on this phone. Tap an alert to open the update.</p>
     <p>Alerts use a short preview. Workout details, agreement terms and fee amounts stay inside your account.</p>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
         <button type="button" class="primary" data-enable-phone>Enable phone notifications</button>
@@ -24,7 +24,7 @@
         <label style="display:flex;gap:10px;align-items:center"><input type="checkbox" name="dailyReview" value="true" checked="@Model.DailyReview" style="width:auto" />Send a daily phone reminder to review fees and incentives.</label>
         <label for="reviewTime">Daily reminder time · your account's time zone</label>
         <input type="time" id="reviewTime" name="reviewTime" value="@Model.ReviewTime" required style="max-width:200px" />
-        <p class="muted">For an active, approved agreement. This is a review reminder; today's totals may still change as you log or complete items.</p>
+        <p class="muted">Available for approved agreements. Today's totals update as you log.</p>
         <button type="submit" class="primary">Save preferences</button>
     </form>
 </section>

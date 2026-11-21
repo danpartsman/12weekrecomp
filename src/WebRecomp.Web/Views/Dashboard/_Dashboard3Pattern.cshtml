@@ -89,23 +89,13 @@ else {
                         <div class="dash-analysis-signal-list">
                             <div class="dash-analysis-signal">
                                 <span class="dash-analysis-dot @todayWorkoutCss"></span>
-                                <div>
-                                    <strong>Workout</strong>
-                                    <span>
-                                        @(hasActualWorkout
-                                            ? "The day's completed workout is logged."
-                                            : historical ? "No completed workout is saved for this day." : "Today's workout is still in progress or has not been logged yet.")
-                                    </span>
-                                </div>
+                                <div><strong>Workout</strong> <span>@(hasActualWorkout ? "Completed workout logged." : historical ? "No workout logged." : "Workout pending.")</span></div>
                                 <b>@todayWorkoutValue</b>
                             </div>
 
                             <div class="dash-analysis-signal">
                                 <span class="dash-analysis-dot gray"></span>
-                                <div>
-                                    <strong>Workout glycogen demand</strong>
-                                    <span>@(historical ? "Modeled glycogen demand for the selected day; this is not a direct measurement." : "Current-day glycogen demand is informational until the day is complete.")</span>
-                                </div>
+                                <div><strong>Estimated workout glycogen demand</strong> <span>@(historical ? "Selected day" : "Provisional until the day closes")</span></div>
                                 <b>@(todayGlycogenDemand?.ToString("0") ?? "—") g</b>
                             </div>
 
@@ -175,10 +165,7 @@ else {
 
                         <div class="dash-analysis-narrative">
                             <strong>@(historical ? "Saved daily entries" : "Today is still in progress")</strong>
-                            <p>
-                                @(historical ? "This day is complete. Daily totals reflect saved entries; the weekly projection above is labeled separately." : "Current-day shortfalls stay neutral while the day is unfinished.")
-                                This morning's scale response still belongs to yesterday's training and nutrition.
-                            </p>
+                            <p>@(historical ? "Totals reflect saved entries." : "Today's shortfalls stay neutral.") Morning readings reflect yesterday’s training and nutrition.</p>
                         </div>
                     </article>
                 <article class="dash-analysis-card">
@@ -272,18 +259,8 @@ else {
 
                     <details class="dash-why dash-analysis-details">
                         <summary>How Recomp is judging this</summary>
-                        <p class="dash-analysis-legend">
-                            <span><i class="dash-analysis-dot green"></i> Green = good / functionally supported</span>
-                            <span><i class="dash-analysis-dot yellow"></i> Yellow = acceptable but worth watching</span>
-                            <span><i class="dash-analysis-dot orange"></i> Orange = materially off / investigate</span>
-                            <span><i class="dash-analysis-dot red"></i> Red = poor support / likely problem</span>
-                            <span><i class="dash-analysis-dot gray"></i> Gray = missing / insufficient evidence</span>
-                        </p>
-                        <p>
-                            Hard resistance / hard conditioning gives priority to glycogen restoration:
-                            green ≥80%, yellow 60–79%, orange 50–59%, red &lt;50%.
-                            Easy cardio / Zone 2 / recovery gives more weight to energy control and does not penalize lower carbohydrate automatically.
-                        </p>
+                        <p class="dash-analysis-legend"><span><i class="dash-analysis-dot green"></i> On track</span> <span><i class="dash-analysis-dot yellow"></i> Watch</span> <span><i class="dash-analysis-dot orange"></i> Investigate</span> <span><i class="dash-analysis-dot red"></i> Off track</span> <span><i class="dash-analysis-dot gray"></i> Insufficient data</span></p>
+                        <p>Hard training fuel bands: green ≥80%, yellow 60–79%, orange 50–59%, red &lt;50%. Easy days prioritize energy balance.</p>
                         <p>@analysis.TrackingCaveat</p>
                         <p>
                             Engine @Model.Engine30VersionCode · @Model.Engine30ConfigVersionCode

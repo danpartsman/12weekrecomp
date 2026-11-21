@@ -93,7 +93,7 @@ public static class MacroDayPlanner
             CanPlan = known && !mismatch && day.Calories > 0 && day.ProteinG > 0,
             MacroEnergyMismatch = mismatch, Occasions = count,
             SourceNote = incomplete ? "Some logged foods lack complete nutrients. Complete those entries before planning the remainder."
-                : useFood ? "Food Log totals. Meals are grouped by meal label, not measured eating time. Entries do not imply that a meal is finished."
+                : useFood ? "Food Log totals are grouped by meal label."
                 : known ? "Daily Entry totals are authoritative. Meal timing is unavailable; food-log meals have not been added again."
                 : "Enter food or daily totals first. Missing entries are not treated as zero food eaten."
         };
@@ -133,12 +133,12 @@ public static class MacroDayPlanner
             ap -= pp; ac -= cc; af -= ff;
         }
         plan.Advice = plan.OverEnergy
-            ? "Logged intake is above today's energy plan. Do not chase the tops of the macro bands. Review any remaining protein need and avoid automatically adding a shake."
+            ? "You’re above today’s calories. Review your protein needs before adding more food."
             : plan.UnallocatedProtein + plan.UnallocatedCarbs + plan.UnallocatedFat > 0
-            ? "The remaining energy allocation cannot cover every macro target. This is a tradeoff to review, not an instruction to skip needed food. Start with lean protein and check the full meal's nutrients."
+            ? "Remaining calories cover only part of your targets. Start with lean protein and review the meal’s nutrients."
             : plan.Suggestions.Count == 0
-            ? "Your practical macro needs are covered. There is no need to eat more just to reach the upper edges of the bands."
-            : $"Spread the remaining {dp:0} g protein across {count} eating occasion(s). The portions below also reserve carbohydrate and fat within today's remaining energy allocation.";
+            ? "Your targets are covered, so there’s no need to eat more."
+            : $"Spread the remaining {dp:0} g protein across {count} eating occasion(s).";
         return plan;
     }
     private static string Label(string code) => code.Length == 0 ? "Meal" : code[..1].ToUpperInvariant() + code[1..].ToLowerInvariant();

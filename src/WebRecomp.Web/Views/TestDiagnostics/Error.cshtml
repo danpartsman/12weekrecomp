@@ -15,10 +15,7 @@
         </div>
 
         <h1>Something went wrong</h1>
-        <p>
-            The request failed, but TEST captured a sanitized diagnostic report.
-            Copy it and paste it into the development chat so the exact failure can be traced.
-        </p>
+        <p>Copy the TEST diagnostic report into the development chat.</p>
 
         <div class="app-action-row" style="margin:16px 0;">
             <button type="button"
@@ -46,11 +43,7 @@ Inner Exception Type: @(Model.InnerExceptionType ?? "(none)")
 Inner Message: @(Model.InnerMessage ?? "(none)")
 SQL Error Number: @(Model.SqlErrorNumber?.ToString() ?? "(none)")</pre>
 
-        <p class="small" style="margin-top:12px;">
-            This page intentionally omits stack traces, authentication data,
-            cookies, claims, tokens, connection strings, and request bodies.
-            The Error ID is also written to the TEST server log with the full exception.
-        </p>
+        <p class="small" style="margin-top:12px;">The report omits sensitive details. The Error ID links to the full TEST server log.</p>
     </section>
 </div>
 

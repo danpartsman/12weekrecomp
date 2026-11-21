@@ -3,24 +3,42 @@
 <link rel="stylesheet" href="~/css/coach-photos.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/coach-agreement.css" asp-append-version="true" />
 <style>
-.coach-financial-editor{overflow-x:auto}.coach-financial-table [hidden]{display:none!important}
+.coach-workspace-mobile-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.coach-financial-editor{overflow-x:auto}.coach-financial-table [hidden]{display:none!important}
 .coach-financial-table input[type=number]{text-align:center;font-variant-numeric:tabular-nums}
 @@media(min-width:701px){.coach-financial-table th:nth-child(n+3),.coach-financial-table td:nth-child(n+3){text-align:center;vertical-align:middle}.coach-financial-table input[type=number]{display:block;margin-inline:auto;max-width:100%;box-sizing:border-box}}
 
-@@media(max-width:700px){.coach-workspace-mobile-nav{display:grid!important;grid-template-columns:1fr;gap:8px}.coach-workspace-mobile-nav .button{display:flex;width:100%;min-height:48px;align-items:center;justify-content:center;box-sizing:border-box;text-align:center}.coach-workspace-page{min-width:0}.coach-workspace-page .card{padding:14px;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}.coach-workspace-page form{max-width:100%;min-width:0}.coach-workspace-page input:not([type=hidden]):not([type=checkbox]),.coach-workspace-page select,.coach-workspace-page textarea{max-width:100%;box-sizing:border-box;font-size:16px;min-height:46px}.coach-workspace-page textarea{width:100%;min-height:90px}.coach-workspace-page button,.coach-workspace-page .button{min-height:48px;padding:12px 16px;font-size:1rem;white-space:normal}.coach-workspace-page table:not(.coach-financial-table){display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.coach-workspace-page fieldset{min-width:0}.coach-workspace-page h1{font-size:1.55rem;line-height:1.25}}
+@@media(max-width:700px){.coach-workspace-mobile-nav{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.coach-workspace-mobile-nav .button{display:flex;width:100%;min-height:48px;align-items:center;justify-content:center;box-sizing:border-box;text-align:center}.coach-workspace-page{min-width:0}.coach-workspace-page .card{padding:14px;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}.coach-workspace-page form{max-width:100%;min-width:0}.coach-workspace-page input:not([type=hidden]):not([type=checkbox]),.coach-workspace-page select,.coach-workspace-page textarea{max-width:100%;box-sizing:border-box;font-size:16px;min-height:46px}.coach-workspace-page textarea{width:100%;min-height:90px}.coach-workspace-page button,.coach-workspace-page .button{min-height:48px;padding:12px 16px;font-size:1rem;white-space:normal}.coach-workspace-page table:not(.coach-financial-table){display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.coach-workspace-page fieldset{min-width:0}.coach-workspace-page h1{font-size:1.55rem;line-height:1.25}}
 @@media(max-width:700px){.coach-financial-editor{overflow:visible!important}.coach-financial-table,.coach-financial-table tbody,.coach-financial-table tr,.coach-financial-table td{display:block;width:100%;box-sizing:border-box}.coach-financial-table thead{display:none}.coach-financial-table tr{border:1px solid var(--line,#475569);border-radius:12px;padding:12px;margin:12px 0;background:var(--surface,#111827)}.coach-financial-table td{display:flex;align-items:center;justify-content:space-between;gap:12px;border:0!important;padding:7px 0!important;text-align:left!important;white-space:normal!important}.coach-financial-table td:before{content:attr(data-label);font-size:.85rem;font-weight:700;flex:0 0 42%;color:var(--muted,#94a3b8)}.coach-financial-table td.coach-financial-rule{display:block;padding:8px 0!important}.coach-financial-table td.coach-financial-rule:before{display:none}.coach-financial-table td.coach-financial-rule strong{font-size:1.05rem}.coach-financial-table td input,.coach-financial-table td select{width:100%!important;min-width:0;max-width:56%;min-height:46px;box-sizing:border-box;font-size:16px}.coach-financial-table td.coach-financial-rule small{white-space:normal}.coach-macro-table-scroll{overscroll-behavior-x:contain}.coach-macro-table{min-width:760px}.coach-limits-table{width:100%!important}.coach-accept-button{width:100%;min-height:48px}}
 .coach-macro-table-scroll{overflow-x:auto;max-width:100%;margin:1rem 0}.coach-macro-table{width:100%;min-width:900px;border-collapse:collapse;table-layout:fixed}.coach-macro-table th,.coach-macro-table td{text-align:center!important;vertical-align:middle;padding:.65rem .35rem;white-space:nowrap;font-variant-numeric:tabular-nums}.coach-macro-table th:first-child,.coach-macro-table td:first-child{text-align:left!important;width:110px;padding-left:.75rem}.coach-limits-panel{margin:1rem 0}.coach-limits-table{width:min(100%,440px)!important;max-width:440px;table-layout:fixed;margin:0!important}.coach-limits-table th,.coach-limits-table td{text-align:left!important;padding:.5rem .75rem!important}.coach-limits-table th:first-child,.coach-limits-table td:first-child{width:70%}.coach-limits-table th:last-child,.coach-limits-table td:last-child{width:30%;text-align:left!important}.coach-accept-button{display:inline-flex!important;align-items:center;justify-content:center;min-height:44px;padding:12px 20px!important;font-size:1rem!important;font-weight:700!important;border-radius:12px!important;cursor:pointer}
 </style>
 @{ViewData["Title"]="Coach workspace";}
 <div class="coach-workspace-page"><section class="coach-photo-heading"><div><h1>@Model.CoachName · Coach workspace</h1></div><img src="/images/coach-workspace-nutrition.webp" width="320" height="160" alt="" decoding="async" /></section>
-<p class="coach-workspace-mobile-nav"><a class="button" asp-controller="MyCoach" asp-action="Index">My Coach</a> <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">This coach's fees &amp; payments</a> <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">Snap Workouts</a></p>
+<nav class="coach-workspace-mobile-nav" aria-label="Coaching shortcuts">
+    <a class="button" asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">Fees</a>
+    @if (Model.IsCoach)
+    {
+        <a class="button" asp-controller="CoachSummary" asp-action="Day" asp-route-clientId="@Model.ClientId">Daily Review</a>
+    }
+    <a class="button" asp-controller="SimpleSnap" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@Model.CoachId">Snap Workouts</a>
+    @if (SimpleCoaching.Enabled(Context.RequestServices.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>()))
+    {
+        <a class="button" asp-controller="CoachTasks" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId">Tasks</a>
+    }
+    @if (Model.IsCoach)
+    {
+        <a class="button" asp-controller="Coach" asp-action="Index">Coach Center</a>
+    }
+    else
+    {
+        <a class="button" asp-controller="MyCoach" asp-action="Index">My Coach</a>
+    }
+</nav>
 @if(TempData["CoachWorkspaceStatus"] is string status){<p role="status">@status</p>}
 @using System.Text.Json
 @using WebRecomp.Web.Services.Coaching
 <section class="card">
-<h2>Coach assignments and macro targets</h2>
-<p>Review the system recommendation alongside your coach's prescription. Values are grams per day; calories are calculated from protein, carbohydrates and fat. Targets depend on the saved weekly workouts; a week of rest or unscheduled days may have identical targets.</p>
-@if(Model.MacroOffers.Count==0){<p>This coach has not saved a macro prescription yet.</p>}
+<h2>Macro targets</h2>
+@if(Model.MacroOffers.Count==0){<p>No macro targets yet.</p>}
 @foreach(var offer in Model.MacroOffers){
 <details class="card" open="@(!offer.Accepted)">
 <summary><strong>Effective @offer.EffectiveWeek.ToString("MMM d, yyyy")</strong> · @(offer.Accepted?"Accepted":"Review and accept")</summary>
@@ -40,39 +58,38 @@ var cp=number(a,"ProteinG");var cc=number(a,"RecommendedCarbsG");var cf=number(a
 <tr><td>@(s.TryGetProperty("Date",out var d)?d.GetString():"Day "+(i+1))</td><td>@sp.ToString("0.#") g</td><td><strong>@cp.ToString("0.#") g</strong></td><td>@sc.ToString("0.#") g</td><td><strong>@cc.ToString("0.#") g</strong></td><td>@sf.ToString("0.#") g</td><td><strong>@cf.ToString("0.#") g</strong></td><td>@((sp*4+sc*4+sf*9).ToString("0"))</td><td><strong>@((cp*4+cc*4+cf*9).ToString("0"))</strong></td></tr>
 }
 </tbody></table></div>
-}catch(JsonException){<p>The saved prescription could not be displayed. Please contact support.</p>}
+}catch(JsonException){<p>Macro targets are unavailable. Contact support.</p>}
 }
 @{var limits=JsonDocument.Parse(offer.RulesJson);}
-<details class="coach-limits-panel"><summary>Coach limits and detailed rules</summary><table class="coach-limits-table"><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<details class="coach-limits-panel"><summary>Coach limits</summary><table class="coach-limits-table"><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
 @foreach(var rule in limits.RootElement.EnumerateObject().Where(x=>x.Name.EndsWith("Min")||x.Name.EndsWith("Max")||x.Name.EndsWith("Target"))){
 <tr><td>@System.Text.RegularExpressions.Regex.Replace(rule.Name,"([a-z])([A-Z])","$1 $2")</td><td>@rule.Value.ToString()</td></tr>
 }</tbody></table></details>
 @{limits.Dispose();}
-<p><strong>Penalties and incentives:</strong> @(offer.FinancialOptIn?"Requested by coach; subject to a separately accepted financial agreement":"Not requested for this prescription")</p>
+@if (offer.FinancialOptIn) { <p>Fees require an accepted agreement.</p> }
 @if(offer.Accepted){<p>Accepted @offer.AcceptedUtc?.ToString("MMM d, yyyy h:mm tt") UTC</p>}
-else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">@Html.AntiForgeryToken()<input type="hidden" name="versionId" value="@offer.VersionId" /><input type="hidden" name="fingerprint" value="@offer.Fingerprint" /><button class="button coach-accept-button" type="submit">Accept this prescription</button></form>}
-else{<p>Waiting for client acceptance.</p>}
+else if(!Model.IsCoach){<form asp-action="AcceptMacros" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">@Html.AntiForgeryToken()<input type="hidden" name="versionId" value="@offer.VersionId" /><input type="hidden" name="fingerprint" value="@offer.Fingerprint" /><button class="button coach-accept-button" type="submit">Accept macro targets</button></form>}
+else{<p>Awaiting client acceptance.</p>}
 </details>}
 </section>
 <section class="card" id="financial-agreement">
-<h2>Penalties, incentives &amp; agreement</h2>
-<p>Review this coach’s fees, incentives and payment terms. New or revised terms require client acceptance. Amounts are USD.</p>
+<h2>Fee agreement</h2>
 @{var financial=Model.FinancialAgreement!;}
 <div class="coach-agreement-summary"><div><strong>Payment terms</strong>@(financial.PaymentSchedule=="next-day"?"Due the following day":financial.PaymentSchedule=="monthly"?"Due on the first day of the following month":$"Due every {financial.PaymentDay}")</div>
 <div><strong>Status</strong>@financial.Status.Replace("-", " ") · Revision @financial.Revision @if(financial.AcceptedUtc is DateTime accepted){<span> · Accepted @accepted.ToString("MMM d, yyyy h:mm tt") UTC</span>}</div></div>
-<p>An accepted revision replaces this coach’s previous terms starting on the client’s local acceptance date. Earlier dates retain their accepted terms. Daily entries post at the client’s local midnight. Weekly entries for a weekly payment agreement post at midnight as the payment day begins. Each rule is assessed once per period. Cheat-food fees use the daily Command Center count unless the coach records an override.</p>
+<p>New terms require client acceptance.</p>
 @if (financial.Rules.Take(4).Any(rule => rule.Enabled && rule.LimitMode == "prescription"))
 {
-    <p>For automatic assessment of older nutrition rules, the coach must send explicit limits and the client must accept them.</p>
+    <p>Older nutrition rules need updated limits and client approval for automatic assessment.</p>
 }
 @if (financial.Status != "accepted" && financial.AcceptedHistory?.Count > 0)
 {
-    <p>The latest accepted revision remains in effect while you review this proposal.</p>
+    <p>The accepted agreement is still active.</p>
 }
 @if(!string.IsNullOrWhiteSpace(financial.ClientNote)){<p><strong>Client response:</strong> @financial.ClientNote</p>}
 @if(Model.IsCoach)
 {
-<details open="@(financial.Status!="accepted")"><summary>Edit and send financial proposal</summary>
+<details open="@(financial.Status!="accepted")"><summary>Edit proposal</summary>
 <form asp-action="FinancialProposal" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
 @Html.AntiForgeryToken()
 <input type="hidden" name="ExpectedRevision" value="@financial.Revision" />
@@ -100,12 +117,12 @@ var ruleTitle=i<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"
 </tr>
 }
 </tbody></table></div>
-<p>Actual limits use grams per day for protein, carbs and fat, or kcal per day for calories. Percentage limits follow each day's system prescription: enter the percentage allowed under and over. For example, 5% under and 10% over a 200 g target allows 190–220 g. Nutrition compliance incentives use these same agreed limits.</p>
+<p>Set limits in g or kcal per day, or as a percentage of the system target.</p>
 @if(financial.Rules.Any(x=>x.Minimum>0||x.Maximum>0)){
-<details><summary>Previously saved dollar settlement limits</summary><p>These existing charge thresholds and caps are separate from nutrition criteria.</p>
+<details><summary>Saved fee limits</summary>
 @foreach(var savedRule in financial.Rules.Where(x=>x.Minimum>0||x.Maximum>0)){<p>@savedRule.Name: charge threshold @savedRule.Minimum.ToString("C"), cap @savedRule.Maximum.ToString("C") per @savedRule.Frequency period.</p>}
 </details>}
-<p>Automatic assessments run after the client’s local day, week, or month closes. Accepted terms apply from the next full assessment period. A period can be corrected for 14 days after it closes.</p>
+<p>Fee corrections are available for 14 days after a period closes.</p>
 <fieldset><legend>Payment schedule</legend>
 <label>Payment due
 <select name="PaymentSchedule">
@@ -118,26 +135,24 @@ var ruleTitle=i<8?(rule.Name.EndsWith(" penalty")?rule.Name:rule.Name+" penalty"
 @foreach(var day in Enum.GetValues<DayOfWeek>()){<option value="@day" selected="@(financial.PaymentDay==day)">@day</option>}
 </select></label>
 </fieldset>
-<details><summary>Preview agreement the client will receive</summary>
+<details><summary>Preview proposal</summary>
 <p><strong>Coach:</strong> @Model.CoachName · <strong>Agreement revision:</strong> @(financial.Revision+1)</p>
-<p>The client agrees to the enabled penalties and incentives below, subject to the actual or percentage nutrition limits selected above, excused days, and the agreed payment schedule.</p>
-<table><thead><tr><th>Rule</th><th>Amount</th><th>Assessment</th><th>Nutrition limits</th></tr></thead><tbody>
+<p>The client sees the enabled rules, amounts, limits and payment schedule you submit.</p>
+<ul>
 @for(var previewIndex=0;previewIndex<financial.Rules.Count;previewIndex++){
 var previewRule=financial.Rules[previewIndex];
 var previewTitle=previewIndex<8?(previewRule.Name.EndsWith(" penalty")?previewRule.Name:previewRule.Name+" penalty"):(previewRule.Name.EndsWith(" coaches incentive")?previewRule.Name:previewRule.Name.Replace(" bonus","")+" coaches incentive");
-<tr><td>@previewTitle</td><td colspan="3">Use the amounts and enabled selections in the editable table above; the client sees the saved values after submission.</td></tr>
+<li>@previewTitle</li>
 }
-</tbody></table>
-<p>The client will see Accept, Request Changes and Decline options. Accept requires their account email and password.</p>
+</ul>
+<p>Acceptance requires the client’s account email and password.</p>
 </details>
-<button class="button coach-accept-button" type="submit">Send proposal for client approval</button>
+<button class="button coach-accept-button" type="submit">Send proposal</button>
 </form></details>
 }
 else
 {
-<h3>Review your agreement</h3>
-<p>Review each rule below, then accept, request changes, or decline.</p>
-@if(financial.Status=="draft"){<p>Your coach has not sent a financial proposal.</p>}
+@if(financial.Status=="draft"){<p>No proposal yet.</p>}
 else{
 <partial name="_FinancialAgreementRules" model="financial" />
 @if(financial.Rules.Any(x=>x.Enabled&&(x.Minimum>0||x.Maximum>0))){<details><summary>Dollar settlement limits</summary>@foreach(var savedRule in financial.Rules.Where(x=>x.Enabled&&(x.Minimum>0||x.Maximum>0))){<p>@savedRule.Name: charge threshold @savedRule.Minimum.ToString("C"), cap @savedRule.Maximum.ToString("C") per @savedRule.Frequency period.</p>}</details>}
@@ -145,13 +160,12 @@ else{
 <form class="coach-financial-response" asp-action="FinancialResponse" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
 @Html.AntiForgeryToken()
 <input type="hidden" name="expectedRevision" value="@financial.Revision" />
-<label>Comments or requested changes<textarea name="note" rows="3" maxlength="2000" placeholder="Explain what you would like changed (required if not accepting)"></textarea></label>
+<label>Comments<textarea name="note" rows="3" maxlength="2000" placeholder="Required when requesting changes or declining"></textarea></label>
 <fieldset><legend>Confirm acceptance</legend>
-<p>Enter your account email and password to accept this version.</p>
-<label>Account username (email)<input type="email" name="username" maxlength="320" autocomplete="username" /></label>
+<label>Account email<input type="email" name="username" maxlength="320" autocomplete="username" /></label>
 <label>Current password<input type="password" name="password" maxlength="1024" autocomplete="current-password" /></label>
 </fieldset>
-<div class="coach-agreement-response-actions"><button type="submit" name="decision" value="accepted">Verify and accept agreement</button>
+<div class="coach-agreement-response-actions"><button type="submit" name="decision" value="accepted">Accept agreement</button>
 <button type="submit" name="decision" value="changes-requested" class="secondary" formnovalidate>Request changes</button>
 <button type="submit" name="decision" value="declined" class="secondary" formnovalidate>Decline</button></div>
 </form>
@@ -161,13 +175,13 @@ else{
 @if (Model.IsCoach && (financial.Status == "accepted" || financial.AcceptedHistory?.Count > 0))
 {
     <details>
-        <summary>Record a dated excuse or reviewed cheat foods</summary>
+        <summary>Review a day</summary>
         <form asp-action="FinancialReview" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
             @Html.AntiForgeryToken()
             <label>Date<input type="date" name="date" required /></label>
             <label><input type="checkbox" name="excused" value="true" /> Excuse this day</label>
             <label>Override daily cheat-food count<input type="number" name="cheatFoods" min="0" max="1000" step="1" /></label>
-            <p>To clear a review, save the date with both fields empty. Excused days are excluded from assessment.</p>
+            <p>Clear both fields to remove a review.</p>
             <button type="submit">Save review</button>
         </form>
         @if (financial.Reviews is { Count: > 0 } reviews)
@@ -181,17 +195,17 @@ else{
         }
     </details>
 }
-<p><a class="button" asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" asp-fragment="agreement-discussion">Discuss agreement with coach</a></p>
+<p><a class="button" asp-controller="CoachWorkspace" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" asp-fragment="agreement-discussion">Discuss agreement</a></p>
 </section>
-<section class="card" id="agreement-discussion"><h2>Start a discussion</h2><p>Either person can start a topic, and replies stay together in the same conversation. The recipient receives an email notification when available.</p>
+<section class="card" id="agreement-discussion"><h2>New discussion</h2>
 <form asp-action="Send" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">@Html.AntiForgeryToken()
 <input type="hidden" name="Kind" value="message" />
-<label>Subject<input name="Subject" maxlength="120" required placeholder="What would you like to discuss?" /></label>
+<label>Subject<input name="Subject" maxlength="120" required /></label>
 <label>Message<textarea name="Body" maxlength="2000" rows="4" required></textarea></label>
 <button class="button" type="submit">Start discussion</button></form></section>
 <section class="card"><h2>Discussions</h2>
 @{var discussions=Model.Messages.Where(m=>m.Kind=="message").GroupBy(m=>m.ThreadId??m.Id).OrderByDescending(g=>g.Max(m=>m.CreatedUtc)).ToList();}
-@if(discussions.Count==0){<p>No discussions yet. Start one above.</p>}
+@if(discussions.Count==0){<p>No discussions yet.</p>}
 @foreach(var thread in discussions){
 var first=thread.OrderBy(m=>m.CreatedUtc).First();
 var last=thread.OrderByDescending(m=>m.CreatedUtc).First();
@@ -205,10 +219,10 @@ var last=thread.OrderByDescending(m=>m.CreatedUtc).First();
 <label>Reply<textarea name="Body" maxlength="2000" rows="3" required></textarea></label><button class="button" type="submit">Post reply</button></form>
 </details>}
 </section>
-<section class="card"><h2>Snap Workouts with @Model.CoachName</h2>
+<section class="card"><h2>Snap Workouts</h2>
 @if (Model.Workouts.Count == 0)
 {
-    <p>No Snap Workouts in this coaching relationship yet.</p>
+    <p>No Snap Workouts yet.</p>
 }
 else
 {
@@ -221,22 +235,22 @@ else
     </ul>
 }
 </section>
-<section class="card"><h2>Snap Workout notes</h2><p>Both coach and client can add notes associated with a specific workout. Notes do not change completed results or fees.</p>
+<section class="card"><h2>Add workout note</h2>
 @if(Model.Workouts.Count==0){<p>No Snap Workouts available.</p>}else{
 <form asp-action="Send" asp-route-clientId="@Model.ClientId" asp-route-coachId="@Model.CoachId" method="post">
 @Html.AntiForgeryToken()
 <input type="hidden" name="Kind" value="snap-note" />
 <label for="workout-id">Workout</label><select id="workout-id" name="WorkoutId" required>@foreach(var w in Model.Workouts){<option value="@w.Id">@w.Name</option>}</select>
 <label for="note-body">@(Model.IsCoach?"Coach's note to client":"Client's note to coach")</label><textarea id="note-body" name="Body" maxlength="2000" rows="3" required></textarea>
-<button type="submit">Save note and notify</button></form>}
+<button type="submit">Send note</button></form>}
 </section>
-<section class="card"><h2>Snap Workout note history</h2>
+<section class="card"><h2>Workout notes</h2>
 @{var notes=Model.Messages.Where(m=>m.Kind=="snap-note").OrderByDescending(m=>m.CreatedUtc).ToList();}
 @if(notes.Count==0){<p>No workout notes yet.</p>}
 @foreach(var note in notes){<article style="border-bottom:1px solid #ffffff22;padding:.75rem 0"><strong>@note.AuthorName</strong> · <small>@note.CreatedUtc.ToString("MMM d, yyyy h:mm tt") UTC</small> · Workout @note.WorkoutId<p style="white-space:pre-wrap;overflow-wrap:anywhere">@note.Body</p></article>}
 </section>
-<section class="card"><h2>Coach activity history</h2>
-@if(Model.Activity.Count==0){<p>No coaching activity recorded yet.</p>}
+<section class="card"><h2>Activity</h2>
+@if(Model.Activity.Count==0){<p>No activity yet.</p>}
 @foreach(var a in Model.Activity){<p><small>@a.CreatedUtc.ToString("MMM d, yyyy h:mm tt") UTC</small> · @a.Description</p>}
 </section></div>
 

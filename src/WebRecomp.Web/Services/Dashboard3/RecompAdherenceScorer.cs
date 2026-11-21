@@ -80,7 +80,7 @@ public static class RecompAdherenceScorer
         var protein = complete.Where(x => x.Protein.HasValue && x.ProteinTarget > 0).Select(x =>
             MacroDayPlanner.Bands(x.ProteinTarget, x.CarbsTarget, x.FatTarget, x.Protein, x.Carbs, x.Fat, x.EnergyTarget)[0]).ToArray();
         components.Add(new("Protein consistency", 25m, protein.Length == 0 ? 0m : 25m * protein.Average(x => x.Quality),
-            "Protein green range is 80–100% of the configured upper end (approximately 0.8–1 g/lb when that upper end is 1 g/lb). Meal planning aims at 90%; no top-up to the upper end is required. Unknown days are excluded.", protein.Length > 0));
+            "Protein scores best at 80–100% of the upper target. Meal planning aims for 90%.", protein.Length > 0));
         var carbDays = complete.Where(x => x.Carbs.HasValue && x.CarbsTarget > 0).ToArray();
         var carbQuality = carbDays.Length == 0 ? 0m : carbDays.Average(x =>
         {
@@ -91,12 +91,12 @@ public static class RecompAdherenceScorer
         var carbLow = carbDays.Count(x => x.Carbs!.Value < x.CarbsTarget * .80m);
         components.Add(new("Rolling carbohydrate adherence", 20m, 20m * carbQuality,
             carbDays.Length == 0 ? "No completed carbohydrate logs. Missing evidence is excluded, not treated as a failure."
-            : $"{carbDays.Length} days assessed: {carbHigh} above +20% and {carbLow} below -20% of the applicable daily target. Repeated deviations reduce points gradually. Training fuel needs vary; this product tolerance is not a biological or financial threshold.", carbDays.Length > 0));
+            : $"{carbDays.Length} days assessed. {carbHigh} above and {carbLow} below the daily ±20% range.", carbDays.Length > 0));
         var fats = complete.Where(x => x.Fat.HasValue && x.EnergyTarget > 0).ToArray();
         var fatBand = fats.Length == 0 ? null : MacroDayPlanner.Bands(1, 1, fats.Average(x => x.FatTarget),
             actualFat: fats.Average(x => x.Fat!.Value), energy: fats.Average(x => x.EnergyTarget))[2];
         components.Add(new("Fat balance", 10m, fatBand is null ? 0m : fatBand.Quality * 10m,
-            "Completed-period average fat is compared with 20–35% of the average prescribed energy allocation. This is broad adult guidance, not an exact individual requirement; isolated higher or lower days are not penalized separately.", fatBand is not null));
+            "Average fat is scored against 20–35% of prescribed energy across completed days.", fatBand is not null));
         if (workoutReview is not null)
         {
             foreach (var requirement in workoutReview.Requirements)
@@ -117,7 +117,7 @@ public static class RecompAdherenceScorer
                 if (glycogen.TargetEnergyKcal is > 0m && glycogen.CompletedEnergyKcal.HasValue)
                     fraction = Math.Min(fraction, Math.Min(1m, glycogen.CompletedEnergyKcal.Value / glycogen.TargetEnergyKcal.Value));
                 label = "Weekly workload";
-                explanation = $"{glycogen.CompletedG:0}/{target:0} g modeled glycogen work across the completed period. Calorie work is also checked when available. No day-by-day matching or workout-name penalty. Resistance coverage is checked separately; calorie burn alone cannot replace muscle-building work.";
+                explanation = $"{glycogen.CompletedG:0}/{target:0} g modeled glycogen work. Calories count when available. Strength coverage is scored separately.";
             }
             components.Add(new(label, gauge.Weight, gauge.Weight * fraction, explanation, included));
         }
@@ -129,7 +129,7 @@ public static class RecompAdherenceScorer
         var flexEarned = Math.Max(0m, 5m - flexPenalty);
         components.Add(new("Planned flexibility", 5m, flexEarned,
             flex is null ? "Pending: not confirmed on a completed day; excluded from the score."
-            : $"{flex} treat portions in the completed scoring period. First 2 free; portions 3–4 each cost 0.5 point; each additional portion costs 1 point. {flexPenalty:0.#} penalty points (5-point component floors at zero). Macro penalties are separate.", flex.HasValue));
+            : $"{flex} treat portions · {flexPenalty:0.#} points deducted. Two free, next two half a point, then one point each.", flex.HasValue));
         var knownMacroDays = complete.Where(x => x.Protein.HasValue && x.Carbs.HasValue && x.Fat.HasValue
             && x.ProteinTarget > 0 && x.CarbsTarget > 0 && x.FatTarget > 0).ToArray();
         if (knownMacroDays.Length > 0)

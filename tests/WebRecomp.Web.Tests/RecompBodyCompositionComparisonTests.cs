@@ -39,15 +39,75 @@ public sealed class RecompBodyCompositionComparisonTests
     {
         var c=RecompBodyCompositionComparison.Build(Today,[R(-1),R(-8),R(-9,fat:null,muscle:null)]);
         Assert.Equal(1,c.Fat.Previous.Count); Assert.Equal(2,c.PreviousWeight!.Count);
-        Assert.Contains("Sparse",c.Interpretation); Assert.Equal("Sparse evidence",c.Fat.Status);
+        Assert.Equal("Sparse evidence",c.Fat.Status);
     }
     [Fact] public void StableWeightDoesNotEraseAnEstimatedFatChange()
     {
         var rows=Enumerable.Range(1,14).Select(i=>R(-i,200,i<=7?.27m:.25m,i<=7?78:80));
         var c=RecompBodyCompositionComparison.Build(Today,rows);
         Assert.Equal(0,c.WeightChangeLb); Assert.Equal(4,c.Fat.ChangeLb); Assert.Equal(-2,c.Muscle.ChangeLb);
-        Assert.Equal("red",c.Fat.Band); Assert.Contains("unconfirmed",c.Fat.Status);
-        Assert.Contains("Stable weight cannot",c.Interpretation);
+        Assert.Equal("red",c.Fat.Band); Assert.True(c.Fat.DirectionPersists);
+    }
+    [Theory]
+    [InlineData(7, true)]
+    [InlineData(7, false)]
+    [InlineData(30, true)]
+    [InlineData(30, false)]
+    public void DirectionUsesYellowOnTheFirstDayAndGreenOrRedOnTheSecond(int days, bool favorable)
+    {
+        var baseline = Enumerable.Range(3, days + 6).Select(i => R(-i)).ToArray();
+        var first = R(-2, fat: favorable ? .246m : .254m, muscle: favorable ? 80.8m : 79.2m);
+        var second = R(-1, fat: first.BodyFatPct, muscle: first.SkeletalMuscleMassLb);
+        var firstDay = RecompBodyCompositionComparison.Build(Today.AddDays(-1), baseline.Append(first), days);
+        Assert.Equal("yellow", firstDay.Fat.Band);
+        Assert.Equal("yellow", firstDay.Muscle.Band);
+        var secondDay = RecompBodyCompositionComparison.Build(Today, baseline.Append(first).Append(second), days);
+        Assert.Equal(favorable ? "green" : "red", secondDay.Fat.Band);
+        Assert.Equal(favorable ? "green" : "red", secondDay.Muscle.Band);
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(30)]
+    public void ReversalResetsOnlyTheMetricThatChangedDirection(int days)
+    {
+        var baseline = Enumerable.Range(4, days + 5).Select(i => R(-i));
+        var rows = baseline.Concat([R(-3, fat: .26m, muscle: 81), R(-2, fat: .26m, muscle: null),
+            R(-1, fat: .20m, muscle: 81)]);
+        var chart = RecompBodyCompositionComparison.Build(Today, rows, days);
+        Assert.True(chart.Fat.DisplayChangeLb < 0);
+        Assert.True(chart.Muscle.DisplayChangeLb > 0);
+        Assert.Equal("yellow", chart.Fat.Band);
+        Assert.Equal("green", chart.Muscle.Band);
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(30)]
+    public void ZeroAndMissingDaysPauseTheStreak(int days)
+    {
+        var baseline = Enumerable.Range(5, days + 10).Select(i => R(-i));
+        var rows = baseline.Concat([R(-4, fat: .246m), R(-3, fat: days == 7 ? .2536m : .254m),
+            R(-1, fat: .24m)]).ToArray();
+        var first = RecompBodyCompositionComparison.Build(Today.AddDays(-3), rows, days).Fat;
+        Assert.Equal("yellow", first.Band);
+        var zero = RecompBodyCompositionComparison.Build(Today.AddDays(-2), rows, days).Fat;
+        Assert.Equal(0m, zero.DisplayChangeLb);
+        Assert.Equal("gray", zero.Band);
+        var resumed = RecompBodyCompositionComparison.Build(Today, rows, days).Fat;
+        Assert.Equal("green", resumed.Band);
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(30)]
+    public void MissingDayCarriesColorWithoutAddingAWeighIn(int days)
+    {
+        var baseline = Enumerable.Range(4, days + 8).Select(i => R(-i));
+        var first = baseline.Append(R(-3, fat: .24m));
+        Assert.Equal("yellow", RecompBodyCompositionComparison.Build(Today, first, days).Fat.Band);
+        var confirmed = first.Append(R(-2, fat: .24m));
+        Assert.Equal("green", RecompBodyCompositionComparison.Build(Today, confirmed, days).Fat.Band);
     }
     [Fact] public void DeletedAndSupersededReadingsDoNotGetExtraWeight()
     {

@@ -49,7 +49,7 @@
                 <option value="DARK">Dark</option>
             </select>
         </label>
-        <p class="small">System follows the light/dark preference of the device. This preference is saved to your Recomp account and to this browser.</p>
+        <p class="small">System follows this device. Your choice is saved to your account and browser.</p>
     </section>
 
     <section class="card stack">
@@ -85,30 +85,15 @@
         {
             <label class="check">
                 <input asp-for="DetailedWorkoutEntryEnabled" type="checkbox" />
-                <span>
-                    <strong>Detailed workout entry</strong><br />
-                    <small>
-                        When enabled, 12 Week Recomp can collect exercise/set-level workout detail.
-                        Manual workout entry remains available and is never added to detailed values.
-                    </small>
-                </span>
+                <span><strong>Detailed workout entry</strong><br /><small>Log exercises and sets. Manual totals are tracked separately.</small></span>
             </label>
 
             <label class="check">
                 <input asp-for="NutritionFoodLogEnabled" type="checkbox" />
-                <span>
-                    <strong>12WR food log</strong><br />
-                    <small>
-                        When enabled, foods and servings can build the day's nutrition totals.
-                        Manual calorie and macro entry remains available as a supported path.
-                    </small>
-                </span>
+                <span><strong>12WR food log</strong><br /><small>Build nutrition totals from foods and servings, or enter totals manually.</small></span>
             </label>
 
-            <p class="small">
-                These options are independent. Turning one off does not delete previously
-                entered detailed data. OFF/OFF preserves the original manual-entry workflow.
-            </p>
+            <p class="small">Turn either option off to enter totals manually. Your detailed logs stay saved.</p>
         }
         else
         {
@@ -124,9 +109,7 @@
             <h2>Sign-in account</h2>
         </div>
         <label>Signed in as<input value="@(Model.SignInEmail ?? "Signed-in account")" readonly /></label>
-        <p class="small">
-            Recomp does not store your password. Your password, security methods, and other sign-in settings are managed by the account provider you used to sign in.
-        </p>
+        <p class="small">Manage your password and security with your sign-in provider.</p>
         <a class="button" href="https://myaccount.microsoft.com/" target="_blank" rel="noopener">Manage sign-in account</a>
     </section>
 

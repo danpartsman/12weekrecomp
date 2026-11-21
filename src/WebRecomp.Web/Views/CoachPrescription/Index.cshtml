@@ -8,8 +8,8 @@
 <input type="hidden" name="ExpectedVersionId" value="@Model.Rules.ExpectedVersionId" />
 <input type="hidden" name="PreviewToken" value="@Model.PreviewToken" />
 <label for="EffectiveWeek">Effective week · Monday–Sunday</label><input id="EffectiveWeek" name="EffectiveWeek" type="date" value="@Model.Rules.EffectiveWeek.ToString("yyyy-MM-dd")" required />
-<p>Rules start in an upcoming week. Previous prescriptions and scores are preserved. Leave a limit blank to retain the engine's value.</p>
-<h2>Explicit macro goals</h2><p>Leave blank to use the engine and limits. Weekly carbs retain the engine's training/recovery proportions; weekly fat is shared evenly.</p><div class="coach-targets">
+<p>Rules start in a future week. Blank limits use engine values.</p>
+<h2>Explicit macro goals</h2><p>Blank fields use engine targets. Carbs follow training demand. Fat is spread evenly.</p><div class="coach-targets">
 <label>Daily protein (g)<input name="DailyProteinTarget" type="number" min="1" max="1000" step="0.01" value="@Model.Rules.DailyProteinTarget?.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></label>
 <label>Weekly carbs (g)<input name="WeeklyCarbsTarget" type="number" min="0" max="14000" step="0.01" value="@Model.Rules.WeeklyCarbsTarget?.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></label>
 <label>Weekly fat (g)<input name="WeeklyFatTarget" type="number" min="0" max="3500" step="0.01" value="@Model.Rules.WeeklyFatTarget?.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></label></div>

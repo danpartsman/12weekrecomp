@@ -173,7 +173,7 @@
                 <div class="app-kicker">PLAN CHANGED • REVIEW BEFORE APPLYING</div>
                 <h2 id="recommended-week-title">Recommended week for @Model.PlanDisplayName</h2>
                 <p>@Model.PlanGuidance</p>
-                <p><strong>Your current week has not been overwritten.</strong> Apply the recommendation only if you want Recomp to replace today and the remaining days of this week. Earlier days stay intact.</p>
+                <p><strong>Preview only.</strong> Applying the recommendation replaces today and the remaining days this week.</p>
             </div>
             <div class="recommended-week-grid">
                 @foreach (var day in Model.RecommendedDays)
@@ -196,11 +196,11 @@
 
     @if (Model.SeededFromPlan)
     {
-        <div class="plan-source-note"><strong>Recomp built this starting week for you.</strong> It is based on @Model.PlanDisplayName and your available training days. Move or replace anything that does not fit your life.</div>
+        <div class="plan-source-note"><strong>Suggested week.</strong> Based on @Model.PlanDisplayName and your available days. Adjust it as needed.</div>
     }
     else if (Model.AutoRolled)
     {
-        <div class="plan-source-note"><strong>This week was carried forward automatically.</strong> The new week was blank, so Recomp copied your prior week. Review it and change anything that is different.</div>
+        <div class="plan-source-note"><strong>Week copied.</strong> Review last week’s schedule and adjust it for this week.</div>
     }
 
     <section class="app-status @(Model.WeeklyStatus == "GOOD" ? "good" : "review")">
@@ -210,7 +210,7 @@
             <span>@Model.WeeklyNote</span>
         </div>
         <button type="button" class="help-tip status-help" aria-label="About weekly balance"
-                data-tooltip="This status is a quick check of the planned training mix. It is guidance, not a pass/fail grade. Recomp still calculates each day's targets from the workouts you save.">?</button>
+                data-tooltip="Review your planned training mix. Daily targets follow your saved workouts.">?</button>
     </section>
 
     @if (Model.CanChangeGoal)
@@ -231,23 +231,14 @@
 
                 @if (Model.IsGoalPreview)
                 {
-                    <p>
-                        <strong>Preview only.</strong>
-                        Your saved Primary Goal is still @Model.CurrentGoalDisplayName, and none of your planned workouts have been changed.
-                        The Recommended numbers below show how the weekly mix would change.
-                    </p>
+                    <p><strong>Preview only.</strong> Your saved goal is @Model.CurrentGoalDisplayName. Schedule changes require Apply.</p>
                 }
                 else
                 {
-                    <p>
-                        Preview another Primary Goal to compare its recommended workout mix and fueling pattern.
-                        Your planned week will not change unless you explicitly apply a new goal and then choose to apply its recommended schedule.
-                    </p>
+                    <p>Compare workout mixes and fuel targets. Apply a goal, then apply its schedule to save it.</p>
                 }
 
-                <p class="plan-goal-engine-note">
-                    Engine 3.0 still calculates the actual calories and macros for each day; the high/moderate/low-carb labels summarize the fueling pattern.
-                </p>
+                <p class="plan-goal-engine-note">Engine 3.0 sets daily calories and macros. Carb labels summarize the pattern.</p>
             </div>
 
             <div class="plan-goal-preview-controls">
@@ -310,7 +301,7 @@
                     <button type="button"
                             class="help-tip"
                             aria-label="About expected weekly direction"
-                            data-tooltip="The energy estimate uses this week's currently planned workouts with the selected goal. The Recommended cards below show the proposed training mix. Fat-loss pounds are an energy equivalent, not a guaranteed scale or body-fat change. Muscle change cannot be predicted precisely week to week.">?</button>
+                            data-tooltip="The estimate uses planned workouts. Expected fat loss reflects the calorie difference.">?</button>
                 </div>
 
                 <div class="plan-goal-outlook-grid">
@@ -344,9 +335,7 @@
                     </div>
                 </div>
 
-                <p>
-                    These are directional expectations, not guaranteed tissue changes. After you apply a different weekly mix, Engine 3.0 recalculates the actual daily targets.
-                </p>
+                <p>Expectations are estimates. Applying a weekly mix recalculates daily targets.</p>
             </div>
         </section>
     }
@@ -357,7 +346,7 @@
             <strong>Recommended vs planned workout mix</strong>
         </div>
         <button type="button" class="help-tip" aria-label="About workout categories"
-                data-tooltip="The darker top section shows Recomp's recommended weekly mix and fueling cycle. The lighter lower section shows what you actually planned. Hard/major is typically high-carb, accessory is moderate-carb, cardio is generally low-to-moderate carb, and recovery/rest is low-carb. Hard interval or Orangetheory-style cardio can still receive more carbohydrate because Engine 3.0 determines the actual grams from glycogen demand.">?</button>
+                data-tooltip="Compare the recommended mix above with your saved plan below.">?</button>
     </div>
     <section class="plan-week-mix" aria-label="Recommended versus planned weekly workout mix">
         <div class="plan-mix-item plan-mix-major" data-count-category="major">
