@@ -46,7 +46,39 @@ public sealed class RecompBodyCompositionComparisonTests
         var rows=Enumerable.Range(1,14).Select(i=>R(-i,200,i<=7?.27m:.25m,i<=7?78:80));
         var c=RecompBodyCompositionComparison.Build(Today,rows);
         Assert.Equal(0,c.WeightChangeLb); Assert.Equal(4,c.Fat.ChangeLb); Assert.Equal(-2,c.Muscle.ChangeLb);
-        Assert.Equal("red",c.Fat.Band); Assert.Contains("unconfirmed",c.Fat.Status);
+        Assert.Equal("red",c.Fat.Band); Assert.True(c.Fat.DirectionPersists);
+    }
+    [Theory]
+    [InlineData(7, true)]
+    [InlineData(7, false)]
+    [InlineData(30, true)]
+    [InlineData(30, false)]
+    public void DirectionUsesYellowOnTheFirstDayAndGreenOrRedOnTheSecond(int days, bool favorable)
+    {
+        var baseline = Enumerable.Range(3, days + 6).Select(i => R(-i)).ToArray();
+        var first = R(-2, fat: favorable ? .246m : .254m, muscle: favorable ? 80.8m : 79.2m);
+        var second = R(-1, fat: first.BodyFatPct, muscle: first.SkeletalMuscleMassLb);
+        var firstDay = RecompBodyCompositionComparison.Build(Today.AddDays(-1), baseline.Append(first), days);
+        Assert.Equal("yellow", firstDay.Fat.Band);
+        Assert.Equal("yellow", firstDay.Muscle.Band);
+        var secondDay = RecompBodyCompositionComparison.Build(Today, baseline.Append(first).Append(second), days);
+        Assert.Equal(favorable ? "green" : "red", secondDay.Fat.Band);
+        Assert.Equal(favorable ? "green" : "red", secondDay.Muscle.Band);
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(30)]
+    public void ReversalAndMissingReadingDoNotConfirmDirection(int days)
+    {
+        var baseline = Enumerable.Range(4, days + 5).Select(i => R(-i));
+        var rows = baseline.Concat([R(-3, fat: .26m, muscle: 81), R(-2, fat: .26m, muscle: null),
+            R(-1, fat: .20m, muscle: 81)]);
+        var chart = RecompBodyCompositionComparison.Build(Today, rows, days);
+        Assert.True(chart.Fat.DisplayChangeLb < 0);
+        Assert.True(chart.Muscle.DisplayChangeLb > 0);
+        Assert.Equal("yellow", chart.Fat.Band);
+        Assert.Equal("yellow", chart.Muscle.Band);
     }
     [Fact] public void DeletedAndSupersededReadingsDoNotGetExtraWeight()
     {
