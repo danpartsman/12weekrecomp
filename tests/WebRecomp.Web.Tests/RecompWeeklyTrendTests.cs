@@ -8,14 +8,35 @@ public sealed class RecompWeeklyTrendTests
     private static Measurement Reading(int offset,decimal weight=200,decimal muscle=80) => new()
     { MeasurementId=Guid.NewGuid(),LocalMeasurementDate=Today.AddDays(offset),WeightLb=weight,BodyFatPct=.25m,SkeletalMuscleMassLb=muscle };
     [Theory]
-    [InlineData(-1,1,"Favorable")] [InlineData(-1,0,"Favorable")]
-    [InlineData(0,1,"Favorable")] [InlineData(1,1,"Mixed")]
-    [InlineData(-1,-1,"Mixed")] [InlineData(1,0,"Needs review")]
-    [InlineData(0,-1,"Needs review")] [InlineData(.2,-.2,"Stable")]
-    public void OutcomeAcknowledgesBothFatAndMuscle(double fat,double muscle,string expected) =>
-        Assert.Equal(expected,RecompWeeklyTrend.Outcome((decimal)fat,(decimal)muscle));
-    [Fact] public void MissingMetricDoesNotProduceFavorableOrBadOutcome() =>
-        Assert.Equal("Partial evidence",RecompWeeklyTrend.Outcome(1,null));
+    [InlineData(196,81,"Favorable","green")]
+    [InlineData(196,80,"Favorable","green")]
+    [InlineData(200,81,"Favorable","green")]
+    [InlineData(204,81,"Mixed","yellow")]
+    [InlineData(196,79,"Mixed","yellow")]
+    [InlineData(204,80,"Needs review","red")]
+    [InlineData(200,79,"Needs review","red")]
+    [InlineData(200,80,"Stable","gray")]
+    public void DotsCombineTheConfirmedFatAndMuscleDirections(int weight, int muscle, string status, string band)
+    {
+        var readings = Enumerable.Range(3, 20).Select(i => Reading(-i))
+            .Concat([Reading(-2, weight, muscle), Reading(-1, weight, muscle)]);
+        var point = RecompWeeklyTrend.Build(Today, Today.AddDays(-30), readings, [], [], [],
+            new Dictionary<DateOnly, RecompDayEvidence>(), new Dictionary<DateOnly, int?>()).Points.Last();
+        Assert.Equal(status, point.Status);
+        Assert.Equal(band, point.Band);
+    }
+
+    [Fact]
+    public void DotsStartYellowAndCanConfirmAcrossAMissedWeighIn()
+    {
+        var readings = Enumerable.Range(4, 20).Select(i => Reading(-i))
+            .Concat([Reading(-3, 196, 81), Reading(-1, 196, 81)]);
+        var points = RecompWeeklyTrend.Build(Today, Today.AddDays(-30), readings, [], [], [],
+            new Dictionary<DateOnly, RecompDayEvidence>(), new Dictionary<DateOnly, int?>()).Points;
+        Assert.Equal("yellow", points.Single(p => p.Date == Today.AddDays(-2)).Band);
+        Assert.Equal("yellow", points.Single(p => p.Date == Today.AddDays(-1)).Band);
+        Assert.Equal("green", points.Last().Band);
+    }
     [Fact] public void BehaviorDaysEndBeforeMorningScaleAndMissingNutritionIsNotZeroFilled()
     {
         var foods = new[] {
@@ -28,6 +49,7 @@ public sealed class RecompWeeklyTrendTests
         Assert.Equal(1,point.NutritionDays); Assert.Equal(2000m,point.Calories); Assert.Equal(200m,point.Protein);
         Assert.Equal(0,point.PrescriptionDays); Assert.Null(point.TargetCalories); Assert.Null(point.TreatItems);
         Assert.Equal(-1m,point.FatChangeLb); Assert.Equal(1m,point.MuscleChangeLb);
+        Assert.Equal("gray", point.Band);
     }
     [Fact] public void HistoryHasAtMostFortyTwoDailyPointsAndKeepsWeeklyCardCalculation()
     {

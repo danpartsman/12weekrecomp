@@ -45,12 +45,12 @@
         const statuses = points.map((p,i) => `<circle cx="${x(i)}" cy="190" r="3" fill="${p.Band === 'green' ? '#4bff26' : p.Band === 'red' ? '#ff2944' : p.Band === 'gray' ? '#aabed4' : '#ffe500'}"><title>${esc(`${date(p.Date)}: ${p.Status}`)}</title></circle>`).join('');
         root.querySelector('[data-week-trend-plot]').innerHTML = `<svg viewBox="0 0 800 220" role="img" aria-label="Rolling weekly fat and muscle changes with seven-day average body-weight trend; selected periods A and B"><title>Rolling weekly fat and muscle results with body-weight trend</title><line x1="50" y1="105" x2="750" y2="105" stroke="#ffe500"/><line x1="50" y1="30" x2="750" y2="30" stroke="#30445d"/><line x1="50" y1="180" x2="750" y2="180" stroke="#30445d"/><text x="4" y="35" fill="#aabed4">+${max} lb</text><text x="24" y="110" fill="#aabed4">0</text><text x="4" y="185" fill="#aabed4">−${max} lb</text><text x="796" y="35" text-anchor="end" fill="#55c7ff">${weightMax} lb</text><text x="796" y="180" text-anchor="end" fill="#55c7ff">${weightMin} lb</text>${series('FatChangeLb','#ff6685')}${series('MuscleChangeLb','#4bff26')}${weightSeries()}${marks}${statuses}<text x="50" y="213" fill="#aabed4">${esc(date(points[0].Date))}</text><text x="750" y="213" text-anchor="end" fill="#aabed4">${esc(date(points[points.length-1].Date))}</text></svg>`;
     }
-    const note = p => p.Status === 'Estimated direction · unconfirmed' ? 'These estimates have adequate reading coverage but do not establish tissue gain or loss. Compare weight, waist and strength trends under consistent measurement conditions.'
-        : p.Status === 'Favorable' ? 'Fat and muscle estimates moved in a favorable combination. Compare the logged routine with your other selected period.'
-        : p.Status === 'Mixed' && p.MuscleChangeLb > .2 ? 'Muscle improved while fat increased. Preserve muscle support and review food quantities, daily activity, workout reporting and the prescription together.'
+    const note = p => p.Status === 'New direction' ? 'A new fat or muscle direction is waiting for a second weigh-in day.'
+        : p.Status === 'Favorable' ? 'Fat loss or muscle gain persisted across two weigh-in days.'
+        : p.Status === 'Mixed' && p.MuscleChangeLb > 0 ? 'Muscle improved while fat increased. Preserve muscle support and review food quantities, daily activity, workout reporting and the prescription together.'
         : p.Status === 'Mixed' ? 'Fat decreased while muscle also decreased. Review training, protein support and the size of the deficit together.'
         : p.Status === 'Needs review' ? 'One or both estimates moved away from the intended recomp direction. Compare the inputs before changing the plan.'
-        : p.Status === 'Stable' ? 'Both changes are within the display tolerance. Compare consistency and longer-term direction.'
+        : p.Status === 'Stable' ? 'Both displayed changes are zero.'
         : 'Both fat and muscle comparisons are needed to classify this period. Available values are shown.';
     function render() {
         const pa = points[Number(a.value)], pb = points[Number(b.value)];
