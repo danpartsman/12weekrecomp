@@ -1,7 +1,10 @@
 using System.Text.Json;
 namespace WebRecomp.Web.Services.Coaching;
 
-public sealed record AccountabilityCharge(string Key, DateOnly Date, string Kind, string Description, decimal Amount, decimal RawAmount, bool Ready = true, bool Settle = true, string TermsKey = "");
+public sealed record AccountabilityCharge(string Key, DateOnly Date, string Kind, string Description, decimal Amount, decimal RawAmount, bool Ready = true, bool Settle = true, string TermsKey = "")
+{
+    public string[] Details { get; init; } = [];
+}
 public static class AccountabilityAssessment
 {
     public static string RuleTermsKey(AccountabilityState state,AccountabilityRule rule) => AccountabilityDocument.HashTerms(JsonSerializer.Serialize(new{rule,state.Agreement},AccountabilityDocument.Json));

@@ -1,3 +1,4 @@
+using System.Globalization;
 using WebRecomp.Web.Controllers;
 using WebRecomp.Web.Models;
 using WebRecomp.Web.ViewModels;
@@ -8,7 +9,7 @@ public sealed record CoachFinancialReview(bool Excused, int? CheatFoods);
 
 internal sealed record AgreementDay(
     NutritionDay? Nutrition, CoachSummaryPrescription? Target, bool NutritionComplete, bool HasScaleOrRecovery,
-    bool WorkoutPlanned, bool WorkoutCompleted, bool Excused, int? CheatFoods);
+    bool WorkoutPlanned, bool WorkoutCompleted, bool Excused, int? CheatFoods, string? CheatFoodNames = null);
 
 internal sealed record AgreementPeriod(
     CoachFinancialAgreement Agreement, int RuleIndex, DateOnly Start, DateOnly End);
@@ -81,7 +82,34 @@ internal static class AgreementSettlement
         var key = $"agreement:{coach:N}:{period.RuleIndex}:{period.Start:yyyy-MM-dd}:{period.End:yyyy-MM-dd}";
         var dates = period.Start == period.End ? $"{period.End:yyyy-MM-dd}" : $"{period.Start:yyyy-MM-dd} to {period.End:yyyy-MM-dd}";
         return new(key, period.End, period.RuleIndex >= 8 ? "incentive-client" : "penalty",
-            $"{rule.Name} · {dates} · agreement revision {period.Agreement.Revision}", amount, raw);
+            $"{rule.Name} · {dates} · agreement revision {period.Agreement.Revision}", amount, raw)
+        {
+            Details = ChargeDetails(period, evidence)
+        };
+    }
+
+    private static string[] ChargeDetails(AgreementPeriod period, IReadOnlyList<AgreementDay> evidence)
+    {
+        if (period.RuleIndex is not (< 4 or 7)) return [];
+        var rule = period.Agreement.Rules[period.RuleIndex];
+        if (!rule.Enabled || rule.Amount <= 0) return [];
+
+        var details = new List<string>();
+        for (var i = 0; i < evidence.Count; i++)
+        {
+            var day = evidence[i];
+            if (day.Excused) continue;
+            var date = period.Start == period.End ? "" : period.Start.AddDays(i).ToString("MMM d", CultureInfo.InvariantCulture) + ": ";
+            if (period.RuleIndex == 7 && day.CheatFoods is > 0)
+                details.Add($"{date}{day.CheatFoods} cheat-food {(day.CheatFoods == 1 ? "portion" : "portions")}: {day.CheatFoodNames ?? "food names unavailable"}");
+            if (period.RuleIndex < 4 && Comparison(day, rule, period.RuleIndex) is { } comparison && comparison.Outside)
+            {
+                var unit = period.RuleIndex == 3 ? "kcal" : "g";
+                var target = comparison.Target is { } value ? $" vs {value:0.##} {unit} target" : "";
+                details.Add($"{date}{comparison.Actual:0.##} {unit}{target} (allowed {comparison.Lower:0.##}–{comparison.Upper:0.##} {unit})");
+            }
+        }
+        return details.ToArray();
     }
 
     private static int? AnyViolation(IEnumerable<bool?> values)
@@ -99,7 +127,15 @@ internal static class AgreementSettlement
         return violations is null ? null : violations == 0 ? 1 : 0;
     }
 
-    private static bool? Outside(AgreementDay day, CoachFinancialRule rule, int index)
+    private sealed record NutritionComparison(decimal Actual, decimal Lower, decimal Upper, decimal? Target = null)
+    {
+        public bool Outside => Actual < Lower || Actual > Upper;
+    }
+
+    private static bool? Outside(AgreementDay day, CoachFinancialRule rule, int index) =>
+        Comparison(day, rule, index)?.Outside;
+
+    private static NutritionComparison? Comparison(AgreementDay day, CoachFinancialRule rule, int index)
     {
         if (!day.NutritionComplete) return null;
         var nutrition = day.Nutrition!;
@@ -111,10 +147,10 @@ internal static class AgreementSettlement
             _ => nutrition.ActualCalories!.Value
         };
         if (rule.LimitMode == "actual" && rule.LowerLimit is decimal lower && rule.UpperLimit is decimal upper)
-            return actual < lower || actual > upper;
+            return new(actual, lower, upper);
         if (rule.LimitMode != "system-percent" || day.Target is not { } target) return null;
         var baseline = index switch { 0 => target.ProteinG, 1 => target.CarbsG, 2 => target.FatG, _ => target.Calories };
         if (baseline <= 0 || rule.LowerLimit is not decimal under || rule.UpperLimit is not decimal over) return null;
-        return actual < baseline * (1 - under / 100) || actual > baseline * (1 + over / 100);
+        return new(actual, baseline * (1 - under / 100), baseline * (1 + over / 100), baseline);
     }
 }

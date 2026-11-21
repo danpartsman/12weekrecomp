@@ -14,6 +14,7 @@ using WebRecomp.Web.Models;
 using WebRecomp.Web.Services;
 using WebRecomp.Web.Services.Coaching;
 using WebRecomp.Web.Services.Notifications;
+using WebRecomp.Web.ViewModels;
 
 namespace WebRecomp.Web.Tests;
 
@@ -493,6 +494,7 @@ public sealed class CoachNotificationTests
         Assert.All(entries, entry => Assert.Equal(date, entry.Date));
         Assert.Equal(5m, entries.Single(entry => entry.CoachUserId == f.Coach).Amount);
         Assert.Equal(8m, entries.Single(entry => entry.CoachUserId == other).Amount);
+        Assert.All(entries, entry => Assert.Equal("100 g (allowed 150–210 g)", Assert.Single(entry.Details)));
 
         var correction = await f.Db.NutritionDays.SingleAsync();
         correction.ActualProteinG = 180;
@@ -589,6 +591,7 @@ public sealed class CoachNotificationTests
         var entry = Assert.Single(await ledger.ReadAsync(row, default));
         Assert.Equal(f.Coach, entry.CoachUserId);
         Assert.Equal(15m, entry.Amount);
+        Assert.Equal("1 cheat-food portion: The Original", Assert.Single(entry.Details));
 
         f.Db.AnalysisRuns.Add(new()
         {
@@ -599,7 +602,9 @@ public sealed class CoachNotificationTests
         await f.Db.SaveChangesAsync();
         clock.Now = clock.Now.AddMinutes(15);
         await job.RunAsync(default);
-        Assert.Equal(30m, (await ledger.ReadAsync(row, default)).Sum(x => x.Amount));
+        var assessed = await ledger.ReadAsync(row, default);
+        Assert.Equal(30m, assessed.Sum(x => x.Amount));
+        Assert.Equal("2 cheat-food portions: food names unavailable", Assert.Single(assessed.Last().Details));
 
         SaveFinancial(f, agreement with { Reviews = new() { [date] = new(false, 0) } });
         clock.Now = clock.Now.AddMinutes(15);
@@ -608,6 +613,48 @@ public sealed class CoachNotificationTests
         var entries = await ledger.ReadAsync(row, default);
         Assert.Equal(3, entries.Count);
         Assert.Equal(0m, entries.Sum(x => x.Amount));
+    }
+
+    [Fact]
+    public async Task ScheduledCarbChargeSavesTheActualTargetAndAllowedRange()
+    {
+        using var f = new Fixture();
+        await SeedFinancial(f);
+        f.Config["SimpleCoaching:Enabled"] = "true";
+        (await f.Db.Clients.SingleAsync()).TimeZone = "UTC";
+        var date = new DateOnly(2026, 11, 2);
+        f.Db.NutritionDays.Add(new()
+        {
+            NutritionDayId = Guid.NewGuid(), ClientId = f.Client, ProgramId = Guid.NewGuid(), NutritionDate = date,
+            ActualCalories = 1800, ActualProteinG = 180, ActualCarbsG = 120, ActualFatG = 60
+        });
+        await f.Db.SaveChangesAsync();
+        var acceptedAt = new DateTime(2026, 11, 1, 12, 0, 0, DateTimeKind.Utc);
+        SaveFinancial(f, new(2, "accepted", acceptedAt, f.Owner, null,
+            Enumerable.Range(0, 10).Select(i => new CoachFinancialRule("Carbs outside range", i == 1,
+                "daily", 15, 0, 0, "Carbohydrate limit", "system-percent", 10, 10)).ToArray(), acceptedAt, f.Owner));
+        var access = new CoachAccountabilityPreviewService(f.Db, new CoachCenterService(f.Db), null!);
+        var ledger = new AccountabilityLedger(f.Db, access, f.Config);
+        var clock = new SettlementClock { Now = new DateTimeOffset(2026, 11, 3, 0, 1, 0, TimeSpan.Zero) };
+        var job = new AgreementSettlementJob(f.Db, f.Files, new CarbTargets(date), null!,
+            new SimpleCoachingService(f.Db, access, ledger), ledger, f.Config,
+            NullLogger<AgreementSettlementJob>.Instance, clock);
+
+        Assert.Equal(1, await job.RunAsync(default));
+        Assert.Equal(0, await job.RunAsync(default));
+        var row = await f.Db.CoachAccountabilityAgreements.SingleAsync();
+        var charge = Assert.Single(await ledger.ReadAsync(row, default));
+        Assert.Equal(15m, charge.Amount);
+        Assert.Equal("120 g vs 160 g target (allowed 144–176 g)", Assert.Single(charge.Details));
+    }
+
+    private sealed class CarbTargets(DateOnly date) : ICoachSummaryPrescriptionSource
+    {
+        public Task<CoachSummaryTargets> LoadAsync(Guid user, Client client, DateOnly referenceDate, CancellationToken ct) =>
+            Task.FromResult(new CoachSummaryTargets(new Dictionary<DateOnly, CoachSummaryPrescription>
+            {
+                [date] = new(date, 180, 160, 60, 1900, null, null, null, "Test")
+            }));
     }
 
     [Fact]

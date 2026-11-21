@@ -257,6 +257,7 @@ public sealed class AgreementSettlementJob(
             var nutritionComplete = intake is
                 { ActualCalories: not null, ActualProteinG: not null, ActualCarbsG: not null, ActualFatG: not null };
             var cheatFoods = review?.CheatFoods;
+            string? cheatFoodNames = null;
             if (review?.Excused != true)
             {
                 var program = needsCheatFoods
@@ -267,19 +268,34 @@ public sealed class AgreementSettlementJob(
                     cheatFoods = savedCounts.GetValueOrDefault((program.ProgramId, date));
 
                 var checkFoodLog = needsNutrition && nutritionComplete && intake!.EntrySourceCode == "FOOD_LOG";
-                var detectCheatFoods = cheatFoods is null && program?.NutritionFoodLogEnabled == true
+                var readCheatFoods = cheatFoods != 0 && program?.NutritionFoodLogEnabled == true
                     && (intake?.EntrySourceCode is null or "FOOD_LOG" or "MANUAL");
-                if (checkFoodLog || detectCheatFoods)
+                if (checkFoodLog || readCheatFoods)
                 {
-                    var log = await foodLog.GetDailyLogAsync(id, date, ct);
-                    if (checkFoodLog) nutritionComplete = log.Items.Count > 0 && RecompTreatClassifier.Complete(log);
-                    if (detectCheatFoods && RecompTreatClassifier.CanCount(log, intake?.EntrySourceCode))
-                        cheatFoods = RecompTreatClassifier.Count(log);
+                    try
+                    {
+                        var log = await foodLog.GetDailyLogAsync(id, date, ct);
+                        if (checkFoodLog) nutritionComplete = log.Items.Count > 0 && RecompTreatClassifier.Complete(log);
+                        if (readCheatFoods && RecompTreatClassifier.CanCount(log, intake?.EntrySourceCode))
+                        {
+                            var detected = RecompTreatClassifier.Count(log);
+                            cheatFoods ??= detected;
+                            if (cheatFoods == detected && detected > 0)
+                            {
+                                var names = RecompTreatClassifier.FoodNames(log);
+                                if (names.Length > 0) cheatFoodNames = names;
+                            }
+                        }
+                    }
+                    catch (Exception error) when (!checkFoodLog && cheatFoods.HasValue && error is not OperationCanceledException)
+                    {
+                        logger.LogWarning("Could not load food names for a saved cheat-food count ({FailureType}).", error.GetType().Name);
+                    }
                 }
             }
             evidence.Add(date, new(intake, targets.GetValueOrDefault(date), nutritionComplete,
                 scale.Contains(date) || checkins.Contains(date), planned.Length > 0,
-                workouts[date].Count() - done.Count == planned.Length, review?.Excused == true, cheatFoods));
+                workouts[date].Count() - done.Count == planned.Length, review?.Excused == true, cheatFoods, cheatFoodNames));
         }
         return evidence;
     }

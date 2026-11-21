@@ -39,7 +39,13 @@
 <section class="card coach-mobile-ledger-section"><h2>Account history</h2><p>Charges increase the balance. Payments reduce it. Credits apply to future charges.</p>
 @if(history.Count==0){<p>@(Model.ThirtyDays?"No transactions were posted in the last 30 days.":"No entries have been posted yet.")</p>}
 else{<div class="ledger-table-scroll" tabindex="0" role="region" aria-label="Account history; scroll horizontally"><table class="ledger-table coach-mobile-ledger"><thead><tr><th>Posted (@Model.TimeZone)</th><th>Effective date</th><th>Type</th><th>Description</th><th>Increase ($)</th><th>Decrease ($)</th><th>Running balance</th></tr></thead><tbody>
-@foreach(var row in history){var entry=row.Entry;<tr><td>@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(entry.CreatedAtUtc,DateTimeKind.Utc),zone).ToString("MMM d, yyyy HH:mm")</td><td>@entry.Date.ToString("MMM d, yyyy")</td><td>@Kind(entry.Kind)</td><td>@entry.Description</td><td>@(entry.Amount>0?Money(entry.Amount):"—")</td><td>@(entry.Amount<0?Money(-entry.Amount):"—")</td><td>@Money(row.Balance)</td></tr>}
+@foreach(var row in history){var entry=row.Entry;<tr><td>@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(entry.CreatedAtUtc,DateTimeKind.Utc),zone).ToString("MMM d, yyyy HH:mm")</td><td>@entry.Date.ToString("MMM d, yyyy")</td><td>@Kind(entry.Kind)</td><td>
+    @entry.Description
+    @foreach (var detail in entry.Details)
+    {
+        <div class="muted">@detail</div>
+    }
+</td><td>@(entry.Amount>0?Money(entry.Amount):"—")</td><td>@(entry.Amount<0?Money(-entry.Amount):"—")</td><td>@Money(row.Balance)</td></tr>}
 </tbody></table></div>}
 @if(Model.CanRecord && visibleEntries.Any(x=>!x.Automatic && (Model.ActiveCoach || x.Kind is "payment-client" or "payment-coach") && !x.SourceKey.StartsWith("reverse:") && Model.Entries.All(y=>y.SourceKey!="reverse:"+x.Id.ToString("N"))))
 {
