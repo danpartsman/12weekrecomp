@@ -40,8 +40,8 @@
                     const first = current[0];
                     feeMessage.textContent = typeof first.message === 'string' ? first.message : 'Automatic fee posted';
                     ledgerLink.href = first.url;
-                    dialog.querySelector('[data-fee-cash]').hidden = !first.forCoach;
-                    dialog.querySelector('[data-fee-portrait]').hidden = !!first.forCoach;
+                    dialog.querySelector('[data-fee-cash]').hidden = first.noFees || !first.forCoach;
+                    dialog.querySelector('[data-fee-portrait]').hidden = first.noFees || !!first.forCoach;
                 }
 
                 list.replaceChildren();

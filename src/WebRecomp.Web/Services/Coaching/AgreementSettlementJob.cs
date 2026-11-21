@@ -11,13 +11,18 @@ using WebRecomp.Web.ViewModels;
 
 namespace WebRecomp.Web.Services.Coaching;
 
+internal sealed record ZeroFeeNotice(Guid Id, Guid Owner, DateTime CreatedAtUtc);
+
+internal sealed record AgreementSettlementProgress(DateOnly ClosedThrough, ZeroFeeNotice? NoFees = null)
+{
+    public static string Key(Guid client, Guid coach) => $"financial-agreements/settlement-{client:N}-{coach:N}";
+}
+
 public sealed class AgreementSettlementJob(
     RecompDbContext db, NotificationFiles files, ICoachSummaryPrescriptionSource prescriptions, INutritionFoodLogStore foodLog,
     SimpleCoachingService coaching, AccountabilityLedger ledger, IConfiguration configuration,
     ILogger<AgreementSettlementJob> logger, TimeProvider? clock = null)
 {
-    private sealed record Progress(DateOnly ClosedThrough);
-
     // Explicit one-time authorization for one accepted pair and date. Store the
     // pair fingerprint here instead of identifiers from the production account.
     private const string CatchUpPair = "217e6a07cbec1ae9dc296a7dd100e678ce27380a465dabc4487be9ac6ca548ac";
@@ -99,7 +104,7 @@ public sealed class AgreementSettlementJob(
             first = LocalDate(activated).AddDays(1);
         var activationClose = hasLegacyActivation ? first : ClosedThrough(activated);
         var closed = ClosedThrough(now);
-        var progressKey = $"financial-agreements/settlement-{clientId:N}-{coach:N}";
+        var progressKey = AgreementSettlementProgress.Key(clientId, coach);
         using var lease = files.Lease(progressKey);
         var posted = 0;
 
@@ -121,27 +126,38 @@ public sealed class AgreementSettlementJob(
             {
                 var catchUp = AgreementSettlement.DuePeriods(acceptedOnDate, owners[0], zone,
                     CatchUpDate, CatchUpDate, CatchUpDate, includeAcceptanceDay: true);
-                posted += await PostPeriodsAsync(client, coach, owners[0], owners[0], agreement, catchUp, ct);
+                posted += (await PostPeriodsAsync(client, coach, owners[0], owners[0], agreement, catchUp, closed, ct)).Posted;
                 files.Write(receiptKey, true);
             }
         }
 
         if (closed < first || closed < activationClose) return posted;
-        var previous = files.Read<Progress>(progressKey);
+        var previous = files.Read<AgreementSettlementProgress>(progressKey);
 
         // Reconcile missed closes and recent edits only when this job is explicitly triggered.
         var earliestClose = previous is null ? activationClose : previous.ClosedThrough.AddDays(-13);
         if (earliestClose < activationClose) earliestClose = activationClose;
         if (earliestClose < first) earliestClose = first;
         var periods = AgreementSettlement.DuePeriods(versions, owners[0], zone, first, earliestClose, closed);
-        posted += await PostPeriodsAsync(client, coach, owners[0], coach, agreement, periods, ct);
+        var result = await PostPeriodsAsync(client, coach, owners[0], coach, agreement, periods, closed, ct);
+        posted += result.Posted;
         if (previous is null || previous.ClosedThrough < closed)
-            files.Write(progressKey, new Progress(closed));
+        {
+            var acceptedForClose = versions.Any(version => version.Status == "accepted" && version.AcceptedBy == owners[0]
+                && version.Rules.Count == 10 && version.AcceptedUtc is { } accepted && LocalDate(accepted) <= closed);
+            var noFees = posted == 0 && !result.AlreadyPostedForClose && acceptedForClose
+                ? new ZeroFeeNotice(Guid.NewGuid(), owners[0], now) : null;
+            files.Write(progressKey, new AgreementSettlementProgress(closed, noFees));
+        }
+        else if (previous.ClosedThrough == closed && previous.NoFees is not null && (posted > 0 || result.AlreadyPostedForClose))
+        {
+            files.Write(progressKey, previous with { NoFees = null });
+        }
         return posted;
     }
 
-    private async Task<int> PostPeriodsAsync(Client client, Guid coach, Guid owner, Guid actor,
-        CoachFinancialAgreement agreement, IReadOnlyList<AgreementPeriod> periods, CancellationToken ct)
+    private async Task<(int Posted, bool AlreadyPostedForClose)> PostPeriodsAsync(Client client, Guid coach, Guid owner, Guid actor,
+        CoachFinancialAgreement agreement, IReadOnlyList<AgreementPeriod> periods, DateOnly closed, CancellationToken ct)
     {
         var clientId = client.ClientId;
         if (periods.Count != 0)
@@ -174,9 +190,11 @@ public sealed class AgreementSettlementJob(
                 ledger.Append(row, actor, entries);
                 await db.SaveChangesAsync(ct);
             }
-            return entries.Count;
+            var alreadyPosted = existing.Any(entry => entry.Automatic && entry.CoachUserId == coach
+                && entry.Date == closed && entry.SourceKey.StartsWith("agreement:", StringComparison.Ordinal));
+            return (entries.Count, alreadyPosted);
         }
-        return 0;
+        return (0, false);
     }
 
     private async Task<Dictionary<DateOnly, AgreementDay>> LoadEvidenceAsync(Client client, Guid owner,

@@ -6,7 +6,7 @@ using WebRecomp.Web.Services.Notifications;
 
 namespace WebRecomp.Web.Services.Coaching;
 
-public sealed record AutomaticFeeNotice(string Id, string Title, string Url, bool ForCoach, string Message);
+public sealed record AutomaticFeeNotice(string Id, string Title, string Url, bool ForCoach, string Message, bool NoFees = false);
 
 public static class AutomaticFeeNotices
 {
@@ -79,6 +79,18 @@ public static class AutomaticFeeNotices
                     $"/clients/{batch.ClientId:D}/coach-ledger?coachUserId={coachId:D}", forCoach, message));
                 if (notices.Count == 50) return notices;
             }
+        }
+        foreach (var pair in pairs)
+        {
+            var progress = files.Read<AgreementSettlementProgress>(AgreementSettlementProgress.Key(pair.ClientId, pair.CoachId));
+            if (progress?.NoFees is not { } noFees || noFees.CreatedAtUtc < since || !seen.Add(noFees.Id.ToString("N")))
+                continue;
+            var forCoach = !ownedClients.Contains(pair.ClientId);
+            if (!forCoach && noFees.Owner != user) continue;
+            var name = forCoach ? pair.ClientName : pair.CoachName;
+            notices.Add(new(noFees.Id.ToString("N"), $"{name} · No fees assessed · {progress.ClosedThrough:MMM d}",
+                $"/clients/{pair.ClientId:D}/coach-ledger?coachUserId={pair.CoachId:D}", forCoach, "No fees assessed", NoFees: true));
+            if (notices.Count == 50) break;
         }
         return notices;
     }
