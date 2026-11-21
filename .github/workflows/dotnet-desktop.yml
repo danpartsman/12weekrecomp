@@ -713,7 +713,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($connection)) { throw 'TEST database configuration is missing.' }
           $connectionBuilder = [System.Data.Common.DbConnectionStringBuilder]::new()
           try {
-              $connectionBuilder.ConnectionString = $connection
+              $connectionBuilder.set_ConnectionString([string]($connection -join "`n"))
               $catalog = if ($connectionBuilder.ContainsKey('Initial Catalog')) {
                   $connectionBuilder['Initial Catalog']
               } elseif ($connectionBuilder.ContainsKey('Database')) {
