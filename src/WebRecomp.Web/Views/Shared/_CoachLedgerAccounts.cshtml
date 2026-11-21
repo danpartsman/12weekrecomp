@@ -19,5 +19,5 @@
 </div>
 }
 @if(Model.CoachUserId==Guid.Empty){<p>Earlier transactions with an unknown coach appear here.</p>}
-else if(!Model.ActiveCoach){<p>This relationship ended. You can record payments to settle its balance.</p>}
+else if(!Model.ActiveCoach){<p>This coaching relationship has ended. You can still record payments.</p>}
 </section>
