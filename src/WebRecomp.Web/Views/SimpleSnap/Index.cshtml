@@ -97,7 +97,8 @@ Payments are tracked at the coach/client account level rather than allocated to 
  }
  @if (w.PreMobility is { } preMobility)
  {
-     <partial name="_OptionalExercise" model="new SnapAddOnPanel(Model.ClientId, w.Id, Model.CoachUserId, "Pre-mobility · before the Snap", preMobility, savedLive?.AddOnResponses.GetValueOrDefault(preMobility.Id), canRecord && previous?.Finalized != true)" />
+     var panel = new SnapAddOnPanel(Model.ClientId, w.Id, Model.CoachUserId, "Pre-mobility · before the Snap", preMobility, savedLive?.AddOnResponses.GetValueOrDefault(preMobility.Id), canRecord && previous?.Finalized != true);
+     <partial name="_OptionalExercise" model="panel" />
  }
  <section class="snap-live" id="live-@w.Id" data-snap-live data-retry="@((ViewData["SnapResultRetry"] is true).ToString().ToLowerInvariant())" data-workout-id="@w.Id" data-client-id="@Model.ClientId" data-coach="@Model.Coach.ToString().ToLowerInvariant()" data-live-url="@Url.Action("Snapshot","SnapLive",new {clientId=Model.ClientId,workoutId=w.Id})">
  <div class="snap-live-heading"><h3>Workout progression</h3><span data-live-lifecycle>@(previous?.Finalized==true?"Finished":savedLive?.StartedUtc.HasValue==true?"In progress":"Not started")</span></div>
@@ -129,7 +130,8 @@ Payments are tracked at the coach/client account level rather than allocated to 
  </section>
  @if (w.Finisher is { } finisher)
  {
-     <partial name="_OptionalExercise" model="new SnapAddOnPanel(Model.ClientId, w.Id, Model.CoachUserId, "Finisher · after the Snap", finisher, savedLive?.AddOnResponses.GetValueOrDefault(finisher.Id), canRecord)" />
+     var panel = new SnapAddOnPanel(Model.ClientId, w.Id, Model.CoachUserId, "Finisher · after the Snap", finisher, savedLive?.AddOnResponses.GetValueOrDefault(finisher.Id), canRecord);
+     <partial name="_OptionalExercise" model="panel" />
  }
  @if(previous?.Finalized==true){<p>Results saved. Calculated fees and incentives appear in <a asp-controller="AccountabilityLedger" asp-action="Index" asp-route-clientId="@Model.ClientId" asp-route-coachUserId="@assigningCoach">Fees &amp; payments</a>.</p>}
  </details>
